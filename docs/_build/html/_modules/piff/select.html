@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.select &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.select</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.select</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: input</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">run_multi</span><span class="p">,</span> <span class="n">calculateSNR</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span>
+<span class="kn">from</span> <span class="nn">.input</span> <span class="kn">import</span> <span class="n">InputFiles</span>
+
+<div class="viewcode-block" id="Select"><a class="viewcode-back" href="../../select.html#piff.Select">[docs]</a><span class="k">class</span> <span class="nc">Select</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for selecting which stars to use for characterizing the PSF.</span>
+
+<span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
+<span class="sd">    implemented by any derived class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Parameters that derived classes should ignore if they appear in the config dict</span>
+    <span class="c1"># (since they are handled by the base class).</span>
+    <span class="n">base_keys</span><span class="o">=</span> <span class="p">[</span><span class="s1">&#39;min_snr&#39;</span><span class="p">,</span> <span class="s1">&#39;max_snr&#39;</span><span class="p">,</span> <span class="s1">&#39;hsm_size_reject&#39;</span><span class="p">,</span> <span class="s1">&#39;max_pixel_cut&#39;</span><span class="p">,</span> <span class="s1">&#39;reject_where&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;max_edge_frac&#39;</span><span class="p">,</span> <span class="s1">&#39;stamp_center_size&#39;</span><span class="p">,</span> <span class="s1">&#39;max_mask_pixels&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;reserve_frac&#39;</span><span class="p">,</span> <span class="s1">&#39;seed&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Read the optional parameters that are used by the base class.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_snr</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min_snr&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_snr</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_snr&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_edge_frac&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stamp_center_size</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;stamp_center_size&#39;</span><span class="p">,</span> <span class="mi">13</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_mask_pixels</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_mask_pixels&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;hsm_size_reject&#39;</span><span class="p">,</span> <span class="mf">0.</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_pixel_cut</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_pixel_cut&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reject_where</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;reject_where&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;reserve_frac&#39;</span><span class="p">,</span> <span class="mf">0.</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;seed&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Enable True to be equivalent to 10.  True comes in as 1.0, which would be a</span>
+            <span class="c1"># silly value to use, so it shouldn&#39;t be a problem to turn 1.0 -&gt; 10.0.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span> <span class="o">=</span> <span class="mf">10.</span>
+
+<div class="viewcode-block" id="Select.process"><a class="viewcode-back" href="../../select.html#piff.Select.process">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_select</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select_only</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the select field of the config dict.</span>
+
+<span class="sd">        This stage handles three somewhat separate actions:</span>
+
+<span class="sd">        1. Select which objects in the input catalog are likely to be stars.</span>
+<span class="sd">        2. Reject stars according to a number of possible criteria.</span>
+<span class="sd">        3. Reserve some fraction of the remaining stars to not use for PSF fitting.</span>
+
+<span class="sd">        The first step is handled by the derived classes.  There are a number of possible</span>
+<span class="sd">        algorithms for doing that.  The default select type (Flag) selects objects that</span>
+<span class="sd">        are not flagged, or if no flag property is specified, then uses all input objects.</span>
+
+<span class="sd">        The second and third steps are common to all types and are handled by the base class.</span>
+
+<span class="sd">        The following parameters are relevant to steps 2 and 3 and are allowed for all</span>
+<span class="sd">        select types:</span>
+
+<span class="sd">            :min_snr:       The minimum S/N ratio to use.  If an input star is too faint, it is</span>
+<span class="sd">                            removed from the input list of PSF stars.</span>
+<span class="sd">            :max_snr:       The maximum S/N ratio to allow for any given star.  If an input star</span>
+<span class="sd">                            is too bright, it can have too large an influence on the interpolation,</span>
+<span class="sd">                            so this parameter limits the effective S/N of any single star.</span>
+<span class="sd">                            Basically, it adds noise to bright stars to lower their S/N down to</span>
+<span class="sd">                            this value.  [default: 100]</span>
+<span class="sd">            :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of</span>
+<span class="sd">                            the postage stamp. [default: None]</span>
+<span class="sd">            :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as</span>
+<span class="sd">                            defining the edge of the stamp for the purpose of the max_edge_fact cut.</span>
+<span class="sd">                            The default value of 13 is most of the radius of a 32x32 stamp size.</span>
+<span class="sd">                            If you change stamp_size, you should consider what makes sense here.</span>
+<span class="sd">                            [default 13].</span>
+<span class="sd">            :max_mask_pixels: If given, reject stars with more than this many masked pixels</span>
+<span class="sd">                            (i.e. those with w=0). [default: None]</span>
+<span class="sd">            :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than</span>
+<span class="sd">                            the other stars in the input catalog.  (Used to reject objects with</span>
+<span class="sd">                            neighbors or other junk in the postage stamp.) [default: False]</span>
+<span class="sd">                            If this is a float value, it gives the number of inter-quartile-ranges</span>
+<span class="sd">                            to use for rejection relative to the median.  hsm_size_reject=True</span>
+<span class="sd">                            is equivalent to hsm_size_reject=10.</span>
+<span class="sd">            :max_pixel_cut: Reject stars with a maximum pixel value greater than this value.</span>
+<span class="sd">                            Note: this cut is actually made using a flux cut such that the average</span>
+<span class="sd">                            star with the threshold flux would have this peak pixel value.</span>
+<span class="sd">                            This is in order to avoid a selection bias where smaller stars get</span>
+<span class="sd">                            preferentially excluded, since smaller stars, at a given flux, have a</span>
+<span class="sd">                            higher maximum pixel value. [default: None]</span>
+<span class="sd">            :reject_where:  Reject stars based on an arbitrary eval string using variables that</span>
+<span class="sd">                            are properties of each star (usually input using property_cols).</span>
+<span class="sd">                            It should evaluate to a bool for a single star or an array of bool</span>
+<span class="sd">                            if the variables are arrays of property values for all the stars.</span>
+<span class="sd">                            [default: None]</span>
+<span class="sd">            :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they</span>
+<span class="sd">                            can serve as fair points for diagnostic testing.  These stars will</span>
+<span class="sd">                            not be used to constrain the PSF model, but the output files will</span>
+<span class="sd">                            contain the reserve stars, flagged as such.  Generally 0.2 is a</span>
+<span class="sd">                            good choice if you are going to use this. [default: 0.]</span>
+<span class="sd">            :seed:          A seed to use for numpy.random.default_rng, if desired. [default: None]</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            The max_snr parameter is not actually a &quot;selection&quot; parameter.  It doesn&#39;t change</span>
+<span class="sd">            what stars are used.  Rather, it adjusts the relative weight that is given to the</span>
+<span class="sd">            brightest stars (so that they don&#39;t dominate the fit).</span>
+
+<span class="sd">        :param config_select:   The configuration dict.</span>
+<span class="sd">        :param objects:         A list of Star instances, which are at this point all potential</span>
+<span class="sd">                                objects to consider as possible stars.</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param select_only:     Whether to stop after the primary selection step. [default: False]</span>
+
+<span class="sd">        :returns: stars, the subset of objects which are to be considered stars</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="c1"># Get the class to use for handling the selection</span>
+        <span class="c1"># Default type is &#39;Files&#39;</span>
+        <span class="n">select_handler_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">piff</span><span class="p">,</span> <span class="n">config_select</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="s1">&#39;Flag&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;Select&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Build handler object</span>
+        <span class="n">select_handler</span> <span class="o">=</span> <span class="n">select_handler_class</span><span class="p">(</span><span class="n">config_select</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Creat a list of Star objects</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="n">select_handler</span><span class="o">.</span><span class="n">selectStars</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No stars were selected.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">select_only</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">stars</span>
+
+        <span class="c1"># Reject bad stars</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="n">select_handler</span><span class="o">.</span><span class="n">rejectStars</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;All stars were rejected.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Mark the reserve stars</span>
+        <span class="n">select_handler</span><span class="o">.</span><span class="n">reserveStars</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">stars</span></div>
+
+<div class="viewcode-block" id="Select.selectStars"><a class="viewcode-back" href="../../select.html#piff.Select.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+
+<span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a list of Star instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the selectStars function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Select.reserveStars"><a class="viewcode-back" href="../../select.html#piff.Select.reserveStars">[docs]</a>    <span class="k">def</span> <span class="nf">reserveStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mark some of the stars as reserve stars.</span>
+
+<span class="sd">        This operates on the star list in place, adding the property ``is_reserve``</span>
+<span class="sd">        to each star (only if some stars are being reserved).</span>
+
+<span class="sd">        :param stars:       A list of Star instances.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Apply the reserve separately on each ccd, so they each reserve 20% of their stars</span>
+        <span class="c1"># (or whatever fraction).  We wouldn&#39;t want to accidentally reserve all the stars on</span>
+        <span class="c1"># one of the ccds by accident, for instance.</span>
+        <span class="n">chipnums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">))</span>
+        <span class="n">all_stars</span> <span class="o">=</span> <span class="p">[</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span> <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">chipnum</span><span class="p">]</span> <span class="k">for</span> <span class="n">chipnum</span> <span class="ow">in</span> <span class="n">chipnums</span><span class="p">]</span>
+        <span class="n">nreserve_all</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">chip_stars</span> <span class="ow">in</span> <span class="n">all_stars</span><span class="p">:</span>
+            <span class="c1"># Mark a fraction of the stars as reserve stars</span>
+            <span class="n">nreserve</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">chip_stars</span><span class="p">))</span>  <span class="c1"># round down</span>
+            <span class="n">nreserve_all</span> <span class="o">+=</span> <span class="n">nreserve</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reserve </span><span class="si">%s</span><span class="s2"> of </span><span class="si">%s</span><span class="s2"> (reserve_frac=</span><span class="si">%s</span><span class="s2">) input stars on chip </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="n">nreserve</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">reserve_frac</span><span class="p">,</span> <span class="n">chip_stars</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;chipnum&#39;</span><span class="p">])</span>
+            <span class="n">reserve_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chip_stars</span><span class="p">),</span> <span class="n">nreserve</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chip_stars</span><span class="p">):</span>
+                <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;is_reserve&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">reserve_list</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Reserved </span><span class="si">%s</span><span class="s2"> of </span><span class="si">%s</span><span class="s2"> total stars&quot;</span><span class="p">,</span> <span class="n">nreserve_all</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Select.rejectStars"><a class="viewcode-back" href="../../select.html#piff.Select.rejectStars">[docs]</a>    <span class="k">def</span> <span class="nf">rejectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reject some nominal stars that may not be good exemplars of the PSF.</span>
+
+<span class="sd">        :param stars:       A list of Star instances.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: The subset of the input list that passed the rejection cuts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start rejectStars: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">stamp_size</span> <span class="o">=</span> <span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">cen</span> <span class="o">=</span> <span class="p">(</span><span class="n">stamp_size</span><span class="o">-</span><span class="mf">1.</span><span class="p">)</span><span class="o">/</span><span class="mf">2.</span>            <span class="c1"># index at center of array.  May be half-integral.</span>
+            <span class="n">i</span><span class="p">,</span><span class="n">j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ogrid</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">stamp_size</span><span class="p">,</span><span class="mi">0</span><span class="p">:</span><span class="n">stamp_size</span><span class="p">]</span>
+            <span class="n">edge_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="n">cen</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">j</span><span class="o">-</span><span class="n">cen</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stamp_center_size</span><span class="o">**</span><span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">edge_mask</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">good_stars</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">:</span>
+            <span class="c1"># Here we remove stars that have been at least partially covered by a mask</span>
+            <span class="c1"># and thus have weight exactly 0 in at least a certain number of pixels of their</span>
+            <span class="c1"># postage stamp</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_mask_pixels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">n_masked</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">n_masked</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_mask_pixels</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> has </span><span class="si">%i</span><span class="s2"> masked pixels, &quot;</span><span class="p">,</span>
+                                <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">n_masked</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># Check the snr and limit it if appropriate</span>
+            <span class="n">snr</span> <span class="o">=</span> <span class="n">calculateSNR</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SNR = </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">snr</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_snr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">snr</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_snr</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> with snr=</span><span class="si">%f</span><span class="s2">.&quot;</span><span class="p">,</span>
+                            <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">snr</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_snr</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">snr</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_snr</span><span class="p">:</span>
+                <span class="n">factor</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_snr</span> <span class="o">/</span> <span class="n">snr</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Scaling noise by factor of </span><span class="si">%f</span><span class="s2"> to achieve snr=</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
+                             <span class="n">factor</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_snr</span><span class="p">)</span>
+                <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">weight</span> <span class="o">*=</span> <span class="n">factor</span>
+                <span class="n">snr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_snr</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;SNR =&gt; </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">snr</span><span class="p">)</span>
+            <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;snr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">snr</span>
+
+            <span class="c1"># Reject stars with lots of flux near the edge of the stamp.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">flux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">flux_extra</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">[</span><span class="n">edge_mask</span><span class="p">])</span>
+                    <span class="n">flux_frac</span> <span class="o">=</span> <span class="n">flux_extra</span> <span class="o">/</span> <span class="n">flux</span>
+                <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> overlaps the edge of the image and &quot;</span><span class="o">+</span>
+                                <span class="s2">&quot;max_edge_frac cut is set.&quot;</span><span class="p">,</span>
+                                <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">flux_frac</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> fraction of flux near edge of stamp &quot;</span><span class="o">+</span>
+                                <span class="s2">&quot;exceeds cut: </span><span class="si">%f</span><span class="s2"> &gt; </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
+                                <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+                                <span class="n">flux_frac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_edge_frac</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping this star.&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reject_where</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Use the eval_where function of PropertiesSelect</span>
+                <span class="n">reject</span> <span class="o">=</span> <span class="n">PropertiesSelect</span><span class="o">.</span><span class="n">eval_where</span><span class="p">([</span><span class="n">star</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">reject_where</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">reject</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping star at position </span><span class="si">%f</span><span class="s2">,</span><span class="si">%f</span><span class="s2"> due to reject_where&quot;</span><span class="p">,</span>
+                                <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;reject_where string: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">reject_where</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;star properties = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># Add Poisson noise now.  It&#39;s not a rejection step, but it&#39;s something we want</span>
+            <span class="c1"># to do to all the stars at the start, so they have the right noise level.</span>
+            <span class="c1"># We didn&#39;t do it earlier for efficiency reasons, in case the full set of objects</span>
+            <span class="c1"># included lots of non-stars.</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">addPoisson</span><span class="p">()</span>
+
+            <span class="n">good_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+
+        <span class="c1"># Calculate the hsm size for each star and throw out extreme outliers.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="p">[</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">good_stars</span><span class="p">]</span>
+            <span class="n">med_sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
+            <span class="n">iqr_sigma</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">iqr</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Doing hsm sigma rejection.&quot;</span><span class="p">)</span>
+            <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sigma</span> <span class="o">-</span> <span class="n">med_sigma</span><span class="p">))</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">hsm_size_reject</span> <span class="o">*</span> <span class="n">iqr_sigma</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;median = </span><span class="si">%s</span><span class="s2">, iqr = </span><span class="si">%s</span><span class="s2">, max_diff = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                                <span class="n">med_sigma</span><span class="p">,</span> <span class="n">iqr_sigma</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sigma</span><span class="o">-</span><span class="n">med_sigma</span><span class="p">)))</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sigma</span><span class="o">-</span><span class="n">med_sigma</span><span class="p">))</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;remove k=</span><span class="si">%d</span><span class="s2">: sigma = </span><span class="si">%s</span><span class="s2">, pos = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">k</span><span class="p">,</span><span class="n">sigma</span><span class="p">[</span><span class="n">k</span><span class="p">],</span><span class="n">good_stars</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+                <span class="k">del</span> <span class="n">sigma</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="k">del</span> <span class="n">good_stars</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">med_sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
+                <span class="n">iqr_sigma</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">iqr</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
+
+        <span class="c1"># Reject based on a maximum pixel value, being careful to not induce a bias that smaller</span>
+        <span class="c1"># stars of a given flux will have higher max pixel values.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pixel_cut</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># find median max_pixel/flux ratio, and use to set flux cut equivalent</span>
+            <span class="c1"># on average to max_pixel_cut</span>
+            <span class="n">max_pixel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">good_stars</span><span class="p">])</span>
+            <span class="c1"># If subtracted sky, need to add it back.</span>
+            <span class="n">max_pixel</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sky&#39;</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">good_stars</span><span class="p">])</span>
+            <span class="n">flux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">good_stars</span><span class="p">])</span>
+            <span class="c1"># Low S/N stars have a max_pixel that is more due to noise than signal.</span>
+            <span class="c1"># Exclude S/N &lt; 40 and also use a median of the bright ones to be more robust</span>
+            <span class="c1"># to noisy max pixel values.</span>
+            <span class="n">bright</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">([(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;snr&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">40</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">good_stars</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Num bright = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">bright</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bright</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">max_pixel</span><span class="p">[</span><span class="n">bright</span><span class="p">]</span> <span class="o">/</span> <span class="n">flux</span><span class="p">[</span><span class="n">bright</span><span class="p">])</span>
+                <span class="n">flux_cut</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pixel_cut</span> <span class="o">/</span> <span class="n">ratio</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;max_pixel/flux ratio = </span><span class="si">%.4f</span><span class="s2">, flux_cut is </span><span class="si">%.1f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ratio</span><span class="p">,</span> <span class="n">flux_cut</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Rejected </span><span class="si">%d</span><span class="s2"> stars for having a flux &gt; </span><span class="si">%.1f</span><span class="s2">, &quot;</span>
+                            <span class="s2">&quot;which implies max_pixel &gt; ~</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">flux</span><span class="o">&gt;=</span><span class="n">flux_cut</span><span class="p">),</span> <span class="n">flux_cut</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_pixel_cut</span><span class="p">)</span>
+                <span class="n">good_stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">f</span><span class="p">,</span><span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">flux</span><span class="p">,</span><span class="n">good_stars</span><span class="p">)</span> <span class="k">if</span> <span class="n">f</span> <span class="o">&lt;</span> <span class="n">flux_cut</span><span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Rejected a total of </span><span class="si">%d</span><span class="s2"> stars out of </span><span class="si">%s</span><span class="s2"> total candidates&quot;</span><span class="p">,</span>
+                       <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">good_stars</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">good_stars</span></div></div>
+
+
+<div class="viewcode-block" id="FlagSelect"><a class="viewcode-back" href="../../select.html#piff.FlagSelect">[docs]</a><span class="k">class</span> <span class="nc">FlagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An Select handler that picks stars according to a flag column in the input catalog.</span>
+
+<span class="sd">    The Flag type uses the following parameters, all optional.</span>
+
+<span class="sd">        :flag_name:     The name of the flag property (typically the column name in the</span>
+<span class="sd">                        input file) to use for selecting stars. [default: None]</span>
+<span class="sd">        :use_flag:      The flag indicating which items to use. [default: None]</span>
+<span class="sd">                        Items with flag &amp; use_flag != 0 will be used.</span>
+<span class="sd">        :skip_flag:     The flag indicating which items not to use. [default: -1]</span>
+<span class="sd">                        Items with flag &amp; skip_flag != 0 will be skipped.</span>
+
+<span class="sd">    The default behavior if flag_name is not given is to consier all input objects as stars.</span>
+<span class="sd">    If flag_name is given, but the others are not, then it selects all objects with flag=0.</span>
+<span class="sd">    Otherwise, it will select according to the prescriptions given above.</span>
+
+<span class="sd">    :param config:      The configuration dict used to define the above parameters.</span>
+<span class="sd">                        (Normally the &#39;select&#39; field in the overall configuration dict).</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FlagSelect</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">opt</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;flag_name&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="s1">&#39;skip_flag&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="s1">&#39;use_flag&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GetAllParams</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">opt</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="n">Select</span><span class="o">.</span><span class="n">base_keys</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flag_name</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;flag_name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_flag</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;skip_flag&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_flag</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;use_flag&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FlagSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.FlagSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+
+<span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a list of Star instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flag_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using all input objects as stars&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">objects</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Selecting stars according to flag </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flag_name</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">flag_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">obj</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">flag_name</span><span class="p">]</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;flag_name = </span><span class="si">{}</span><span class="s2"> is invalid.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flag_name</span><span class="p">))</span>
+
+        <span class="c1"># Follow the same logic as we used in InputFiles for selecting on an overall flag.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_flag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">select</span> <span class="o">=</span> <span class="n">InputFiles</span><span class="o">.</span><span class="n">_flag_select</span><span class="p">(</span><span class="n">flag_array</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_flag</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_flag</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">select</span> <span class="o">&amp;=</span> <span class="n">InputFiles</span><span class="o">.</span><span class="n">_flag_select</span><span class="p">(</span><span class="n">flag_array</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_flag</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">select</span> <span class="o">=</span> <span class="n">InputFiles</span><span class="o">.</span><span class="n">_flag_select</span><span class="p">(</span><span class="n">flag_array</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_flag</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">use</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">select</span><span class="p">,</span> <span class="n">objects</span><span class="p">)</span> <span class="k">if</span> <span class="n">use</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Seleced </span><span class="si">%d</span><span class="s2"> stars from </span><span class="si">%d</span><span class="s2"> total candidates.&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">stars</span></div></div>
+
+<div class="viewcode-block" id="PropertiesSelect"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect">[docs]</a><span class="k">class</span> <span class="nc">PropertiesSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars according to any property or combination of properties</span>
+<span class="sd">    in the input catalog.</span>
+
+<span class="sd">    Parse the config dict (Normally the &#39;where&#39; field in the overall configuration dict).</span>
+
+<span class="sd">    The Properties type uses the following parameter, which is required.</span>
+
+<span class="sd">        :where:     A string to be evaluated, which is allowed to use any properties of</span>
+<span class="sd">                    the stars as variables.  It should evaluate to a bool for a single object</span>
+<span class="sd">                    or an array of bool if the variables are arrays of property values for all</span>
+<span class="sd">                    the objects.</span>
+
+<span class="sd">    :param config:      The configuration dict used to define the above parameters.</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">PropertiesSelect</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">req</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;where&#39;</span><span class="p">:</span> <span class="nb">str</span> <span class="p">}</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GetAllParams</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">req</span><span class="o">=</span><span class="n">req</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="n">Select</span><span class="o">.</span><span class="n">base_keys</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">where</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;where&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="PropertiesSelect.eval_where"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.eval_where">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">eval_where</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">where</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the evaluation of a &quot;where&quot; string using the properties of objects.</span>
+
+<span class="sd">        Used by both PropertiesSelect and the reject_where option.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># Build appropriate locals and globals for the eval statement.</span>
+        <span class="n">gdict</span> <span class="o">=</span> <span class="nb">globals</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c1"># Import some likely packages in case needed.</span>
+        <span class="n">exec</span><span class="p">(</span><span class="s1">&#39;import numpy&#39;</span><span class="p">,</span> <span class="n">gdict</span><span class="p">)</span>
+        <span class="n">exec</span><span class="p">(</span><span class="s1">&#39;import numpy as np&#39;</span><span class="p">,</span> <span class="n">gdict</span><span class="p">)</span>
+        <span class="n">exec</span><span class="p">(</span><span class="s1">&#39;import math&#39;</span><span class="p">,</span> <span class="n">gdict</span><span class="p">)</span>
+
+        <span class="n">ldict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">prop_name</span> <span class="ow">in</span> <span class="n">objects</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">ldict</span><span class="p">[</span><span class="n">prop_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">obj</span><span class="p">[</span><span class="n">prop_name</span><span class="p">]</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span><span class="p">])</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">select</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">gdict</span><span class="p">,</span> <span class="n">ldict</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Caught exception trying to evaluate where string&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trying slower non-numpy array method&quot;</span><span class="p">)</span>
+            <span class="n">select</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span><span class="p">:</span>
+                <span class="n">ldict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">prop_name</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">ldict</span><span class="p">[</span><span class="n">prop_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="n">prop_name</span><span class="p">]</span>
+                <span class="n">select</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">gdict</span><span class="p">,</span> <span class="n">ldict</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">select</span></div>
+
+<div class="viewcode-block" id="PropertiesSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.PropertiesSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+
+<span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a list of Star instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Selecting stars according to </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">where</span><span class="p">)</span>
+
+        <span class="n">select</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_where</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">where</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;select = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">select</span><span class="p">)</span>
+
+        <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">use</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">select</span><span class="p">,</span> <span class="n">objects</span><span class="p">)</span> <span class="k">if</span> <span class="n">use</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Seleced </span><span class="si">%d</span><span class="s2"> stars from </span><span class="si">%d</span><span class="s2"> total candidates.&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">stars</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

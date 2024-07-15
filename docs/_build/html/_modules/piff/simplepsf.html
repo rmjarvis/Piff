@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.simplepsf &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.simplepsf</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.simplepsf</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: psf</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<span class="kn">from</span> <span class="nn">.model</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span> <span class="nn">.interp</span> <span class="kn">import</span> <span class="n">Interp</span>
+<span class="kn">from</span> <span class="nn">.outliers</span> <span class="kn">import</span> <span class="n">Outliers</span>
+<span class="kn">from</span> <span class="nn">.psf</span> <span class="kn">import</span> <span class="n">PSF</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
+
+<div class="viewcode-block" id="SimplePSF"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF">[docs]</a><span class="k">class</span> <span class="nc">SimplePSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF class that uses a single model and interpolator.</span>
+
+<span class="sd">    A SimplePSF is built from a Model and an Interp object.</span>
+<span class="sd">    The model defines the functional form of the surface brightness profile, and the</span>
+<span class="sd">    interpolator defines how the parameters of the model vary across the field of view.</span>
+
+<span class="sd">    :param model:       A Model instance used for modeling the surface brightness profile.</span>
+<span class="sd">    :param interp:      An Interp instance used to interpolate across the field of view.</span>
+<span class="sd">    :param outliers:    Optionally, an Outliers instance used to remove outliers.</span>
+<span class="sd">                        [default: None]</span>
+<span class="sd">    :param chisq_thresh: Change in reduced chisq at which iteration will terminate.</span>
+<span class="sd">                        [default: 0.1]</span>
+<span class="sd">    :param max_iter:    Maximum number of iterations to try. [default: 30]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">interp</span><span class="p">,</span> <span class="n">outliers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chisq_thresh</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span> <span class="o">=</span> <span class="n">interp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="n">outliers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chisq_thresh</span> <span class="o">=</span> <span class="n">chisq_thresh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="n">max_iter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="c1"># model and interp are junk entries that will be overwritten.</span>
+            <span class="c1"># TODO: Come up with a nicer mechanism for specifying items that can be overwritten</span>
+            <span class="c1">#       in the _finish_read function.</span>
+            <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;interp&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;outliers&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;chisq_thresh&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq_thresh</span><span class="p">,</span>
+            <span class="s1">&#39;max_iter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span> <span class="o">=</span> <span class="mf">0.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_delta_chisq</span> <span class="o">=</span> <span class="mf">0.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dof</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">interp_property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">property_names</span>
+
+<div class="viewcode-block" id="SimplePSF.parseKwargs"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_psf</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the psf field of a configuration dict and return the kwargs to use for</span>
+<span class="sd">        initializing an instance of the class.</span>
+
+<span class="sd">        :param config_psf:      The psf field of the configuration dict, config[&#39;psf&#39;]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a kwargs dict to pass to the initializer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_psf</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;interp&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                <span class="c1"># This actually is covered, but for some reason, codecov thinks it isn&#39;t.</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in psf field for type=Simple&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+
+        <span class="c1"># make a Model object to use for the individual stellar fitting</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">Model</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;model&#39;</span><span class="p">),</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="c1"># make an Interp object to use for the interpolation</span>
+        <span class="n">interp</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">Interp</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;interp&#39;</span><span class="p">),</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;interp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">interp</span>
+
+        <span class="k">if</span> <span class="s1">&#39;outliers&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">outliers</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">Outliers</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;outliers&#39;</span><span class="p">),</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;outliers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">outliers</span>
+
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="SimplePSF.fit"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit interpolated PSF model to star data using standard sequence of operations.</span>
+
+<span class="sd">        :param stars:           A list of Star instances.</span>
+<span class="sd">        :param wcs:             A dict of WCS solutions indexed by chipnum.</span>
+<span class="sd">        :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.</span>
+<span class="sd">                                [Note: pointing should be None if the WCS is not a CelestialWCS]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="n">stars</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wcs</span> <span class="o">=</span> <span class="n">wcs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pointing</span> <span class="o">=</span> <span class="n">pointing</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No stars.  Cannot find PSF model.&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initializing models&quot;</span><span class="p">)</span>
+        <span class="c1"># model.initialize may fail</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">new_stars</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">new_star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed initializing star at </span><span class="si">%s</span><span class="s2">. Excluding it.&quot;</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;  -- Caught exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">e</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_star</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No stars removed in initialize step&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Removed </span><span class="si">%d</span><span class="s2"> stars in initialize&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="n">new_stars</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initializing interpolator&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># For basis models, we can compute a quadratic form for chisq, and if we are using</span>
+        <span class="c1"># a basis interpolator, then we can use it.  It&#39;s kind of ugly to query this, but</span>
+        <span class="c1"># the double dispatch makes it tricky to implement this with class heirarchy, so for</span>
+        <span class="c1"># now we just check if we have all the required parts to use the quadratic form</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="p">,</span> <span class="s1">&#39;degenerate_points&#39;</span><span class="p">):</span>
+            <span class="n">quadratic_chisq</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;chisq&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">degenerate_points</span>
+            <span class="n">degenerate_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">degenerate_points</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">quadratic_chisq</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">degenerate_points</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Begin iterations.  Very simple convergence criterion right now.</span>
+        <span class="n">oldchisq</span> <span class="o">=</span> <span class="mf">0.</span>
+        <span class="k">for</span> <span class="n">iteration</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">):</span>
+            <span class="c1"># Select the non-reserve stars for performing the fit</span>
+            <span class="n">use_stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">star</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">star</span><span class="o">.</span><span class="n">is_reserve</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">use_stars</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No stars.  Cannot find PSF model.&quot;</span><span class="p">)</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Iteration </span><span class="si">%d</span><span class="s2">: Fitting </span><span class="si">%d</span><span class="s2"> stars&quot;</span><span class="p">,</span> <span class="n">iteration</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">use_stars</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">use_stars</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;             (</span><span class="si">%d</span><span class="s2"> stars are reserved)&quot;</span><span class="p">,</span>
+                               <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">)</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">use_stars</span><span class="p">))</span>
+
+            <span class="c1"># Perform the fit or compute design matrix as appropriate using just non-reserve stars</span>
+            <span class="n">fit_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">chisq</span> <span class="k">if</span> <span class="n">quadratic_chisq</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit</span>
+
+            <span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># For this iteration</span>
+            <span class="n">new_use_stars</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">use_stars</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">star</span> <span class="o">=</span> <span class="n">fit_fn</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="n">convert_func</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed fitting star at </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Excluding it from this iteration.&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;  -- Caught exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                    <span class="n">nremoved</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_use_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">use_stars</span> <span class="o">=</span> <span class="n">new_use_stars</span>
+
+            <span class="c1"># Perform the interpolation, again using just non-reserve stars</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;             Calculating the interpolation&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">use_stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+            <span class="c1"># Note: From here forward, we are back to using self.stars, rather than use_stars.</span>
+            <span class="c1"># We want to run the interpolation on everything and refit/recenter everything,</span>
+            <span class="c1"># so reserve stars may get outlier rejected as well as non-reserve stars.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">)</span>
+
+            <span class="c1"># Update estimated poisson noise</span>
+            <span class="n">signals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">drawStarList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">addPoisson</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">signal</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">,</span> <span class="n">signals</span><span class="p">)]</span>
+
+            <span class="c1"># Refit and recenter all stars, collect stats</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;             Re-fluxing stars&quot;</span><span class="p">)</span>
+            <span class="n">new_stars</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">new_star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">reflux</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed trying to reflux star at </span><span class="si">%s</span><span class="s2">.  Excluding it.&quot;</span><span class="p">,</span>
+                                    <span class="n">s</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;  -- Caught exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                    <span class="n">nremoved</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_star</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="o">=</span> <span class="n">new_stars</span>
+
+            <span class="c1"># Perform outlier rejection, but not on first iteration for degenerate solvers.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="ow">and</span> <span class="p">(</span><span class="n">iteration</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">degenerate_points</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;             Looking for outliers&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">,</span> <span class="n">nremoved1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span><span class="o">.</span><span class="n">removeOutliers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">nremoved1</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;             No outliers found&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;             Removed </span><span class="si">%d</span><span class="s2"> outliers&quot;</span><span class="p">,</span> <span class="n">nremoved1</span><span class="p">)</span>
+                <span class="n">nremoved</span> <span class="o">+=</span> <span class="n">nremoved1</span>
+
+            <span class="n">chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">chisq</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">is_reserve</span><span class="p">])</span>
+            <span class="n">dof</span>   <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">dof</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stars</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">is_reserve</span><span class="p">])</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;             Total chisq = </span><span class="si">%.2f</span><span class="s2"> / </span><span class="si">%d</span><span class="s2"> dof&quot;</span><span class="p">,</span> <span class="n">chisq</span><span class="p">,</span> <span class="n">dof</span><span class="p">)</span>
+
+            <span class="c1"># Save these so we can write them to the output file.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span> <span class="o">=</span> <span class="n">chisq</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_delta_chisq</span> <span class="o">=</span> <span class="n">oldchisq</span><span class="o">-</span><span class="n">chisq</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dof</span> <span class="o">=</span> <span class="n">dof</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span> <span class="o">+=</span> <span class="n">nremoved</span>  <span class="c1"># Keep track of the total number removed in all iterations.</span>
+
+            <span class="c1"># Very simple convergence test here:</span>
+            <span class="c1"># Note, the lack of abs here means if chisq increases, we also stop.</span>
+            <span class="c1"># Also, don&#39;t quit if we removed any outliers.</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">nremoved</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">oldchisq</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">oldchisq</span><span class="o">-</span><span class="n">chisq</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq_thresh</span><span class="o">*</span><span class="n">dof</span><span class="p">):</span>
+                <span class="k">return</span>
+            <span class="n">oldchisq</span> <span class="o">=</span> <span class="n">chisq</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;PSF fit did not converge.  Max iterations = </span><span class="si">%d</span><span class="s2"> reached.&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SimplePSF.interpolateStarList"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.interpolateStarList">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the stars to have the current interpolated fit parameters according to the</span>
+<span class="sd">        current PSF model.</span>
+
+<span class="sd">        :param stars:       List of Star instances to update.</span>
+
+<span class="sd">        :returns:           List of Star instances with their fit parameters updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">stars</span></div>
+
+<div class="viewcode-block" id="SimplePSF.interpolateStar"><a class="viewcode-back" href="../../psf.html#piff.SimplePSF.interpolateStar">[docs]</a>    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the star to have the current interpolated fit parameters according to the</span>
+<span class="sd">        current PSF model.</span>
+
+<span class="sd">        :param star:        Star instance to update.</span>
+
+<span class="sd">        :returns:           Star instance with its fit parameters updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">star</span></div>
+
+    <span class="k">def</span> <span class="nf">_drawStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="n">copy_image</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+        <span class="k">return</span> <span class="n">prof</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_method</span>
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension to write to.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">chisq_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;chisq&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span><span class="p">,</span>
+            <span class="s1">&#39;last_delta_chisq&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_delta_chisq</span><span class="p">,</span>
+            <span class="s1">&#39;dof&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dof</span><span class="p">,</span>
+            <span class="s1">&#39;nremoved&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">write_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_chisq&#39;</span><span class="p">,</span> <span class="n">chisq_dict</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the chisq info to extension </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_chisq&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_model&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF model to extension </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_model&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_interp&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF interp to extension </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_interp&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF outliers to extension </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension to write to.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">chisq_dict</span> <span class="o">=</span> <span class="n">read_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_chisq&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">chisq_dict</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chisq_dict</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_model&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span> <span class="o">=</span> <span class="n">Interp</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_interp&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="n">Outliers</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_outliers&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="kc">None</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

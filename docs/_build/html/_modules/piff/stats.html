@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.stats &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.stats</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.stats</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the following disclaimer in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: stats</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<div class="viewcode-block" id="Stats"><a class="viewcode-back" href="../../stats.html#piff.Stats">[docs]</a><span class="k">class</span> <span class="nc">Stats</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for getting the statistics of a set of stars.</span>
+
+<span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
+<span class="sd">    implemented by any derived class.</span>
+
+<span class="sd">    The usual code flow for using a Stats instance is:</span>
+
+<span class="sd">        &gt;&gt;&gt; stats = SomeKindofStats(...)</span>
+<span class="sd">        &gt;&gt;&gt; stats.compute(psf, stars, logger)</span>
+<span class="sd">        &gt;&gt;&gt; stats.write(file_name=file_name)</span>
+
+<span class="sd">    There is also a ``plot`` method if you want to make the matplot lib fig, ax and do something</span>
+<span class="sd">    else with it besides just write it to a file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Stats.process"><a class="viewcode-back" href="../../stats.html#piff.Stats.process">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_stats</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the stats field of the config dict.</span>
+
+<span class="sd">        :param config_stats:    The configuration dict for the stats field.</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a Stats instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="c1"># If it&#39;s not a list, make it one.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">config_stats</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">config_stats</span> <span class="o">=</span> <span class="p">[</span><span class="n">config_stats</span><span class="p">]</span>
+
+        <span class="n">stats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">cfg</span> <span class="ow">in</span> <span class="n">config_stats</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="s1">&#39;type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;config[&#39;stats&#39;] has no type field&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Get the class to use for the stats</span>
+            <span class="n">stats_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">piff</span><span class="p">,</span> <span class="n">cfg</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;Stats&#39;</span><span class="p">)</span>
+
+            <span class="c1"># Read any other kwargs in the stats field</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="n">stats_class</span><span class="o">.</span><span class="n">parseKwargs</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+            <span class="n">stats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stats_class</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">stats</span></div>
+
+<div class="viewcode-block" id="Stats.parseKwargs"><a class="viewcode-back" href="../../stats.html#piff.Stats.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_stats</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the stats field of a configuration dict and return the kwargs to use for</span>
+<span class="sd">        initializing an instance of the class.</span>
+
+<span class="sd">        The base class implementation just returns the kwargs as they are, but derived classes</span>
+<span class="sd">        might want to override this if they need to do something more sophisticated with them.</span>
+
+<span class="sd">        :param config_stats:    The stats field of the configuration dict, config[&#39;stats&#39;]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a kwargs dict to pass to the initializer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_stats</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="Stats.compute"><a class="viewcode-back" href="../../stats.html#piff.Stats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the given statistic for a PSF solution on a set of stars.</span>
+
+<span class="sd">        This needs to be done before the statistic is plotted or written to a file.</span>
+
+<span class="sd">        :param psf:         A PSF Object</span>
+<span class="sd">        :param stars:       A list of Star instances.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the plot function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Stats.plot"><a class="viewcode-back" href="../../stats.html#piff.Stats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots for this statistic.</span>
+
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param \**kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.</span>
+
+<span class="sd">        :returns: (fig, ax) The matplotlib figure and axis with the plot(s).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the plot function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Stats.write"><a class="viewcode-back" href="../../stats.html#piff.Stats.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Write plots to a file.</span>
+
+<span class="sd">        :param file_name:   The name of the file to write to. [default: Use self.file_name,</span>
+<span class="sd">                            which is typically read from the config field.]</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param \**kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Note: don&#39;t import matplotlib.pyplot, since that can mess around with the user&#39;s</span>
+        <span class="c1"># pyplot state.  Better to do everything with the matplotlib object oriented API.</span>
+        <span class="c1"># cf. http://www.dalkescientific.com/writings/diary/archive/2005/04/23/matplotlib_without_gui.html</span>
+        <span class="kn">import</span> <span class="nn">matplotlib</span>
+        <span class="kn">from</span> <span class="nn">matplotlib.backends.backend_agg</span> <span class="kn">import</span> <span class="n">FigureCanvasAgg</span>
+
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating plot for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">file_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span>
+        <span class="k">if</span> <span class="n">file_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No file_name specified for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Writing </span><span class="si">%s</span><span class="s2"> plot to file </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span><span class="n">file_name</span><span class="p">)</span>
+
+        <span class="n">canvas</span> <span class="o">=</span> <span class="n">FigureCanvasAgg</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+        <span class="c1"># Do this after we&#39;ve set the canvas to use Agg to avoid warning.</span>
+        <span class="k">if</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">__version__</span> <span class="o">&gt;=</span> <span class="s2">&quot;3.6&quot;</span><span class="p">:</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">set_layout_engine</span><span class="p">(</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">set_tight_layout</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">canvas</span><span class="o">.</span><span class="n">print_figure</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Stats.measureShapes"><a class="viewcode-back" href="../../stats.html#piff.Stats.measureShapes">[docs]</a>    <span class="k">def</span> <span class="nf">measureShapes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">model_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fourth_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                      <span class="n">raw_moments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compare PSF and true star shapes with HSM algorithm</span>
+
+<span class="sd">        :param psf:              A PSF Object</span>
+<span class="sd">        :param stars:            A list of Star instances.</span>
+<span class="sd">        :param model_properties: Optionally a dict of properties to use for the model rendering.</span>
+<span class="sd">                                 The default behavior is to use the properties of the star itself</span>
+<span class="sd">                                 for any properties that are not overridden by model_properties.</span>
+<span class="sd">                                 [default: None]</span>
+<span class="sd">        :param fourth_order:     Whether to include the fourth-order quantities as well in columns</span>
+<span class="sd">                                 7 through 11 of the output array. [default: False]</span>
+<span class="sd">        :param raw_moments:      Whether to include the complete set of raw moments as calculated</span>
+<span class="sd">                                 by `calculate_moments`.  If requested, these come after the</span>
+<span class="sd">                                 fourth-order quantities if those are being returned or after the</span>
+<span class="sd">                                 regular quantities otherwise.  Either way they are the last 18</span>
+<span class="sd">                                 columns in the output array. [default: False]</span>
+<span class="sd">        :param logger:           A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns:           positions of stars, shapes of stars, and shapes of</span>
+<span class="sd">                            models of stars (T, g1, g2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">calculate_moments</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># measure moments with Gaussian on image</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Measuring shapes of real stars&quot;</span><span class="p">)</span>
+
+        <span class="n">shapes_data</span> <span class="o">=</span> <span class="p">[</span> <span class="nb">list</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">]</span>
+        <span class="n">nshapes</span> <span class="o">=</span> <span class="mi">7</span>
+
+        <span class="k">if</span> <span class="n">fourth_order</span> <span class="ow">or</span> <span class="n">raw_moments</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fourth_order</span><span class="p">:</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fourth_order</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">nshapes</span> <span class="o">+=</span> <span class="mi">5</span>
+            <span class="k">if</span> <span class="n">raw_moments</span><span class="p">:</span>
+                <span class="n">nshapes</span> <span class="o">+=</span> <span class="mi">18</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">third_order</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fourth_order</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">radial</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stars</span><span class="p">):</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">m</span> <span class="o">=</span> <span class="n">calculate_moments</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="c1"># Make sure the flag is set.</span>
+                    <span class="k">if</span> <span class="s1">&#39;HSM failed&#39;</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="n">d</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+                        <span class="c1"># The HSM failed error is the only one we expect, but just in case...</span>
+                        <span class="n">d</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="n">d</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">nshapes</span> <span class="o">-</span> <span class="mi">7</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">fourth_order</span><span class="p">:</span>
+                        <span class="n">d</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M22&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">],</span>
+                                <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M31&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M13&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M40&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M04&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">])</span>
+
+                        <span class="c1"># Subtract off 3e from the 4th order shapes to remove the leading order</span>
+                        <span class="c1"># term from the overall ellipticity, which is already captured in the</span>
+                        <span class="c1"># second order shape.  (For a Gaussian, this makes g4 very close to 0.)</span>
+                        <span class="n">shape</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">g2</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+                        <span class="n">d</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">3</span><span class="o">*</span><span class="n">shape</span><span class="o">.</span><span class="n">e1</span>
+                        <span class="n">d</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">3</span><span class="o">*</span><span class="n">shape</span><span class="o">.</span><span class="n">e2</span>
+                    <span class="k">if</span> <span class="n">raw_moments</span><span class="p">:</span>
+                        <span class="n">d</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M00&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M10&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M01&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M20&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M02&#39;</span><span class="p">],</span>
+                                <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M21&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M12&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M30&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M03&#39;</span><span class="p">],</span>
+                                <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M22&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M31&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M13&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M40&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M04&#39;</span><span class="p">],</span>
+                                <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M22n&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M33n&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M44n&#39;</span><span class="p">]])</span>
+
+        <span class="c1"># Turn it into a proper numpy array.</span>
+        <span class="n">shapes_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">shapes_data</span><span class="p">)</span>
+        <span class="c1"># If no stars, then shapes_data is the wrong shape.  This line is normally a no op</span>
+        <span class="c1"># but makes things work right if len(stars)=0.</span>
+        <span class="n">shapes_data</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">),</span><span class="n">nshapes</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">star</span><span class="p">,</span> <span class="n">shape</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">shapes_data</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;real shape for star at </span><span class="si">%s</span><span class="s2"> is </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+
+        <span class="c1"># Convert from sigma to T</span>
+        <span class="c1"># Note: the hsm sigma is det(M)^1/4, not sqrt(T/2), so need to account for the effect</span>
+        <span class="c1">#       of the ellipticity.</span>
+        <span class="c1">#       If M = [ sigma^2 (1+e1)   sigma^2 e2   ]</span>
+        <span class="c1">#              [   sigma^2 e2   sigma^2 (1-e1) ]</span>
+        <span class="c1">#       Then:</span>
+        <span class="c1">#         det(M) = sigma^4 (1-|e|^2) = sigma_hsm^4</span>
+        <span class="c1">#         T = tr(M) = 2 * sigma^2</span>
+        <span class="c1">#       So:</span>
+        <span class="c1">#         T = 2 * sigma_hsm^2 / sqrt(1-|e|^2)</span>
+        <span class="c1"># Using |e| = 2 |g| / (1+|g|^2), we obtain:</span>
+        <span class="c1">#         T = 2 * sigma_hsm^2 * (1+|g|^2)/(1-|g|^2)</span>
+        <span class="n">gsq</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[:,</span><span class="mi">4</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">shapes_data</span><span class="p">[:,</span><span class="mi">5</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">shapes_data</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">shapes_data</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">gsq</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">gsq</span><span class="p">)</span>
+
+        <span class="c1"># Pull out the positions to return</span>
+        <span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">],</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">])</span>
+                               <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">])</span>
+
+        <span class="c1"># generate the model stars and measure moments</span>
+        <span class="k">if</span> <span class="n">psf</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shapes_model</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Generating and Measuring Model Stars&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">model_properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">star</span><span class="o">.</span><span class="n">withProperties</span><span class="p">(</span><span class="o">**</span><span class="n">model_properties</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span>
+                <span class="n">stars</span> <span class="o">=</span> <span class="n">psf</span><span class="o">.</span><span class="n">interpolateStarList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+            <span class="n">model_stars</span> <span class="o">=</span> <span class="n">psf</span><span class="o">.</span><span class="n">drawStarList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+            <span class="n">shapes_model</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">model_stars</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">fourth_order</span> <span class="ow">or</span> <span class="n">raw_moments</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">model_stars</span><span class="p">):</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">m</span> <span class="o">=</span> <span class="n">calculate_moments</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="s1">&#39;HSM failed&#39;</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                            <span class="n">d</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                        <span class="k">else</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+                            <span class="n">d</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                        <span class="n">d</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">nshapes</span> <span class="o">-</span> <span class="mi">7</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">fourth_order</span><span class="p">:</span>
+                            <span class="n">d</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M22&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">],</span>
+                                    <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M31&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M13&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                    <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M40&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M04&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">])</span>
+                            <span class="n">shape</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">g2</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+                            <span class="n">d</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">3</span><span class="o">*</span><span class="n">shape</span><span class="o">.</span><span class="n">e1</span>
+                            <span class="n">d</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span> <span class="o">-=</span> <span class="mi">3</span><span class="o">*</span><span class="n">shape</span><span class="o">.</span><span class="n">e2</span>
+                        <span class="k">if</span> <span class="n">raw_moments</span><span class="p">:</span>
+                            <span class="n">d</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;M00&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M10&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M01&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M11&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M20&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M02&#39;</span><span class="p">],</span>
+                                    <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M21&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M12&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M30&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M03&#39;</span><span class="p">],</span>
+                                    <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M22&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M31&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M13&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M40&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M04&#39;</span><span class="p">],</span>
+                                    <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M22n&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M33n&#39;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s1">&#39;M44n&#39;</span><span class="p">]])</span>
+
+            <span class="n">shapes_model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">shapes_model</span><span class="p">)</span>
+            <span class="n">shapes_model</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">model_stars</span><span class="p">),</span><span class="n">nshapes</span><span class="p">))</span>
+
+            <span class="n">gsq</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="p">[:,</span><span class="mi">4</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">shapes_model</span><span class="p">[:,</span><span class="mi">5</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+            <span class="n">shapes_model</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">shapes_model</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">gsq</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">gsq</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">star</span><span class="p">,</span> <span class="n">shape</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">model_stars</span><span class="p">,</span> <span class="n">shapes_model</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;model shape for star at </span><span class="si">%s</span><span class="s2"> is </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">positions</span><span class="p">,</span> <span class="n">shapes_data</span><span class="p">,</span> <span class="n">shapes_model</span></div></div>
+
+
+<div class="viewcode-block" id="ShapeHistStats"><a class="viewcode-back" href="../../stats.html#piff.ShapeHistStats">[docs]</a><span class="k">class</span> <span class="nc">ShapeHistStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stats class for calculating histograms of shape residuals</span>
+
+<span class="sd">    This will compute the size and shapes of the observed stars and the PSF models and</span>
+<span class="sd">    make histograms of both the values and the residuals.</span>
+
+<span class="sd">    The plot will have 6 axes.  The top row will have histograms of T, g1, g2, with the model</span>
+<span class="sd">    and data color coded.  The bottom row will have histograms of the differences.</span>
+
+<span class="sd">    After a call to :func:`compute`, the following attributes are accessible:</span>
+
+<span class="sd">        :u:         The u positions in field coordinates.</span>
+<span class="sd">        :v:         The v positions in field coordinates.</span>
+<span class="sd">        :T:         The size (T = Iuu + Ivv) of the observed stars.</span>
+<span class="sd">        :g1:        The g1 component of the shapes of the observed stars.</span>
+<span class="sd">        :g2:        The g2 component of the shapes of the observed stars.</span>
+<span class="sd">        :T_model:   The size of the PSF model at the same locations as the stars.</span>
+<span class="sd">        :g1_model:  The g1 component of the PSF model at these locations.</span>
+<span class="sd">        :g2_model:  The g2 component of the PSF model at these locations.</span>
+<span class="sd">        :dT:        The size residual, T - T_model</span>
+<span class="sd">        :dg1:       The g1 residual, g1 - g1_model</span>
+<span class="sd">        :dg2:       The g2 residual, g2 - g2_model</span>
+
+<span class="sd">    :param file_name:   Name of the file to output to. [default: None]</span>
+<span class="sd">    :param nbins:       Number of bins to use. [default: sqrt(n_stars)]</span>
+<span class="sd">    :param cut_frac:    Fraction to cut off from histograms at the high and low ends.</span>
+<span class="sd">                        [default: 0.01]</span>
+<span class="sd">    :param model_properties: Optionally a dict of properties to use for the model rendering.</span>
+<span class="sd">                             [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nbins</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cut_frac</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">model_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nbins</span> <span class="o">=</span> <span class="n">nbins</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span> <span class="o">=</span> <span class="n">cut_frac</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span> <span class="o">=</span> <span class="n">model_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="ShapeHistStats.compute"><a class="viewcode-back" href="../../stats.html#piff.ShapeHistStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param psf:         A PSF Object</span>
+<span class="sd">        :param stars:       A list of Star instances.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># get the shapes</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Calculating shape histograms for </span><span class="si">%d</span><span class="s2"> stars&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+        <span class="n">positions</span><span class="p">,</span> <span class="n">shapes_data</span><span class="p">,</span> <span class="n">shapes_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">measureShapes</span><span class="p">(</span>
+                <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">model_properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Only use stars for which hsm was successful</span>
+        <span class="n">flag_data</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">flag_model</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">flag_data</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">flag_model</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;All stars had hsm errors.  ShapeHist plot will be empty.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># define terms for the catalogs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g1</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g2</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T_model</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g1_model</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g2_model</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dT</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">T_model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dg1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">g1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">g1_model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dg2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">g2</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">g2_model</span></div>
+
+<div class="viewcode-block" id="ShapeHistStats.plot"><a class="viewcode-back" href="../../stats.html#piff.ShapeHistStats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
+
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :params \**kwargs:   Any additional kwargs go into the matplotlib hist() function.</span>
+
+<span class="sd">        :returns: fig, ax</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">Figure</span><span class="p">(</span><span class="n">figsize</span> <span class="o">=</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+        <span class="c1"># In matplotlib 2.0, this will be</span>
+        <span class="c1"># axs = fig.subplots(ncols=3, nrows=2)</span>
+        <span class="n">axs</span> <span class="o">=</span> <span class="p">[[</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
+                 <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span>
+                 <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span> <span class="p">],</span>
+               <span class="p">[</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">),</span>
+                 <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="p">),</span>
+                 <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span> <span class="p">]]</span>
+        <span class="n">axs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$T$&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$T_</span><span class="si">{data}</span><span class="s1"> - T_</span><span class="si">{model}</span><span class="s1">$&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$g_</span><span class="si">{1}</span><span class="s1">$&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$g_{1, data} - g_{1, model}$&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$g_</span><span class="si">{2}</span><span class="s1">$&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$g_{2, data} - g_{2, model}$&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Must call compute before calling plot or write&quot;</span><span class="p">)</span>
+
+        <span class="c1"># some defaults for the kwargs</span>
+        <span class="k">if</span> <span class="s1">&#39;histtype&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;histtype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;step&#39;</span>
+
+        <span class="n">nbins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins</span>
+        <span class="k">if</span> <span class="n">nbins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nbins</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">))</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;nstars = </span><span class="si">%d</span><span class="s2">, using </span><span class="si">%d</span><span class="s2"> bins for Shape Histograms&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">),</span><span class="n">nbins</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">__version__</span> <span class="o">&gt;=</span> <span class="s1">&#39;1.23&#39;</span><span class="p">:</span>  <span class="c1"># pragma: no branch</span>
+            <span class="n">lower</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">)</span>
+            <span class="n">higher</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;higher&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lower</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">)</span>
+            <span class="n">higher</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;higher&#39;</span><span class="p">)</span>
+
+        <span class="c1"># axs[0,0] = size distributions</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">all_T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">T_model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;nbins = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">nbins</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;cut_frac = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">)</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">all_T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">lower</span><span class="p">),</span>
+               <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">all_T</span><span class="p">,</span> <span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">higher</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;T_d: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;T_m: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_model</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_model</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Display range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">rng</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">rng</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T_model</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+        <span class="c1"># axs[0,1] = size difference</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">lower</span><span class="p">),</span>
+               <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">higher</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;dT: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Display range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">rng</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">rng</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dT</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># axs[1,0] = g1 distribution</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">all_g1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">g1_model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g1</span><span class="p">])</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">all_g1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">lower</span><span class="p">),</span>
+               <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">all_g1</span><span class="p">,</span> <span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">higher</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;g1_d: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g1</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g1</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;g1_m: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g1_model</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g1_model</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Display range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">rng</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">rng</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">g1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g1_model</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+        <span class="c1"># axs[1,0] = g1 difference</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">lower</span><span class="p">),</span>
+               <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg1</span><span class="p">,</span> <span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">higher</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;dg1: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg1</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg1</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Display range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">rng</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">rng</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg1</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># axs[2,0] = g2 distribution</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">all_g2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">g2_model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g2</span><span class="p">])</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">all_g2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">lower</span><span class="p">),</span>
+               <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">all_g2</span><span class="p">,</span> <span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">higher</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;g2_d: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g2</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g2</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;g2_m: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g2_model</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">g2_model</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Display range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">rng</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">rng</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">g2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">g2_model</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+        <span class="c1"># axs[2,0] = g2 difference</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">lower</span><span class="p">),</span>
+               <span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg2</span><span class="p">,</span> <span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">cut_frac</span><span class="p">,</span> <span class="o">**</span><span class="n">higher</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;dg2: Full range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg2</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg2</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Display range = (</span><span class="si">%f</span><span class="s2">, </span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span><span class="n">rng</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">rng</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dg2</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="n">nbins</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div></div>
+
+<div class="viewcode-block" id="RhoStats"><a class="viewcode-back" href="../../stats.html#piff.RhoStats">[docs]</a><span class="k">class</span> <span class="nc">RhoStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Stats class for calculating rho statistics.</span>
+
+<span class="sd">    This will plot the 5 rho statistics described in Jarvis et al, 2015, section 3.4.</span>
+
+<span class="sd">    e = e_psf; de = e_psf - e_model</span>
+<span class="sd">    T is size; dT = T_psf - T_model</span>
+
+<span class="sd">    rho1 = &lt; de* de &gt;</span>
+<span class="sd">    rho2 = &lt; e* de &gt;  (in the rowe paper this is &lt; e* de + de* e &gt;</span>
+<span class="sd">    rho3 = &lt; (e* dT / T) (e dT / T) &gt;</span>
+<span class="sd">    rho4 = &lt; de* (e dT / T) &gt;</span>
+<span class="sd">    rho5 = &lt; e* (e dT / T) &gt;</span>
+
+<span class="sd">    The plots for rho1, rho3, and rho4 will all be on the same axis (left), and the plots for</span>
+<span class="sd">    rho2 and rho5 will be on the other axis (right).</span>
+
+<span class="sd">    Furthermore, these are technically complex quantities, but only the real parts are</span>
+<span class="sd">    plotted, since the imaginary parts are uninteresting.</span>
+
+<span class="sd">    After a call to :func:`compute`, the following attributes are accessible:</span>
+
+<span class="sd">        :rho1:      A TreeCorr GGCorrelation instance with the rho1 statistic.</span>
+<span class="sd">        :rho2:      A TreeCorr GGCorrelation instance with the rho2 statistic.</span>
+<span class="sd">        :rho3:      A TreeCorr GGCorrelation instance with the rho3 statistic.</span>
+<span class="sd">        :rho4:      A TreeCorr GGCorrelation instance with the rho4 statistic.</span>
+<span class="sd">        :rho5:      A TreeCorr GGCorrelation instance with the rho5 statistic.</span>
+
+<span class="sd">    The value of the canonical rho statistic is in the ``xip`` attribute of each of the above</span>
+<span class="sd">    TreeCorr GGCorrelation instances.  But there are other quantities that may be of interest</span>
+<span class="sd">    in some cases, so we provide access to the full object.</span>
+
+<span class="sd">    :param min_sep:     Minimum separation (in arcmin) for pairs. [default: 0.5]</span>
+<span class="sd">    :param max_sep:     Maximum separation (in arcmin) for pairs. [default: 300]</span>
+<span class="sd">    :param bin_size:    Size of bins in log(sep). [default 0.1]</span>
+<span class="sd">    :param file_name:   Name of the file to output to. [default: None]</span>
+<span class="sd">    :param model_properties: Optionally a dict of properties to use for the model rendering.</span>
+<span class="sd">                             [default: None]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_sep</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">max_sep</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">model_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;min_sep&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">min_sep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;max_sep&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_sep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;bin_size&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bin_size</span>
+        <span class="k">if</span> <span class="s1">&#39;sep_units&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;sep_units&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;arcmin&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span> <span class="o">=</span> <span class="n">model_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># Set this to true if there is a problem and we need to skip plots.</span>
+
+<div class="viewcode-block" id="RhoStats.compute"><a class="viewcode-back" href="../../stats.html#piff.RhoStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param psf:         A PSF Object</span>
+<span class="sd">        :param stars:       A list of Star instances.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">treecorr</span>
+        <span class="n">treecorr</span><span class="o">.</span><span class="n">set_max_omp_threads</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># get the shapes</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Calculating rho statistics for </span><span class="si">%d</span><span class="s2"> stars&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+        <span class="n">positions</span><span class="p">,</span> <span class="n">shapes_data</span><span class="p">,</span> <span class="n">shapes_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">measureShapes</span><span class="p">(</span>
+                <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">model_properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Only use stars for which hsm was successful</span>
+        <span class="n">flag_data</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">flag_model</span> <span class="o">=</span> <span class="n">shapes_model</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">flag_data</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">flag_model</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;All stars had hsm errors.  Rho plot will be empty.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">return</span>
+
+        <span class="c1"># define terms for the catalogs</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">g1</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="n">g2</span> <span class="o">=</span> <span class="n">shapes_data</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="n">dT</span> <span class="o">=</span> <span class="n">T</span> <span class="o">-</span> <span class="n">shapes_model</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">dg1</span> <span class="o">=</span> <span class="n">g1</span> <span class="o">-</span> <span class="n">shapes_model</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="n">dg2</span> <span class="o">=</span> <span class="n">g2</span> <span class="o">-</span> <span class="n">shapes_model</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+
+        <span class="c1"># make the treecorr catalogs</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating Treecorr Catalogs&quot;</span><span class="p">)</span>
+
+        <span class="n">cat_g</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">Catalog</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">x_units</span><span class="o">=</span><span class="s1">&#39;arcsec&#39;</span><span class="p">,</span> <span class="n">y_units</span><span class="o">=</span><span class="s1">&#39;arcsec&#39;</span><span class="p">,</span>
+                                 <span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span>
+        <span class="n">cat_dg</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">Catalog</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">x_units</span><span class="o">=</span><span class="s1">&#39;arcsec&#39;</span><span class="p">,</span> <span class="n">y_units</span><span class="o">=</span><span class="s1">&#39;arcsec&#39;</span><span class="p">,</span>
+                                  <span class="n">g1</span><span class="o">=</span><span class="n">dg1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">dg2</span><span class="p">)</span>
+        <span class="n">cat_gdTT</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">Catalog</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">u</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="n">x_units</span><span class="o">=</span><span class="s1">&#39;arcsec&#39;</span><span class="p">,</span> <span class="n">y_units</span><span class="o">=</span><span class="s1">&#39;arcsec&#39;</span><span class="p">,</span>
+                                    <span class="n">g1</span><span class="o">=</span><span class="n">g1</span> <span class="o">*</span> <span class="n">dT</span> <span class="o">/</span> <span class="n">T</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span> <span class="o">*</span> <span class="n">dT</span> <span class="o">/</span> <span class="n">T</span><span class="p">)</span>
+
+        <span class="c1"># setup and run the correlations</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Processing rho PSF statistics&quot;</span><span class="p">)</span>
+
+        <span class="c1"># save the rho objects</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho1</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">GGCorrelation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho1</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">cat_dg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho2</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">GGCorrelation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho2</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">cat_g</span><span class="p">,</span> <span class="n">cat_dg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho3</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">GGCorrelation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho3</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">cat_gdTT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho4</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">GGCorrelation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho4</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">cat_dg</span><span class="p">,</span> <span class="n">cat_gdTT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho5</span> <span class="o">=</span> <span class="n">treecorr</span><span class="o">.</span><span class="n">GGCorrelation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rho5</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">cat_g</span><span class="p">,</span> <span class="n">cat_gdTT</span><span class="p">)</span>
+        <span class="n">treecorr</span><span class="o">.</span><span class="n">set_max_omp_threads</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">alt_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+        <span class="c1"># Leaving this version here in case useful, but I (MJ) have a new version of this</span>
+        <span class="c1"># below based on the figures I made for the DES SV shear catalog paper that I think</span>
+        <span class="c1"># looks a bit nicer.</span>
+        <span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">Figure</span><span class="p">(</span><span class="n">figsize</span> <span class="o">=</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">))</span>
+        <span class="c1"># In matplotlib 2.0, this will be</span>
+        <span class="c1"># axs = fig.subplots(ncols=2)</span>
+        <span class="n">axs</span> <span class="o">=</span> <span class="p">[</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span> <span class="p">]</span>
+        <span class="n">axs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">axs</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;log $r$ [arcmin]&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$\rho$&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fig</span><span class="p">,</span><span class="n">axs</span>
+
+        <span class="c1"># axs[0] gets rho1 rho3 and rho4</span>
+        <span class="c1"># axs[1] gets rho2 and rho5</span>
+        <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">rho_list</span><span class="p">,</span> <span class="n">color_list</span><span class="p">,</span> <span class="n">label_list</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="n">axs</span><span class="p">,</span>
+                <span class="p">[[</span><span class="bp">self</span><span class="o">.</span><span class="n">rho1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho4</span><span class="p">],</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rho2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho5</span><span class="p">]],</span>
+                <span class="p">[[</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;g&#39;</span><span class="p">,</span> <span class="s1">&#39;m&#39;</span><span class="p">]],</span>
+                <span class="p">[[</span><span class="sa">r</span><span class="s1">&#39;$\rho_</span><span class="si">{1}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$\rho_</span><span class="si">{3}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$\rho_</span><span class="si">{4}</span><span class="s1">$&#39;</span><span class="p">],</span>
+                 <span class="p">[</span><span class="sa">r</span><span class="s1">&#39;$\rho_</span><span class="si">{2}</span><span class="s1">$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$\rho_</span><span class="si">{5}</span><span class="s1">$&#39;</span><span class="p">]]):</span>
+
+            <span class="c1"># put in some labels</span>
+            <span class="c1"># set the scale</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="s2">&quot;log&quot;</span><span class="p">,</span> <span class="n">nonpositive</span><span class="o">=</span><span class="s1">&#39;clip&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s2">&quot;log&quot;</span><span class="p">,</span> <span class="n">nonpositive</span><span class="o">=</span><span class="s1">&#39;clip&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">rho</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">rho_list</span><span class="p">,</span> <span class="n">color_list</span><span class="p">,</span> <span class="n">label_list</span><span class="p">):</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">rho</span><span class="o">.</span><span class="n">logr</span><span class="p">)</span>
+                <span class="n">xi</span> <span class="o">=</span> <span class="n">rho</span><span class="o">.</span><span class="n">xip</span>
+                <span class="c1"># now separate the xi into positive and negative components</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="n">xi</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="n">neg</span> <span class="o">=</span> <span class="n">xi</span> <span class="o">&lt;</span> <span class="mi">0</span>
+
+                <span class="c1"># catch linestyles, but otherwise default to - and -- for positive and negative</span>
+                <span class="c1"># values</span>
+                <span class="k">if</span> <span class="s1">&#39;linestyle&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">linestyle_pos</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;linestyle&#39;</span><span class="p">)</span>
+                    <span class="n">linestyle_neg</span> <span class="o">=</span> <span class="n">linestyle_pos</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">linestyle_pos</span> <span class="o">=</span> <span class="s1">&#39;-&#39;</span>
+                    <span class="n">linestyle_neg</span> <span class="o">=</span> <span class="s1">&#39;--&#39;</span>
+                <span class="c1"># do the plots</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">pos</span><span class="p">],</span> <span class="n">xi</span><span class="p">[</span><span class="n">pos</span><span class="p">],</span> <span class="n">linestyle</span><span class="o">=</span><span class="n">linestyle_pos</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+                        <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="c1"># no label for the negative values</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">neg</span><span class="p">],</span> <span class="o">-</span><span class="n">xi</span><span class="p">[</span><span class="n">neg</span><span class="p">],</span> <span class="n">linestyle</span><span class="o">=</span><span class="n">linestyle_neg</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span>
+
+    <span class="k">def</span> <span class="nf">_plot_single</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">rho</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">marker</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
+        <span class="c1"># Add a single rho stat to the plot.</span>
+        <span class="n">meanr</span> <span class="o">=</span> <span class="n">rho</span><span class="o">.</span><span class="n">meanr</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="n">rho</span><span class="o">.</span><span class="n">bin_size</span> <span class="o">*</span> <span class="n">offset</span><span class="p">)</span>
+        <span class="n">xip</span> <span class="o">=</span> <span class="n">rho</span><span class="o">.</span><span class="n">xip</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">rho</span><span class="o">.</span><span class="n">varxip</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">meanr</span><span class="p">,</span> <span class="n">xip</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">meanr</span><span class="p">,</span> <span class="o">-</span><span class="n">xip</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">meanr</span><span class="p">[</span><span class="n">xip</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">],</span> <span class="n">xip</span><span class="p">[</span><span class="n">xip</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">],</span> <span class="n">yerr</span><span class="o">=</span><span class="n">sig</span><span class="p">[</span><span class="n">xip</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">marker</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">meanr</span><span class="p">[</span><span class="n">xip</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">xip</span><span class="p">[</span><span class="n">xip</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">],</span> <span class="n">yerr</span><span class="o">=</span><span class="n">sig</span><span class="p">[</span><span class="n">xip</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">marker</span><span class="p">,</span>
+                    <span class="n">fillstyle</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">mfc</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ax</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="o">-</span><span class="n">meanr</span><span class="p">,</span> <span class="n">xip</span><span class="p">,</span> <span class="n">yerr</span><span class="o">=</span><span class="n">sig</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="n">marker</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RhoStats.plot"><a class="viewcode-back" href="../../stats.html#piff.RhoStats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
+
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :params \**kwargs:   Any additional kwargs go into the matplotlib plot() function.</span>
+<span class="sd">                            [ignored in this function]</span>
+
+<span class="sd">        :returns: fig, ax</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># MJ: Based on the code I used for the plot in the DES SV paper:</span>
+        <span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">Figure</span><span class="p">(</span><span class="n">figsize</span> <span class="o">=</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">))</span>
+        <span class="c1"># In matplotlib 2.0, this will be</span>
+        <span class="c1"># axs = fig.subplots(ncols=2)</span>
+        <span class="n">axs</span> <span class="o">=</span> <span class="p">[</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span> <span class="p">]</span>
+        <span class="n">axs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">axs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;min_sep&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;max_sep&#39;</span><span class="p">])</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$\theta$ (arcmin)&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$\rho(\theta)$&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">,</span> <span class="n">nonpositive</span><span class="o">=</span><span class="s1">&#39;clip&#39;</span><span class="p">)</span>
+
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;min_sep&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">tckwargs</span><span class="p">[</span><span class="s1">&#39;max_sep&#39;</span><span class="p">])</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$\theta$ (arcmin)&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$\rho(\theta)$&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">,</span> <span class="n">nonpositive</span><span class="o">=</span><span class="s1">&#39;clip&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip</span><span class="p">:</span>
+            <span class="c1"># If we&#39;re skipping the plot, the auto ymax doesn&#39;t work well (it uses 1.0),</span>
+            <span class="c1"># so pick something reasonable here.</span>
+            <span class="c1"># Otherwise, do this at the end to fix just ymin, but still have an auto ymax.</span>
+            <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1.e-9</span><span class="p">,</span> <span class="mf">1.e-4</span><span class="p">)</span>
+            <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1.e-9</span><span class="p">,</span> <span class="mf">1.e-4</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">fig</span><span class="p">,</span><span class="n">axs</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;rho1&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Must call compute before calling plot or write&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Left plot is rho1,3,4</span>
+        <span class="n">rho1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plot_single</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho1</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+        <span class="n">rho3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plot_single</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho3</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">rho4</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plot_single</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho4</span><span class="p">,</span> <span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;^&#39;</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">)</span>
+
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="n">rho1</span><span class="p">,</span> <span class="n">rho3</span><span class="p">,</span> <span class="n">rho4</span><span class="p">],</span>
+                     <span class="p">[</span><span class="sa">r</span><span class="s1">&#39;$\rho_1(\theta)$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$\rho_3(\theta)$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$\rho_4(\theta)$&#39;</span><span class="p">],</span>
+                     <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+
+        <span class="c1"># Right plot is rho2,5</span>
+        <span class="n">rho2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plot_single</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho2</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+        <span class="n">rho5</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plot_single</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho5</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="n">rho2</span><span class="p">,</span> <span class="n">rho5</span><span class="p">],</span>
+                     <span class="p">[</span><span class="sa">r</span><span class="s1">&#39;$\rho_2(\theta)$&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;$\rho_5(\theta)$&#39;</span><span class="p">],</span>
+                     <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1.e-9</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">1.e-9</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span></div></div>
+
+<div class="viewcode-block" id="HSMCatalogStats"><a class="viewcode-back" href="../../stats.html#piff.HSMCatalogStats">[docs]</a><span class="k">class</span> <span class="nc">HSMCatalogStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Stats class for writing the shape information to an output file.</span>
+
+<span class="sd">    This will compute the size and shapes of the observed stars and the PSF models</span>
+<span class="sd">    and write these data to a file.</span>
+
+<span class="sd">    The HSM adaptive momemnt measurements sometimes fail in various ways.  When it does,</span>
+<span class="sd">    we still output the information that we have for a star, but mark the failure with</span>
+<span class="sd">    a flag: flag_data for errors in the data measurement, flag_model for errors in the</span>
+<span class="sd">    model measurement.  The meaning of these flags are (treated as a bit mask):</span>
+
+<span class="sd">    Flags:</span>
+
+<span class="sd">    * 0 = Success</span>
+<span class="sd">    * 1 = HSM returned a non-zero moments_status.</span>
+<span class="sd">    * 2 = HSM returned a negative flux.</span>
+<span class="sd">    * 4 = HSM&#39;s centroid moved by more than 1 pixel from the input position.</span>
+
+<span class="sd">    The output file will include the following columns:</span>
+
+<span class="sd">        :ra:        The RA of the star in degrees. (or 0 if the wcs is not a CelestialWCS)</span>
+<span class="sd">        :dec:       The Declination of the star in degrees. (or 0 if the wcs is not a CelestialWCS)</span>
+<span class="sd">        :u:         The u position in field coordinates.</span>
+<span class="sd">        :v:         The v position in field coordinates.</span>
+<span class="sd">        :x:         The x position in chip coordinates.</span>
+<span class="sd">        :y:         The y position in chip coordinates.</span>
+<span class="sd">        :T_data:    The size (T = Iuu + Ivv) of the observed star.</span>
+<span class="sd">        :g1_data:   The g1 component of the shapes of the observed star.</span>
+<span class="sd">        :g2_data:   The g2 component of the shapes of the observed star.</span>
+<span class="sd">        :T_model:   The size of the PSF model at the same locations as the star.</span>
+<span class="sd">        :g1_model:  The g1 component of the PSF model.</span>
+<span class="sd">        :g2_model:  The g2 component of the PSF model.</span>
+<span class="sd">        :reserve:   Whether the star was a reserve star.</span>
+<span class="sd">        :flag_data: 0 where HSM succeeded on the observed star, &gt;0 where it failed (see above).</span>
+<span class="sd">        :flag_model: 0 where HSM succeeded on the PSF model, &gt;0 where it failed (see above).</span>
+
+<span class="sd">    If fourth_order=True, then there are additional quantities calculated as well.</span>
+<span class="sd">    We define the following notation:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        T &amp;= \int I(u,v) (u^2 + v^2) du dv \\</span>
+<span class="sd">        g &amp;= \frac{\int I(u,v) (u + iv)^2 du dv}{T} \\</span>
+<span class="sd">        T^{(4)} &amp;= \frac{\int I(u,v) (u^2 + v^2)^2 du dv}{T} \\</span>
+<span class="sd">        g^{(4)} &amp;= \frac{\int I(u,v) (u^2 + v^2) (u + iv)^2 du dv}{T^2} - 3g \\</span>
+<span class="sd">        h^{(4)} &amp;= \frac{\int I(u,v) (u + iv)^4 du dv}{T^2}</span>
+
+<span class="sd">    I.e. :math:`T^{(4)}` is a fourth-order spin-0 quantity, analogous to :math:`T` at second</span>
+<span class="sd">    order, :math:`g^{(4)}` is a fourth-order spin-2 quantity, analogous to :math:`g`, and</span>
+<span class="sd">    :math:`h^{(4)}` is a spin-4 quantity.  The denominators ensure that the units of</span>
+<span class="sd">    :math:`T^{(4)}` is :math:`\mathrm{arcsec}^2`, just like :math:`T` and that :math:`g^{(4)}` and</span>
+<span class="sd">    :math:`h^{(4)}` are dimensionless.  And the :math:`-3g` term for :math:`g^{(4)}` subtracts</span>
+<span class="sd">    off the dominant contribution to the fourth order quantity from the second order shape.</span>
+<span class="sd">    For a pure elliptical Gaussian, this makes :math:`g^{(4)}` come out very close to zero.</span>
+
+<span class="sd">    The output file contains the following additional columns:</span>
+
+<span class="sd">        :T4_data:   The fourth-order &quot;size&quot;, :math:`T^{(4)}`, of the observed star.</span>
+<span class="sd">        :g41_data:  The real component of :math:`g^{(4)}` of the obserbed star.</span>
+<span class="sd">        :g42_data:  The imaginary component of :math:`g^{(4)}` of the obserbed star.</span>
+<span class="sd">        :h41_data:  The real component of :math:`h^{(4)}` of the obserbed star.</span>
+<span class="sd">        :h42_data:  The imaginary component of :math:`h^{(4)}` of the obserbed star.</span>
+<span class="sd">        :T4_model:  The fourth-order &quot;size&quot;, :math:`T^{(4)}`, of the PSF model.</span>
+<span class="sd">        :g41_model: The real component of :math:`g^{(4)}` of the PSF model.</span>
+<span class="sd">        :g42_model: The imaginary component of :math:`g^{(4)}` of the PSF model.</span>
+<span class="sd">        :h41_model: The real component of :math:`h^{(4)}` of the PSF model.</span>
+<span class="sd">        :h42_model: The imaginary component of :math:`h^{(4)}` of the PSF model.</span>
+
+<span class="sd">    :param file_name:        Name of the file to output to. [default: None]</span>
+<span class="sd">    :param model_properties: Optionally a dict of properties to use for the model rendering.</span>
+<span class="sd">                             The default behavior is to use the properties of the star itself</span>
+<span class="sd">                             for any properties that are not overridden by model_properties.</span>
+<span class="sd">                             [default: None]</span>
+<span class="sd">    :param fourth_order:     Whether to include the additional fourth-order quantities described</span>
+<span class="sd">                             above. [default: False]</span>
+<span class="sd">    :param raw_moments:      Whether to include the complete set of raw moments as calculated</span>
+<span class="sd">                             by piff.util.calculate_moments. [default: False]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">model_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fourth_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">raw_moments</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span> <span class="o">=</span> <span class="n">model_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fourth_order</span> <span class="o">=</span> <span class="n">fourth_order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_moments</span> <span class="o">=</span> <span class="n">raw_moments</span>
+
+<div class="viewcode-block" id="HSMCatalogStats.compute"><a class="viewcode-back" href="../../stats.html#piff.HSMCatalogStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param psf:         A PSF Object</span>
+<span class="sd">        :param stars:       A list of Star instances.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># get the shapes</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Calculating shape histograms for </span><span class="si">%d</span><span class="s2"> stars&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+        <span class="n">positions</span><span class="p">,</span> <span class="n">shapes_data</span><span class="p">,</span> <span class="n">shapes_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">measureShapes</span><span class="p">(</span>
+                <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">model_properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span><span class="p">,</span>
+                <span class="n">fourth_order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fourth_order</span><span class="p">,</span> <span class="n">raw_moments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_moments</span><span class="p">,</span>
+                <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Build the columns for the output catalog</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="p">,</span> <span class="n">galsim</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">CelestialWCS</span><span class="p">):</span>
+            <span class="n">ra</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span><span class="o">.</span><span class="n">ra</span><span class="o">.</span><span class="n">deg</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+            <span class="n">dec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span><span class="o">.</span><span class="n">toWorld</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span><span class="o">.</span><span class="n">dec</span><span class="o">.</span><span class="n">deg</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ra</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+            <span class="n">dec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cols</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">positions</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># u</span>
+            <span class="n">positions</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>  <span class="c1"># v</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]),</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]),</span>
+            <span class="n">ra</span><span class="p">,</span> <span class="n">dec</span><span class="p">,</span>
+            <span class="n">shapes_data</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>  <span class="c1"># flux</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">is_reserve</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">),</span>  <span class="c1"># reserve</span>
+            <span class="n">shapes_data</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">],</span>  <span class="c1"># flag_data</span>
+            <span class="n">shapes_model</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">],</span>  <span class="c1"># flag_model</span>
+            <span class="n">shapes_data</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># T_data</span>
+            <span class="n">shapes_data</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">],</span>  <span class="c1"># g1_data</span>
+            <span class="n">shapes_data</span><span class="p">[:,</span> <span class="mi">5</span><span class="p">],</span>  <span class="c1"># g2_data</span>
+            <span class="n">shapes_model</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">],</span>  <span class="c1"># T_model</span>
+            <span class="n">shapes_model</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">],</span>  <span class="c1"># g1_model</span>
+            <span class="n">shapes_model</span><span class="p">[:,</span> <span class="mi">5</span><span class="p">],</span>  <span class="c1"># g2_model</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                       <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                       <span class="p">(</span><span class="s1">&#39;ra&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dec&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                       <span class="p">(</span><span class="s1">&#39;flux&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;reserve&#39;</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span>
+                       <span class="p">(</span><span class="s1">&#39;flag_data&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;flag_model&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+                       <span class="p">(</span><span class="s1">&#39;T_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g1_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g2_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                       <span class="p">(</span><span class="s1">&#39;T_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g1_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g2_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fourth_order</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">shapes_data</span><span class="p">[:,</span><span class="mi">7</span><span class="p">:</span><span class="mi">12</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">shapes_model</span><span class="p">[:,</span><span class="mi">7</span><span class="p">:</span><span class="mi">12</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+                <span class="p">(</span><span class="s1">&#39;T4_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g41_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g42_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;h41_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;h42_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;T4_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g41_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;g42_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;h41_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;h42_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+            <span class="p">])</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="mi">12</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="mi">7</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_moments</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">shapes_data</span><span class="p">[:,</span><span class="n">k</span><span class="p">:]</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">shapes_model</span><span class="p">[:,</span><span class="n">k</span><span class="p">:]</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+                <span class="p">(</span><span class="s1">&#39;M00_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M10_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M01_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M11_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M20_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M02_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M21_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M12_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M30_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M03_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M22_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M31_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M13_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M40_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M04_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M22n_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M33n_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M44n_data&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M00_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M10_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M01_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M11_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M20_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M02_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M21_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M12_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M30_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M03_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M22_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M31_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M13_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M40_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M04_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+                <span class="p">(</span><span class="s1">&#39;M22n_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M33n_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;M44n_model&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+            <span class="p">])</span>
+
+        <span class="c1"># Also write any other properties saved in the stars.</span>
+        <span class="n">prop_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+        <span class="c1"># Remove all the position ones, which are handled above.</span>
+        <span class="n">exclude_keys</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="s1">&#39;ra&#39;</span><span class="p">,</span> <span class="s1">&#39;dec&#39;</span><span class="p">,</span> <span class="s1">&#39;is_reserve&#39;</span><span class="p">]</span>
+        <span class="n">prop_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">prop_keys</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">exclude_keys</span><span class="p">]</span>
+        <span class="c1"># Add any remaining properties</span>
+        <span class="n">prop_types</span> <span class="o">=</span> <span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">property_types</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">prop_keys</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]):</span> <span class="c1"># pragma: no cover</span>
+                <span class="c1"># TODO: This will apply to wavefront, but we don&#39;t have any tests that do this yet.</span>
+                <span class="c1">#       Once we have one, remove the no cover.</span>
+                <span class="k">continue</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">s</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">]))</span>
+            <span class="c1"># Use the saved type if available, otherwise use float.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="n">prop_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">float</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="HSMCatalogStats.write"><a class="viewcode-back" href="../../stats.html#piff.HSMCatalogStats.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write catalog to file.</span>
+
+<span class="sd">        :param file_name:   The name of the file to write to. [default: Use self.file_name,</span>
+<span class="sd">                            which is typically read from the config field.]</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">piff_version</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="kn">import</span> <span class="nn">fitsio</span>
+        <span class="k">if</span> <span class="n">file_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span>
+        <span class="k">if</span> <span class="n">file_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No file_name specified for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;cols&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Must call compute before calling write&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Writing HSM catalog to file </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">file_name</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">cols</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dtypes</span><span class="p">)</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;piff_version&#39;</span><span class="p">:</span> <span class="n">piff_version</span><span class="p">}</span>
+        <span class="k">with</span> <span class="n">fitsio</span><span class="o">.</span><span class="n">FITS</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;rw&#39;</span><span class="p">,</span> <span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.polynomial_interp &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.polynomial_interp</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.polynomial_interp</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the following disclaimer in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: interp_mean</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">galsim</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">numpy.polynomial.polynomial</span> <span class="kn">import</span> <span class="n">polyval2d</span>
+<span class="kn">from</span> <span class="nn">numpy.polynomial.chebyshev</span> <span class="kn">import</span> <span class="n">chebval2d</span>
+<span class="kn">from</span> <span class="nn">numpy.polynomial.legendre</span> <span class="kn">import</span> <span class="n">legval2d</span>
+<span class="kn">from</span> <span class="nn">numpy.polynomial.laguerre</span> <span class="kn">import</span> <span class="n">lagval2d</span>
+<span class="kn">from</span> <span class="nn">numpy.polynomial.hermite</span> <span class="kn">import</span> <span class="n">hermval2d</span>
+
+<span class="kn">from</span> <span class="nn">.interp</span> <span class="kn">import</span> <span class="n">Interp</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span>
+
+<span class="n">polynomial_types</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;poly&quot;</span><span class="p">:</span><span class="n">polyval2d</span><span class="p">,</span>
+    <span class="s2">&quot;chebyshev&quot;</span><span class="p">:</span><span class="n">chebval2d</span><span class="p">,</span>
+    <span class="s2">&quot;legendre&quot;</span><span class="p">:</span><span class="n">legval2d</span><span class="p">,</span>
+    <span class="s2">&quot;laguerre&quot;</span><span class="p">:</span><span class="n">lagval2d</span><span class="p">,</span>
+    <span class="s2">&quot;hermite&quot;</span><span class="p">:</span><span class="n">hermval2d</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="Polynomial"><a class="viewcode-back" href="../../interp.html#piff.Polynomial">[docs]</a><span class="k">class</span> <span class="nc">Polynomial</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An interpolator that uses  scipy curve_fit command to fit a polynomial</span>
+<span class="sd">    surface to each parameter passed in independently.</span>
+
+<span class="sd">    :param order:       The maximum order in the polynomial. i.e. the maximum</span>
+<span class="sd">                        value of i+j where p(u,v) = sum c_{ij} x^i y^j.</span>
+<span class="sd">                        [required, unless orders is given]</span>
+<span class="sd">    :param orders:      Optionally, a list of orders, one for each parameter</span>
+<span class="sd">                        to be interpolated.  This list should be the same length</span>
+<span class="sd">                        as the number of parameters that will be given to</span>
+<span class="sd">                        interpolate.</span>
+<span class="sd">    :param poly_type:   A string, one of the keys in the polynomial_types</span>
+<span class="sd">                        dictionary. By default these are &quot;poly&quot; (ordinary</span>
+<span class="sd">                        polynomials), &quot;chebyshev&quot;, &quot;legendre&quot;, &quot;laguerre&quot;,</span>
+<span class="sd">                        &quot;hermite&quot;. To add more you can add a key to</span>
+<span class="sd">                        polynomial_types with the value of a function with</span>
+<span class="sd">                        the signature of numpy.polynomial.polynomial.polyval2d</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orders</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">poly_type</span><span class="o">=</span><span class="s2">&quot;poly&quot;</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">orders</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Either order or orders is required&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">orders</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Cannot provide both order and orders&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">degenerate_points</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="n">order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">orders</span> <span class="o">=</span> <span class="n">orders</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_function</span><span class="p">(</span><span class="n">poly_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;order&#39;</span> <span class="p">:</span> <span class="n">order</span><span class="p">,</span>
+            <span class="s1">&#39;orders&#39;</span> <span class="p">:</span> <span class="n">orders</span><span class="p">,</span>
+            <span class="s1">&#39;poly_type&#39;</span> <span class="p">:</span> <span class="n">poly_type</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_setup_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nparam</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;An internal function that sets up the indices, given the number of parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">orders</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">nparam</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">orders</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The given orders list has the wrong number of values&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_orders</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">orders</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_orders</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">]</span> <span class="o">*</span> <span class="n">nparam</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_generate_indices</span><span class="p">(</span><span class="n">order</span><span class="p">)</span> <span class="k">for</span> <span class="n">order</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orders</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nvariables</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="k">for</span> <span class="n">indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nparam</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orders</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poly_type</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;An internal function that sets the type of the polynomial</span>
+<span class="sd">        interpolation used. The options are the keys in polynomial_types.</span>
+
+<span class="sd">        :param poly_type:   A string value, one of the keys from polynomial_types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">function</span> <span class="o">=</span> <span class="n">polynomial_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">poly_type</span><span class="p">)</span>
+        <span class="c1"># Raise an error if this is not a valid type, in which case the lookup</span>
+        <span class="c1"># in the line above will return None.</span>
+        <span class="k">if</span> <span class="n">function</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">valid_types</span> <span class="o">=</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">polynomial_types</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;poly_type argument must be one of: </span><span class="si">{}</span><span class="s2">, not </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">valid_types</span><span class="p">,</span> <span class="n">poly_type</span><span class="p">))</span>
+        <span class="c1"># If all is valid, set the appropriate values on self.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="o">=</span><span class="n">function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">poly_type</span><span class="o">=</span><span class="n">poly_type</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_parameter</span><span class="o">=</span><span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_generate_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate, for internal use, the exponents i,j used in the polynomial model</span>
+<span class="sd">        p(u,v) = sum c_{ij} u^i v^j</span>
+
+<span class="sd">        This needs to be called whenever the order of the polynomial fit is</span>
+<span class="sd">        changed. At the moment that is just when an object is initialized or</span>
+<span class="sd">        updated from file.</span>
+
+<span class="sd">        :param order:   The maximum order of the polynomial; the max value of</span>
+<span class="sd">                        i+j where p(x,y) ~ x^i y^j</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">order</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                <span class="n">j</span> <span class="o">=</span> <span class="n">p</span><span class="o">-</span><span class="n">i</span>
+                <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">indices</span>
+
+    <span class="k">def</span> <span class="nf">_pack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pack the 2D matrix of coefficients used as the model fit parameters</span>
+<span class="sd">        into a vector of coefficients, either so this can be passed as a starting</span>
+<span class="sd">        point into the curve_fit routine or for serialization to file.</span>
+
+<span class="sd">        For subclasses, the 2D matrix format could be whatever you wanted as long</span>
+<span class="sd">        as _initialGuess, _interpolationModel, and the pack and unpack functions are</span>
+<span class="sd">        consistent. The intialGuess method can return and the _interpolationModel can</span>
+<span class="sd">        accept parameters in whatever form you like (e.g. could be a dict if you want)</span>
+<span class="sd">        as long as _pack_coefficients can convert this into a 1D array and _unpack_coefficients</span>
+<span class="sd">        convert it the other way.</span>
+
+<span class="sd">        :param parameter_index: The integer index of the parameter; this lets us</span>
+<span class="sd">                                find the order of the parameter from self.</span>
+<span class="sd">        :param C:               A 2D matrix of polynomial coefficients in the form that</span>
+<span class="sd">                                the numpy polynomial form is expecting:</span>
+<span class="sd">                                p(x,y,c) = sum_{i,j} c_{ij} x^i y^j</span>
+
+<span class="sd">        :returns coeffs:        A 1D numpy array of coefficients of length self.nvariable</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nvariables</span><span class="p">[</span><span class="n">parameter_index</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">[</span><span class="n">parameter_index</span><span class="p">]):</span>
+            <span class="n">coeffs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">coeffs</span>
+
+    <span class="k">def</span> <span class="nf">_unpack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">coeffs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Unpack a sequence of parameters into the 2D matrix for the</span>
+<span class="sd">        given parameter_index (which determines the order of the matrix)</span>
+
+<span class="sd">        This function is the inverse of _pack_coefficients</span>
+
+<span class="sd">        :param parameter_index: The integer index of the parameter being used</span>
+<span class="sd">        :param coeffs:          A 1D numpy array of coefficients  of length self.nvariable</span>
+
+<span class="sd">        :returns:               A 2D matrix of polynomial coefficients in the form that</span>
+<span class="sd">                                the numpy polynomial form is expecting:</span>
+<span class="sd">                                p(x,y,c) = sum_{i,j} c_{ij} x^i y^j</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">k</span><span class="o">=</span><span class="mi">0</span>
+        <span class="n">n</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_orders</span><span class="p">[</span><span class="n">parameter_index</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">[</span><span class="n">parameter_index</span><span class="p">]):</span>
+            <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">coeffs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">k</span><span class="o">+=</span><span class="mi">1</span>
+        <span class="k">return</span> <span class="n">C</span>
+
+    <span class="k">def</span> <span class="nf">_interpolationModel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the polynomial variation of some quantity at x and y</span>
+<span class="sd">        coordinates for a given coefficient matrix.</span>
+
+<span class="sd">        TODO: At the moment this function is expecting a numpy array of</span>
+<span class="sd">        shape (2,nstar) for the positions. We might want to use a galsim</span>
+<span class="sd">        position object instead since I think some code elsewhere in Piff</span>
+<span class="sd">        is expecting this.</span>
+
+<span class="sd">        This is an internal method used during the fitting.</span>
+
+<span class="sd">        :param pos:     A numpy array of the u,v positions at which to build</span>
+<span class="sd">                        the model</span>
+<span class="sd">        :param C:       A 2D matrix of polynomial coefficients in the form that</span>
+<span class="sd">                        the numpy polynomial form is expecting:</span>
+<span class="sd">                        p(x,y,c) = sum_{i,j} c_{ij} x^i y^j</span>
+
+<span class="sd">        :returns:       A numpy array of the calculated p_x(x)*p_y(y) where</span>
+<span class="sd">                        the p functions are polynomials.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Take the u and v components (x and y in the tangent plane)</span>
+        <span class="c1"># as our interpolants</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># Call the appropriate function to generate the polynomial model.</span>
+        <span class="c1"># By default this is numpy.polyval. Note that despite appearances</span>
+        <span class="c1"># this is not a method call - function is a normal python attribute</span>
+        <span class="c1"># that happens to be a function.</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">C</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">f</span>
+
+    <span class="k">def</span> <span class="nf">_initialGuess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">positions</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make an initial guess for a set of parameters</span>
+<span class="sd">        to use in the fit for your model. This is passed</span>
+<span class="sd">        to curve_fit as a starting point.</span>
+
+<span class="sd">        :param positions:       A list of positions ((u,v) in this case) of stars.</span>
+<span class="sd">        :param parameter:       A numpy array of the measured values of a parameter</span>
+<span class="sd">                                for each star</span>
+<span class="sd">        :param parameter_index: The integer index of the parameter being used</span>
+
+<span class="sd">        :returns:          A guess for the parameters. In this case a 2D matrix</span>
+<span class="sd">                           which is zero everywhere except for (0,0).  This should</span>
+<span class="sd">                           correspond to a flat function of the parameters with</span>
+<span class="sd">                           value given by the mean.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># We need a starting point for the fitter.</span>
+        <span class="c1"># Use a constant value over the whole field as</span>
+        <span class="c1"># a reasonable guess.</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orders</span><span class="p">[</span><span class="n">parameter_index</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span><span class="n">n</span><span class="p">))</span>
+        <span class="n">C</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">C</span>
+
+<div class="viewcode-block" id="Polynomial.initialize"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialization is just solving the interpolator with current stars.</span>
+<span class="sd">        This then calls interpolateList, which will set the stars to have the</span>
+<span class="sd">        right type of object in its star.fit.params attribute.</span>
+
+<span class="sd">        :param stars:       A list of Star instances to use to initialize.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a new list of Star instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">getProperties</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setup_indices</span><span class="p">(</span><span class="n">nparam</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parameters</span><span class="p">):</span>
+            <span class="n">p0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pack_coefficients</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialGuess</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">i</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_coefficients</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">p0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Polynomial.solve"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data,</span>
+<span class="sd">        using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt</span>
+<span class="sd">        to find the least-squares solution.</span>
+
+<span class="sd">        This currently assumes that our positions pos are just u and v.</span>
+
+<span class="sd">        :param stars:       A list of Star instances to use for the interpolation.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">scipy.optimize</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># We will want to index things later, so useful</span>
+        <span class="c1"># to convert these to numpy arrays and transpose</span>
+        <span class="c1"># them to the order we need.</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">getProperties</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="c1"># We should have the same number of parameters as number of polynomial</span>
+        <span class="c1"># orders with which we were created here.</span>
+        <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="n">npos</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">positions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setup_indices</span><span class="p">(</span><span class="n">nparam</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Fitting </span><span class="si">%d</span><span class="s2"> parameter vectors using &quot;</span>\
+                    <span class="s2">&quot;polynomial type </span><span class="si">%s</span><span class="s2"> with </span><span class="si">%d</span><span class="s2"> positions&quot;</span><span class="p">,</span>
+                    <span class="n">nparam</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">poly_type</span><span class="p">,</span><span class="n">npos</span><span class="p">)</span>
+
+        <span class="n">coeffs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># This model function adapts our _interpolationModel method</span>
+        <span class="c1"># into the form that the scipy curve_fit function is expecting.</span>
+        <span class="c1"># It just needs to unpack a linear exploded list of coefficients</span>
+        <span class="c1"># into the matrix form that _interpolationModel wants.</span>
+
+
+        <span class="c1"># Loop through the parameters</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">parameters</span><span class="p">):</span>
+
+            <span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">uv</span><span class="p">,</span><span class="o">*</span><span class="n">coeffs</span><span class="p">):</span>
+                <span class="n">C</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_coefficients</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">coeffs</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interpolationModel</span><span class="p">(</span><span class="n">uv</span><span class="p">,</span><span class="n">C</span><span class="p">)</span>
+
+            <span class="c1"># Convert the structure the coefficients are held in into</span>
+            <span class="c1"># a single parameter vector for scipy to fit.</span>
+            <span class="n">p0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pack_coefficients</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialGuess</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">i</span><span class="p">))</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Fitting parameter </span><span class="si">%d</span><span class="s2"> from initial guess </span><span class="si">%s</span><span class="s2"> &quot;</span>
+                         <span class="s2">&quot;with polynomial order </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">p0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orders</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+
+            <span class="c1"># Black box curve fitter from scipy!</span>
+            <span class="c1"># We may want to look into the tolerance and other parameters</span>
+            <span class="c1"># of this function.</span>
+            <span class="c1"># MJ: There are much faster ways to do this, but this is fine for now.</span>
+            <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+                <span class="c1"># scipy.optimize has a tendency to emit warnings.  Let&#39;s ignore them.</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">OptimizeWarning</span><span class="p">)</span>
+                <span class="n">p</span><span class="p">,</span><span class="n">covmat</span><span class="o">=</span><span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">curve_fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">positions</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">p0</span><span class="p">)</span>
+
+            <span class="c1"># Build up the list of outputs, one for each parameter</span>
+            <span class="n">coeffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_coefficients</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">p</span><span class="p">))</span>
+
+        <span class="c1"># Each of these is now a list of length nparam, each element</span>
+        <span class="c1"># of which is a 2D array of coefficients to the corresponding</span>
+        <span class="c1"># exponents. Where &quot;corresponding&quot; is as-defined in</span>
+        <span class="c1"># self._unpack_coefficients</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span> <span class="o">=</span> <span class="n">coeffs</span></div>
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the solution to a FITS binary table.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object.</span>
+<span class="sd">        :param extname:     The base name of the extension</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Coeffs not set yet.  Cannot write this Polynomial.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># We will try to be as explicit as possible when saving the</span>
+        <span class="c1"># coefficients to file - for each coefficient we spell out in</span>
+        <span class="c1"># full the parameter index and exponent it corresponds to.</span>
+        <span class="c1"># We don&#39;t actually use this information in the _finish_read</span>
+        <span class="c1"># below, but when we want to generalize or plot things it</span>
+        <span class="c1"># will be invaluable.</span>
+        <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;PARAM&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;U_EXPONENT&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;V_EXPONENT&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+                  <span class="p">(</span><span class="s1">&#39;COEFF&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">)]</span>
+
+        <span class="c1"># We will build up the data columns parameter by parameter</span>
+        <span class="c1"># and concatenate the results</span>
+        <span class="n">param_col</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">u_exponent_col</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">v_exponent_col</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">coeff_col</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparam</span><span class="p">):</span>
+            <span class="c1"># This is a bit ugly, but we still have to tell self</span>
+            <span class="c1"># what parameter we are using so the system knows the</span>
+            <span class="c1"># order of the parameter. Hmm.</span>
+            <span class="c1"># Now we pack the coeffecients into a 1D vector</span>
+            <span class="n">coeffs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pack_coefficients</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">coeffs</span><span class="p">)</span>
+            <span class="c1"># And build up the columns we will be saving.</span>
+            <span class="n">param_col</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+            <span class="n">u_exponent_col</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">[</span><span class="n">p</span><span class="p">]])</span>
+            <span class="n">v_exponent_col</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">[</span><span class="n">p</span><span class="p">]])</span>
+            <span class="n">coeff_col</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coeffs</span><span class="p">)</span>
+
+        <span class="c1"># This is all the table data we&#39;ll actually be saving.</span>
+        <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="n">param_col</span><span class="p">,</span> <span class="n">u_exponent_col</span><span class="p">,</span> <span class="n">v_exponent_col</span><span class="p">,</span> <span class="n">coeff_col</span><span class="p">)]</span>
+
+        <span class="c1"># nparam isn&#39;t one of the construction kwargs, so for convenience on reading,</span>
+        <span class="c1"># put it in the header of this fits extension.</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;NPARAM&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nparam</span> <span class="p">}</span>
+
+        <span class="c1"># Finally, write all of this to a FITS table.</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">cols</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtypes</span><span class="p">)</span>
+        <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_solution&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read the solution from a fits file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object.</span>
+<span class="sd">        :param extname:     The base name of the extension</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Read the solution extension.</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_solution&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span> <span class="o">+</span> <span class="s1">&#39;_solution&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">read_header</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nparam</span> <span class="o">=</span> <span class="n">header</span><span class="p">[</span><span class="s1">&#39;NPARAM&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Run setup functions to get these values right.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_function</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">poly_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setup_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparam</span><span class="p">)</span>
+
+        <span class="n">param_indices</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;PARAM&#39;</span><span class="p">]</span>
+        <span class="n">coeff_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;COEFF&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nparam</span><span class="p">):</span>
+            <span class="n">this_param_range</span> <span class="o">=</span> <span class="n">param_indices</span><span class="o">==</span><span class="n">p</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">coeff_data</span><span class="p">[</span><span class="n">this_param_range</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_coefficients</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="n">col</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="Polynomial.interpolate"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
+
+<span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a new Star instance holding the interpolated parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProperties</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_interpolationModel</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">coeff</span><span class="p">)</span> <span class="k">for</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span><span class="p">]</span>
+        <span class="n">fit</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.optical_model &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.optical_model</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.optical_model</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: optical_model</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">galsim</span>
+<span class="kn">import</span> <span class="nn">coord</span>
+<span class="kn">import</span> <span class="nn">fitsio</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">.model</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarFit</span><span class="p">,</span> <span class="n">StarData</span>
+
+<span class="c1"># The only one here by default is &#39;des&#39;, but this allows people to easily add another template</span>
+<span class="n">optical_templates</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;des&#39;</span><span class="p">:</span> <span class="p">{</span> <span class="s1">&#39;obscuration&#39;</span><span class="p">:</span> <span class="mf">0.301</span> <span class="o">/</span> <span class="mf">0.7174</span><span class="p">,</span>
+             <span class="s1">&#39;nstruts&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+             <span class="s1">&#39;diam&#39;</span><span class="p">:</span> <span class="mf">4.274419</span><span class="p">,</span>  <span class="c1"># meters</span>
+             <span class="s1">&#39;lam&#39;</span><span class="p">:</span> <span class="mi">700</span><span class="p">,</span> <span class="c1"># nm</span>
+             <span class="c1"># aaron plays between 19 mm thick and 50 mm thick</span>
+             <span class="s1">&#39;strut_thick&#39;</span><span class="p">:</span> <span class="mf">0.050</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1462.526</span> <span class="o">/</span> <span class="mf">4010.</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">,</span> <span class="c1"># conversion factor is nebulous?!</span>
+             <span class="s1">&#39;strut_angle&#39;</span><span class="p">:</span> <span class="mi">45</span> <span class="o">*</span> <span class="n">galsim</span><span class="o">.</span><span class="n">degrees</span><span class="p">,</span>
+             <span class="s1">&#39;r0&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+           <span class="p">},</span>
+<span class="p">}</span>
+
+<div class="viewcode-block" id="Optical"><a class="viewcode-back" href="../../model.html#piff.Optical">[docs]</a><span class="k">class</span> <span class="nc">Optical</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize the Optical Model</span>
+
+<span class="sd">    There are potentially three components to this model that are convolved together.</span>
+
+<span class="sd">    First, there is an optical component, which uses a galsim.OpticalPSF to model the</span>
+<span class="sd">    profile.  The aberrations are considered fitted parameters, but the other attributes</span>
+<span class="sd">    are fixed and are given at initialization.  These parameters are passed to GalSim, so</span>
+<span class="sd">    they have the same definitions as used there.</span>
+
+<span class="sd">    :param diam:            Diameter of telescope aperture in meters. [required (but cf.</span>
+<span class="sd">                            template option)]</span>
+<span class="sd">    :param lam:             Wavelength of observations in nanometers. [required (but cf.</span>
+<span class="sd">                            template option)]</span>
+<span class="sd">    :param obscuration:     Linear dimension of central obscuration as fraction of pupil</span>
+<span class="sd">                            linear dimension, [0., 1.). [default: 0]</span>
+<span class="sd">    :param nstruts:         Number of radial support struts to add to the central obscuration.</span>
+<span class="sd">                            [default: 0]</span>
+<span class="sd">    :param strut_thick:     Thickness of support struts as a fraction of pupil diameter.</span>
+<span class="sd">                            [default: 0.05]</span>
+<span class="sd">    :param strut_angle:     Angle made between the vertical and the strut starting closest to</span>
+<span class="sd">                            it, defined to be positive in the counter-clockwise direction.</span>
+<span class="sd">                            [default: 0. * galsim.degrees]</span>
+<span class="sd">    :param pupil_plane_im:  The name of a file containing the pupil plane image to use instead</span>
+<span class="sd">                            of creating one from obscuration, struts, etc. [default: None]</span>
+
+<span class="sd">    Second, there may be an atmospheric component, which uses either a galsim.Kolmogorov or</span>
+<span class="sd">    galsim.VonKarman to model the profile.</span>
+
+<span class="sd">    :param fwhm:            The full-width half-max of the atmospheric part of the PSF.</span>
+<span class="sd">                            [default: None]</span>
+<span class="sd">    :param r0:              The Fried parameter in units of meters to use for the Kolmogorov</span>
+<span class="sd">                            profile. [default: None]</span>
+<span class="sd">    :param L0:              The outer scale in units of meters if desired, in which case</span>
+<span class="sd">                            the atmospheric part will be a VonKarman. [default: None]</span>
+
+<span class="sd">    Finally, there is allowed to be a final Gaussian component and an applied shear.</span>
+
+<span class="sd">    :param sigma:           Convolve with gaussian of size sigma. [default: 0]</span>
+<span class="sd">    :param g1, g2:          Shear to apply to final image. Simulates vibrational modes.</span>
+<span class="sd">                            [default: 0]</span>
+
+<span class="sd">    Since there are a lot of parameters here, we provide the option of setting many of them</span>
+<span class="sd">    from a template value.  e.g. template = &#39;des&#39; will use the values stored in the dict</span>
+<span class="sd">    piff.optical_model.optical_templates[&#39;des&#39;].</span>
+
+<span class="sd">    :param template:        A key word in the dict piff.optical_model.optical_template to use</span>
+<span class="sd">                            for setting values of these parameters.  [default: None]</span>
+
+<span class="sd">    If you use a template as well as other specific parameters, the specific parameters will</span>
+<span class="sd">    override the values from the template.  e.g.  to simulate what DES would be like at</span>
+<span class="sd">    lambda=1000 nm (the default is 700), you could do:</span>
+
+<span class="sd">            &gt;&gt;&gt; model = piff.OpticalModel(template=&#39;des&#39;, lam=1000)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_method</span> <span class="o">=</span> <span class="s1">&#39;no_pixel&#39;</span>
+    <span class="n">_centered</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_model_can_be_offset</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># If pupil_angle and strut angle are provided as strings, eval them.</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;pupil_angle&#39;</span><span class="p">,</span> <span class="s1">&#39;strut_angle&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">],</span><span class="nb">str</span><span class="p">):</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+        <span class="c1"># Copy over anything from the template dict, but let the direct kwargs override anything</span>
+        <span class="c1"># in the template.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">template</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">optical_templates</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown template specified: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">%</span><span class="n">template</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">optical_templates</span><span class="p">[</span><span class="n">template</span><span class="p">])</span>
+        <span class="c1"># Do this second, so specified kwargs override anything from the template</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Some of these aren&#39;t documented above, but allow them anyway.</span>
+        <span class="n">opt_keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;lam&#39;</span><span class="p">,</span> <span class="s1">&#39;diam&#39;</span><span class="p">,</span> <span class="s1">&#39;lam_over_diam&#39;</span><span class="p">,</span> <span class="s1">&#39;scale_unit&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;circular_pupil&#39;</span><span class="p">,</span> <span class="s1">&#39;obscuration&#39;</span><span class="p">,</span> <span class="s1">&#39;interpolant&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;oversampling&#39;</span><span class="p">,</span> <span class="s1">&#39;pad_factor&#39;</span><span class="p">,</span> <span class="s1">&#39;suppress_warning&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;nstruts&#39;</span><span class="p">,</span> <span class="s1">&#39;strut_thick&#39;</span><span class="p">,</span> <span class="s1">&#39;strut_angle&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;pupil_angle&#39;</span><span class="p">,</span> <span class="s1">&#39;pupil_plane_scale&#39;</span><span class="p">,</span> <span class="s1">&#39;pupil_plane_size&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opt_kwargs</span> <span class="o">=</span> <span class="p">{</span> <span class="n">key</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">opt_keys</span> <span class="p">}</span>
+
+        <span class="c1"># Deal with the pupil plane image now so it only needs to be loaded from disk once.</span>
+        <span class="k">if</span> <span class="s1">&#39;pupil_plane_im&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">pupil_plane_im</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;pupil_plane_im&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pupil_plane_im</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Loading pupil_plane_im from </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pupil_plane_im</span><span class="p">))</span>
+                <span class="n">pupil_plane_im</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">pupil_plane_im</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">opt_kwargs</span><span class="p">[</span><span class="s1">&#39;pupil_plane_im&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pupil_plane_im</span>
+
+        <span class="n">atm_keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;lam&#39;</span><span class="p">,</span> <span class="s1">&#39;r0&#39;</span><span class="p">,</span> <span class="s1">&#39;lam_over_r0&#39;</span><span class="p">,</span> <span class="s1">&#39;scale_unit&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;fwhm&#39;</span><span class="p">,</span> <span class="s1">&#39;half_light_radius&#39;</span><span class="p">,</span> <span class="s1">&#39;r0_500&#39;</span><span class="p">,</span> <span class="s1">&#39;L0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span> <span class="o">=</span> <span class="p">{</span> <span class="n">key</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">atm_keys</span> <span class="p">}</span>
+        <span class="c1"># If lam is the only one, then remove it -- we don&#39;t have a Kolmogorov component then.</span>
+        <span class="k">if</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;lam&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Also, let r0=0 or None indicate that there is no atm component</span>
+        <span class="k">if</span> <span class="s1">&#39;r0&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span><span class="p">[</span><span class="s1">&#39;r0&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Store the Gaussian and shear parts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;sigma&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g1</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;g1&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">g2</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;g2&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># Check that no unexpected parameters were passed in:</span>
+        <span class="n">extra_kwargs</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">opt_keys</span> <span class="ow">and</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">atm_keys</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">extra_kwargs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;__init__() got an unexpected keyword argument </span><span class="si">%r</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">extra_kwargs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Check for some required parameters.</span>
+        <span class="k">if</span> <span class="s1">&#39;diam&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">opt_kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Required keyword argument &#39;diam&#39; not found&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;lam&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">opt_kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Required keyword argument &#39;lam&#39; not found&quot;</span><span class="p">)</span>
+
+        <span class="c1"># pupil_angle and strut_angle won&#39;t serialize properly, so repr them now in self.kwargs.</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;pupil_angle&#39;</span><span class="p">,</span> <span class="s1">&#39;strut_angle&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+<div class="viewcode-block" id="Optical.fit"><a class="viewcode-back" href="../../model.html#piff.Optical.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Warning: This method just updates the fit with the chisq and dof!</span>
+
+<span class="sd">        :param star:    A Star instance</span>
+
+<span class="sd">        :returns: a new Star with the fitted parameters in star.fit</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">weight</span>
+        <span class="c1"># make image from self.draw</span>
+        <span class="n">model_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">star</span><span class="p">)</span><span class="o">.</span><span class="n">image</span>
+
+        <span class="c1"># compute chisq</span>
+        <span class="n">chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">array</span> <span class="o">-</span> <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span><span class="p">)</span>
+
+        <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">))</span> 
+        <span class="n">fit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">params_var</span><span class="o">=</span><span class="n">var</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span><span class="p">,</span>
+                      <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">,</span> <span class="n">chisq</span><span class="o">=</span><span class="n">chisq</span><span class="p">,</span> <span class="n">dof</span><span class="o">=</span><span class="n">dof</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Optical.getProfile"><a class="viewcode-back" href="../../model.html#piff.Optical.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
+
+<span class="sd">        :param params:      A np array with [z4, z5, z6...z11]</span>
+
+<span class="sd">        :returns: a galsim.GSObject instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># gaussian</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">gaussian</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span>
+            <span class="n">prof</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gaussian</span><span class="p">)</span>
+
+        <span class="c1"># atmosphere</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;L0&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span><span class="p">[</span><span class="s1">&#39;L0&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">atm</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">VonKarman</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">atm</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Kolmogorov</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">atm_kwargs</span><span class="p">)</span>
+            <span class="n">prof</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atm</span><span class="p">)</span>
+
+        <span class="c1"># optics</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># no aberrations.  Just the basic opt_kwargs</span>
+            <span class="n">optics</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">OpticalPSF</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">opt_kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">aberrations</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+            <span class="n">optics</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">OpticalPSF</span><span class="p">(</span><span class="n">aberrations</span><span class="o">=</span><span class="n">aberrations</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">opt_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># convolve together</span>
+        <span class="n">prof</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">optics</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">prof</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">g1</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">g2</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">prof</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">g2</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">prof</span></div></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

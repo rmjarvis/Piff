@@ -644,13 +644,15 @@ def test_hsmcatalog():
     piff.piffify(config, logger)
     assert os.path.isfile(hsm_file)
 
-    data = fitsio.read(hsm_file)
+    data, header = fitsio.read(hsm_file, header=True)
     for col in ['ra', 'dec', 'x', 'y', 'u', 'v',
                 'T_data', 'g1_data', 'g2_data',
                 'T_model', 'g1_model', 'g2_model',
                 'flux', 'reserve', 'flag_data', 'flag_model']:
         assert len(data[col]) == 10
     true_data = fitsio.read(cat_file)
+
+    assert header['PIFF_VERSION'] == piff.__version__
 
     np.testing.assert_allclose(data['x'], true_data['x'])
     np.testing.assert_allclose(data['y'], true_data['y'])
@@ -714,6 +716,7 @@ def test_bad_hsm():
     shape_file = os.path.join('output','bad_hsm_shape.pdf')
     star_file = os.path.join('output','bad_hsm_star.pdf')
     hsm_file = os.path.join('output','bad_hsm_hsm.fits')
+    hsm4_file = os.path.join('output','bad_hsm_hsm_fourth.fits')
     sizemag_file = os.path.join('output','bad_hsm_sizemag.png')
 
     stamp_size = 25
@@ -768,6 +771,11 @@ def test_bad_hsm():
                 {
                     'type': 'HSMCatalog',
                     'file_name': hsm_file,
+                },
+                {
+                    'type': 'HSMCatalog',
+                    'file_name': hsm4_file,
+                    'fourth_order': True,
                 },
             ],
         },

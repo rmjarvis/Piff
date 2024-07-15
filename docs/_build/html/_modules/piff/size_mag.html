@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.size_mag &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.size_mag</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.size_mag</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the following disclaimer in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<span class="c1"># This file include both the SizeMagSelect selection type and the SizeMagStats stat type.</span>
+
+<span class="kn">from</span> <span class="nn">.stats</span> <span class="kn">import</span> <span class="n">Stats</span>
+<span class="kn">from</span> <span class="nn">.select</span> <span class="kn">import</span> <span class="n">Select</span>
+
+<span class="k">class</span> <span class="nc">SizeMagStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics class that plots a size magnitude diagram to check the quality of</span>
+<span class="sd">    the star selection.</span>
+
+<span class="sd">    :param file_name:       Name of the file to output to. [default: None]</span>
+<span class="sd">    :param zeropoint:       Zeropoint to use = the magnitude of flux=1. [default: 30]</span>
+<span class="sd">    :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">zeropoint</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span> <span class="o">=</span> <span class="n">zeropoint</span>
+
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param psf:         A PSF Object</span>
+<span class="sd">        :param stars:       A list of Star instances.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># measure everything with hsm</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Measuring Star and Model Shapes&quot;</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">star_shapes</span><span class="p">,</span> <span class="n">psf_shapes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">measureShapes</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="s1">&#39;initial_stars&#39;</span><span class="p">):</span>
+            <span class="c1"># remove initial objects that ended up being used.</span>
+            <span class="n">init_pos</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">image_pos</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">psf</span><span class="o">.</span><span class="n">initial_stars</span><span class="p">]</span>
+            <span class="n">initial_objects</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">psf</span><span class="o">.</span><span class="n">initial_objects</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">image_pos</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">init_pos</span><span class="p">]</span>
+            <span class="n">star_pos</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">image_pos</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">]</span>
+            <span class="n">initial_stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">psf</span><span class="o">.</span><span class="n">initial_stars</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">image_pos</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">star_pos</span><span class="p">]</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">obj_shapes</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">measureShapes</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">initial_objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">init_shapes</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">measureShapes</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">initial_stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># if didn&#39;t make psf using process, then inital fields will be absent.</span>
+            <span class="c1"># Just make them empty arrays.</span>
+            <span class="n">obj_shapes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">))</span>
+            <span class="n">init_shapes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">))</span>
+
+        <span class="c1"># Pull out the sizes and fluxes</span>
+        <span class="n">flag_star</span> <span class="o">=</span> <span class="n">star_shapes</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">flag_star</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_star</span> <span class="o">=</span> <span class="n">star_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T_star</span> <span class="o">=</span> <span class="n">star_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">flag_psf</span> <span class="o">=</span> <span class="n">psf_shapes</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">flag_psf</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_psf</span> <span class="o">=</span> <span class="n">psf_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T_psf</span> <span class="o">=</span> <span class="n">psf_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">flag_obj</span> <span class="o">=</span> <span class="n">obj_shapes</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">flag_obj</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_obj</span> <span class="o">=</span> <span class="n">obj_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T_obj</span> <span class="o">=</span> <span class="n">obj_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">flag_init</span> <span class="o">=</span> <span class="n">init_shapes</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">flag_init</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">f_init</span> <span class="o">=</span> <span class="n">init_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T_init</span> <span class="o">=</span> <span class="n">init_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+
+        <span class="c1"># Calculate the magnitudes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m_star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span> <span class="o">-</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f_star</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m_psf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span> <span class="o">-</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f_psf</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span> <span class="o">-</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f_init</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span> <span class="o">-</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">f_obj</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
+
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :params \**kwargs:  Any additional kwargs go into the matplotlib scatter() function.</span>
+
+<span class="sd">        :returns: fig, ax</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="kn">import</span> <span class="n">Figure</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">Figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">6</span><span class="p">))</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_star</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">xmin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_obj</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+            <span class="n">xmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_obj</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="mi">100</span><span class="p">))</span>
+            <span class="n">ymax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_obj</span><span class="p">)</span><span class="o">*</span><span class="mi">2</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_obj</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">1.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">xmin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_star</span><span class="p">))</span>
+            <span class="n">xmin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_init</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="n">xmin</span><span class="p">)</span>  <span class="c1"># Do it this way in case m_init is empty.</span>
+            <span class="n">xmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_star</span><span class="p">))</span>
+            <span class="n">xmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_obj</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="n">xmax</span><span class="p">)</span>   <span class="c1"># Likewise, m_obj might be empty.</span>
+            <span class="n">ymax</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_star</span><span class="p">)</span><span class="o">*</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T_star</span><span class="p">)</span><span class="o">*</span><span class="mf">1.01</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xmin</span><span class="p">,</span> <span class="n">xmax</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">ymax</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Magnitude (ZP=</span><span class="si">%s</span><span class="s1">)&#39;</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">zeropoint</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$T = 2\sigma^2$ (arcsec$</span><span class="si">{}</span><span class="s1">^2$)&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+
+        <span class="c1"># This looks better if we plot all the objects a bit at a time, rather than all of one type</span>
+        <span class="c1"># than all of the next, etc.  This makes it easier to see if there are some galaxies in</span>
+        <span class="c1"># the star area or vice versa.  We implement this by sorting all of them in magnitude</span>
+        <span class="c1"># and then plotting the indices mod 20.</span>
+        <span class="n">group_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_obj</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1</span>
+        <span class="n">group_init</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_init</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="n">group_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_star</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span>
+        <span class="n">group_psf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_psf</span><span class="p">)</span> <span class="o">*</span> <span class="mi">4</span>
+
+        <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">group_obj</span><span class="p">,</span> <span class="n">group_init</span><span class="p">,</span> <span class="n">group_star</span><span class="p">,</span> <span class="n">group_psf</span><span class="p">])</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">m_obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_init</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_star</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_psf</span><span class="p">])</span>
+        <span class="n">T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">T_obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T_init</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T_star</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T_psf</span><span class="p">])</span>
+
+        <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="n">n</span><span class="o">%</span><span class="mi">20</span><span class="o">==</span><span class="n">i</span><span class="p">]</span>
+
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">],</span> <span class="n">T</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">],</span>
+                             <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mf">2.</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">init</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">],</span> <span class="n">T</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">],</span>
+                              <span class="n">color</span><span class="o">=</span><span class="s1">&#39;magenta&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mf">8.</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">star</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">],</span> <span class="n">T</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">],</span>
+                              <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mf">40.</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">psf</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">],</span> <span class="n">T</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">g</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">],</span>
+                             <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mf">50.</span><span class="p">,</span>
+                             <span class="n">facecolors</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">edgecolors</span><span class="o">=</span><span class="s1">&#39;cyan&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="n">obj</span><span class="p">,</span> <span class="n">init</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">psf</span><span class="p">],</span>
+              <span class="p">[</span><span class="s1">&#39;Detected Object&#39;</span><span class="p">,</span> <span class="s1">&#39;Candidate Star&#39;</span><span class="p">,</span> <span class="s1">&#39;PSF Star&#39;</span><span class="p">,</span> <span class="s1">&#39;PSF Model&#39;</span><span class="p">],</span>
+              <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;lower left&#39;</span><span class="p">,</span> <span class="n">frameon</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span>
+
+
+<div class="viewcode-block" id="SmallBrightSelect"><a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect">[docs]</a><span class="k">class</span> <span class="nc">SmallBrightSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars by looking for a locus of small, bright objects that</span>
+<span class="sd">    are all about the same size.</span>
+
+<span class="sd">    This is a very crude selection.  It is typically used to provide an initial selection to</span>
+<span class="sd">    the SizeMag selector.</span>
+
+<span class="sd">    The following parameters are tunable in the config field, but they all have reasonable</span>
+<span class="sd">    default values:</span>
+
+<span class="sd">        :bright_fraction:   The fraction of the detected objects to consider &quot;bright&quot; and</span>
+<span class="sd">                            thus available for consideration for star selection.</span>
+<span class="sd">                            [default: 0.2]</span>
+<span class="sd">        :small_fraction:    The fraction of the bright objects to consider &quot;small&quot;.</span>
+<span class="sd">                            [default: 0.2]</span>
+<span class="sd">        :locus_fraction:    The fraction of the initial small, bright objects to look for</span>
+<span class="sd">                            having all nearly the same size.  These constitude the first</span>
+<span class="sd">                            extremely crude selection of high-confidence stars. [default: 0.5]</span>
+<span class="sd">        :max_spread:        The maximum spread in log(T) to allow for the final set of stars.</span>
+<span class="sd">                            From the initial high-confidence stars, we expand the range in</span>
+<span class="sd">                            size to try to capture the full stellar locus based on the</span>
+<span class="sd">                            inter-quartile range of the candidate stars.  This parameter sets</span>
+<span class="sd">                            a maximum range to allow for this locus to make sure it doesn&#39;t</span>
+<span class="sd">                            erroneously expand to include everything. [default: 0.1]</span>
+
+<span class="sd">    :param config:      The configuration dict used to define the above parameters.</span>
+<span class="sd">                        (Normally the &#39;select&#39; field in the overall configuration dict).</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SmallBrightSelect</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">opt</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;bright_fraction&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="s1">&#39;small_fraction&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="s1">&#39;locus_fraction&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="s1">&#39;max_spread&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GetAllParams</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">opt</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="n">Select</span><span class="o">.</span><span class="n">base_keys</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bright_fraction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;bright_fraction&#39;</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">small_fraction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;small_fraction&#39;</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">locus_fraction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;locus_fraction&#39;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_spread</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_spread&#39;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SmallBrightSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.SmallBrightSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+
+<span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a list of Star instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Selecting small/bright objects as stars&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initial count = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))</span>
+
+        <span class="c1"># The algorithm cannot recover from having fewer than 2 input objects.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> input object</span><span class="si">%s</span><span class="s2">. Cannot find bright/small stellar locus&quot;</span><span class="p">,</span>
+                           <span class="s2">&quot;Only 1&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;No&quot;</span><span class="p">,</span>
+                           <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;s&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="c1"># Get size, flux from hsm</span>
+        <span class="n">obj_shapes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">obj</span><span class="o">.</span><span class="n">hsm</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span> <span class="p">])</span>
+        <span class="n">flag_obj</span> <span class="o">=</span> <span class="n">obj_shapes</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">f_obj</span> <span class="o">=</span> <span class="n">obj_shapes</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">T_obj</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">obj_shapes</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="c1"># Getting rid of the flags will mess with the indexing, so keep track of the original</span>
+        <span class="c1"># index numbers.</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">flag_obj</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="n">orig_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="c1"># Work in log/log space.</span>
+        <span class="c1"># log(f) is basically a magnitude with different spacing.</span>
+        <span class="c1"># size of stars is constant, so log(T) doesn&#39;t matter that much, but it means that</span>
+        <span class="c1"># the width of the locus in the size direction is really a fractional width.  This is</span>
+        <span class="c1"># nice because it gets rid of any scaling issues due to units or pixel size, etc.</span>
+        <span class="n">logf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">f_obj</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+        <span class="n">logT</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">T_obj</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;After removing flags count = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">logf</span><span class="p">))</span>
+
+        <span class="c1"># Pick out brightest 20% (or bright_fraction if given)</span>
+        <span class="n">i20</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">logf</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">bright_fraction</span><span class="p">))</span>
+        <span class="n">i20</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">i20</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># Need at least 2</span>
+        <span class="n">i20</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">i20</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">logf</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># sanity check if the user inputs bright_fraction &gt;= 1</span>
+        <span class="n">sort_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="o">-</span><span class="n">logf</span><span class="p">,</span> <span class="n">i20</span><span class="p">)</span>
+        <span class="n">bright_logf</span> <span class="o">=</span> <span class="n">logf</span><span class="p">[</span><span class="n">sort_index</span><span class="p">[:</span><span class="n">i20</span><span class="o">+</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">bright_logT</span> <span class="o">=</span> <span class="n">logT</span><span class="p">[</span><span class="n">sort_index</span><span class="p">[:</span><span class="n">i20</span><span class="o">+</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Bright objects:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;logf = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">bright_logf</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;logT = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">bright_logT</span><span class="p">)</span>
+
+        <span class="c1"># Now take smallest 20% of these (or small_fraction if given)</span>
+        <span class="n">i20</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bright_logT</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">small_fraction</span><span class="p">))</span>
+        <span class="n">i20</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">i20</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># Need at least 2</span>
+        <span class="n">i20</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">i20</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">bright_logT</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># sanity check if the user inputs small_fraction &gt;= 1</span>
+        <span class="n">sort_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">bright_logT</span><span class="p">,</span> <span class="n">i20</span><span class="p">)</span>
+        <span class="n">bright_small_logf</span> <span class="o">=</span> <span class="n">bright_logf</span><span class="p">[</span><span class="n">sort_index</span><span class="p">[:</span><span class="n">i20</span><span class="o">+</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">bright_small_logT</span> <span class="o">=</span> <span class="n">bright_logT</span><span class="p">[</span><span class="n">sort_index</span><span class="p">[:</span><span class="n">i20</span><span class="o">+</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Bright/small objects:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;logf = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">bright_small_logf</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;logT = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">bright_small_logT</span><span class="p">)</span>
+
+        <span class="c1"># Sort these by size</span>
+        <span class="n">sort_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">bright_small_logT</span><span class="p">)</span>
+        <span class="n">bright_small_logf</span> <span class="o">=</span> <span class="n">bright_small_logf</span><span class="p">[</span><span class="n">sort_index</span><span class="p">]</span>
+        <span class="n">bright_small_logT</span> <span class="o">=</span> <span class="n">bright_small_logT</span><span class="p">[</span><span class="n">sort_index</span><span class="p">]</span>
+
+        <span class="c1"># Find the &quot;half&quot; with the smallest range in size</span>
+        <span class="n">half_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bright_small_logT</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">locus_fraction</span><span class="p">))</span>
+        <span class="n">half_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">half_len</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># Need at least 2, but half_len is n-1</span>
+        <span class="n">half_len</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">half_len</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">bright_small_logT</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># And at most all of them.</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;half_len = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">half_len</span><span class="p">)</span>
+        <span class="n">delta_T</span> <span class="o">=</span> <span class="n">bright_small_logT</span><span class="p">[</span><span class="n">half_len</span><span class="p">:]</span> <span class="o">-</span> <span class="n">bright_small_logT</span><span class="p">[:</span><span class="o">-</span><span class="n">half_len</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;delta_T = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">delta_T</span><span class="p">)</span>
+        <span class="n">imin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">delta_T</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;imin = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">imin</span><span class="p">)</span>
+        <span class="n">star_logT</span> <span class="o">=</span> <span class="n">bright_small_logT</span><span class="p">[</span><span class="n">imin</span><span class="p">:</span><span class="n">imin</span><span class="o">+</span><span class="n">half_len</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initial bright/small selection includes </span><span class="si">%d</span><span class="s2"> objects&quot;</span><span class="p">,</span><span class="n">half_len</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Expand this to include all stars that are within twice the interquarile range of</span>
+        <span class="c1"># these candidate stars.  Keep doing so until we converge on a good set of stars.</span>
+        <span class="n">old_select</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Force at least 2 iterations</span>
+        <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>  <span class="c1"># (and at most 10)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">star_logT</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># This will give an error when taking the median, so bail out here.</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to find bright/small stellar locus.&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Iteration </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">it</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Sizes of candidate stars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">star_logT</span><span class="p">))</span>
+            <span class="n">med</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">star_logT</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Median size = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">med</span><span class="p">))</span>
+            <span class="n">q25</span><span class="p">,</span> <span class="n">q75</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">star_logT</span><span class="p">,</span> <span class="p">[</span><span class="mi">25</span><span class="p">,</span><span class="mi">75</span><span class="p">])</span>
+            <span class="n">iqr</span> <span class="o">=</span> <span class="n">q75</span> <span class="o">-</span> <span class="n">q25</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Range of star logT size = </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">star_logT</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">star_logT</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;IQR = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">iqr</span><span class="p">)</span>
+            <span class="n">iqr</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">iqr</span><span class="p">,</span><span class="mf">0.01</span><span class="p">)</span>  <span class="c1"># Make sure we don&#39;t get too tight an initial grouping</span>
+            <span class="n">iqr</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">iqr</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">max_spread</span><span class="o">/</span><span class="mi">4</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;IQR =&gt; </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">iqr</span><span class="p">)</span>
+            <span class="n">select</span> <span class="o">=</span> <span class="p">(</span><span class="n">logT</span> <span class="o">&gt;=</span> <span class="n">med</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">iqr</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">logT</span> <span class="o">&lt;=</span> <span class="n">med</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">iqr</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">logf</span> <span class="o">&gt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">bright_logf</span><span class="p">))</span>
+            <span class="n">new_count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">select</span><span class="p">)</span>
+            <span class="c1"># Break out when we stop adding more stars.</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">select</span><span class="p">,</span> <span class="n">old_select</span><span class="p">):</span>
+                <span class="k">break</span>
+            <span class="n">old_select</span> <span class="o">=</span> <span class="n">select</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Expand this to include </span><span class="si">%d</span><span class="s2"> selected stars&quot;</span><span class="p">,</span><span class="n">new_count</span><span class="p">)</span>
+            <span class="n">star_logT</span> <span class="o">=</span> <span class="n">logT</span><span class="p">[</span><span class="n">select</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Max iter = 10 reached.  Stop updating based on median/IQR.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get the initial indexes of these objects</span>
+        <span class="n">select_index</span> <span class="o">=</span> <span class="n">orig_index</span><span class="p">[</span><span class="n">select</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;select_index = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">select_index</span><span class="p">)</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">objects</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">select_index</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;sizes of stars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,[</span><span class="mi">2</span><span class="o">*</span><span class="n">s</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;fluxs of stars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,[</span><span class="n">s</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Bright/small selection found </span><span class="si">%d</span><span class="s2"> likely stars&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">stars</span></div></div>
+
+<div class="viewcode-block" id="SizeMagSelect"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect">[docs]</a><span class="k">class</span> <span class="nc">SizeMagSelect</span><span class="p">(</span><span class="n">Select</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Select handler that picks stars by finding where the stellar locus in the size-magnitude</span>
+<span class="sd">    diagram starts to blend into the galaxy locus.</span>
+
+<span class="sd">    By default, the initial selection uses the SmallBright selector, but you can provide</span>
+<span class="sd">    any other selection algorithm for the initial stars.</span>
+
+<span class="sd">    The following parameters are tunable in the config field, but they all have reasonable</span>
+<span class="sd">    default values:</span>
+
+<span class="sd">        :fit_order:     The order of the polynomial fit of log(size) vs (u,v) across the</span>
+<span class="sd">                        field of view.  This is used to subtract off the gross size variation</span>
+<span class="sd">                        across the focal plane, which tends to tighten up the stellar locus.</span>
+<span class="sd">                        [default: 2]</span>
+<span class="sd">        :impurity:      The maximum ratio of objects at the minimum between the stellar locus</span>
+<span class="sd">                        and the galaxy locus to the number of stars found.  This shouldn&#39;t be</span>
+<span class="sd">                        taken to be a quantitative estimate of the actual impurity in the sample,</span>
+<span class="sd">                        but larger values of impurity will correspond to larger samples with more</span>
+<span class="sd">                        impurities.  Smaller impurity will likely result in a purer selection of</span>
+<span class="sd">                        stars, but also one with fewer total stars. [default: 0.01]</span>
+<span class="sd">        :num_iter:      How many iterations to repeat the processing of building a histogram</span>
+<span class="sd">                        looking for when it merges with the galaxy locus. [default: 3]</span>
+
+<span class="sd">    In addition to these, you may specify the algorithm for making the initial selection</span>
+<span class="sd">    in an ``inital_select`` dict, which should specify the selection algorithm to use.</span>
+<span class="sd">    The default is to use the SmallBright selection algorithm with default parameters.</span>
+<span class="sd">    But you could specify non-default parameters for that as follows (e.g.)::</span>
+
+<span class="sd">        select:</span>
+<span class="sd">            type: SizeMag</span>
+
+<span class="sd">            initial_select:</span>
+<span class="sd">                type: SmallBright</span>
+<span class="sd">                bright_fraction: 0.3</span>
+<span class="sd">                small_fraction: 0.4</span>
+<span class="sd">                locus_fraction: 0.3</span>
+
+<span class="sd">            fit_order: 3</span>
+
+<span class="sd">    Or, you may want to start with stars according to some other selection algorith.</span>
+<span class="sd">    E.g. to use some column(s) from the input catalog::</span>
+
+<span class="sd">        select:</span>
+<span class="sd">            type: SizeMag</span>
+
+<span class="sd">            initial_select:</span>
+<span class="sd">                type: Properties</span>
+<span class="sd">                where: (CLASS_STAR &gt; 0.9) &amp; (MAX_AUTO &lt; 16)</span>
+
+<span class="sd">    :param config:      The configuration dict used to define the above parameters.</span>
+<span class="sd">                        (Normally the &#39;select&#39; field in the overall configuration dict)</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SizeMagSelect</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">opt</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;fit_order&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="s1">&#39;impurity&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="s1">&#39;num_iter&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">ignore</span> <span class="o">=</span> <span class="n">Select</span><span class="o">.</span><span class="n">base_keys</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;initial_select&#39;</span><span class="p">]</span>
+
+        <span class="c1"># This used to be (badly) named purity.</span>
+        <span class="c1"># For backwards compatibility, switch it if someone is using the old name.</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;purity&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;WARNING: The parameter name &#39;purity&#39; should now be called &#39;impurity&#39;.&quot;</span><span class="p">)</span>
+            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;impurity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;purity&#39;</span><span class="p">)</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GetAllParams</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">opt</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="n">ignore</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fit_order</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fit_order&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impurity</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;impurity&#39;</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_iter</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;num_iter&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;initial_select&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_select</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;initial_select&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_select</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;SmallBright&#39;</span><span class="p">}</span>
+
+<div class="viewcode-block" id="SizeMagSelect.selectStars"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.selectStars">[docs]</a>    <span class="k">def</span> <span class="nf">selectStars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select which of the input objects should be considered stars.</span>
+
+<span class="sd">        :param objects:     A list of input objects to be considered as potential stars.</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a list of Star instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Selecting stars according to locus in size-magnitude diagram&quot;</span><span class="p">)</span>
+
+        <span class="n">stars</span> <span class="o">=</span> <span class="n">Select</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_select</span><span class="p">,</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">select_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;N objects = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;N initial stars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+
+        <span class="c1"># Get size, flux from hsm</span>
+        <span class="n">obj_shapes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">obj</span><span class="o">.</span><span class="n">hsm</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span> <span class="p">])</span>
+        <span class="n">flag_obj</span> <span class="o">=</span> <span class="n">obj_shapes</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">f_obj</span> <span class="o">=</span> <span class="n">obj_shapes</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">T_obj</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">obj_shapes</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">u_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">obj</span><span class="o">.</span><span class="n">u</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span> <span class="p">])</span>
+        <span class="n">v_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">obj</span><span class="o">.</span><span class="n">v</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span> <span class="p">])</span>
+
+        <span class="c1"># Getting rid of the flags will mess with the indexing, so keep track of the original</span>
+        <span class="c1"># index numbers.</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">flag_obj</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="n">orig_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">objects</span><span class="p">))[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="c1"># Work in log/log space.</span>
+        <span class="c1"># log(f) is basically a magnitude with different spacing.</span>
+        <span class="c1"># size of stars is constant, so log(T) doesn&#39;t matter that much, but it means that</span>
+        <span class="c1"># the width of the locus in the size direction is really a fractional width.  This is</span>
+        <span class="c1"># nice because it gets rid of any scaling issues due to units or pixel size, etc.</span>
+        <span class="n">logf_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">f_obj</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+        <span class="n">logT_obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">T_obj</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+        <span class="n">u_obj</span> <span class="o">=</span> <span class="n">u_obj</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">v_obj</span> <span class="o">=</span> <span class="n">v_obj</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;After removing flags count = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">logf_obj</span><span class="p">))</span>
+
+        <span class="c1"># Sort the objects by brightness (brightest first)</span>
+        <span class="n">sort_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">logf_obj</span><span class="p">)</span>
+        <span class="n">logf_obj</span> <span class="o">=</span> <span class="n">logf_obj</span><span class="p">[</span><span class="n">sort_index</span><span class="p">]</span>
+        <span class="n">logT_obj</span> <span class="o">=</span> <span class="n">logT_obj</span><span class="p">[</span><span class="n">sort_index</span><span class="p">]</span>
+        <span class="n">u_obj</span> <span class="o">=</span> <span class="n">u_obj</span><span class="p">[</span><span class="n">sort_index</span><span class="p">]</span>
+        <span class="n">v_obj</span> <span class="o">=</span> <span class="n">v_obj</span><span class="p">[</span><span class="n">sort_index</span><span class="p">]</span>
+        <span class="n">orig_index</span> <span class="o">=</span> <span class="n">orig_index</span><span class="p">[</span><span class="n">sort_index</span><span class="p">]</span>
+
+        <span class="c1"># Get the size, flux of the initial candidate stars</span>
+        <span class="n">star_shapes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">star</span><span class="o">.</span><span class="n">hsm</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">])</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">star_shapes</span><span class="p">[:,</span> <span class="mi">6</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="n">logf_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">star_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">logT_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">star_shapes</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">u_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">star</span><span class="o">.</span><span class="n">u</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">])[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">v_star</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">star</span><span class="o">.</span><span class="n">v</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span> <span class="p">])[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;logf_star = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">logf_star</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;logT_star = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">logT_star</span><span class="p">)</span>
+
+        <span class="c1"># Do 3 passes of this because as we add more stars, the fit may become better.</span>
+        <span class="k">for</span> <span class="n">i_iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_iter</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Start iter </span><span class="si">%d</span><span class="s2">/</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i_iter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Nstars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">logT_star</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Mean logT of stars = </span><span class="si">%s</span><span class="s2">, std = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">logT_star</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">logT_star</span><span class="p">))</span>
+
+            <span class="c1"># Clip outliers so they don&#39;t pull the fit.</span>
+            <span class="n">q25</span><span class="p">,</span> <span class="n">q75</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">logT_star</span><span class="p">,</span> <span class="p">[</span><span class="mi">25</span><span class="p">,</span><span class="mi">75</span><span class="p">])</span>
+            <span class="n">iqr</span> <span class="o">=</span> <span class="n">q75</span> <span class="o">-</span> <span class="n">q25</span>
+            <span class="n">iqr</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">iqr</span><span class="p">,</span><span class="mf">0.01</span><span class="p">)</span>  <span class="c1"># Make sure we don&#39;t get too tight an initial grouping</span>
+            <span class="n">good</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">logT_star</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">logT_star</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="o">*</span><span class="n">iqr</span>
+            <span class="n">logf_star</span> <span class="o">=</span> <span class="n">logf_star</span><span class="p">[</span><span class="n">good</span><span class="p">]</span>
+            <span class="n">logT_star</span> <span class="o">=</span> <span class="n">logT_star</span><span class="p">[</span><span class="n">good</span><span class="p">]</span>
+            <span class="n">u_star</span> <span class="o">=</span> <span class="n">u_star</span><span class="p">[</span><span class="n">good</span><span class="p">]</span>
+            <span class="n">v_star</span> <span class="o">=</span> <span class="n">v_star</span><span class="p">[</span><span class="n">good</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;After clipping 3sigma outliers, N = </span><span class="si">%s</span><span class="s2">, mean logT = </span><span class="si">%s</span><span class="s2">, std = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                         <span class="nb">len</span><span class="p">(</span><span class="n">logT_star</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">logT_star</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">logT_star</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">u_star</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fit_order</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fit_order</span><span class="o">+</span><span class="mi">2</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Too few candidate stars (</span><span class="si">%d</span><span class="s2">) to use fit_order=</span><span class="si">%d</span><span class="s2">.&quot;</span><span class="p">,</span>
+                               <span class="nb">len</span><span class="p">(</span><span class="n">u_star</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_order</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Cannot find stellar locus.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">[]</span>
+
+            <span class="c1"># Fit a polynomial logT(u,v) and subtract it off.</span>
+            <span class="n">fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_2d_polynomial</span><span class="p">(</span><span class="n">u_star</span><span class="p">,</span> <span class="n">v_star</span><span class="p">,</span> <span class="n">logT_star</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_order</span><span class="p">)</span>
+            <span class="n">logT_star</span> <span class="o">-=</span> <span class="n">fn</span><span class="p">(</span><span class="n">u_star</span><span class="p">,</span> <span class="n">v_star</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;After subtract 2d polynomial fit logT(u,v), mean logT = </span><span class="si">%s</span><span class="s2">, std = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">logT_star</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">logT_star</span><span class="p">))</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">logT_star</span><span class="p">)</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">)</span>  <span class="c1"># Don&#39;t let sigma be 0 in case all logT are equal here.</span>
+
+            <span class="c1"># Now build up a histogram in logT (after also subtracting the polynomial fit)</span>
+            <span class="c1"># Start with brightest objects and slowly go fainter until we see the stellar</span>
+            <span class="c1"># peak start to merge with the galaxies.  This will define our minimum logf for stars.</span>
+            <span class="c1"># We don&#39;t need to keep the whole range of size.  Just go from 0 (where the stars</span>
+            <span class="c1"># are now) up to 10 sigma.</span>
+            <span class="n">logT_fit</span> <span class="o">=</span> <span class="n">logT_obj</span> <span class="o">-</span> <span class="n">fn</span><span class="p">(</span><span class="n">u_obj</span><span class="p">,</span> <span class="n">v_obj</span><span class="p">)</span>
+            <span class="n">logT_fit_shift</span> <span class="o">=</span> <span class="n">logT_fit</span> <span class="o">+</span> <span class="n">sigma</span><span class="o">/</span><span class="mf">2.</span>  <span class="c1"># Add half sigma, so 0 bin is centered at logT=0.</span>
+            <span class="n">use</span> <span class="o">=</span> <span class="p">(</span><span class="n">logT_fit_shift</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">logT_fit_shift</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">sigma</span><span class="p">)</span>
+            <span class="n">logT</span> <span class="o">=</span> <span class="n">logT_fit_shift</span><span class="p">[</span><span class="n">use</span><span class="p">]</span>
+            <span class="n">logf</span> <span class="o">=</span> <span class="n">logf_obj</span><span class="p">[</span><span class="n">use</span><span class="p">]</span>
+            <span class="n">hist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="n">hist_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">logT</span><span class="o">/</span><span class="n">sigma</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">hist_index</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">hist_index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">hist</span><span class="p">))</span>
+
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">logT</span><span class="p">)):</span>
+                <span class="n">hist</span><span class="p">[</span><span class="n">hist_index</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="c1"># Find the first valley to the right of the peak at 0.</span>
+                <span class="c1"># This is defined as locations where the count increases.</span>
+                <span class="c1"># At first, valley may be index=1, in which case, keep going.</span>
+                <span class="n">valleys</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">hist</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">valleys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">valleys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">valley</span> <span class="o">=</span> <span class="n">valleys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;hist = </span><span class="si">%s</span><span class="s2">, valley = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">hist</span><span class="p">,</span> <span class="n">valley</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">hist</span><span class="p">[</span><span class="n">valley</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">impurity</span> <span class="o">*</span> <span class="n">hist</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Value is </span><span class="si">%s</span><span class="s2">, which is too high (cf. </span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                                     <span class="n">hist</span><span class="p">[</span><span class="n">valley</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">impurity</span> <span class="o">*</span> <span class="n">hist</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># If never find a valley (e.g. if all stars or all galaxies are much brighter</span>
+                <span class="c1"># than the stars being considered), then use the first 0 as the &quot;valley&quot;.</span>
+                <span class="n">valley</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">hist</span><span class="p">)</span>
+                <span class="c1"># NB. i (used below) is left as the last index in the loop in this case.</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Final hist = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">hist</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Added </span><span class="si">%d</span><span class="s1"> objects&#39;</span><span class="p">,</span><span class="n">i</span><span class="p">)</span>
+
+            <span class="c1"># When we broke out of that loop (if ever), the last object added gives us our</span>
+            <span class="c1"># flux limit for star selection.</span>
+            <span class="c1"># The location of the minimum gives us our allowed spread in size.</span>
+            <span class="c1"># And we make it symmetric, picking the same spread on the small side of the peak.</span>
+            <span class="n">half_range</span> <span class="o">=</span> <span class="n">valley</span> <span class="o">*</span> <span class="n">sigma</span>
+            <span class="n">min_logf</span> <span class="o">=</span> <span class="n">logf</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Last logf was </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">min_logf</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;valley is at </span><span class="si">%d</span><span class="s1"> sigma = </span><span class="si">%f</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">valley</span><span class="p">,</span> <span class="n">half_range</span><span class="p">)</span>
+
+            <span class="n">select</span> <span class="o">=</span> <span class="p">(</span><span class="n">logT_fit</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="n">half_range</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">logT_fit</span> <span class="o">&lt;=</span> <span class="n">half_range</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">logf_obj</span> <span class="o">&gt;=</span> <span class="n">min_logf</span><span class="p">)</span>
+
+            <span class="c1"># Set up arrays for next iteration</span>
+            <span class="n">logf_star</span> <span class="o">=</span> <span class="n">logf_obj</span><span class="p">[</span><span class="n">select</span><span class="p">]</span>
+            <span class="n">logT_star</span> <span class="o">=</span> <span class="n">logT_obj</span><span class="p">[</span><span class="n">select</span><span class="p">]</span>
+            <span class="n">u_star</span> <span class="o">=</span> <span class="n">u_obj</span><span class="p">[</span><span class="n">select</span><span class="p">]</span>
+            <span class="n">v_star</span> <span class="o">=</span> <span class="n">v_obj</span><span class="p">[</span><span class="n">select</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;SizeMag iteration </span><span class="si">%d</span><span class="s2"> =&gt; N stars = </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">i_iter</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">logf_star</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Mean logT of stars = </span><span class="si">%.3f</span><span class="s2">, std = </span><span class="si">%.3f</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">logT_star</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">logT_star</span><span class="p">))</span>
+
+        <span class="n">select_index</span> <span class="o">=</span> <span class="n">orig_index</span><span class="p">[</span><span class="n">select</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;select_index = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">select_index</span><span class="p">)</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">objects</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">select_index</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;sizes of stars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,[</span><span class="mi">2</span><span class="o">*</span><span class="n">s</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;fluxs of stars = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,[</span><span class="n">s</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;SizeMag selection found </span><span class="si">%d</span><span class="s2"> likely stars&quot;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">stars</span></div>
+
+<div class="viewcode-block" id="SizeMagSelect.fit_2d_polynomial"><a class="viewcode-back" href="../../select.html#piff.SizeMagSelect.fit_2d_polynomial">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">fit_2d_polynomial</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit z = f(x,y) as a 2d polynomial function</span>
+
+<span class="sd">        Returns a function object f.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># I seriously don&#39;t know why this isn&#39;t a first-level numpy function.</span>
+        <span class="c1"># It required some sleuthing to find all the numpy primitives required, but once</span>
+        <span class="c1"># I found them, it&#39;s almost trivial to put them together.</span>
+
+        <span class="kn">from</span> <span class="nn">numpy.polynomial</span> <span class="kn">import</span> <span class="n">chebyshev</span> <span class="k">as</span> <span class="n">cheby</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">cheby</span><span class="o">.</span><span class="n">chebvander2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="n">order</span><span class="p">,</span><span class="n">order</span><span class="p">))</span>
+        <span class="n">coeff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">order</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">order</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">:</span> <span class="n">cheby</span><span class="o">.</span><span class="n">chebval2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">coeff</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fn</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

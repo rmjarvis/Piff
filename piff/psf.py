@@ -440,6 +440,9 @@ class PSF(object):
         :param logger:      A logger object for logging debug info.
         """
         from . import __version__ as piff_version
+        if len(fits) == 1:
+            header = {'piff_version': piff_version}
+            fits.write(data=None, header=header)
         psf_type = self.__class__.__name__
         write_kwargs(fits, extname, dict(self.kwargs, type=psf_type, piff_version=piff_version))
         logger.info("Wrote the basic PSF information to extname %s", extname)

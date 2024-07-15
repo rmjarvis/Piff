@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.model &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.model</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.model</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: model</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span><span class="p">,</span> <span class="n">StarFit</span>
+
+
+<div class="viewcode-block" id="Model"><a class="viewcode-back" href="../../model.html#piff.Model">[docs]</a><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for modeling a single PSF (i.e. no interpolation yet)</span>
+
+<span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
+<span class="sd">    implemented by any derived class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Model.process"><a class="viewcode-back" href="../../model.html#piff.Model.process">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the model field of the config dict.</span>
+
+<span class="sd">        :param config_model:    The configuration dict for the model field.</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a Model instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="k">if</span> <span class="s1">&#39;type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config_model</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;config[&#39;model&#39;] has no type field&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get the class to use for the model</span>
+        <span class="c1"># Not sure if this is what we&#39;ll always want, but it would be simple if we can make it work.</span>
+        <span class="n">model_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">piff</span><span class="p">,</span> <span class="n">config_model</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Read any other kwargs in the model field</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">model_class</span><span class="o">.</span><span class="n">parseKwargs</span><span class="p">(</span><span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Build model object</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model_class</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">model</span></div>
+
+<div class="viewcode-block" id="Model.parseKwargs"><a class="viewcode-back" href="../../model.html#piff.Model.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_model</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the model field of a configuration dict and return the kwargs to use for</span>
+<span class="sd">        initializing an instance of the class.</span>
+
+<span class="sd">        The base class implementation just returns the kwargs as they are, but derived classes</span>
+<span class="sd">        might want to override this if they need to do something more sophisticated with them.</span>
+
+<span class="sd">        :param config_model:    The model field of the configuration dict, config[&#39;model&#39;]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a kwargs dict to pass to the initializer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_model</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="Model.initialize"><a class="viewcode-back" href="../../model.html#piff.Model.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
+
+<span class="sd">        :param star:    A Star instance with the raw data.</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns:       Star instance with the appropriate initial fit values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the initialize function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Model.normalize"><a class="viewcode-back" href="../../model.html#piff.Model.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
+
+<span class="sd">        Note: This modifies the input star in place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># This is by default a no op.  Some models may need to do something to noramlize the</span>
+        <span class="c1"># parameter values in star.fit.</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Model.fit"><a class="viewcode-back" href="../../model.html#piff.Model.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on</span>
+<span class="sd">        its PSF parameters, their uncertainties, and flux (and center, if free).</span>
+<span class="sd">        The returned star.fit.alpha will be inverse covariance of solution if</span>
+<span class="sd">        it is estimated, else is None.</span>
+
+<span class="sd">        :param star:            A Star instance</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
+
+<span class="sd">        :returns:      New Star instance with updated fit information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Derived classes must define the fit function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Model.reflux"><a class="viewcode-back" href="../../model.html#piff.Model.reflux">[docs]</a>    <span class="k">def</span> <span class="nf">reflux</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">fit_center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data, varying only the flux (and</span>
+<span class="sd">        center, if it is free).  Flux and center are updated in the Star&#39;s</span>
+<span class="sd">        attributes.  This is a single-step solution if only solving for flux,</span>
+<span class="sd">        otherwise an iterative operation.  DOF in the result assume</span>
+<span class="sd">        only flux (&amp; center) are free parameters.</span>
+
+<span class="sd">        :param star:        A Star instance</span>
+<span class="sd">        :param fit_center:  If False, disable any motion of center</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns:           New Star instance, with updated flux, center, chisq, dof</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Reflux for star:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    flux = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    props = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    image = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+        <span class="c1">#logger.debug(&quot;    image = %s&quot;,star.data.image.array)</span>
+        <span class="c1">#logger.debug(&quot;    weight = %s&quot;,star.data.weight.array)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    image center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">center</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    weight center = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">weight</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">center</span><span class="p">))</span>
+
+        <span class="c1"># Make sure input is properly normalized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getDataVector</span><span class="p">()</span>
+        <span class="n">psf_prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">star_prof</span> <span class="o">=</span> <span class="n">psf_prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+
+        <span class="n">model_image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">star_prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">model_image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model_image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+        <span class="c1"># Weight by the current model to avoid being influenced by spurious pixels near the edge</span>
+        <span class="c1"># of the stamp.</span>
+        <span class="c1"># Also by the weight map to avoid bad pixels.</span>
+        <span class="n">W</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">model</span>
+        <span class="n">WD</span> <span class="o">=</span> <span class="n">W</span> <span class="o">*</span> <span class="n">data</span>
+        <span class="n">WM</span> <span class="o">=</span> <span class="n">W</span> <span class="o">*</span> <span class="n">model</span>
+
+        <span class="n">f_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WD</span><span class="p">)</span>
+        <span class="n">f_model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WM</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">1</span>  <span class="c1"># Don&#39;t let f_model = 0</span>
+        <span class="n">flux_ratio</span> <span class="o">=</span> <span class="n">f_data</span> <span class="o">/</span> <span class="n">f_model</span>
+        <span class="n">new_flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span> <span class="o">*</span> <span class="n">flux_ratio</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    new flux = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">new_flux</span><span class="p">)</span>
+
+        <span class="n">model</span> <span class="o">*=</span> <span class="n">flux_ratio</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="n">data</span> <span class="o">-</span> <span class="n">model</span>
+
+        <span class="k">if</span> <span class="n">fit_center</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+            <span class="c1"># Use finite different to approximate d(model)/duc, d(model)/dvc</span>
+            <span class="n">duv</span> <span class="o">=</span> <span class="mf">1.e-5</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+            <span class="n">du_prof</span> <span class="o">=</span> <span class="n">psf_prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">duv</span><span class="p">,</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">new_flux</span>
+            <span class="n">du_prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+            <span class="n">dmduc</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">-</span> <span class="n">model</span><span class="p">)</span> <span class="o">/</span> <span class="n">duv</span>
+            <span class="n">dv_prof</span> <span class="o">=</span> <span class="n">psf_prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">duv</span><span class="p">)</span> <span class="o">*</span> <span class="n">new_flux</span>
+            <span class="n">dv_prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+            <span class="n">dmdvc</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">-</span> <span class="n">model</span><span class="p">)</span> <span class="o">/</span> <span class="n">duv</span>
+
+            <span class="c1"># Now construct the design matrix for this minimization</span>
+            <span class="c1">#</span>
+            <span class="c1">#    A x = b</span>
+            <span class="c1">#</span>
+            <span class="c1"># where x = [ duc, dvc ]^T and b = resid.</span>
+            <span class="c1">#</span>
+            <span class="c1"># A[0] = dmduc</span>
+            <span class="c1"># A[1] = dmdvc</span>
+            <span class="c1">#</span>
+            <span class="c1"># Solve: AT A x = AT b</span>
+
+            <span class="n">At</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">dmduc</span><span class="p">,</span> <span class="n">dmdvc</span><span class="p">))</span>
+            <span class="n">Atw</span> <span class="o">=</span> <span class="n">At</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>  <span class="c1"># weighted least squares</span>
+            <span class="n">AtA</span> <span class="o">=</span> <span class="n">Atw</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">At</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+            <span class="n">Atb</span> <span class="o">=</span> <span class="n">Atw</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">resid</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">AtA</span><span class="p">,</span> <span class="n">Atb</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    centroid shift = </span><span class="si">%s</span><span class="s1">,</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">duc</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">dvc</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_can_be_offset</span><span class="p">:</span>
+                <span class="c1"># In addition to shifting to the best fit center location, also shift</span>
+                <span class="c1"># by the centroid of the model itself, so the next next pass through the</span>
+                <span class="c1"># fit will be closer to centered.  In practice, this converges pretty quickly.</span>
+                <span class="n">model_cenu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WM</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span> <span class="o">/</span> <span class="n">f_model</span> <span class="o">-</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">model_cenv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WM</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span> <span class="o">/</span> <span class="n">f_model</span> <span class="o">-</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    model centroid = </span><span class="si">%s</span><span class="s1">,</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">model_cenu</span><span class="p">,</span> <span class="n">model_cenv</span><span class="p">)</span>
+                <span class="n">duc</span> <span class="o">+=</span> <span class="n">model_cenu</span>
+                <span class="n">dvc</span> <span class="o">+=</span> <span class="n">model_cenv</span>
+
+            <span class="n">new_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">duc</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">dvc</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    new center = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">new_center</span><span class="p">)</span>
+
+            <span class="n">new_chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">resid</span><span class="o">-</span><span class="n">At</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">weight</span><span class="p">)</span>
+            <span class="n">new_dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="o">-</span> <span class="mi">3</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+            <span class="n">new_chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">resid</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">weight</span><span class="p">)</span>
+            <span class="n">new_dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    new_chisq = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">new_chisq</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;    new_dof = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">new_dof</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                       <span class="n">flux</span> <span class="o">=</span> <span class="n">new_flux</span><span class="p">,</span>
+                                       <span class="n">center</span> <span class="o">=</span> <span class="n">new_center</span><span class="p">,</span>
+                                       <span class="n">chisq</span> <span class="o">=</span> <span class="n">new_chisq</span><span class="p">,</span>
+                                       <span class="n">dof</span> <span class="o">=</span> <span class="n">new_dof</span><span class="p">,</span>
+                                       <span class="n">params_var</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params_var</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Model.draw"><a class="viewcode-back" href="../../model.html#piff.Model.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Draw the model on the given image.</span>
+
+<span class="sd">        :param star:        A Star instance with the fitted parameters to use for drawing and a</span>
+<span class="sd">                            data field that acts as a template image for the drawn model.</span>
+<span class="sd">        :param copy_image:  If False, will use the same image object.</span>
+<span class="sd">                            If True, will copy the image and then overwrite it.</span>
+<span class="sd">                            [default: True]</span>
+<span class="sd">        :param center:      An optional tuple (x,y) location for where to center the drawn profile</span>
+<span class="sd">                            in the image. [default: None, which draws at the star&#39;s location.]</span>
+
+<span class="sd">        :returns: a new Star instance with the data field having an image of the drawn model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+        <span class="k">if</span> <span class="n">copy_image</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span>
+        <span class="k">if</span> <span class="n">center</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="o">*</span><span class="n">center</span><span class="p">)</span>
+        <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">StarData</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">pointing</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Model.write"><a class="viewcode-back" href="../../model.html#piff.Model.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write a Model to a FITS file.</span>
+
+<span class="sd">        Note: this only writes the initialization kwargs to the fits extension, not the parameters.</span>
+
+<span class="sd">        The base class implemenation works if the class has a self.kwargs attribute and these</span>
+<span class="sd">        are all simple values (str, float, or int)</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The name of the extension to write the model information.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># First write the basic kwargs that works for all Model classes</span>
+        <span class="n">model_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">write_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">model_type</span><span class="p">))</span>
+
+        <span class="c1"># Now do any class-specific steps.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_finish_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+
+<span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
+<span class="sd">        this hook exists in case any Model classes need to write extra information to the</span>
+<span class="sd">        fits file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="Model.read"><a class="viewcode-back" href="../../model.html#piff.Model.read">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read a Model from a FITS file.</span>
+
+<span class="sd">        Note: the returned Model will not have its parameters set.  This just initializes a fresh</span>
+<span class="sd">        model that can be used to interpret interpolated vectors.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The name of the extension with the model information.</span>
+
+<span class="sd">        :returns: a model built with a information in the FITS file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="k">assert</span> <span class="n">extname</span> <span class="ow">in</span> <span class="n">fits</span>
+        <span class="k">assert</span> <span class="s1">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">get_colnames</span><span class="p">()</span>
+        <span class="n">model_type</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">model_type</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">model_type</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">model_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="c1"># fitsio 1.0 returns strings</span>
+            <span class="n">model_type</span> <span class="o">=</span> <span class="n">model_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Check that model_type is a valid Model type.</span>
+        <span class="n">model_classes</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_all_subclasses</span><span class="p">(</span><span class="n">piff</span><span class="o">.</span><span class="n">Model</span><span class="p">)</span>
+        <span class="n">valid_model_types</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([</span> <span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">model_classes</span> <span class="p">])</span>
+        <span class="k">if</span> <span class="n">model_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_model_types</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;model type </span><span class="si">%s</span><span class="s2"> is not a valid Piff Model&quot;</span><span class="o">%</span><span class="n">model_type</span><span class="p">)</span>
+        <span class="n">model_cls</span> <span class="o">=</span> <span class="n">valid_model_types</span><span class="p">[</span><span class="n">model_type</span><span class="p">]</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">read_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;force_model_center&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+            <span class="c1"># old version of this parameter name.</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;centered&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;force_model_center&#39;</span><span class="p">)</span>
+        <span class="n">model_cls</span><span class="o">.</span><span class="n">_fix_kwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model_cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">_finish_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_fix_kwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fix the kwargs read in from an input file.</span>
+
+<span class="sd">        This is intended to make it easier to preserve backwards compatibility if a class</span>
+<span class="sd">        has changed something about the kwargs, this provides a way for old parameter names</span>
+<span class="sd">        or defaults to be updated for a newer version of Piff than the one that wrong them.</span>
+
+<span class="sd">        Usually, this is a no op.</span>
+
+<span class="sd">        :param kwargs:  The old kwargs read in from a previous version Piff output file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+
+<span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
+<span class="sd">        this hook exists in case any Model classes need to read extra information from the</span>
+<span class="sd">        fits file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object.</span>
+<span class="sd">        :param extname:     The base name of the extension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

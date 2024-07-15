@@ -182,24 +182,34 @@ class Stats(object):
                 kwargs = dict(third_order=True, fourth_order=True, radial=True)
             for i, star in enumerate(stars):
                 d = shapes_data[i]
-                m = calculate_moments(star, **kwargs)
 
-                if fourth_order:
-                    d.extend([m['M22']/m['M11'],
-                            m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                            m['M40']/m['M11']**2, m['M04']/m['M11']**2])
+                try:
+                    m = calculate_moments(star, **kwargs)
+                except RuntimeError as e:
+                    # Make sure the flag is set.
+                    if 'HSM failed' in e.args[0]:
+                        d[6] = int(e.args[0].split()[-1])
+                    else: # pragma: no cover
+                        # The HSM failed error is the only one we expect, but just in case...
+                        d[6] = 1
+                    d.extend([0] * (nshapes - 7))
+                else:
+                    if fourth_order:
+                        d.extend([m['M22']/m['M11'],
+                                m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                                m['M40']/m['M11']**2, m['M04']/m['M11']**2])
 
-                    # Subtract off 3e from the 4th order shapes to remove the leading order
-                    # term from the overall ellipticity, which is already captured in the
-                    # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
-                    shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                    d[8] -= 3*shape.e1
-                    d[9] -= 3*shape.e2
-                if raw_moments:
-                    d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
-                              m['M21'], m['M12'], m['M30'], m['M03'],
-                              m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
-                              m['M22n'], m['M33n'], m['M44n']])
+                        # Subtract off 3e from the 4th order shapes to remove the leading order
+                        # term from the overall ellipticity, which is already captured in the
+                        # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
+                        shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                        d[8] -= 3*shape.e1
+                        d[9] -= 3*shape.e2
+                    if raw_moments:
+                        d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
+                                m['M21'], m['M12'], m['M30'], m['M03'],
+                                m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
+                                m['M22n'], m['M33n'], m['M44n']])
 
         # Turn it into a proper numpy array.
         shapes_data = np.array(shapes_data)
@@ -242,19 +252,27 @@ class Stats(object):
             if fourth_order or raw_moments:
                 for i, star in enumerate(model_stars):
                     d = shapes_model[i]
-                    m = calculate_moments(star, **kwargs)
-                    if fourth_order:
-                        d.extend([m['M22']/m['M11'],
-                                  m['M31']/m['M11']**2, m['M13']/m['M11']**2,
-                                  m['M40']/m['M11']**2, m['M04']/m['M11']**2])
-                        shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
-                        d[8] -= 3*shape.e1
-                        d[9] -= 3*shape.e2
-                    if raw_moments:
-                        d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
-                                  m['M21'], m['M12'], m['M30'], m['M03'],
-                                  m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
-                                  m['M22n'], m['M33n'], m['M44n']])
+                    try:
+                        m = calculate_moments(star, **kwargs)
+                    except RuntimeError as e:
+                        if 'HSM failed' in e.args[0]:
+                            d[6] = int(e.args[0].split()[-1])
+                        else: # pragma: no cover
+                            d[6] = 1
+                        d.extend([0] * (nshapes - 7))
+                    else:
+                        if fourth_order:
+                            d.extend([m['M22']/m['M11'],
+                                    m['M31']/m['M11']**2, m['M13']/m['M11']**2,
+                                    m['M40']/m['M11']**2, m['M04']/m['M11']**2])
+                            shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                            d[8] -= 3*shape.e1
+                            d[9] -= 3*shape.e2
+                        if raw_moments:
+                            d.extend([m['M00'], m['M10'], m['M01'], m['M11'], m['M20'], m['M02'],
+                                    m['M21'], m['M12'], m['M30'], m['M03'],
+                                    m['M22'], m['M31'], m['M13'], m['M40'], m['M04'],
+                                    m['M22n'], m['M33n'], m['M44n']])
 
             shapes_model = np.array(shapes_model)
             shapes_model = shapes_model.reshape((len(model_stars),nshapes))
@@ -699,10 +717,10 @@ class HSMCatalogStats(Stats):
 
     Flags:
 
-        0 = Success
-        1 = HSM returned a non-zero moments_status.
-        2 = HSM returned a negative flux.
-        4 = HSM's centroid moved by more than 1 pixel from the input position.
+    * 0 = Success
+    * 1 = HSM returned a non-zero moments_status.
+    * 2 = HSM returned a negative flux.
+    * 4 = HSM's centroid moved by more than 1 pixel from the input position.
 
     The output file will include the following columns:
 
@@ -727,31 +745,32 @@ class HSMCatalogStats(Stats):
 
     .. math::
 
-        T = \int I(u,v) (u^2 + v^2) du dv
-        T^{(4)} = \int I(u,v) (u^2 + v^2)^2 du dv / T
-        g^{(4)} = \int I(u,v) (u^2 + v^2) (u + iv)^2 du dv / T^2 - 3e
-        h^{(4)} = \int I(u,v) (u + iv)^4 du dv / T^2
+        T &= \int I(u,v) (u^2 + v^2) du dv \\
+        g &= \frac{\int I(u,v) (u + iv)^2 du dv}{T} \\
+        T^{(4)} &= \frac{\int I(u,v) (u^2 + v^2)^2 du dv}{T} \\
+        g^{(4)} &= \frac{\int I(u,v) (u^2 + v^2) (u + iv)^2 du dv}{T^2} - 3g \\
+        h^{(4)} &= \frac{\int I(u,v) (u + iv)^4 du dv}{T^2}
 
     I.e. :math:`T^{(4)}` is a fourth-order spin-0 quantity, analogous to :math:`T` at second
     order, :math:`g^{(4)}` is a fourth-order spin-2 quantity, analogous to :math:`g`, and
     :math:`h^{(4)}` is a spin-4 quantity.  The denominators ensure that the units of
-    :math:`T^{(4)}` is :math:`arcsec^2`, just like :math:`T` and that :math:`g^{(4)}` and
-    :math:`h^{(4)}` are dimensionless.  And the :math:`-3e` term for :math:`g^{(4)}` subtracts
+    :math:`T^{(4)}` is :math:`\mathrm{arcsec}^2`, just like :math:`T` and that :math:`g^{(4)}` and
+    :math:`h^{(4)}` are dimensionless.  And the :math:`-3g` term for :math:`g^{(4)}` subtracts
     off the dominant contribution to the fourth order quantity from the second order shape.
     For a pure elliptical Gaussian, this makes :math:`g^{(4)}` come out very close to zero.
 
     The output file contains the following additional columns:
 
         :T4_data:   The fourth-order "size", :math:`T^{(4)}`, of the observed star.
-        :g41_data:  The real component of :math:`g^{4}` of the obserbed star.
-        :g42_data:  The imaginary component of :math:`g^{4}` of the obserbed star.
-        :h41_data:  The real component of :math:`h^{4}` of the obserbed star.
-        :h42_data:  The imaginary component of :math:`h^{4}` of the obserbed star.
+        :g41_data:  The real component of :math:`g^{(4)}` of the obserbed star.
+        :g42_data:  The imaginary component of :math:`g^{(4)}` of the obserbed star.
+        :h41_data:  The real component of :math:`h^{(4)}` of the obserbed star.
+        :h42_data:  The imaginary component of :math:`h^{(4)}` of the obserbed star.
         :T4_model:  The fourth-order "size", :math:`T^{(4)}`, of the PSF model.
-        :g41_model: The real component of :math:`g^{4}` of the PSF model.
-        :g42_model: The imaginary component of :math:`g^{4}` of the PSF model.
-        :h41_model: The real component of :math:`h^{4}` of the PSF model.
-        :h42_model: The imaginary component of :math:`h^{4}` of the PSF model.
+        :g41_model: The real component of :math:`g^{(4)}` of the PSF model.
+        :g42_model: The imaginary component of :math:`g^{(4)}` of the PSF model.
+        :h41_model: The real component of :math:`h^{(4)}` of the PSF model.
+        :h42_model: The imaginary component of :math:`h^{(4)}` of the PSF model.
 
     :param file_name:        Name of the file to output to. [default: None]
     :param model_properties: Optionally a dict of properties to use for the model rendering.
@@ -851,7 +870,8 @@ class HSMCatalogStats(Stats):
         # Also write any other properties saved in the stars.
         prop_keys = list(stars[0].data.properties)
         # Remove all the position ones, which are handled above.
-        prop_keys = [key for key in prop_keys if key not in ['x', 'y', 'u', 'v', 'ra', 'dec']]
+        exclude_keys = ['x', 'y', 'u', 'v', 'ra', 'dec', 'is_reserve']
+        prop_keys = [key for key in prop_keys if key not in exclude_keys]
         # Add any remaining properties
         prop_types = stars[0].data.property_types
         for key in prop_keys:
@@ -870,6 +890,7 @@ class HSMCatalogStats(Stats):
                             which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        from . import __version__ as piff_version
         logger = galsim.config.LoggerWrapper(logger)
         import fitsio
         if file_name is None:
@@ -882,5 +903,6 @@ class HSMCatalogStats(Stats):
         logger.warning("Writing HSM catalog to file %s",file_name)
 
         data = np.array(list(zip(*self.cols)), dtype=self.dtypes)
+        header = {'piff_version': piff_version}
         with fitsio.FITS(file_name, 'rw', clobber=True) as f:
-            f.write_table(data)
+            f.write_table(data, header=header)

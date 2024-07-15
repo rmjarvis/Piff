@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Selecting Good PSF Stars &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Models" href="model.html" />
+    <link rel="prev" title="Reading in Files" href="input.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Selecting Good PSF Stars</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/select.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="selecting-good-psf-stars">
+<h1>Selecting Good PSF Stars<a class="headerlink" href="#selecting-good-psf-stars" title="Permalink to this headline">¶</a></h1>
+<p>It is not uncommon to want to select only a subset of the objects in an input catalog
+to use for PSF estimation.</p>
+<ul class="simple">
+<li><p>Even if your input catalog is nominally all real stars, you may want to exclude stars that have nearby neighbors or are too fain.</p></li>
+<li><p>More realistically, some of the input “stars” may not in fact be stars.  There may be a few quasars or AGN, which are not precisely point-like, in the catalog.</p></li>
+<li><p>And finally, you may only have an input catalog of all detections, including both stars and extended objects, and you want Piff to pick out the stars for you.</p></li>
+</ul>
+<p>All of these types of selection can be effected by the <code class="docutils literal notranslate"><span class="pre">select</span></code> field in the config file.</p>
+<p>The class used for selection is specified by a <code class="docutils literal notranslate"><span class="pre">type</span></code> item as usual.  Options currently
+include:</p>
+<ul class="simple">
+<li><p>“Flag” selects stars according some kind of flags column in the input catalog. See <a class="reference internal" href="#piff.FlagSelect" title="piff.FlagSelect"><code class="xref any py py-class docutils literal notranslate"><span class="pre">FlagSelect</span></code></a>.</p></li>
+<li><p>“Properties” selects stars according to any columns that are identified as “properties” to read in for each obect.  See <a class="reference internal" href="#piff.PropertiesSelect" title="piff.PropertiesSelect"><code class="xref any py py-class docutils literal notranslate"><span class="pre">PropertiesSelect</span></code></a>.</p></li>
+<li><p>“SizeMag” selects stars by looking for a stellar locus in a size-magnitude diagram.  See <a class="reference internal" href="#piff.SizeMagSelect" title="piff.SizeMagSelect"><code class="xref any py py-class docutils literal notranslate"><span class="pre">SizeMagSelect</span></code></a>.</p></li>
+<li><p>“SmallBright” selects stars that are small and bright.  This isn’t typically very good on its own, but it can be a decent seed selection for the “SizeMag” selection.  See <a class="reference internal" href="#piff.SmallBrightSelect" title="piff.SmallBrightSelect"><code class="xref any py py-class docutils literal notranslate"><span class="pre">SmallBrightSelect</span></code></a>.</p></li>
+</ul>
+<p>Finally, all of the selection types allow additional rejection steps after the initial selection.
+These are described in <a class="reference internal" href="#piff.Select" title="piff.Select"><code class="xref any py py-class docutils literal notranslate"><span class="pre">Select</span></code></a>.</p>
+<dl class="py class">
+<dt id="piff.Select">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">Select</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select" title="Permalink to this definition">¶</a></dt>
+<dd><p>The base class for selecting which stars to use for characterizing the PSF.</p>
+<p>This is essentially an abstract base class intended to define the methods that should be
+implemented by any derived class.</p>
+<dl class="py method">
+<dt id="piff.Select.process">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">process</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_select</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">select_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the select field of the config dict.</p>
+<p>This stage handles three somewhat separate actions:</p>
+<ol class="arabic simple">
+<li><p>Select which objects in the input catalog are likely to be stars.</p></li>
+<li><p>Reject stars according to a number of possible criteria.</p></li>
+<li><p>Reserve some fraction of the remaining stars to not use for PSF fitting.</p></li>
+</ol>
+<p>The first step is handled by the derived classes.  There are a number of possible
+algorithms for doing that.  The default select type (Flag) selects objects that
+are not flagged, or if no flag property is specified, then uses all input objects.</p>
+<p>The second and third steps are common to all types and are handled by the base class.</p>
+<p>The following parameters are relevant to steps 2 and 3 and are allowed for all
+select types:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">min_snr</dt>
+<dd class="field-odd"><p>The minimum S/N ratio to use.  If an input star is too faint, it is
+removed from the input list of PSF stars.</p>
+</dd>
+<dt class="field-even">max_snr</dt>
+<dd class="field-even"><p>The maximum S/N ratio to allow for any given star.  If an input star
+is too bright, it can have too large an influence on the interpolation,
+so this parameter limits the effective S/N of any single star.
+Basically, it adds noise to bright stars to lower their S/N down to
+this value.  [default: 100]</p>
+</dd>
+<dt class="field-odd">max_edge_frac</dt>
+<dd class="field-odd"><p>Cutoff on the fraction of the flux comming from pixels on the edges of
+the postage stamp. [default: None]</p>
+</dd>
+<dt class="field-even">stamp_center_size</dt>
+<dd class="field-even"><p>Distance from center of postage stamp (in pixels) to consider as
+defining the edge of the stamp for the purpose of the max_edge_fact cut.
+The default value of 13 is most of the radius of a 32x32 stamp size.
+If you change stamp_size, you should consider what makes sense here.
+[default 13].</p>
+</dd>
+<dt class="field-odd">max_mask_pixels</dt>
+<dd class="field-odd"><p>If given, reject stars with more than this many masked pixels
+(i.e. those with w=0). [default: None]</p>
+</dd>
+<dt class="field-even">hsm_size_reject</dt>
+<dd class="field-even"><p>Whether to reject stars with a very different hsm-measured size than
+the other stars in the input catalog.  (Used to reject objects with
+neighbors or other junk in the postage stamp.) [default: False]
+If this is a float value, it gives the number of inter-quartile-ranges
+to use for rejection relative to the median.  hsm_size_reject=True
+is equivalent to hsm_size_reject=10.</p>
+</dd>
+<dt class="field-odd">max_pixel_cut</dt>
+<dd class="field-odd"><p>Reject stars with a maximum pixel value greater than this value.
+Note: this cut is actually made using a flux cut such that the average
+star with the threshold flux would have this peak pixel value.
+This is in order to avoid a selection bias where smaller stars get
+preferentially excluded, since smaller stars, at a given flux, have a
+higher maximum pixel value. [default: None]</p>
+</dd>
+<dt class="field-even">reject_where</dt>
+<dd class="field-even"><p>Reject stars based on an arbitrary eval string using variables that
+are properties of each star (usually input using property_cols).
+It should evaluate to a bool for a single star or an array of bool
+if the variables are arrays of property values for all the stars.
+[default: None]</p>
+</dd>
+<dt class="field-odd">reserve_frac</dt>
+<dd class="field-odd"><p>Reserve a fraction of the stars from the PSF calculations, so they
+can serve as fair points for diagnostic testing.  These stars will
+not be used to constrain the PSF model, but the output files will
+contain the reserve stars, flagged as such.  Generally 0.2 is a
+good choice if you are going to use this. [default: 0.]</p>
+</dd>
+<dt class="field-even">seed</dt>
+<dd class="field-even"><p>A seed to use for numpy.random.default_rng, if desired. [default: None]</p>
+</dd>
+</dl>
+</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The max_snr parameter is not actually a “selection” parameter.  It doesn’t change
+what stars are used.  Rather, it adjusts the relative weight that is given to the
+brightest stars (so that they don’t dominate the fit).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_select</strong> – The configuration dict.</p></li>
+<li><p><strong>objects</strong> – A list of Star instances, which are at this point all potential
+objects to consider as possible stars.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>select_only</strong> – Whether to stop after the primary selection step. [default: False]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>stars, the subset of objects which are to be considered stars</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Select.rejectStars">
+<code class="sig-name descname"><span class="pre">rejectStars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.rejectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.rejectStars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reject some nominal stars that may not be good exemplars of the PSF.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The subset of the input list that passed the rejection cuts.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Select.reserveStars">
+<code class="sig-name descname"><span class="pre">reserveStars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.reserveStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.reserveStars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mark some of the stars as reserve stars.</p>
+<p>This operates on the star list in place, adding the property <code class="docutils literal notranslate"><span class="pre">is_reserve</span></code>
+to each star (only if some stars are being reserved).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Select.selectStars">
+<code class="sig-name descname"><span class="pre">selectStars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#Select.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Select.selectStars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select which of the input objects should be considered stars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>objects</strong> – A list of input objects to be considered as potential stars.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of Star instances</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.FlagSelect">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">FlagSelect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#FlagSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.FlagSelect" title="Permalink to this definition">¶</a></dt>
+<dd><p>An Select handler that picks stars according to a flag column in the input catalog.</p>
+<p>The Flag type uses the following parameters, all optional.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">flag_name</dt>
+<dd class="field-odd"><p>The name of the flag property (typically the column name in the
+input file) to use for selecting stars. [default: None]</p>
+</dd>
+<dt class="field-even">use_flag</dt>
+<dd class="field-even"><p>The flag indicating which items to use. [default: None]
+Items with flag &amp; use_flag != 0 will be used.</p>
+</dd>
+<dt class="field-odd">skip_flag</dt>
+<dd class="field-odd"><p>The flag indicating which items not to use. [default: -1]
+Items with flag &amp; skip_flag != 0 will be skipped.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>The default behavior if flag_name is not given is to consier all input objects as stars.
+If flag_name is given, but the others are not, then it selects all objects with flag=0.
+Otherwise, it will select according to the prescriptions given above.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – The configuration dict used to define the above parameters.
+(Normally the ‘select’ field in the overall configuration dict).</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.FlagSelect.selectStars">
+<code class="sig-name descname"><span class="pre">selectStars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#FlagSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.FlagSelect.selectStars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select which of the input objects should be considered stars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>objects</strong> – A list of input objects to be considered as potential stars.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of Star instances</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.PropertiesSelect">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">PropertiesSelect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Select handler that picks stars according to any property or combination of properties
+in the input catalog.</p>
+<p>Parse the config dict (Normally the ‘where’ field in the overall configuration dict).</p>
+<p>The Properties type uses the following parameter, which is required.</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">where</dt>
+<dd class="field-odd"><p>A string to be evaluated, which is allowed to use any properties of
+the stars as variables.  It should evaluate to a bool for a single object
+or an array of bool if the variables are arrays of property values for all
+the objects.</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – The configuration dict used to define the above parameters.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.PropertiesSelect.eval_where">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">eval_where</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">where</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect.eval_where"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect.eval_where" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the evaluation of a “where” string using the properties of objects.</p>
+<p>Used by both PropertiesSelect and the reject_where option.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.PropertiesSelect.selectStars">
+<code class="sig-name descname"><span class="pre">selectStars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/select.html#PropertiesSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.PropertiesSelect.selectStars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select which of the input objects should be considered stars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>objects</strong> – A list of input objects to be considered as potential stars.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of Star instances</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.SizeMagSelect">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">SizeMagSelect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Select handler that picks stars by finding where the stellar locus in the size-magnitude
+diagram starts to blend into the galaxy locus.</p>
+<p>By default, the initial selection uses the SmallBright selector, but you can provide
+any other selection algorithm for the initial stars.</p>
+<p>The following parameters are tunable in the config field, but they all have reasonable
+default values:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">fit_order</dt>
+<dd class="field-odd"><p>The order of the polynomial fit of log(size) vs (u,v) across the
+field of view.  This is used to subtract off the gross size variation
+across the focal plane, which tends to tighten up the stellar locus.
+[default: 2]</p>
+</dd>
+<dt class="field-even">impurity</dt>
+<dd class="field-even"><p>The maximum ratio of objects at the minimum between the stellar locus
+and the galaxy locus to the number of stars found.  This shouldn’t be
+taken to be a quantitative estimate of the actual impurity in the sample,
+but larger values of impurity will correspond to larger samples with more
+impurities.  Smaller impurity will likely result in a purer selection of
+stars, but also one with fewer total stars. [default: 0.01]</p>
+</dd>
+<dt class="field-odd">num_iter</dt>
+<dd class="field-odd"><p>How many iterations to repeat the processing of building a histogram
+looking for when it merges with the galaxy locus. [default: 3]</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>In addition to these, you may specify the algorithm for making the initial selection
+in an <code class="docutils literal notranslate"><span class="pre">inital_select</span></code> dict, which should specify the selection algorithm to use.
+The default is to use the SmallBright selection algorithm with default parameters.
+But you could specify non-default parameters for that as follows (e.g.):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">select</span><span class="p">:</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">SizeMag</span>
+
+    <span class="n">initial_select</span><span class="p">:</span>
+        <span class="nb">type</span><span class="p">:</span> <span class="n">SmallBright</span>
+        <span class="n">bright_fraction</span><span class="p">:</span> <span class="mf">0.3</span>
+        <span class="n">small_fraction</span><span class="p">:</span> <span class="mf">0.4</span>
+        <span class="n">locus_fraction</span><span class="p">:</span> <span class="mf">0.3</span>
+
+    <span class="n">fit_order</span><span class="p">:</span> <span class="mi">3</span>
+</pre></div>
+</div>
+<p>Or, you may want to start with stars according to some other selection algorith.
+E.g. to use some column(s) from the input catalog:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">select</span><span class="p">:</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="n">SizeMag</span>
+
+    <span class="n">initial_select</span><span class="p">:</span>
+        <span class="nb">type</span><span class="p">:</span> <span class="n">Properties</span>
+        <span class="n">where</span><span class="p">:</span> <span class="p">(</span><span class="n">CLASS_STAR</span> <span class="o">&gt;</span> <span class="mf">0.9</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">MAX_AUTO</span> <span class="o">&lt;</span> <span class="mi">16</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – The configuration dict used to define the above parameters.
+(Normally the ‘select’ field in the overall configuration dict)</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.SizeMagSelect.fit_2d_polynomial">
+<em class="property"><span class="pre">static</span> </em><code class="sig-name descname"><span class="pre">fit_2d_polynomial</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect.fit_2d_polynomial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect.fit_2d_polynomial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit z = f(x,y) as a 2d polynomial function</p>
+<p>Returns a function object f.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.SizeMagSelect.selectStars">
+<code class="sig-name descname"><span class="pre">selectStars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SizeMagSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SizeMagSelect.selectStars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select which of the input objects should be considered stars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>objects</strong> – A list of input objects to be considered as potential stars.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of Star instances</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.SmallBrightSelect">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">SmallBrightSelect</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SmallBrightSelect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SmallBrightSelect" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Select handler that picks stars by looking for a locus of small, bright objects that
+are all about the same size.</p>
+<p>This is a very crude selection.  It is typically used to provide an initial selection to
+the SizeMag selector.</p>
+<p>The following parameters are tunable in the config field, but they all have reasonable
+default values:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">bright_fraction</dt>
+<dd class="field-odd"><p>The fraction of the detected objects to consider “bright” and
+thus available for consideration for star selection.
+[default: 0.2]</p>
+</dd>
+<dt class="field-even">small_fraction</dt>
+<dd class="field-even"><p>The fraction of the bright objects to consider “small”.
+[default: 0.2]</p>
+</dd>
+<dt class="field-odd">locus_fraction</dt>
+<dd class="field-odd"><p>The fraction of the initial small, bright objects to look for
+having all nearly the same size.  These constitude the first
+extremely crude selection of high-confidence stars. [default: 0.5]</p>
+</dd>
+<dt class="field-even">max_spread</dt>
+<dd class="field-even"><p>The maximum spread in log(T) to allow for the final set of stars.
+From the initial high-confidence stars, we expand the range in
+size to try to capture the full stellar locus based on the
+inter-quartile range of the candidate stars.  This parameter sets
+a maximum range to allow for this locus to make sure it doesn’t
+erroneously expand to include everything. [default: 0.1]</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – The configuration dict used to define the above parameters.
+(Normally the ‘select’ field in the overall configuration dict).</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.SmallBrightSelect.selectStars">
+<code class="sig-name descname"><span class="pre">selectStars</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">objects</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/size_mag.html#SmallBrightSelect.selectStars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.SmallBrightSelect.selectStars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select which of the input objects should be considered stars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>objects</strong> – A list of input objects to be considered as potential stars.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of Star instances</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="input.html" class="btn btn-neutral float-left" title="Reading in Files" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="model.html" class="btn btn-neutral float-right" title="Models" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

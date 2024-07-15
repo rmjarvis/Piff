@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Utility Functions &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Stars" href="star.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Utility Functions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/util.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="module-piff.util">
+<span id="utility-functions"></span><h1>Utility Functions<a class="headerlink" href="#module-piff.util" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-util"></span><dl class="py function">
+<dt id="piff.util.adjust_value">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">adjust_value</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#adjust_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.adjust_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Possibly adjust a value to match the type expected for the given dtype.</p>
+<p>e.g. change np.int16 -&gt; int if dtype expects int.  Or vice versa.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>value</strong> – The input value to possible adjust.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the adjusted value to use for writing in a FITS table.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.calculateSNR">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">calculateSNR</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#calculateSNR"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.calculateSNR" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the signal-to-noise of a given image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image</strong> – The stamp image for a star</p></li>
+<li><p><strong>weight</strong> – The weight image for a star</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>the SNR value.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.calculate_moments">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">calculate_moments</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fourth_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#calculate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.calculate_moments" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate a bunch of moments using HSM for the weight function.</p>
+<p>The flux, 1st, and 2nd order moments are always calculated:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}M_{00} &amp;= \sum W(u,v) I(u,v) \\
+M_{10} &amp;= \sum W(u,v) I(u,v) du \\
+M_{01} &amp;= \sum W(u,v) I(u,v) dv \\
+M_{11} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2) \\
+M_{20} &amp;= \sum W(u,v) I(u,v) (du^2 - dv^2) \\
+M_{02} &amp;= \sum W(u,v) I(u,v) (2 du dv)\end{split}\]</div>
+<p>where W(u,v) is the weight from the HSM fit and du,dv are the positions relative to the
+HSM measured centroid.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">third_order</span></code> is set to True, then 3rd order moments are also calculated and returned:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}M_{21} &amp;= \sum W(u,v) I(u,v) du (du^2 + dv^2) \\
+M_{12} &amp;= \sum W(u,v) I(u,v) dv (du^2 + dv^2) \\
+M_{30} &amp;= \sum W(u,v) I(u,v) du (du^2 - 3 dv^2) \\
+M_{03} &amp;= \sum W(u,v) I(u,v) dv (3 du^2 - dv^2)\end{split}\]</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">fourth_order</span></code> is set to True, then 4th order moments are also calculated and returned:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}M_{22} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2)^2 \\
+M_{31} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2) (du^2 - dv^2) \\
+M_{13} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2) (2 du dv) \\
+M_{40} &amp;= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\
+M_{04} &amp;= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv)\end{split}\]</div>
+<p>Higher order normalized radial moments (4th through 8th, even) are calculated if <code class="docutils literal notranslate"><span class="pre">radial</span></code>
+is set to True:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}r^2 &amp;\equiv du^2 + dv^2 \\
+M_{22} &amp;= \sum W(u,v) I(u,v) r^4 \\
+M_{33} &amp;= \sum W(u,v) I(u,v) r^6 \\
+M_{44} &amp;= \sum W(u,v) I(u,v) r^8  \\
+M_{22n} &amp;= M_{22}/M_{11}^2 \\
+M_{33n} &amp;= M_{33}/M_{11}^3 \\
+M_{44n} &amp;= M_{44}/M_{11}^4\end{split}\]</div>
+<p>For all of these, one can also have error estimates returned if <code class="docutils literal notranslate"><span class="pre">errors</span></code> is set to True.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – Input star, with stamp, weight</p></li>
+<li><p><strong>third_order</strong> – Return the 3rd order moments? [default: False]</p></li>
+<li><p><strong>fourth_order</strong> – Return the 4th order moments? [default: False]</p></li>
+<li><p><strong>radial</strong> – Return the higher order radial moments? [default: False]</p></li>
+<li><p><strong>errors</strong> – Return the variance estimates of other returned values? [default: False]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info.  [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p>A dict of the calculated moments, with the following keys/values:</p>
+<ul class="simple">
+<li><p>M00, M10, M01, M11, M20, M02</p></li>
+<li><p>M21, M12, M30, M03                          if <code class="docutils literal notranslate"><span class="pre">third_order</span></code> = True</p></li>
+<li><p>M22, M31, M13, M40, M04                     if <code class="docutils literal notranslate"><span class="pre">fourth_order</span></code> = True</p></li>
+<li><p>M22n, M33n, M44n                            if <code class="docutils literal notranslate"><span class="pre">radial</span></code> = True</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p>If <code class="docutils literal notranslate"><span class="pre">errors</span></code> = True, then also a second dict (with the same keys) giving the variances.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.ensure_dir">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">ensure_dir</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#ensure_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.ensure_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure that the directory for a target output file exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>target</strong> – The file that you want to write to.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.estimate_cov_from_jac">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">estimate_cov_from_jac</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">jac</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#estimate_cov_from_jac"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.estimate_cov_from_jac" title="Permalink to this definition">¶</a></dt>
+<dd><p>Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
+.. math:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span> <span class="o">=</span> <span class="p">(</span><span class="n">J</span><span class="o">^</span><span class="n">T</span> <span class="n">J</span><span class="p">)</span><span class="o">^</span><span class="p">{</span><span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>This is computed using Moore-Penrose inversion to discard singular values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>jac</strong> – The Jacobian as a 2d numpy array</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>cov, a numpy array giving the estimated covariance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.get_all_subclasses">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">get_all_subclasses</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cls</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#get_all_subclasses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.get_all_subclasses" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all subclasses of an existing class.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.make_dtype">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">make_dtype</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#make_dtype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.make_dtype" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper function that makes a dtype appropriate for a given value</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> – The key to use for the column name in the dtype.</p></li>
+<li><p><strong>value</strong> – The input value (just one item if using a column of multiple values)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a numpy.dtype instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.read_kwargs">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">read_kwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#read_kwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.read_kwargs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper function for reading a single row table from a fits file returning the values
+and column names as a kwargs dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS instance</p></li>
+<li><p><strong>extname</strong> – The extension to read.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A dict of the kwargs that were read from the file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.run_multi">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">run_multi</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_except</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#run_multi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.run_multi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a function possibly in multiprocessing mode.</p>
+<p>This is basically just doing a Pool.map, but it handles the logger properly (which cannot
+be pickled, so it cannot be passed to the function being run by the workers).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> – The function to run.  Signature should be:
+func(*args, logger=logger, **kwargs)</p></li>
+<li><p><strong>nproc</strong> – How many processes to run.  If nproc=1, no multiprocessing is done.
+nproc &lt;= 0 means use all the cores.</p></li>
+<li><p><strong>raise_except</strong> – Whether to raise any exceptions that happen in individual jobs.</p></li>
+<li><p><strong>args</strong> – a list of args for func for each job to run.</p></li>
+<li><p><strong>logger</strong> – The logger you would pass to func in single-processor mode.</p></li>
+<li><p><strong>kwargs</strong> – a list of kwargs for func for each job to run.  May also be a single dict
+to use for all jobs. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The output of func(*args[i], **kwargs[i]) for each item in the args, kwargs lists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="piff.util.write_kwargs">
+<code class="sig-prename descclassname"><span class="pre">piff.util.</span></code><code class="sig-name descname"><span class="pre">write_kwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#write_kwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.write_kwargs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A helper function for writing a single row table into a fits file with the values
+and column names given by a kwargs dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS instance</p></li>
+<li><p><strong>extname</strong> – The extension to write to</p></li>
+<li><p><strong>kwargs</strong> – A kwargs dict to be written as a FITS binary table.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="star.html" class="btn btn-neutral float-left" title="Stars" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

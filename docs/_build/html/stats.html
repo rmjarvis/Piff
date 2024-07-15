@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Output statistics &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Stars" href="star.html" />
+    <link rel="prev" title="Writing the output file" href="output.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Output statistics</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/stats.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="output-statistics">
+<h1>Output statistics<a class="headerlink" href="#output-statistics" title="Permalink to this headline">¶</a></h1>
+<p>Piff can also produce some statistics about the PSF model and residuals for the stars
+used to build the model.  These are specified in a <code class="docutils literal notranslate"><span class="pre">stats</span></code> section of the config file.</p>
+<dl class="py class">
+<dt id="piff.Stats">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">Stats</span></code><a class="reference internal" href="_modules/piff/stats.html#Stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>The base class for getting the statistics of a set of stars.</p>
+<p>This is essentially an abstract base class intended to define the methods that should be
+implemented by any derived class.</p>
+<p>The usual code flow for using a Stats instance is:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span> <span class="o">=</span> <span class="n">SomeKindofStats</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">file_name</span><span class="o">=</span><span class="n">file_name</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>There is also a <code class="docutils literal notranslate"><span class="pre">plot</span></code> method if you want to make the matplot lib fig, ax and do something
+else with it besides just write it to a file.</p>
+<dl class="py method">
+<dt id="piff.Stats.compute">
+<code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Stats.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute the given statistic for a PSF solution on a set of stars.</p>
+<p>This needs to be done before the statistic is plotted or written to a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Stats.measureShapes">
+<code class="sig-name descname"><span class="pre">measureShapes</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fourth_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.measureShapes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Stats.measureShapes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compare PSF and true star shapes with HSM algorithm</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>model_properties</strong> – Optionally a dict of properties to use for the model rendering.
+The default behavior is to use the properties of the star itself
+for any properties that are not overridden by model_properties.
+[default: None]</p></li>
+<li><p><strong>fourth_order</strong> – Whether to include the fourth-order quantities as well in columns
+7 through 11 of the output array. [default: False]</p></li>
+<li><p><strong>raw_moments</strong> – Whether to include the complete set of raw moments as calculated
+by <a class="reference internal" href="util.html#piff.util.calculate_moments" title="piff.util.calculate_moments"><code class="xref any py py-func docutils literal notranslate"><span class="pre">calculate_moments</span></code></a>.  If requested, these come after the
+fourth-order quantities if those are being returned or after the
+regular quantities otherwise.  Either way they are the last 18
+columns in the output array. [default: False]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>positions of stars, shapes of stars, and shapes of
+models of stars (T, g1, g2)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Stats.parseKwargs">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">parseKwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_stats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Stats.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the stats field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<p>The base class implementation just returns the kwargs as they are, but derived classes
+might want to override this if they need to do something more sophisticated with them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_stats</strong> – The stats field of the configuration dict, config[‘stats’]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Stats.plot">
+<code class="sig-name descname"><span class="pre">plot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Stats.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make the plots for this statistic.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>**kwargs</strong> – Optionally, provide extra kwargs for the matplotlib plot command.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(fig, ax) The matplotlib figure and axis with the plot(s).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Stats.process">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">process</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_stats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Stats.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the stats field of the config dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_stats</strong> – The configuration dict for the stats field.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a Stats instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Stats.write">
+<code class="sig-name descname"><span class="pre">write</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#Stats.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Stats.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write plots to a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – The name of the file to write to. [default: Use self.file_name,
+which is typically read from the config field.]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>**kwargs</strong> – Optionally, provide extra kwargs for the matplotlib plot command.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.ShapeHistStats">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">ShapeHistStats</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cut_frac</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ShapeHistStats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stats class for calculating histograms of shape residuals</p>
+<p>This will compute the size and shapes of the observed stars and the PSF models and
+make histograms of both the values and the residuals.</p>
+<p>The plot will have 6 axes.  The top row will have histograms of T, g1, g2, with the model
+and data color coded.  The bottom row will have histograms of the differences.</p>
+<p>After a call to <a class="reference internal" href="#piff.ShapeHistStats.compute" title="piff.ShapeHistStats.compute"><code class="xref py py-func docutils literal notranslate"><span class="pre">compute()</span></code></a>, the following attributes are accessible:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">u</dt>
+<dd class="field-odd"><p>The u positions in field coordinates.</p>
+</dd>
+<dt class="field-even">v</dt>
+<dd class="field-even"><p>The v positions in field coordinates.</p>
+</dd>
+<dt class="field-odd">T</dt>
+<dd class="field-odd"><p>The size (T = Iuu + Ivv) of the observed stars.</p>
+</dd>
+<dt class="field-even">g1</dt>
+<dd class="field-even"><p>The g1 component of the shapes of the observed stars.</p>
+</dd>
+<dt class="field-odd">g2</dt>
+<dd class="field-odd"><p>The g2 component of the shapes of the observed stars.</p>
+</dd>
+<dt class="field-even">T_model</dt>
+<dd class="field-even"><p>The size of the PSF model at the same locations as the stars.</p>
+</dd>
+<dt class="field-odd">g1_model</dt>
+<dd class="field-odd"><p>The g1 component of the PSF model at these locations.</p>
+</dd>
+<dt class="field-even">g2_model</dt>
+<dd class="field-even"><p>The g2 component of the PSF model at these locations.</p>
+</dd>
+<dt class="field-odd">dT</dt>
+<dd class="field-odd"><p>The size residual, T - T_model</p>
+</dd>
+<dt class="field-even">dg1</dt>
+<dd class="field-even"><p>The g1 residual, g1 - g1_model</p>
+</dd>
+<dt class="field-odd">dg2</dt>
+<dd class="field-odd"><p>The g2 residual, g2 - g2_model</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>nbins</strong> – Number of bins to use. [default: sqrt(n_stars)]</p></li>
+<li><p><strong>cut_frac</strong> – Fraction to cut off from histograms at the high and low ends.
+[default: 0.01]</p></li>
+<li><p><strong>model_properties</strong> – Optionally a dict of properties to use for the model rendering.
+[default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.ShapeHistStats.compute">
+<code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ShapeHistStats.compute" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.ShapeHistStats.plot">
+<code class="sig-name descname"><span class="pre">plot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#ShapeHistStats.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ShapeHistStats.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make the plots.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p>
+</dd>
+<dt class="field-even">Params **kwargs</dt>
+<dd class="field-even"><p>Any additional kwargs go into the matplotlib hist() function.</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>fig, ax</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.RhoStats">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">RhoStats</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">300</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.RhoStats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stats class for calculating rho statistics.</p>
+<p>This will plot the 5 rho statistics described in Jarvis et al, 2015, section 3.4.</p>
+<p>e = e_psf; de = e_psf - e_model
+T is size; dT = T_psf - T_model</p>
+<p>rho1 = &lt; de* de &gt;
+rho2 = &lt; e* de &gt;  (in the rowe paper this is &lt; e* de + de* e &gt;
+rho3 = &lt; (e* dT / T) (e dT / T) &gt;
+rho4 = &lt; de* (e dT / T) &gt;
+rho5 = &lt; e* (e dT / T) &gt;</p>
+<p>The plots for rho1, rho3, and rho4 will all be on the same axis (left), and the plots for
+rho2 and rho5 will be on the other axis (right).</p>
+<p>Furthermore, these are technically complex quantities, but only the real parts are
+plotted, since the imaginary parts are uninteresting.</p>
+<p>After a call to <a class="reference internal" href="#piff.RhoStats.compute" title="piff.RhoStats.compute"><code class="xref py py-func docutils literal notranslate"><span class="pre">compute()</span></code></a>, the following attributes are accessible:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">rho1</dt>
+<dd class="field-odd"><p>A TreeCorr GGCorrelation instance with the rho1 statistic.</p>
+</dd>
+<dt class="field-even">rho2</dt>
+<dd class="field-even"><p>A TreeCorr GGCorrelation instance with the rho2 statistic.</p>
+</dd>
+<dt class="field-odd">rho3</dt>
+<dd class="field-odd"><p>A TreeCorr GGCorrelation instance with the rho3 statistic.</p>
+</dd>
+<dt class="field-even">rho4</dt>
+<dd class="field-even"><p>A TreeCorr GGCorrelation instance with the rho4 statistic.</p>
+</dd>
+<dt class="field-odd">rho5</dt>
+<dd class="field-odd"><p>A TreeCorr GGCorrelation instance with the rho5 statistic.</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>The value of the canonical rho statistic is in the <code class="docutils literal notranslate"><span class="pre">xip</span></code> attribute of each of the above
+TreeCorr GGCorrelation instances.  But there are other quantities that may be of interest
+in some cases, so we provide access to the full object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>min_sep</strong> – Minimum separation (in arcmin) for pairs. [default: 0.5]</p></li>
+<li><p><strong>max_sep</strong> – Maximum separation (in arcmin) for pairs. [default: 300]</p></li>
+<li><p><strong>bin_size</strong> – Size of bins in log(sep). [default 0.1]</p></li>
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>model_properties</strong> – Optionally a dict of properties to use for the model rendering.
+[default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>**kwargs</strong> – Any additional kwargs are passed on to TreeCorr.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.RhoStats.compute">
+<code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.RhoStats.compute" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.RhoStats.plot">
+<code class="sig-name descname"><span class="pre">plot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#RhoStats.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.RhoStats.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make the plots.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p>
+</dd>
+<dt class="field-even">Params **kwargs</dt>
+<dd class="field-even"><p>Any additional kwargs go into the matplotlib plot() function.
+[ignored in this function]</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>fig, ax</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.TwoDHistStats">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">TwoDHistStats</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nbins_u</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins_v</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reducing_function</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'np.median'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.TwoDHistStats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Statistics class that can make pretty colormaps where each bin has some
+arbitrary function applied to it.</p>
+<p>By default this will make a color map based on u and v coordinates of the
+input stars. The color scale is based on (by default) the median value of
+the objects in particular u-v voxel.</p>
+<p>After a call to <a class="reference internal" href="#piff.TwoDHistStats.compute" title="piff.TwoDHistStats.compute"><code class="xref py py-func docutils literal notranslate"><span class="pre">compute()</span></code></a>, the following attributes are accessible:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">twodhists</dt>
+<dd class="field-odd"><p>A dictionary of two dimensional histograms, with keys
+‘u’, ‘v’, ‘T’, ‘g1’, ‘g2’, ‘T_model’, ‘g1_model’, ‘g2_model’,
+‘dT’, ‘dg1’, ‘dg2’</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>These histograms are two dimensional masked arrays where the value of the
+pixel corresponds to reducing_function([objects in u-v voxel])</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nbins_u</strong> – Number of bins in u direction [default: 20]</p></li>
+<li><p><strong>nbins_v</strong> – Number of bins in v direction [default: 20]</p></li>
+<li><p><strong>reducing_function</strong> – Type of function to apply to grouped objects. numpy functions
+are prefixed by np. [default: ‘np.median’]</p></li>
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>model_properties</strong> – Optionally a dict of properties to use for the model rendering.
+[default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.TwoDHistStats.compute">
+<code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.TwoDHistStats.compute" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.TwoDHistStats.plot">
+<code class="sig-name descname"><span class="pre">plot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#TwoDHistStats.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.TwoDHistStats.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make the plots.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p>
+</dd>
+<dt class="field-even">Params **kwargs</dt>
+<dd class="field-even"><p>Any additional kwargs go into the matplotlib plot() function.
+[ignored in this function]</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>fig, ax</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.WhiskerStats">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">WhiskerStats</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins_u</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins_v</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reducing_function</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'np.median'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resid_scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.WhiskerStats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Statistics class that can make whiskerplots.</p>
+<p>By default this will make a whisker plot based on u and v coordinates of
+the input stars. The whisker scale is based on (by default) the median
+value of the objects in a particular u-v voxel.</p>
+<p>After a call to <a class="reference internal" href="#piff.WhiskerStats.compute" title="piff.WhiskerStats.compute"><code class="xref py py-func docutils literal notranslate"><span class="pre">compute()</span></code></a>, the following attributes are accessible:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">twodhists</dt>
+<dd class="field-odd"><p>A dictionary of two dimensional histograms, with keys
+‘u’, ‘v’, ‘w1’, ‘w2’, ‘w1_model’, ‘w2_model’, ‘dw1’, ‘dw2’</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>These histograms are two dimensional masked arrays where the value of the
+pixel corresponds to reducing_function([objects in u-v voxel])</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There are a couple different ways to define your whiskers. Here we
+have taken the approach that the whisker represents the ellipticity as:</p>
+<blockquote>
+<div><p>theta = arctan(e2, e1) / 2
+r = sqrt(e1 ** 2 + e2 ** 2)
+w1 = r cos(theta)
+w2 = r sin(theta)</p>
+</div></blockquote>
+</div>
+<p>Because e1, e2 do not have units, w does not either.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>nbins_u</strong> – Number of bins in u direction [default: 20]</p></li>
+<li><p><strong>nbins_v</strong> – Number of bins in v direction [default: 20]</p></li>
+<li><p><strong>reducing_function</strong> – Type of function to apply to grouped objects. numpy functions
+are prefixed by np. [default: ‘np.median’]</p></li>
+<li><p><strong>scale</strong> – An overal scale factor by which to scale the size of the
+all whiskers. [default: 1]</p></li>
+<li><p><strong>resid_scale</strong> – An additional factor for the scale size of the residual
+whiskers only. [default: 2]</p></li>
+<li><p><strong>model_properties</strong> – Optionally a dict of properties to use for the model rendering.
+[default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.WhiskerStats.compute">
+<code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.WhiskerStats.compute" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.WhiskerStats.plot">
+<code class="sig-name descname"><span class="pre">plot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/twod_stats.html#WhiskerStats.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.WhiskerStats.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make the plots.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p>
+</dd>
+<dt class="field-even">Params **kwargs</dt>
+<dd class="field-even"><p>Any additional kwargs go into the matplotlib plot() function.
+[ignored in this function]</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>fig, ax</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.StarStats">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">StarStats</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nplot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjust_stars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.StarStats" title="Permalink to this definition">¶</a></dt>
+<dd><p>This Stats class can take stars and make a set of plots of them as
+well as their models and residuals.</p>
+<p>By default this will draw 5 random stars, make psf stars, and plot the
+residual of the two.</p>
+<p>After a call to <a class="reference internal" href="#piff.StarStats.compute" title="piff.StarStats.compute"><code class="xref py py-func docutils literal notranslate"><span class="pre">compute()</span></code></a>, the following attributes are accessible:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">stars</dt>
+<dd class="field-odd"><p>List of stars used for plotting</p>
+</dd>
+<dt class="field-even">models</dt>
+<dd class="field-even"><p>List of models of stars used for plotting</p>
+</dd>
+<dt class="field-odd">indices</dt>
+<dd class="field-odd"><p>Indices of input stars that the plotting stars correspond to</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nplot</strong> – Number of stars we wish to plot. If 0 or nplot &gt; nstars in PSF,
+then we plot all stars. Otherwise, we draw nplot stars at random
+(without replacement). [default: 10]</p></li>
+<li><p><strong>adjust_stars</strong> – Boolean. If true, when computing, will also fit for best
+starfit center and flux to match observed star. [default: False]</p></li>
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.StarStats.compute">
+<code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.StarStats.compute" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.StarStats.fit_star">
+<code class="sig-name descname"><span class="pre">fit_star</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.fit_star"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.StarStats.fit_star" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adjust star.fit.flux and star.fit.center</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – Star we want to adjust</p></li>
+<li><p><strong>psf</strong> – PSF with which we adjust</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Star with modified fit and center</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.StarStats.plot">
+<code class="sig-name descname"><span class="pre">plot</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/star_stats.html#StarStats.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.StarStats.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make the plots.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p>
+</dd>
+<dt class="field-even">Params **kwargs</dt>
+<dd class="field-even"><p>Any additional kwargs go into the matplotlib pcolor() function.</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>fig, ax</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.HSMCatalogStats">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">HSMCatalogStats</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_properties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fourth_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw_moments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#HSMCatalogStats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.HSMCatalogStats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stats class for writing the shape information to an output file.</p>
+<p>This will compute the size and shapes of the observed stars and the PSF models
+and write these data to a file.</p>
+<p>The HSM adaptive momemnt measurements sometimes fail in various ways.  When it does,
+we still output the information that we have for a star, but mark the failure with
+a flag: flag_data for errors in the data measurement, flag_model for errors in the
+model measurement.  The meaning of these flags are (treated as a bit mask):</p>
+<p>Flags:</p>
+<ul class="simple">
+<li><p>0 = Success</p></li>
+<li><p>1 = HSM returned a non-zero moments_status.</p></li>
+<li><p>2 = HSM returned a negative flux.</p></li>
+<li><p>4 = HSM’s centroid moved by more than 1 pixel from the input position.</p></li>
+</ul>
+<p>The output file will include the following columns:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">ra</dt>
+<dd class="field-odd"><p>The RA of the star in degrees. (or 0 if the wcs is not a CelestialWCS)</p>
+</dd>
+<dt class="field-even">dec</dt>
+<dd class="field-even"><p>The Declination of the star in degrees. (or 0 if the wcs is not a CelestialWCS)</p>
+</dd>
+<dt class="field-odd">u</dt>
+<dd class="field-odd"><p>The u position in field coordinates.</p>
+</dd>
+<dt class="field-even">v</dt>
+<dd class="field-even"><p>The v position in field coordinates.</p>
+</dd>
+<dt class="field-odd">x</dt>
+<dd class="field-odd"><p>The x position in chip coordinates.</p>
+</dd>
+<dt class="field-even">y</dt>
+<dd class="field-even"><p>The y position in chip coordinates.</p>
+</dd>
+<dt class="field-odd">T_data</dt>
+<dd class="field-odd"><p>The size (T = Iuu + Ivv) of the observed star.</p>
+</dd>
+<dt class="field-even">g1_data</dt>
+<dd class="field-even"><p>The g1 component of the shapes of the observed star.</p>
+</dd>
+<dt class="field-odd">g2_data</dt>
+<dd class="field-odd"><p>The g2 component of the shapes of the observed star.</p>
+</dd>
+<dt class="field-even">T_model</dt>
+<dd class="field-even"><p>The size of the PSF model at the same locations as the star.</p>
+</dd>
+<dt class="field-odd">g1_model</dt>
+<dd class="field-odd"><p>The g1 component of the PSF model.</p>
+</dd>
+<dt class="field-even">g2_model</dt>
+<dd class="field-even"><p>The g2 component of the PSF model.</p>
+</dd>
+<dt class="field-odd">reserve</dt>
+<dd class="field-odd"><p>Whether the star was a reserve star.</p>
+</dd>
+<dt class="field-even">flag_data</dt>
+<dd class="field-even"><p>0 where HSM succeeded on the observed star, &gt;0 where it failed (see above).</p>
+</dd>
+<dt class="field-odd">flag_model</dt>
+<dd class="field-odd"><p>0 where HSM succeeded on the PSF model, &gt;0 where it failed (see above).</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>If fourth_order=True, then there are additional quantities calculated as well.
+We define the following notation:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}T &amp;= \int I(u,v) (u^2 + v^2) du dv \\
+g &amp;= \frac{\int I(u,v) (u + iv)^2 du dv}{T} \\
+T^{(4)} &amp;= \frac{\int I(u,v) (u^2 + v^2)^2 du dv}{T} \\
+g^{(4)} &amp;= \frac{\int I(u,v) (u^2 + v^2) (u + iv)^2 du dv}{T^2} - 3g \\
+h^{(4)} &amp;= \frac{\int I(u,v) (u + iv)^4 du dv}{T^2}\end{split}\]</div>
+<p>I.e. <span class="math notranslate nohighlight">\(T^{(4)}\)</span> is a fourth-order spin-0 quantity, analogous to <span class="math notranslate nohighlight">\(T\)</span> at second
+order, <span class="math notranslate nohighlight">\(g^{(4)}\)</span> is a fourth-order spin-2 quantity, analogous to <span class="math notranslate nohighlight">\(g\)</span>, and
+<span class="math notranslate nohighlight">\(h^{(4)}\)</span> is a spin-4 quantity.  The denominators ensure that the units of
+<span class="math notranslate nohighlight">\(T^{(4)}\)</span> is <span class="math notranslate nohighlight">\(\mathrm{arcsec}^2\)</span>, just like <span class="math notranslate nohighlight">\(T\)</span> and that <span class="math notranslate nohighlight">\(g^{(4)}\)</span> and
+<span class="math notranslate nohighlight">\(h^{(4)}\)</span> are dimensionless.  And the <span class="math notranslate nohighlight">\(-3g\)</span> term for <span class="math notranslate nohighlight">\(g^{(4)}\)</span> subtracts
+off the dominant contribution to the fourth order quantity from the second order shape.
+For a pure elliptical Gaussian, this makes <span class="math notranslate nohighlight">\(g^{(4)}\)</span> come out very close to zero.</p>
+<p>The output file contains the following additional columns:</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">T4_data</dt>
+<dd class="field-odd"><p>The fourth-order “size”, <span class="math notranslate nohighlight">\(T^{(4)}\)</span>, of the observed star.</p>
+</dd>
+<dt class="field-even">g41_data</dt>
+<dd class="field-even"><p>The real component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the obserbed star.</p>
+</dd>
+<dt class="field-odd">g42_data</dt>
+<dd class="field-odd"><p>The imaginary component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the obserbed star.</p>
+</dd>
+<dt class="field-even">h41_data</dt>
+<dd class="field-even"><p>The real component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the obserbed star.</p>
+</dd>
+<dt class="field-odd">h42_data</dt>
+<dd class="field-odd"><p>The imaginary component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the obserbed star.</p>
+</dd>
+<dt class="field-even">T4_model</dt>
+<dd class="field-even"><p>The fourth-order “size”, <span class="math notranslate nohighlight">\(T^{(4)}\)</span>, of the PSF model.</p>
+</dd>
+<dt class="field-odd">g41_model</dt>
+<dd class="field-odd"><p>The real component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the PSF model.</p>
+</dd>
+<dt class="field-even">g42_model</dt>
+<dd class="field-even"><p>The imaginary component of <span class="math notranslate nohighlight">\(g^{(4)}\)</span> of the PSF model.</p>
+</dd>
+<dt class="field-odd">h41_model</dt>
+<dd class="field-odd"><p>The real component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the PSF model.</p>
+</dd>
+<dt class="field-even">h42_model</dt>
+<dd class="field-even"><p>The imaginary component of <span class="math notranslate nohighlight">\(h^{(4)}\)</span> of the PSF model.</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – Name of the file to output to. [default: None]</p></li>
+<li><p><strong>model_properties</strong> – Optionally a dict of properties to use for the model rendering.
+The default behavior is to use the properties of the star itself
+for any properties that are not overridden by model_properties.
+[default: None]</p></li>
+<li><p><strong>fourth_order</strong> – Whether to include the additional fourth-order quantities described
+above. [default: False]</p></li>
+<li><p><strong>raw_moments</strong> – Whether to include the complete set of raw moments as calculated
+by piff.util.calculate_moments. [default: False]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.HSMCatalogStats.compute">
+<code class="sig-name descname"><span class="pre">compute</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#HSMCatalogStats.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.HSMCatalogStats.compute" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psf</strong> – A PSF Object</p></li>
+<li><p><strong>stars</strong> – A list of Star instances.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.HSMCatalogStats.write">
+<code class="sig-name descname"><span class="pre">write</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/stats.html#HSMCatalogStats.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.HSMCatalogStats.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write catalog to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> – The name of the file to write to. [default: Use self.file_name,
+which is typically read from the config field.]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="output.html" class="btn btn-neutral float-left" title="Writing the output file" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="star.html" class="btn btn-neutral float-right" title="Stars" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

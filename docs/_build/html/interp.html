@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interpolation Schemes &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PSF classes" href="psf.html" />
+    <link rel="prev" title="Models" href="model.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Interpolation Schemes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-interp-base-class">The Interp base class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mean-interpolation">Mean interpolation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#polynomial-interpolation">Polynomial interpolation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#interpolation-using-basis-functions">Interpolation using basis functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#k-nearest-neighbors">K-Nearest Neighbors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gaussian-process-interpolation">Gaussian process interpolation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Interpolation Schemes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/interp.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="interpolation-schemes">
+<h1>Interpolation Schemes<a class="headerlink" href="#interpolation-schemes" title="Permalink to this headline">¶</a></h1>
+<p>Interpolators goven how the model parameters are interpolated across the field of view.</p>
+<div class="section" id="the-interp-base-class">
+<h2>The Interp base class<a class="headerlink" href="#the-interp-base-class" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="piff.Interp">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">Interp</span></code><a class="reference internal" href="_modules/piff/interp.html#Interp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp" title="Permalink to this definition">¶</a></dt>
+<dd><p>The base class for interpolating a set of data vectors across the field of view.</p>
+<p>In general, the interpolator is agnostic as to the meaning of the parameter vectors.
+These parameter vectors are passed as simple numpy arrays.  They are imbued meaning by
+a Model instance.  Thus, the same interpolators may be used with many different Model
+types.</p>
+<p>The principal ways that interpolators will differ are:</p>
+<ol class="arabic simple">
+<li><p>Which properties of the star are used for their interpolation.</p></li>
+<li><p>What functional form (or algorithm) is used to interpolate between measurements.</p></li>
+<li><p>Whether the interpolator assumes each sample has a non-degenerate parameter fit, vs
+getting a differential quadratic form for chisq from each sample.</p></li>
+</ol>
+<p>The answer to #3 is given in a boolean property degenerate_points.</p>
+<p>This is essentially an abstract base class intended to define the methods that should be
+implemented by any derived class.</p>
+<dl class="py method">
+<dt id="piff.Interp.getProperties">
+<code class="sig-name descname"><span class="pre">getProperties</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.getProperties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.getProperties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract the appropriate properties to use as the independent variables for the
+interpolation.</p>
+<p>The base class implementation returns the field position (u,v) as a 1d numpy array.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>star</strong> – A Star instance from which to extract the properties to use.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A numpy vector of these properties.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.initialize">
+<code class="sig-name descname"><span class="pre">initialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
+initialize the stars for use with this interpolator.</p>
+<p>The nature of the initialization is specific to the derived classes.</p>
+<p>The base class implentation calls interpolateList, which will set the stars to have
+the right type object in its star.fit.params attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to use to initialize.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new list of Star instances</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.interpolate">
+<code class="sig-name descname"><span class="pre">interpolate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.interpolate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance to which one wants to interpolate</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new Star instance holding the interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.interpolateList">
+<code class="sig-name descname"><span class="pre">interpolateList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.interpolateList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.interpolateList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation for a list of stars.</p>
+<p>The base class just calls interpolate(star) for each star in the list, but in many
+cases, this may be more efficiently done with a matrix operation, so we make it
+available for derived classes to override.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to interpolate.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of new Star instances with interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.parseKwargs">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">parseKwargs</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_interp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.parseKwargs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the interp field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<p>The base class implementation just returns the kwargs as they are, but derived classes
+might want to override this if they need to do something more sophisticated with them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_interp</strong> – The interpolator field of the configuration dict, config[‘interp’]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.process">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">process</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_interp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parse the interp field of the config dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config_interp</strong> – The configuration dict for the interp field.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>an Interp instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.property_names">
+<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">property_names</span></code><a class="headerlink" href="#piff.Interp.property_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of properties used by this interpolant.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.read">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">read</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read an Interp from a FITS file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The name of the extension with the interpolator information.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>an interpolator built with a information in the FITS file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.solve">
+<code class="sig-name descname"><span class="pre">solve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.solve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Solve for the interpolation coefficients given some data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to interpolate between</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Interp.write">
+<code class="sig-name descname"><span class="pre">write</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extname</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/interp.html#Interp.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Interp.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write an Interp to a FITS file.</p>
+<p>Note: this only writes the initialization kwargs to the fits extension, not the parameters.</p>
+<p>The base class implemenation works if the class has a self.kwargs attribute and these
+are all simple values (str, float, or int).</p>
+<p>However, the derived class will need to implement _finish_write to write the solution
+parameters to a binary table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fits</strong> – An open fitsio.FITS object</p></li>
+<li><p><strong>extname</strong> – The name of the extension to write the interpolator information.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="mean-interpolation">
+<h2>Mean interpolation<a class="headerlink" href="#mean-interpolation" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="piff.Mean">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">Mean</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>The simplest possible interpolation scheme.  It just finds the mean of the parameter
+vectors and uses that at every position.</p>
+<dl class="py method">
+<dt id="piff.Mean.interpolate">
+<code class="sig-name descname"><span class="pre">interpolate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Mean.interpolate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance to which one wants to interpolate</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new Star instance holding the interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Mean.solve">
+<code class="sig-name descname"><span class="pre">solve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/mean_interp.html#Mean.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Mean.solve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Solve for the interpolation coefficients given some data.</p>
+<p>Here the “solution” is just the mean.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of stars with fitted parameters to interpolate.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="polynomial-interpolation">
+<h2>Polynomial interpolation<a class="headerlink" href="#polynomial-interpolation" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="piff.Polynomial">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">Polynomial</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orders</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poly_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'poly'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Polynomial" title="Permalink to this definition">¶</a></dt>
+<dd><p>An interpolator that uses  scipy curve_fit command to fit a polynomial
+surface to each parameter passed in independently.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order</strong> – The maximum order in the polynomial. i.e. the maximum
+value of i+j where p(u,v) = sum c_{ij} x^i y^j.
+[required, unless orders is given]</p></li>
+<li><p><strong>orders</strong> – Optionally, a list of orders, one for each parameter
+to be interpolated.  This list should be the same length
+as the number of parameters that will be given to
+interpolate.</p></li>
+<li><p><strong>poly_type</strong> – A string, one of the keys in the polynomial_types
+dictionary. By default these are “poly” (ordinary
+polynomials), “chebyshev”, “legendre”, “laguerre”,
+“hermite”. To add more you can add a key to
+polynomial_types with the value of a function with
+the signature of numpy.polynomial.polynomial.polyval2d</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.Polynomial.initialize">
+<code class="sig-name descname"><span class="pre">initialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Polynomial.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialization is just solving the interpolator with current stars.
+This then calls interpolateList, which will set the stars to have the
+right type of object in its star.fit.params attribute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to use to initialize.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new list of Star instances</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Polynomial.interpolate">
+<code class="sig-name descname"><span class="pre">interpolate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Polynomial.interpolate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance to which one wants to interpolate</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new Star instance holding the interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.Polynomial.solve">
+<code class="sig-name descname"><span class="pre">solve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/polynomial_interp.html#Polynomial.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Polynomial.solve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Solve for the interpolation coefficients given some data,
+using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt
+to find the least-squares solution.</p>
+<p>This currently assumes that our positions pos are just u and v.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to use for the interpolation.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="interpolation-using-basis-functions">
+<h2>Interpolation using basis functions<a class="headerlink" href="#interpolation-using-basis-functions" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="piff.BasisInterp">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">BasisInterp</span></code><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisInterp" title="Permalink to this definition">¶</a></dt>
+<dd><p>An Interp class that works whenever the interpolating functions are
+linear sums of basis functions.  Does things the “slow way” to be stable to
+degenerate fits to individual stars, instead of fitting to parameter sets
+produced by single stars.</p>
+<p>First time coding this we will assume that each element of the PSF parameter
+vector p is a linear combination of the same set of basis functions across the
+focal plane,</p>
+<div class="math notranslate nohighlight">
+\[p_i = \sum_{j} q_{ij} K_j(u,v,other stellar params).\]</div>
+<p>The property degenerate_points is set to True to indicate that this interpolator
+uses the alpha/beta quadratic form of chisq for each sample, rather than assuming
+that a best-fit parameter vector is available at every sample.</p>
+<p>Internally we’ll store the interpolation coefficients in a 2d array of dimensions
+(nparams, nbases)</p>
+<p>Note: This is an abstract base class.  The concrete class you probably want to use
+is BasisPolynomial.</p>
+<dl class="py method">
+<dt id="piff.BasisInterp.basis">
+<code class="sig-name descname"><span class="pre">basis</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.basis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisInterp.basis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return 1d array of polynomial basis values for this star</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>star</strong> – A Star instance</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>1d numpy array with values of u^i v^j for 0&lt;i+j&lt;=order</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.BasisInterp.constant">
+<code class="sig-name descname"><span class="pre">constant</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.constant"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisInterp.constant" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return 1d array of coefficients that represent a polynomial with constant value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>value</strong> – The value to use as the constant term.  [default: 1.]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>1d numpy array with values of u^i v^j for 0&lt;i+j&lt;=order</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.BasisInterp.initialize">
+<code class="sig-name descname"><span class="pre">initialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisInterp.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
+initialize the stars for use with this interpolator.</p>
+<p>This class will initialize everything to have constant PSF parameter vector taken
+from the first Star in the list.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to use to initialize.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A new list of Stars which have their parameters initialized.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.BasisInterp.interpolate">
+<code class="sig-name descname"><span class="pre">interpolate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisInterp.interpolate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance to which one wants to interpolate</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new Star instance holding the interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.BasisInterp.solve">
+<code class="sig-name descname"><span class="pre">solve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisInterp.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisInterp.solve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Solve for the interpolation coefficients given some data.
+The StarFit element of each Star in the list is assumed to hold valid
+alpha and beta members specifying depending of chisq on differential
+changes to its parameter vector.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to interpolate between</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="piff.BasisPolynomial">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">BasisPolynomial</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('u',</span> <span class="pre">'v')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_qr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisPolynomial" title="Permalink to this definition">¶</a></dt>
+<dd><p>A version of the Polynomial interpolator that works with BasisModels and can use the
+quadratic form of the chisq information it calculates.  It works better than the regular
+Polynomial interpolator when there is missing or degenerate information.</p>
+<p>The order is the highest power of a key to be used.  This can be the same for all keys
+or you may provide a list of separate order values to be used for each key.  (e.g. you
+may want to use 2nd order in the positions, but only 1st order in the color).</p>
+<p>All combinations of powers of keys that have total order &lt;= max_order are used.
+The maximum order is normally the maximum order of any given key’s order, but you may
+specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, max_order=2.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>order</strong> – The order to use for each key.  Can be a single value (applied to all
+keys) or an array matching number of keys.</p></li>
+<li><p><strong>keys</strong> – List of keys for properties that will be used as the polynomial arguments.
+[default: (‘u’,’v’)]</p></li>
+<li><p><strong>max_order</strong> – The maximum total order to use for cross terms between keys.
+[default: None, which uses the maximum value of any individual key’s order]</p></li>
+<li><p><strong>use_qr</strong> – Use QR decomposition for the solution rather than the more direct least
+squares solution.  QR decomposition requires more memory than the default
+and is somewhat slower (nearly a factor of 2); however, it is significantly
+less susceptible to numerical errors from high condition matrices.
+Therefore, it may be preferred for some use cases. [default: False]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.BasisPolynomial.basis">
+<code class="sig-name descname"><span class="pre">basis</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.basis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisPolynomial.basis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return 1d array of polynomial basis values for this star</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>star</strong> – A Star instance</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>1d numpy array with values of u^i v^j for 0&lt;i+j&lt;=order</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.BasisPolynomial.constant">
+<code class="sig-name descname"><span class="pre">constant</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.constant"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisPolynomial.constant" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return 1d array of coefficients that represent a polynomial with constant value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>value</strong> – The value to use as the constant term.  [default: 1.]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>1d numpy array with values of u^i v^j for 0&lt;i+j&lt;=order</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.BasisPolynomial.getProperties">
+<code class="sig-name descname"><span class="pre">getProperties</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/basis_interp.html#BasisPolynomial.getProperties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.BasisPolynomial.getProperties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract the appropriate properties to use as the independent variables for the
+interpolation.</p>
+<p>The base class implementation returns the field position (u,v) as a 1d numpy array.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>star</strong> – A Star instance from which to extract the properties to use.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A numpy vector of these properties.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.BasisPolynomial.property_names">
+<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">property_names</span></code><a class="headerlink" href="#piff.BasisPolynomial.property_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of properties used by this interpolant.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="k-nearest-neighbors">
+<h2>K-Nearest Neighbors<a class="headerlink" href="#k-nearest-neighbors" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="piff.kNNInterp">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">kNNInterp</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('u',</span> <span class="pre">'v')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_neighbors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'uniform'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp" title="Permalink to this definition">¶</a></dt>
+<dd><p>An interpolator that uses sklearn KNeighborsRegressor to interpolate a
+single surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>keys</strong> – A list of star attributes to interpolate from [default: (‘u’, ‘v’)]</p></li>
+<li><p><strong>n_neighbors</strong> – Number of neighbors used for interpolation. [default: 15]</p></li>
+<li><p><strong>weights</strong> – Weight function used in prediction. Possible values are ‘uniform’,
+‘distance’, and a callable function which accepts an array of distances
+and returns an array of the same shape containing the weights.
+[default: ‘uniform’]</p></li>
+<li><p><strong>algorithm</strong> – Algorithm used to compute nearest neighbors. Possible values are
+‘ball_tree’, ‘kd_tree’, ‘brute’, and ‘auto’, which tries to determine the
+best choice. [default: ‘auto’]</p></li>
+<li><p><strong>p</strong> – Power parameter of distance metrice. p=2 is default euclidean distance,
+p=1 is manhattan. [default: 2]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.kNNInterp.getProperties">
+<code class="sig-name descname"><span class="pre">getProperties</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.getProperties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp.getProperties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract the appropriate properties to use as the independent variables for the
+interpolation.</p>
+<p>Take self.keys from star.data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>star</strong> – A Star instances from which to extract the properties to use.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A np vector of these properties.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.kNNInterp.initialize">
+<code class="sig-name descname"><span class="pre">initialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
+initialize the stars for use with this interpolator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to interpolate between</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.kNNInterp.interpolate">
+<code class="sig-name descname"><span class="pre">interpolate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp.interpolate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation to find the interpolated parameter vector at some position. Calls interpolateList because sklearn prefers list input anyways</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance to which one wants to interpolate</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new Star instance with its StarFit member holding the interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.kNNInterp.interpolateList">
+<code class="sig-name descname"><span class="pre">interpolateList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.interpolateList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp.interpolateList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation for a list of stars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star_list</strong> – A list of Star instances to which to interpolate.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of new Star instances with interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.kNNInterp.property_names">
+<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">property_names</span></code><a class="headerlink" href="#piff.kNNInterp.property_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of properties used by this interpolant.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.kNNInterp.solve">
+<code class="sig-name descname"><span class="pre">solve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/knn_interp.html#kNNInterp.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.kNNInterp.solve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Solve for the interpolation coefficients given stars and attributes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star_list</strong> – A list of Star instances to interpolate between</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="gaussian-process-interpolation">
+<h2>Gaussian process interpolation<a class="headerlink" href="#gaussian-process-interpolation" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="piff.GPInterp">
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">piff.</span></code><code class="sig-name descname"><span class="pre">GPInterp</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('u',</span> <span class="pre">'v')</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'RBF(1)'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'isotropic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">l0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">white_noise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_neighbors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">average_fits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GPInterp" title="Permalink to this definition">¶</a></dt>
+<dd><p>An interpolator that models the underlying field as a Gaussian process.</p>
+<p>Gaussian process regression, also known as “Kriging,” assumes that the parameters
+are drawn from a multi-dimensional Gaussian random field across the (u, v) space.
+It requires an estimate of the spatial covariance function of p, commonly referred to
+as the kernel.</p>
+<p>The interpolation estimate at an arbitrary location (u, v) is the minimum variance
+unbiased estimate from the Gaussian distribution at that location conditioned on the
+values of the parameters measured at all the PSF stars.</p>
+<p>The implemention of this class use the treegp module. (<a class="reference external" href="https://github.com/PFLeget/treegp">https://github.com/PFLeget/treegp</a>)
+It can use any of the kernels defined in scikit-learn (<a class="reference external" href="https://scikit-learn.org/">https://scikit-learn.org/</a>)
+to define the covariance matrix as well as a custom VonKarman kernel defined in treegp.
+The default kernel is the so-called “squared exponential” or “radial basis function” kernel,
+known as RBF in scikit-learn.</p>
+<p>The default behavior involves measuring the radial two-point correlation function with
+TreeCorr (<a class="reference external" href="https://github.com/rmjarvis/TreeCorr">https://github.com/rmjarvis/TreeCorr</a>) and then fitting the hyper-parameters of
+the kernel that best fits this measurement.  This can be done either isotropically
+or anisotropically.  There are also options to use the traditional maximum likelihood
+optimization or no optimization if preferred.  See the <code class="docutils literal notranslate"><span class="pre">optimizer</span></code> parameter below.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>keys</strong> – A list of keys for properties that will be interpolated.  Must be 2
+properties, which can be used to calculate a 2-point correlation
+function. [default: (‘u’,’v’)]</p></li>
+<li><p><strong>kernel</strong> – A string that can be evaled to make a
+<code class="docutils literal notranslate"><span class="pre">sklearn.gaussian_process.kernels.Kernel</span></code> object. Could be also a list
+of Kernels objects (one per PSF param).  The reprs of sklear Kernels
+will work, as well as the repr of a custom treegp VonKarman object.
+[default: ‘RBF(1)’]</p></li>
+<li><p><strong>optimizer</strong> – <p>Indicates which techniques to use for optimizing the kernel. Four options
+are available:</p>
+<blockquote>
+<div><ul>
+<li><p>”isotropic” = use an isotropic radial 2-point correlation function
+estimated by TreeCorr.</p></li>
+<li><p>”anisotropic” = use an anisotropic two-dimensional 2-point
+correlation function estimated by TreeCorr.</p></li>
+<li><p>”likelihood” = use the classical Gaussian process maximum
+likelihood method.</p></li>
+<li><p>”none” = don’t do any kernal optimization.</p></li>
+</ul>
+</div></blockquote>
+<p>[default: “isotropic”]</p>
+</p></li>
+<li><p><strong>rows</strong> – A list of integer which indicates which rows of Star.fit.param
+need to be interpolated using GPs. [default: None, which means all rows]</p></li>
+<li><p><strong>normalize</strong> – Whether to normalize the interpolation parameters to have a mean of 0.
+Normally, the parameters being interpolated are not mean 0, so you would
+want this to be True, but if your parameters have an a priori mean of 0,
+then subtracting off the realized mean would be invalid.  [default: True]</p></li>
+<li><p><strong>white_noise</strong> – A float value that indicate the ammount of white noise that you want to
+use during the gp interpolation. This is an additional uncorrelated noise
+added in quadrature to the measured uncertainties of the PSF parameters.
+This should be given as a “sigma” value, not a variance. [default: 0.]</p></li>
+<li><p><strong>nbins</strong> – Number of bins (in each direction using a 2D correlation function)
+used in TreeCorr to compute the 2-point correlation function. Used only if
+optimizer is “isotropic” or “anisotropic”. [default: 20]</p></li>
+<li><p><strong>min_sep</strong> – Minimum separation between pairs when computing 2-point correlation
+function in arcsec (or more generally the same units as the keys).
+Compute automaticaly if it is not given. Used only if optimizer is
+“isotropic” or “anisotropic”.  [default: None]</p></li>
+<li><p><strong>max_sep</strong> – Maximum separation between pairs when computing 2-point correlation
+function in arcsec (or more generally the same units as the keys).
+Compute automaticaly if it is not given. Used only if optimizer is
+“isotropic” or “anisotropic”.  [default: None]</p></li>
+<li><p><strong>l0</strong> – Initial guess for correlation length when optimzer is “anisotropic” in
+arcsec (or more generally the same units as the keys). [default: 3000.]</p></li>
+<li><p><strong>average_fits</strong> – A fits file that have the spatial average functions of PSF parameters
+build in it. Build using meanify and piff output across different
+exposures. See meanify documentation for details. [default: None]</p></li>
+<li><p><strong>n_neighbors</strong> – Number of neighbors to use for interpolating the spatial average using
+a KNeighbors interpolation. Used only if average_fits is not None.
+[defaulf: 4]</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="piff.GPInterp.getProperties">
+<code class="sig-name descname"><span class="pre">getProperties</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.getProperties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GPInterp.getProperties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract the appropriate properties to use as the independent variables for the
+interpolation.</p>
+<p>Take self.keys from star.data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>star</strong> – A Star instances from which to extract the properties to use.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A np vector of these properties.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.GPInterp.initialize">
+<code class="sig-name descname"><span class="pre">initialize</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GPInterp.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize both the interpolator to some state prefatory to any solve iterations and
+initialize the stars for use with this interpolator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to interpolate between</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.GPInterp.interpolate">
+<code class="sig-name descname"><span class="pre">interpolate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GPInterp.interpolate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance to which one wants to interpolate</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a new Star instance with its StarFit member holding the interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.GPInterp.interpolateList">
+<code class="sig-name descname"><span class="pre">interpolateList</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.interpolateList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GPInterp.interpolateList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform the interpolation for a list of stars.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star_list</strong> – A list of Star instances to which to interpolate.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>a list of new Star instances with interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.GPInterp.property_names">
+<em class="property"><span class="pre">property</span> </em><code class="sig-name descname"><span class="pre">property_names</span></code><a class="headerlink" href="#piff.GPInterp.property_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of properties used by this interpolant.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="piff.GPInterp.solve">
+<code class="sig-name descname"><span class="pre">solve</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/gp_interp.html#GPInterp.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.GPInterp.solve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set up this GPInterp object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to interpolate between</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="model.html" class="btn btn-neutral float-left" title="Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="psf.html" class="btn btn-neutral float-right" title="PSF classes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

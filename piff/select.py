@@ -97,6 +97,12 @@ class Select(object):
                             If this is a float value, it gives the number of inter-quartile-ranges
                             to use for rejection relative to the median.  hsm_size_reject=True
                             is equivalent to hsm_size_reject=10.
+            :max_pixel_cut: Reject stars with a maximum pixel value greater than this value.
+                            Note: this cut is actually made using a flux cut such that the average
+                            star with the threshold flux would have this peak pixel value.
+                            This is in order to avoid a selection bias where smaller stars get
+                            preferentially excluded, since smaller stars, at a given flux, have a
+                            higher maximum pixel value. [default: None]
             :reject_where:  Reject stars based on an arbitrary eval string using variables that
                             are properties of each star (usually input using property_cols).
                             It should evaluate to a bool for a single star or an array of bool

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.outliers &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.outliers</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.outliers</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: outliers</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">chi2</span>
+
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">write_kwargs</span><span class="p">,</span> <span class="n">read_kwargs</span>
+
+<div class="viewcode-block" id="Outliers"><a class="viewcode-back" href="../../outliers.html#piff.Outliers">[docs]</a><span class="k">class</span> <span class="nc">Outliers</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for handling outliers.</span>
+
+<span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
+<span class="sd">    implemented by any derived class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Outliers.process"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.process">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_outliers</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the outliers field of the config dict.</span>
+
+<span class="sd">        :param config_outliers: The configuration dict for the outliers field.</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: an Outliers instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="k">if</span> <span class="s1">&#39;type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config_outliers</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;config[&#39;outliers&#39;] has no type field&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get the class to use for the outliers</span>
+        <span class="c1"># Not sure if this is what we&#39;ll always want, but it would be simple if we can make it work.</span>
+        <span class="n">outliers_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">piff</span><span class="p">,</span> <span class="n">config_outliers</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;Outliers&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Read any other kwargs in the outliers field</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">outliers_class</span><span class="o">.</span><span class="n">parseKwargs</span><span class="p">(</span><span class="n">config_outliers</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+        <span class="c1"># Build outliers object</span>
+        <span class="n">outliers</span> <span class="o">=</span> <span class="n">outliers_class</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">outliers</span></div>
+
+<div class="viewcode-block" id="Outliers.parseKwargs"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_outliers</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the outliers field of a configuration dict and return the kwargs to use for</span>
+<span class="sd">        initializing an instance of the class.</span>
+
+<span class="sd">        The base class implementation just returns the kwargs as they are, but derived classes</span>
+<span class="sd">        might want to override this if they need to do something more sophisticated with them.</span>
+
+<span class="sd">        :param config_outliers: The outliers field of the configuration dict, config[&#39;outliers&#39;]</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a kwargs dict to pass to the initializer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config_outliers</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="Outliers.write"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write an Outliers to a FITS file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The name of the extension to write the outliers information.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># First write the basic kwargs that works for all Outliers classes</span>
+        <span class="n">outliers_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">write_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">outliers_type</span><span class="p">))</span>
+
+        <span class="c1"># Now do any class-specific steps.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_finish_write</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
+
+<span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
+<span class="sd">        this hook exists in case any Outliers classes need to write extra information to the</span>
+<span class="sd">        fits file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The base name of the extension</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="Outliers.read"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.read">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read a Outliers from a FITS file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object</span>
+<span class="sd">        :param extname:     The name of the extension with the outliers information.</span>
+
+<span class="sd">        :returns: an Outliers handler</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">piff</span>
+
+        <span class="k">assert</span> <span class="n">extname</span> <span class="ow">in</span> <span class="n">fits</span>
+        <span class="k">assert</span> <span class="s1">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">get_colnames</span><span class="p">()</span>
+        <span class="n">outliers_type</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">outliers_type</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">outliers_type</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">outliers_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="c1"># fitsio 1.0 returns strings</span>
+            <span class="n">outliers_type</span> <span class="o">=</span> <span class="n">outliers_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Check that outliers_type is a valid Outliers type.</span>
+        <span class="n">outliers_classes</span> <span class="o">=</span> <span class="n">piff</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">get_all_subclasses</span><span class="p">(</span><span class="n">piff</span><span class="o">.</span><span class="n">Outliers</span><span class="p">)</span>
+        <span class="n">valid_outliers_types</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([</span> <span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">outliers_classes</span> <span class="p">])</span>
+        <span class="k">if</span> <span class="n">outliers_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_outliers_types</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;outliers type </span><span class="si">%s</span><span class="s2"> is not a valid Piff Outliers&quot;</span><span class="o">%</span><span class="n">outliers_type</span><span class="p">)</span>
+        <span class="n">outliers_cls</span> <span class="o">=</span> <span class="n">valid_outliers_types</span><span class="p">[</span><span class="n">outliers_type</span><span class="p">]</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">read_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">outliers</span> <span class="o">=</span> <span class="n">outliers_cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">outliers</span><span class="o">.</span><span class="n">_finish_read</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">outliers</span></div>
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
+
+<span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
+<span class="sd">        this hook exists in case any Outliers classes need to read extra information from the</span>
+<span class="sd">        fits file.</span>
+
+<span class="sd">        :param fits:        An open fitsio.FITS object.</span>
+<span class="sd">        :param extname:     The base name of the extension.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<span class="k">class</span> <span class="nc">MADOutliers</span><span class="p">(</span><span class="n">Outliers</span><span class="p">):</span>  <span class="c1"># pragma: no cover  (This isn&#39;t functional yet.)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An Outliers handler using mean absolute deviation (MAD) for defining outliers.</span>
+
+<span class="sd">        MAD = &lt; |x - median] &gt;</span>
+
+<span class="sd">    The range of values to keep in the sample are</span>
+
+<span class="sd">        [median - nmad * MAD, median + nmad * MAD]</span>
+
+<span class="sd">    where nmad is a parameter specified by the user.</span>
+
+<span class="sd">    The user can specify this parameter in one of two ways.  </span>
+
+<span class="sd">        1. The user can specify nmad directly.</span>
+<span class="sd">        2. The user can specify nsigma, in which case nmad = sqrt(pi/2) nsigma, the equivalent</span>
+<span class="sd">           value for a Gaussian distribution.</span>
+
+<span class="sd">    Either nmad or nsigma must be provided.</span>
+
+<span class="sd">    :param nmad:        The number of mean absolute deviations from the median at which</span>
+<span class="sd">                        something is declared an outlier.</span>
+<span class="sd">    :param nsigma:      The number of sigma equivalent if the underlying distribution is</span>
+<span class="sd">                        Gaussian.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nmad</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsigma</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">nmad</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">nsigma</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Either nmad or nsigma is required&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nmad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">nsigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nmad</span> <span class="o">=</span> <span class="n">nmad</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;nmad&#39;</span> <span class="p">:</span> <span class="n">nmad</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">removeOutliers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove outliers from a list of stars based on their fit parameters.</span>
+
+<span class="sd">        :param stars:       A list of Star instances</span>
+
+<span class="sd">        :returns:           A new list of stars without outliers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># I started writing this class, but then realized this isn&#39;t what we want to do</span>
+        <span class="c1"># for the PixelGrid model.  So leave this for now...</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;MAD algorithm not implemented&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ChisqOutliers"><a class="viewcode-back" href="../../outliers.html#piff.ChisqOutliers">[docs]</a><span class="k">class</span> <span class="nc">ChisqOutliers</span><span class="p">(</span><span class="n">Outliers</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An Outliers handler using the chisq of the residual of the interpolated star with the</span>
+<span class="sd">    original.</span>
+
+<span class="sd">    The user can specify the threshold in one of four ways:</span>
+
+<span class="sd">        1. The user can specify thresh directly.</span>
+<span class="sd">        2. The user can specify ndof to give a multiple of the number of degrees of freedom of</span>
+<span class="sd">           the model, thresh = ndof * dof.</span>
+<span class="sd">        3. The user can specify prob to reject according to the probability that the chisq</span>
+<span class="sd">           distribution for the model&#39;s number of degrees of freedom would exceed chisq.</span>
+<span class="sd">        4. The user can specify nsigma, in which case thresh is calculated according to the</span>
+<span class="sd">           chisq distribution to give the equivalent rejection probability that corresponds</span>
+<span class="sd">           to that many sigma.</span>
+
+<span class="sd">    Exactly one of thresh, ndof, nsigma, prob must be provided.</span>
+
+<span class="sd">    There is an option to include reserve stars in the outlier rejection, which is enabled</span>
+<span class="sd">    by setting ``include_reserve=True``.  This is probably not a good idea normally.</span>
+<span class="sd">    Reserve stars are often preferentially targeted by the outlier removal, which somewhat</span>
+<span class="sd">    lessens their case as fair test points for diagnostics.  However, it is still an option</span>
+<span class="sd">    in case you want to use it.</span>
+
+<span class="sd">    :param thresh:          The threshold in chisq above which an object is declared an outlier.</span>
+<span class="sd">    :param ndof:            The threshold as a multiple of the model&#39;s dof.</span>
+<span class="sd">    :param prob:            The probability limit that a chisq distribution with the model&#39;s dof</span>
+<span class="sd">                            would exceed the given value.</span>
+<span class="sd">    :param nsigma:          The number of sigma equivalent for the probability that a chisq</span>
+<span class="sd">                            distribution would exceed the given value.</span>
+<span class="sd">    :param max_remove:      The maximum number of outliers to remove on each iteration.  If this</span>
+<span class="sd">                            is a float &lt; 1.0, then this is interpreted as a maximum fraction of</span>
+<span class="sd">                            stars to remove.  e.g. 0.01 will remove at most 1% of the stars.</span>
+<span class="sd">                            [default: None]</span>
+<span class="sd">    :param include_reserve: Whether to include reserve stars as potential stars to be</span>
+<span class="sd">                            removed as outliers. [default: False]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ndof</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prob</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nsigma</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_remove</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">include_reserve</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span> <span class="p">(</span><span class="n">thresh</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="n">ndof</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsigma</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;One of thresh, ndof, prob, or nsigma is required.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">thresh</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span> <span class="p">(</span><span class="n">ndof</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="n">prob</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Only one of thresh, ndof, prob, or nsigma may be given.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ndof</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span> <span class="p">(</span><span class="n">prob</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Only one of thresh, ndof, prob, or nsigma may be given.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prob</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">nsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Only one of thresh, ndof, prob, or nsigma may be given.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># The only one of these we can convert now is nsigma, which we can convert into prob.</span>
+        <span class="c1"># Going from either prob or ndof to thresh requires knowledge of dof.</span>
+        <span class="k">if</span> <span class="n">nsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">prob</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">erfc</span><span class="p">(</span><span class="n">nsigma</span> <span class="o">/</span> <span class="mi">2</span><span class="o">**</span><span class="mf">0.5</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span> <span class="o">=</span> <span class="n">thresh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ndof</span> <span class="o">=</span> <span class="n">ndof</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prob</span> <span class="o">=</span> <span class="n">prob</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_remove</span> <span class="o">=</span> <span class="n">max_remove</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_reserve</span> <span class="o">=</span> <span class="n">include_reserve</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;thresh&#39;</span> <span class="p">:</span> <span class="n">thresh</span><span class="p">,</span>
+            <span class="s1">&#39;ndof&#39;</span> <span class="p">:</span> <span class="n">ndof</span><span class="p">,</span>
+            <span class="s1">&#39;prob&#39;</span> <span class="p">:</span> <span class="n">prob</span><span class="p">,</span>
+            <span class="s1">&#39;max_remove&#39;</span> <span class="p">:</span> <span class="n">max_remove</span><span class="p">,</span>
+            <span class="s1">&#39;include_reserve&#39;</span> <span class="p">:</span> <span class="n">include_reserve</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_get_thresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dof</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">thresh</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">ndof</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ndof</span> <span class="o">*</span> <span class="n">dof</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">chi2</span><span class="o">.</span><span class="n">isf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prob</span><span class="p">,</span> <span class="n">dof</span><span class="p">)</span>
+        
+<div class="viewcode-block" id="ChisqOutliers.removeOutliers"><a class="viewcode-back" href="../../outliers.html#piff.ChisqOutliers.removeOutliers">[docs]</a>    <span class="k">def</span> <span class="nf">removeOutliers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove outliers from a list of stars based on their chisq values.</span>
+
+<span class="sd">        :param stars:       A list of Star instances</span>
+<span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: stars, nremoved   A new list of stars without outliers, and how many outliers</span>
+<span class="sd">                                    were removed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_reserve</span><span class="p">:</span>
+            <span class="n">use_stars</span> <span class="o">=</span> <span class="n">stars</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">use_stars</span> <span class="o">=</span> <span class="p">[</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">is_reserve</span> <span class="p">]</span>
+
+        <span class="n">nstars</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">use_stars</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Checking </span><span class="si">%d</span><span class="s2"> stars for outliers&quot;</span><span class="p">,</span> <span class="n">nstars</span><span class="p">)</span>
+
+        <span class="n">chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">s</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">chisq</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">use_stars</span> <span class="p">])</span>
+        <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="n">s</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">dof</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">use_stars</span> <span class="p">])</span>
+
+        <span class="c1"># Scale up threshold by global chisq/dof.</span>
+        <span class="n">factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">chisq</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dof</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">factor</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span> <span class="n">factor</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">thresh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_thresh</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dof</span> <span class="p">])</span> <span class="o">*</span> <span class="n">factor</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">dof</span> <span class="o">==</span> <span class="n">dof</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;dof = </span><span class="si">%f</span><span class="s2">, thresh = </span><span class="si">%f</span><span class="s2"> * </span><span class="si">%f</span><span class="s2"> = </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
+                         <span class="n">dof</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_thresh</span><span class="p">(</span><span class="n">dof</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">factor</span><span class="p">,</span> <span class="n">thresh</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">min_dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">dof</span><span class="p">)</span>
+            <span class="n">max_dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">dof</span><span class="p">)</span>
+            <span class="n">min_thresh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_thresh</span><span class="p">(</span><span class="n">min_dof</span><span class="p">)</span>
+            <span class="n">max_thresh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_thresh</span><span class="p">(</span><span class="n">max_dof</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Minimum dof = </span><span class="si">%d</span><span class="s2"> with thresh = </span><span class="si">%f</span><span class="s2"> * </span><span class="si">%f</span><span class="s2"> = </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
+                         <span class="n">min_dof</span><span class="p">,</span> <span class="n">min_thresh</span><span class="p">,</span> <span class="n">factor</span><span class="p">,</span> <span class="n">min_thresh</span><span class="o">*</span><span class="n">factor</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Maximum dof = </span><span class="si">%d</span><span class="s2"> with thresh = </span><span class="si">%f</span><span class="s2"> * </span><span class="si">%f</span><span class="s2"> = </span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">,</span>
+                         <span class="n">max_dof</span><span class="p">,</span> <span class="n">max_thresh</span><span class="p">,</span> <span class="n">factor</span><span class="p">,</span> <span class="n">max_thresh</span><span class="o">*</span><span class="n">factor</span><span class="p">)</span>
+
+        <span class="n">nremoved</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">~</span><span class="p">(</span><span class="n">chisq</span> <span class="o">&lt;=</span> <span class="n">thresh</span><span class="p">))</span>  <span class="c1"># Write it as not chisq &lt;= thresh in case of nans.</span>
+        <span class="k">if</span> <span class="n">nremoved</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">stars</span><span class="p">,</span> <span class="mi">0</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found </span><span class="si">%d</span><span class="s2"> stars with chisq &gt; thresh&quot;</span><span class="p">,</span> <span class="n">nremoved</span><span class="p">)</span>
+
+        <span class="c1"># Update max_remove if necessary</span>
+        <span class="n">max_remove</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_remove</span>
+        <span class="k">if</span> <span class="n">max_remove</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">max_remove</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">max_remove</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">max_remove</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="n">max_remove</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">nremoved</span> <span class="o">&lt;=</span> <span class="n">max_remove</span><span class="p">:</span>
+            <span class="n">good</span> <span class="o">=</span> <span class="n">chisq</span> <span class="o">&lt;=</span> <span class="n">thresh</span>
+            <span class="n">good_stars</span> <span class="o">=</span> <span class="p">[</span> <span class="n">s</span> <span class="k">for</span> <span class="n">g</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">good</span><span class="p">,</span> <span class="n">use_stars</span><span class="p">)</span> <span class="k">if</span> <span class="n">g</span> <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Since the thresholds are not necessarily all equal, this might be tricky to</span>
+            <span class="c1"># figure out which ones should be removed.</span>
+            <span class="c1"># e.g. if max_remove == 1 and we have items with </span>
+            <span class="c1">#    chisq = 20, thresh = 15</span>
+            <span class="c1">#    chisq = 40, thresh = 32</span>
+            <span class="c1"># which one should we remove?</span>
+            <span class="c1"># The first has larger chisq/thresh, and the second has larger chisq - thresh.</span>
+            <span class="c1"># I semi-arbitrarily remove based on the difference.</span>
+            <span class="n">nremoved</span>  <span class="o">=</span> <span class="n">max_remove</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="n">chisq</span> <span class="o">-</span> <span class="n">thresh</span>
+            <span class="n">new_thresh_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argpartition</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span> <span class="o">-</span><span class="n">nremoved</span><span class="p">)[</span><span class="o">-</span><span class="n">nremoved</span><span class="p">]</span>
+            <span class="n">new_thresh</span> <span class="o">=</span> <span class="n">diff</span><span class="p">[</span><span class="n">new_thresh_index</span><span class="p">]</span>
+            <span class="n">good</span> <span class="o">=</span> <span class="n">diff</span> <span class="o">&lt;</span> <span class="n">new_thresh</span>
+            <span class="n">good_stars</span> <span class="o">=</span> <span class="p">[</span> <span class="n">s</span> <span class="k">for</span> <span class="n">g</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">good</span><span class="p">,</span> <span class="n">use_stars</span><span class="p">)</span> <span class="k">if</span> <span class="n">g</span> <span class="p">]</span>
+
+        <span class="c1"># Add back the reserve stars if we aren&#39;t including them in the cut.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_reserve</span><span class="p">:</span>
+            <span class="n">good_stars</span> <span class="o">+=</span> <span class="p">[</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stars</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">is_reserve</span> <span class="p">]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;chisq = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">chisq</span><span class="p">[</span><span class="o">~</span><span class="p">(</span><span class="n">chisq</span> <span class="o">&lt;=</span> <span class="n">thresh</span><span class="p">)])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;thresh = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">thresh</span><span class="p">[</span><span class="o">~</span><span class="p">(</span><span class="n">chisq</span> <span class="o">&lt;=</span> <span class="n">thresh</span><span class="p">)])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;flux = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,[</span><span class="n">s</span><span class="o">.</span><span class="n">flux</span> <span class="k">for</span> <span class="n">g</span><span class="p">,</span><span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">good</span><span class="p">,</span><span class="n">stars</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">g</span><span class="p">])</span>
+
+        <span class="k">assert</span> <span class="n">nremoved</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">good_stars</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">good_stars</span><span class="p">,</span> <span class="n">nremoved</span></div></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

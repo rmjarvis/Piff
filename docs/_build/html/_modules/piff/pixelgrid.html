@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.pixelgrid &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.pixelgrid</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.pixelgrid</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: pixelmodel</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+<span class="kn">import</span> <span class="nn">scipy.linalg</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">galsim</span> <span class="kn">import</span> <span class="n">Lanczos</span>
+<span class="kn">from</span> <span class="nn">.model</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span><span class="p">,</span> <span class="n">StarData</span><span class="p">,</span> <span class="n">StarFit</span>
+
+<div class="viewcode-block" id="PixelGrid"><a class="viewcode-back" href="../../model.html#piff.PixelGrid">[docs]</a><span class="k">class</span> <span class="nc">PixelGrid</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF modeled as interpolation between a grid of points.</span>
+
+<span class="sd">    The parameters of the model are the values at the grid points, although the sum of the</span>
+<span class="sd">    values is constrained to be 1/scale**2, to give it unit total flux. The grid is in uv</span>
+<span class="sd">    space, with the scale and size specified on construction.  Interpolation will always</span>
+<span class="sd">    assume values of zero outside of grid.</span>
+
+<span class="sd">    PixelGrid also needs to specify an interpolant to define how to values between grid points</span>
+<span class="sd">    are determined from the pixelated model.  Any galsim.Interpolant type is allowed.</span>
+<span class="sd">    The default interpolant is galsim.Lanczos(7)</span>
+
+<span class="sd">    :param scale:       Pixel scale of the PSF model (in arcsec)</span>
+<span class="sd">    :param size:        Number of pixels on each side of square grid.</span>
+<span class="sd">    :param interp:      An Interpolant to be used [default: Lanczos(7)]</span>
+<span class="sd">    :param centered:    If True, PSF model centroid is forced to be (0,0), and the</span>
+<span class="sd">                        PSF fitting will marginalize over stellar position.  If False, stellar</span>
+<span class="sd">                        position is fixed at input value and the fitted PSF may be off-center.</span>
+<span class="sd">                        [default: True]</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_method</span> <span class="o">=</span> <span class="s1">&#39;no_pixel&#39;</span>
+    <span class="n">_model_can_be_offset</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Indicate that in reflux, the centroid should also move by the</span>
+                                 <span class="c1"># current centroid of the model.  This way on later iterations,</span>
+                                 <span class="c1"># the model will be close to centered.</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">centered</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Building Pixel model with the following parameters:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;scale = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">scale</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;size = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;interp = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">interp</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;centered = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">centered</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pixel_area</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="k">if</span> <span class="n">interp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span> <span class="n">interp</span> <span class="o">=</span> <span class="n">Lanczos</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">interp</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span> <span class="n">interp</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">interp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span> <span class="o">=</span> <span class="n">interp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span> <span class="o">=</span> <span class="n">centered</span>
+
+        <span class="c1"># We will limit the calculations to |u|, |v| &lt;= maxuv</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxuv</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="mf">2.</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+
+        <span class="c1"># The origin of the model in image coordinates</span>
+        <span class="c1"># (Same for both u and v directions.)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_origin</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">//</span><span class="mi">2</span>
+
+        <span class="c1"># These are the kwargs that can be serialized easily.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;scale&#39;</span> <span class="p">:</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s1">&#39;size&#39;</span> <span class="p">:</span> <span class="n">size</span><span class="p">,</span>
+            <span class="s1">&#39;centered&#39;</span> <span class="p">:</span> <span class="n">centered</span><span class="p">,</span>
+            <span class="s1">&#39;interp&#39;</span> <span class="p">:</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="p">),</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">size</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Non-positive PixelGrid size </span><span class="si">{:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">size</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span> <span class="o">=</span> <span class="n">size</span><span class="o">*</span><span class="n">size</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;nparams = </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PixelGrid.initialize"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
+
+<span class="sd">        :param star:    A Star instance with the raw data.</span>
+<span class="sd">        :param logger:  A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">        :returns: a star instance with the appropriate initial fit values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getDataVector</span><span class="p">()</span>
+
+        <span class="c1"># Start with the sum of pixels as initial estimate of flux.</span>
+        <span class="c1"># (Skip w=0 pixels here.)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">weight</span><span class="o">!=</span><span class="mi">0</span>
+        <span class="n">flux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_centered</span><span class="p">:</span>
+            <span class="c1"># Initial center is the centroid of the data.</span>
+            <span class="n">Ix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span> <span class="o">/</span> <span class="n">flux</span>
+            <span class="n">Iy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">*</span> <span class="n">v</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span> <span class="o">/</span> <span class="n">flux</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">Ix</span><span class="p">,</span><span class="n">Iy</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># In this case, center is fixed.</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+
+        <span class="c1"># Calculate the second moment to initialize an initial Gaussian profile.</span>
+        <span class="c1"># hsm returns: flux, x, y, sigma, g1, g2, flag</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">hsm</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+
+        <span class="c1"># Create an initial parameter array using a Gaussian profile.</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">rsq</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span><span class="o">*</span><span class="n">u</span><span class="p">)[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">v</span><span class="o">*</span><span class="n">v</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span>
+        <span class="n">gauss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">rsq</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.</span><span class="o">*</span> <span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">gauss</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+        <span class="c1"># Normalize to get unity flux</span>
+        <span class="n">params</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="n">starfit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">flux</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">starfit</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PixelGrid.fit"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on its PSF parameters</span>
+<span class="sd">        and uncertainties.</span>
+
+<span class="sd">        :param star:            A Star instance</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
+
+<span class="sd">        :returns: a new Star instance with updated fit information</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="c1"># Get chisq Taylor expansion for linearized model</span>
+        <span class="n">star1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="n">convert_func</span><span class="p">)</span>
+
+        <span class="c1"># The chisq function calculates A and b where</span>
+        <span class="c1">#</span>
+        <span class="c1">#    chisq = chisq_0 + 2 bT A dp + dpT AT A dp</span>
+        <span class="c1">#</span>
+        <span class="c1"># is the linearized variation in chisq with respect to changes in the parameter values.</span>
+        <span class="c1"># The minimum of this linearized functional form is</span>
+        <span class="c1">#</span>
+        <span class="c1">#    dp = (AT A)^-1 AT b</span>
+        <span class="c1">#</span>
+        <span class="c1"># This is just the least squares solution of</span>
+        <span class="c1">#</span>
+        <span class="c1">#    A dp = b</span>
+        <span class="c1">#</span>
+        <span class="c1"># Even if the solution is degenerate, gelsy works fine using QRP decomposition.</span>
+        <span class="c1"># And it&#39;s much faster than SVD.</span>
+        <span class="n">dparam</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">A</span><span class="p">,</span> <span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">b</span><span class="p">,</span>
+                                    <span class="n">check_finite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cond</span><span class="o">=</span><span class="mf">1.e-6</span><span class="p">,</span>
+                                    <span class="n">lapack_driver</span><span class="o">=</span><span class="s1">&#39;gelsy&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;dparam = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">dparam</span><span class="p">)</span>
+
+        <span class="c1"># Create new StarFit, update the chisq value.  Note no beta is returned as</span>
+        <span class="c1"># the quadratic Taylor expansion was about the old parameters, not these.</span>
+        <span class="n">Adp</span> <span class="o">=</span> <span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">A</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">dparam</span><span class="p">)</span>
+        <span class="n">new_chisq</span> <span class="o">=</span> <span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">chisq</span> <span class="o">+</span> <span class="n">Adp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">Adp</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">Adp</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">b</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;chisq = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">new_chisq</span><span class="p">)</span>
+
+        <span class="c1"># covariance of dp is C = (AT A)^-1</span>
+        <span class="c1"># params_var = diag(C)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">A</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">A</span><span class="p">)))</span>
+        <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># If we get an error, set the variance to &quot;infinity&quot;.</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Caught error </span><span class="si">%s</span><span class="s2"> making params_var.  Setting all to 1.e100&quot;</span><span class="p">,</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">dparam</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.e100</span>
+
+        <span class="n">starfit2</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="o">+</span> <span class="n">dparam</span><span class="p">,</span>
+                           <span class="n">flux</span> <span class="o">=</span> <span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span><span class="p">,</span>
+                           <span class="n">center</span> <span class="o">=</span> <span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">,</span>
+                           <span class="n">params_var</span> <span class="o">=</span> <span class="n">params_var</span><span class="p">,</span>
+                           <span class="n">A</span> <span class="o">=</span> <span class="n">star1</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">A</span><span class="p">,</span>
+                           <span class="n">chisq</span> <span class="o">=</span> <span class="n">new_chisq</span><span class="p">)</span>
+
+        <span class="n">star</span> <span class="o">=</span> <span class="n">Star</span><span class="p">(</span><span class="n">star1</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">starfit2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">star</span></div>
+
+<div class="viewcode-block" id="PixelGrid.chisq"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.chisq">[docs]</a>    <span class="k">def</span> <span class="nf">chisq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.</span>
+<span class="sd">        as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,</span>
+<span class="sd">        where dp is the *shift* from current parameter values.  Returned Star</span>
+<span class="sd">        instance has the resultant (A, b, chisq) attributes, but params vector has not have</span>
+<span class="sd">        been updated yet (could be degenerate).</span>
+
+<span class="sd">        :param star:            A Star instance</span>
+<span class="sd">        :param logger:          A logger object for logging debug info. [default: None]</span>
+<span class="sd">        :param convert_func:    An optional function to apply to the profile being fit before</span>
+<span class="sd">                                drawing it onto the image.  This is used by composite PSFs to</span>
+<span class="sd">                                isolate the effect of just this model component. [default: None]</span>
+
+<span class="sd">        :returns: a new Star instance with updated fit parameters. (esp. A,b)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Start chisq function&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;initial params = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getDataVector</span><span class="p">()</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">_shift</span><span class="p">(</span><span class="o">*</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;prof.flux = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">prof</span><span class="o">.</span><span class="n">flux</span><span class="p">)</span>
+
+        <span class="c1"># My idea for doing composite functions is that at this point in the calculation, we</span>
+        <span class="c1"># could apply a function to prof to convert it to the full effective PSF profile.</span>
+        <span class="c1"># This function could be passed as an optional extra argument to the fit and chisq</span>
+        <span class="c1"># functions.  (The default would just be `lambda prof:prof`.)</span>
+        <span class="c1"># E.g. in a Sum context, this function could be</span>
+        <span class="c1">#    convert_func = `lambda prof: galsim.Sum(prof, *other_profiles)`</span>
+        <span class="c1"># Then at this point in the chisq function (and comparable places for other profiles),</span>
+        <span class="c1"># we would call:</span>
+        <span class="c1">#    prof = convert_func(prof)</span>
+        <span class="c1"># The draw function below would then draw the full composite profile, not just the</span>
+        <span class="c1"># PixelGrid profile.</span>
+
+        <span class="k">if</span> <span class="n">convert_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">convert_func</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span>
+
+        <span class="c1"># Adjust the image now so that we can draw it in pixel coordinates, rather than letting</span>
+        <span class="c1"># galsim.drawImage do the adjustment each time for each component, which would be</span>
+        <span class="c1"># incredibly slow.</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">prof</span><span class="o">.</span><span class="n">_adjust_offset</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">_shift</span><span class="p">(</span><span class="o">-</span><span class="n">image</span><span class="o">.</span><span class="n">center</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">wcs</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PixelScale</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="c1"># Draw the profile.</span>
+        <span class="c1"># Be careful here.  If prof was converted to something that isn&#39;t analytic in</span>
+        <span class="c1"># real space, this will need to be _drawFFT.</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">local_wcs</span><span class="o">.</span><span class="n">profileToImage</span><span class="p">(</span><span class="n">prof</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
+        <span class="n">prof</span><span class="o">.</span><span class="n">_drawReal</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;drawn flux = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+
+        <span class="c1"># Only use data points where model gives reasonable support</span>
+        <span class="n">u0</span><span class="p">,</span> <span class="n">v0</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span>
+        <span class="n">u</span> <span class="o">-=</span> <span class="n">u0</span>
+        <span class="n">v</span> <span class="o">-=</span> <span class="n">v0</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxuv</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxuv</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">weight</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">nmask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">weight</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="c1"># Calculate A = d(model)/dp</span>
+        <span class="c1"># A[i,k] = d(model_i)/dp_k</span>
+        <span class="c1"># b[i] = resid_i</span>
+        <span class="c1"># Solution to A x = b will be the desired dparams</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nmask</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;F&#39;</span><span class="p">)</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">data</span> <span class="o">-</span> <span class="n">model</span>
+
+        <span class="c1"># The PixelGrid model basis can be represented as a 1x1 InterpolatedImage with flux=1,</span>
+        <span class="c1"># shifted and scaled appropriately.  The _getBasisProfile method returns a single</span>
+        <span class="c1"># InterpolatedImage we can use for all the pixels, with arrays of shifts (du,dv) to use</span>
+        <span class="c1"># for each of the individual pixels.</span>
+        <span class="n">basis_profile</span><span class="p">,</span> <span class="n">basis_shifts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getBasisProfile</span><span class="p">()</span>
+        <span class="n">du</span><span class="p">,</span> <span class="n">dv</span> <span class="o">=</span> <span class="n">basis_shifts</span>
+
+        <span class="k">if</span> <span class="n">convert_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># In this case we need the basis_profile to have the right scale (rather than</span>
+            <span class="c1"># incorporate it into the jacobian) so that convert_func will have the right size.</span>
+            <span class="n">basis_profile</span> <span class="o">=</span> <span class="n">basis_profile</span><span class="o">.</span><span class="n">dilate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
+            <span class="c1"># Find the net shift from the star.fit.center and the offset.</span>
+            <span class="n">jac</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">local_wcs</span><span class="o">.</span><span class="n">jacobian</span><span class="p">()</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span><span class="o">.</span><span class="n">getMatrix</span><span class="p">()</span>
+            <span class="n">dx</span> <span class="o">=</span> <span class="n">jac</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">u0</span> <span class="o">+</span> <span class="n">jac</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">v0</span> <span class="o">+</span> <span class="n">offset</span><span class="o">.</span><span class="n">x</span>
+            <span class="n">dy</span> <span class="o">=</span> <span class="n">jac</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">u0</span> <span class="o">+</span> <span class="n">jac</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">v0</span> <span class="o">+</span> <span class="n">offset</span><span class="o">.</span><span class="n">y</span>
+            <span class="n">du</span> <span class="o">=</span> <span class="n">du</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+            <span class="n">dv</span> <span class="o">=</span> <span class="n">dv</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">duk</span><span class="p">,</span> <span class="n">dvk</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span><span class="p">),</span> <span class="n">du</span><span class="p">,</span><span class="n">dv</span><span class="p">):</span>
+                <span class="c1"># This implementation removes most of the overhead, and is still relatively</span>
+                <span class="c1"># straightforward.</span>
+                <span class="c1"># The one wrinkle is that if the net profile is no longer analytic in real space,</span>
+                <span class="c1"># we&#39;ll need a call to _drawFFT rather than _drawReal.  That would be a lot slower</span>
+                <span class="c1"># I think, so we may want to limit convolutions in conjunction with PixelGrid.</span>
+                <span class="c1"># (That&#39;s less of an issue for models with few paramters.)</span>
+
+                <span class="n">basis_profile_k</span> <span class="o">=</span> <span class="n">basis_profile</span><span class="o">.</span><span class="n">_shift</span><span class="p">(</span><span class="n">duk</span><span class="p">,</span><span class="n">dvk</span><span class="p">)</span>
+                <span class="n">basis_profile_k</span> <span class="o">=</span> <span class="n">convert_func</span><span class="p">(</span><span class="n">basis_profile_k</span><span class="p">)</span>
+                <span class="c1"># TODO: If the convert_func has transformed the profile into something that is</span>
+                <span class="c1"># not analytic_x, then we need to do the _drawFFT version here.</span>
+                <span class="n">basis_profile_k</span><span class="o">.</span><span class="n">_drawReal</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">jac</span><span class="p">,</span> <span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">dy</span><span class="p">),</span> <span class="mf">1.</span><span class="p">)</span>
+                <span class="n">A</span><span class="p">[:,</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[</span><span class="n">mask</span><span class="p">]</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># When we don&#39;t have the convert_func step, this calculation can be sped up</span>
+                <span class="c1"># fairly significantly.  If we wanted to use only GalSim method, then this is</span>
+                <span class="c1"># how we would do it.  We can combine both the scale and the initial shift</span>
+                <span class="c1"># into the parameters that we pass to _drawReal, which saves time.</span>
+                <span class="c1"># This is reasonably straightforward.  However, when we don&#39;t have any convert</span>
+                <span class="c1"># function, there is a further speed up that is available to us by using the</span>
+                <span class="c1"># fact that each kernel weight value is used multiple times for different</span>
+                <span class="c1"># output pixels.  GalSim uses this fact when drawing the full PixelGrid model,</span>
+                <span class="c1"># but there&#39;s no way to get that efficiency gain when doing one model pixel at</span>
+                <span class="c1"># a time.  So we do the equivalent calculation below, outside of GalSim.</span>
+
+                <span class="n">jac</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">local_wcs</span><span class="o">.</span><span class="n">jacobian</span><span class="p">()</span><span class="o">.</span><span class="n">inverse</span><span class="p">()</span><span class="o">.</span><span class="n">getMatrix</span><span class="p">()</span>
+                <span class="c1"># Incorporate scale into jac for _drawReal call.</span>
+                <span class="c1"># Also for the du = du * scale and dv = dv * scale steps.</span>
+                <span class="n">jac2</span> <span class="o">=</span> <span class="n">jac</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+                <span class="n">dx</span> <span class="o">=</span> <span class="n">jac2</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">du</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">+</span> <span class="n">jac2</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">dv</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+                <span class="n">dx</span> <span class="o">+=</span> <span class="n">jac</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">u0</span> <span class="o">+</span> <span class="n">jac</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">v0</span> <span class="o">+</span> <span class="n">offset</span><span class="o">.</span><span class="n">x</span>
+                <span class="n">dy</span> <span class="o">=</span> <span class="n">jac2</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">du</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">+</span> <span class="n">jac2</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">dv</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+                <span class="n">dy</span> <span class="o">+=</span> <span class="n">jac</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">u0</span> <span class="o">+</span> <span class="n">jac</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">v0</span> <span class="o">+</span> <span class="n">offset</span><span class="o">.</span><span class="n">y</span>
+
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">dxk</span><span class="p">,</span> <span class="n">dyk</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span><span class="p">),</span> <span class="n">dx</span><span class="p">,</span><span class="n">dy</span><span class="p">):</span>
+                    <span class="n">basis_profile</span><span class="o">.</span><span class="n">_drawReal</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">jac2</span><span class="p">,</span> <span class="p">(</span><span class="n">dxk</span><span class="p">,</span><span class="n">dyk</span><span class="p">),</span> <span class="mf">1.</span><span class="p">)</span>
+                    <span class="n">A</span><span class="p">[:,</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[</span><span class="n">mask</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># This is even faster, but less easy to follow how it works.</span>
+                <span class="c1"># I&#39;ll make an attempt to explain how it proceeds, but I find it somewhat</span>
+                <span class="c1"># more confusing than the above method.</span>
+
+                <span class="c1"># Note: The main reason this is faster is that we only compute the interpolation</span>
+                <span class="c1"># xvals for npix * (2*xr) * 2, rather than npix * (2*xr)**2 by leveraging</span>
+                <span class="c1"># the fact that each interpolation coefficient gets repeated for multiple</span>
+                <span class="c1"># basis pixels, so the above drawReal call has duplicated work, which cannot</span>
+                <span class="c1"># really be pulled out into a common calculation using just GalSim functionality.</span>
+
+                <span class="c1"># First calculate the interp.xval values that we will need.</span>
+                <span class="c1"># We need to evaluate the interpolation coefficient using self.interp.xvale</span>
+                <span class="c1"># at any integer multiples of self.scale that are sufficiently near u or v.</span>
+                <span class="c1"># More simply, we need to evaluate at integer locations that are near u/scale</span>
+                <span class="c1"># or v/scale.  The argument to xval needs to be the distance this integer location</span>
+                <span class="c1"># is from u or v.</span>
+                <span class="c1"># The maximum argument is given by self.interp.xrange.</span>
+                <span class="n">u</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+                <span class="n">ui</span><span class="p">,</span><span class="n">uf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">vi</span><span class="p">,</span><span class="n">vf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">xr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">xrange</span>
+                <span class="c1"># Note arguments are basis pixel position minus image pixel position.</span>
+                <span class="c1"># Hence the minus sign in front of uf.</span>
+                <span class="n">argu</span> <span class="o">=</span> <span class="o">-</span><span class="n">uf</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">xr</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">xr</span><span class="o">+</span><span class="mi">1</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span>
+                <span class="n">argv</span> <span class="o">=</span> <span class="o">-</span><span class="n">vf</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">xr</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">xr</span><span class="o">+</span><span class="mi">1</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,:]</span>
+                <span class="n">uwt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">xval</span><span class="p">(</span><span class="n">argu</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">argu</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                <span class="n">vwt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">xval</span><span class="p">(</span><span class="n">argv</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">argv</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+                <span class="c1"># The interpolation coefficients are uwt * vwt * flux_ratio</span>
+                <span class="c1"># We need one factor the pixel area ratio so arbitratily choose uwt to</span>
+                <span class="c1"># multiply by this (constant) factor so it gets applied to the product.</span>
+                <span class="n">flux_scaling</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">pixel_area</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixel_area</span>
+                <span class="n">uwt</span> <span class="o">*=</span> <span class="n">flux_scaling</span>
+
+                <span class="c1"># Now the tricky part.  We need to figure out which basis pixel each of those</span>
+                <span class="c1"># combinations belongs to.</span>
+                <span class="c1"># This is easier to do if we don&#39;t loop over basis pixels as we did above, but</span>
+                <span class="c1"># rather loop over the image pixels.  Then we can fill the appropriate columns</span>
+                <span class="c1"># in the A matrix for each row.</span>
+                <span class="c1"># For each row, the columns we need are those with</span>
+                <span class="c1">#   int(u) - xrange + 1 &lt;= du &lt; int(u) + xrange + 1</span>
+                <span class="c1">#   int(v) - xrange + 1 &lt;= dv &lt; int(v) + xrange + 1</span>
+                <span class="c1"># We can figure this out by slicing into an array that has the same shape</span>
+                <span class="c1"># as du or dv with the running index indicating which basis pixel corresponds</span>
+                <span class="c1"># to each location.</span>
+                <span class="n">ui</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+                <span class="n">vi</span> <span class="o">=</span> <span class="n">vi</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+                <span class="n">col_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nparams</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">du</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+                <span class="c1"># For each row, we need the outer product of uwt and vwt.</span>
+                <span class="c1"># Not the whole thing all the time, but despite that, it&#39;s faster to</span>
+                <span class="c1"># have numpy do this product all at once in a single C call rather than</span>
+                <span class="c1"># separately for each row.</span>
+                <span class="n">uvwt</span> <span class="o">=</span> <span class="n">uwt</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">vwt</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmask</span><span class="p">):</span>
+                    <span class="c1"># i1:i2 is the slice for the v direction into the col_index array.</span>
+                    <span class="c1"># p1:p2 is the slice for the v direction into the uwt array.</span>
+                    <span class="c1"># Normally p1:p2 is just 0:2*xr, but we need to be careful about going</span>
+                    <span class="c1"># off the edge of the grid, so it may be smaller than this.</span>
+                    <span class="n">i1</span> <span class="o">=</span> <span class="n">vi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">xr</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_origin</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="n">i2</span> <span class="o">=</span> <span class="n">vi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">xr</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_origin</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="n">p1</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">p2</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">xr</span>
+                    <span class="k">if</span> <span class="n">i1</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">p1</span> <span class="o">=</span> <span class="o">-</span><span class="n">i1</span>
+                        <span class="n">i1</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">if</span> <span class="n">i2</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                        <span class="n">p2</span> <span class="o">-=</span> <span class="n">i2</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+                        <span class="n">i2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+                    <span class="c1"># Repeat for u using j1:j2 and q1:q2</span>
+                    <span class="n">j1</span> <span class="o">=</span> <span class="n">ui</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">xr</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_origin</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="n">j2</span> <span class="o">=</span> <span class="n">ui</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">xr</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_origin</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="n">q1</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">q2</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">xr</span>
+                    <span class="k">if</span> <span class="n">j1</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">q1</span> <span class="o">=</span> <span class="o">-</span><span class="n">j1</span>
+                        <span class="n">j1</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">if</span> <span class="n">j2</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                        <span class="n">q2</span> <span class="o">-=</span> <span class="n">j2</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+                        <span class="n">j2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+
+                    <span class="c1"># Now we have the right indices for everything</span>
+                    <span class="c1"># i1:i2 are the v indices in the col_index array.</span>
+                    <span class="c1"># j1:j2 are the u indices in the col_index array.</span>
+                    <span class="c1"># p1:p2 are the v indices to use</span>
+                    <span class="c1"># q1:q2 are the u indices to use</span>
+                    <span class="c1"># The interpolation coefficients are the outer product of these.</span>
+                    <span class="c1"># cols are the indices of the corresponding basis pixels.</span>
+                    <span class="n">cols</span> <span class="o">=</span> <span class="n">col_index</span><span class="p">[</span><span class="n">i1</span><span class="p">:</span><span class="n">i2</span><span class="p">,</span> <span class="n">j1</span><span class="p">:</span><span class="n">j2</span><span class="p">]</span>
+                    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">cols</span><span class="o">.</span><span class="n">ravel</span><span class="p">()]</span> <span class="o">=</span> <span class="n">uvwt</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">p2</span><span class="p">,</span> <span class="n">q1</span><span class="p">:</span><span class="n">q2</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+        <span class="c1"># Account for the current flux estimate.</span>
+        <span class="n">A</span> <span class="o">*=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+
+        <span class="c1"># Actually, do weighted least squares.</span>
+        <span class="c1"># Multiply A and b by sqrt(weight).</span>
+        <span class="n">sw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">A</span> <span class="o">*=</span> <span class="n">sw</span><span class="p">[:,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">*=</span> <span class="n">sw</span>
+        <span class="n">chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;chisq,dof = </span><span class="si">%s</span><span class="s1">,</span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">chisq</span><span class="p">,</span><span class="n">dof</span><span class="p">)</span>
+
+        <span class="n">outfit</span> <span class="o">=</span> <span class="n">StarFit</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                         <span class="n">flux</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span><span class="p">,</span>
+                         <span class="n">center</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">,</span>
+                         <span class="n">params_var</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params_var</span><span class="p">,</span>
+                         <span class="n">chisq</span> <span class="o">=</span> <span class="n">chisq</span><span class="p">,</span>
+                         <span class="n">dof</span> <span class="o">=</span> <span class="n">dof</span><span class="p">,</span>
+                         <span class="n">A</span> <span class="o">=</span> <span class="n">A</span><span class="p">,</span>
+                         <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">outfit</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PixelGrid.getProfile"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
+
+<span class="sd">        :param params:      The fit parameters for a given star.</span>
+
+<span class="sd">        :returns: a galsim.GSObject instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">im</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">galsim</span><span class="o">.</span><span class="n">InterpolatedImage</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">x_interpolant</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="p">,</span>
+                                        <span class="n">use_true_center</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_getBasisProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_basis_profile&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_basis_profile</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="c1"># Note: Things are faster if the underlying InterpolatedImage has scale=1.</span>
+            <span class="c1"># We apply the dilation and shifts separately in chisq2.</span>
+            <span class="n">im</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">1.</span><span class="p">]]),</span> <span class="n">scale</span><span class="o">=</span><span class="mf">1.</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_basis_profile</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">InterpolatedImage</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">x_interpolant</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_basis_shifts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">),</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_origin</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basis_profile</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basis_shifts</span>
+
+<div class="viewcode-block" id="PixelGrid.normalize"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
+
+<span class="sd">        Note: This modifies the input star in place.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Backwards compatibility check.</span>
+        <span class="c1"># We used to only keep nparams - 1 or nparams - 3 values in fit.params.</span>
+        <span class="c1"># If this is the case, fix it up to match up with our new convention.</span>
+        <span class="n">nparams1</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">nparams2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">**</span><span class="mi">2</span>
+        <span class="k">if</span> <span class="n">nparams1</span> <span class="o">&lt;</span> <span class="n">nparams2</span><span class="p">:</span>
+            <span class="c1"># Difference is either 1 or 3.  If not, something very weird happened.</span>
+            <span class="k">assert</span> <span class="n">nparams2</span> <span class="o">-</span> <span class="n">nparams1</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span>
+
+            <span class="c1"># First copy over the parameters into the full array</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">))</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="n">origin</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">mask</span><span class="p">[</span><span class="n">origin</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="n">nparams2</span> <span class="o">==</span> <span class="n">nparams1</span> <span class="o">+</span> <span class="mi">3</span><span class="p">:</span>  <span class="c1"># pragma: no branch</span>
+                <span class="c1"># Note: the only regression we test is with centroids free, so we always hit</span>
+                <span class="c1">#       this branch.</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">origin</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">origin</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">mask</span><span class="p">[</span><span class="n">origin</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">origin</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">temp</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span>
+
+            <span class="c1"># Now populate the masked pixels</span>
+            <span class="n">delta_u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">origin</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">-</span><span class="n">origin</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">delta_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="n">origin</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">-</span><span class="n">origin</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">delta_u</span><span class="p">,</span> <span class="n">delta_v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">nparams2</span> <span class="o">==</span> <span class="n">nparams1</span> <span class="o">+</span> <span class="mi">3</span><span class="p">:</span>  <span class="c1"># pragma: no branch</span>
+                <span class="c1"># Do off-origin pixels first so that the centroid is 0,0.</span>
+                <span class="n">temp</span><span class="p">[</span><span class="n">origin</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">origin</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">v</span><span class="o">*</span><span class="n">temp</span><span class="p">)</span>
+                <span class="n">temp</span><span class="p">[</span><span class="n">origin</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">origin</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">u</span><span class="o">*</span><span class="n">temp</span><span class="p">)</span>
+
+            <span class="c1"># Now the center from the total flux == 1</span>
+            <span class="c1"># Note: This uses the old scheme of sb normalization, not flux normalization.</span>
+            <span class="n">temp</span><span class="p">[</span><span class="n">origin</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">pixel_area</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+
+            <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">temp</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+        <span class="c1"># Normally this is all that is required.</span>
+        <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">params</span><span class="p">)</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_fix_kwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Old (v1.0 and earlier) versions included two parameters that are now obsoloete.</span>
+        <span class="c1"># Remove them if they are present.</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;degenerate&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;start_sigma&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># Some (even older -- v0.2.x) files don&#39;t include the interp.  The default back then</span>
+        <span class="c1"># was Lanczos(3), so if it&#39;s not present, set it to that.</span>
+        <span class="k">if</span> <span class="s1">&#39;interp&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;interp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Lanczos</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

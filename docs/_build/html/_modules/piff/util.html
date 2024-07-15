@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.util &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.util</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.util</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: util</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<span class="c1"># Courtesy of</span>
+<span class="c1"># http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-given-class-in-python</span>
+<div class="viewcode-block" id="get_all_subclasses"><a class="viewcode-back" href="../../util.html#piff.util.get_all_subclasses">[docs]</a><span class="k">def</span> <span class="nf">get_all_subclasses</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get all subclasses of an existing class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">all_subclasses</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">subclass</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__subclasses__</span><span class="p">():</span>
+        <span class="n">all_subclasses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subclass</span><span class="p">)</span>
+        <span class="n">all_subclasses</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_all_subclasses</span><span class="p">(</span><span class="n">subclass</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">all_subclasses</span></div>
+
+<div class="viewcode-block" id="ensure_dir"><a class="viewcode-back" href="../../util.html#piff.util.ensure_dir">[docs]</a><span class="k">def</span> <span class="nf">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Ensure that the directory for a target output file exists.</span>
+
+<span class="sd">    :param target:      The file that you want to write to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">d</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span> <span class="ow">and</span>  <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="make_dtype"><a class="viewcode-back" href="../../util.html#piff.util.make_dtype">[docs]</a><span class="k">def</span> <span class="nf">make_dtype</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A helper function that makes a dtype appropriate for a given value</span>
+
+<span class="sd">    :param key:     The key to use for the column name in the dtype.</span>
+<span class="sd">    :param value:   The input value (just one item if using a column of multiple values)</span>
+
+<span class="sd">    :returns: a numpy.dtype instance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">make_dt_tuple</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+        <span class="c1"># If size == 0, then it&#39;s not an array, so return a 2 element tuple.</span>
+        <span class="c1"># Otherwise, the size is the third item in the tuple.</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Note: this works for either arrays or strings</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="c1"># just used to categorize the type into int, float, str</span>
+
+    <span class="k">if</span> <span class="n">dt</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">typecodes</span><span class="p">[</span><span class="s1">&#39;AllInteger&#39;</span><span class="p">]:</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">int</span>
+    <span class="k">elif</span> <span class="n">dt</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">typecodes</span><span class="p">[</span><span class="s1">&#39;AllFloat&#39;</span><span class="p">]:</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">float</span>
+    <span class="k">elif</span> <span class="n">dt</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;S&#39;</span><span class="p">,</span><span class="s1">&#39;U&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># catch lists of strings</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">str</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;U&#39;</span><span class="p">,</span><span class="s1">&#39;S&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">dt</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;S&#39;</span><span class="p">,</span><span class="s1">&#39;U&#39;</span><span class="p">]:</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">bytes</span>
+    <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="c1"># Other objects should be manually serialized by the initializer or the finish_read and</span>
+        <span class="c1"># finish_write functions.</span>
+        <span class="c1"># (We don&#39;t hit this in tests, so don&#39;t cover it, but if it happens in development,</span>
+        <span class="c1">#  this helps produce a more sensible error.)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot serialize object of type </span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">%</span><span class="n">t</span><span class="p">)</span>
+    <span class="n">dt</span> <span class="o">=</span> <span class="n">make_dt_tuple</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dt</span></div>
+
+<div class="viewcode-block" id="adjust_value"><a class="viewcode-back" href="../../util.html#piff.util.adjust_value">[docs]</a><span class="k">def</span> <span class="nf">adjust_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Possibly adjust a value to match the type expected for the given dtype.</span>
+
+<span class="sd">    e.g. change np.int16 -&gt; int if dtype expects int.  Or vice versa.</span>
+
+<span class="sd">    :param value:   The input value to possible adjust.</span>
+
+<span class="sd">    :returns: the adjusted value to use for writing in a FITS table.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">dtype</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">dtype</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># dtype is either (key, t) or (key, t, size)</span>
+        <span class="c1"># if no size or size == 0, then just use t as the type.</span>
+        <span class="k">return</span> <span class="n">t</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="nb">bytes</span><span class="p">:</span>
+        <span class="c1"># bytes need to be encoded.</span>
+        <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Arrays of strings may need to be encoded.</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">v</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="c1"># For other numpy arrays, we can use astype instead.</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">t</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="write_kwargs"><a class="viewcode-back" href="../../util.html#piff.util.write_kwargs">[docs]</a><span class="k">def</span> <span class="nf">write_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A helper function for writing a single row table into a fits file with the values</span>
+<span class="sd">    and column names given by a kwargs dict.</span>
+
+<span class="sd">    :param fits:        An open fitsio.FITS instance</span>
+<span class="sd">    :param extname:     The extension to write to</span>
+<span class="sd">    :param kwargs:      A kwargs dict to be written as a FITS binary table.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">piff_version</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Don&#39;t add values that are None to the table.</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="n">make_dtype</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">adjust_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span><span class="n">dt</span><span class="p">)</span>
+        <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">value</span><span class="p">])</span>
+        <span class="n">dtypes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">cols</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtypes</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;piff_version&#39;</span><span class="p">:</span> <span class="n">piff_version</span><span class="p">}</span>
+    <span class="n">fits</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="n">extname</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">header</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="read_kwargs"><a class="viewcode-back" href="../../util.html#piff.util.read_kwargs">[docs]</a><span class="k">def</span> <span class="nf">read_kwargs</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="n">extname</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A helper function for reading a single row table from a fits file returning the values</span>
+<span class="sd">    and column names as a kwargs dict.</span>
+
+<span class="sd">    :param fits:        An open fitsio.FITS instance</span>
+<span class="sd">    :param extname:     The extension to read.</span>
+
+<span class="sd">    :returns: A dict of the kwargs that were read from the file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">get_colnames</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">fits</span><span class="p">[</span><span class="n">extname</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([</span> <span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">cols</span> <span class="p">])</span>
+    <span class="k">return</span> <span class="n">kwargs</span></div>
+
+<div class="viewcode-block" id="estimate_cov_from_jac"><a class="viewcode-back" href="../../util.html#piff.util.estimate_cov_from_jac">[docs]</a><span class="k">def</span> <span class="nf">estimate_cov_from_jac</span><span class="p">(</span><span class="n">jac</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares</span>
+<span class="sd">    .. math::</span>
+
+<span class="sd">        C = (J^T J)^{-1}</span>
+
+<span class="sd">    This is computed using Moore-Penrose inversion to discard singular values.</span>
+
+<span class="sd">    :param jac:     The Jacobian as a 2d numpy array</span>
+
+<span class="sd">    :returns: cov, a numpy array giving the estimated covariance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">scipy.linalg</span>
+    <span class="c1"># Cribbed from implemenation in scipy.optimize.curve_fit</span>
+    <span class="c1"># https://github.com/scipy/scipy/blob/maintenance/1.3.x/scipy/optimize/minpack.py#L771</span>
+
+    <span class="c1"># Do Moore-Penrose inverse discarding zero singular values.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">VT</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">jac</span><span class="p">,</span> <span class="n">full_matrices</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">threshold</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">finfo</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">eps</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">jac</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">s</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">]</span>
+        <span class="n">VT</span> <span class="o">=</span> <span class="n">VT</span><span class="p">[:</span><span class="n">s</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">VT</span><span class="o">.</span><span class="n">T</span> <span class="o">/</span> <span class="n">s</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">VT</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>   <span class="c1"># pragma: no cover</span>
+        <span class="c1"># If we get an error, set the variance to &quot;infinity&quot;.</span>
+        <span class="c1"># MJ: I&#39;m not sure if this can happen.  It shouldn&#39;t happen for singular matrices</span>
+        <span class="c1">#     or other kinds of normal ill conditions.  But better safe than sorry.</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">jac</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1.e100</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cov</span></div>
+
+<span class="k">def</span> <span class="nf">_run_multi_helper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">log_level</span><span class="p">):</span> <span class="c1"># pragma: no cover</span>
+    <span class="c1"># Note: This is covered by test_wcs.py:test_parallel, but for some reason it&#39;s not</span>
+    <span class="c1"># showing up in codecov.  It&#39;s supposed to get captured by the combination of</span>
+    <span class="c1"># concurrency=multiprocessing and calling coverage combine before uploading.</span>
+    <span class="c1"># We&#39;re doing both of those things, but it&#39;s still not showing up.</span>
+    <span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span>
+    <span class="kn">import</span> <span class="nn">logging</span>
+
+    <span class="c1"># In multiprocessing, we cannot pass in the logger, so log to a string and then</span>
+    <span class="c1"># return that back at the end to be logged by the parent process.</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;logtostring_</span><span class="si">%d</span><span class="s1">&#39;</span><span class="o">%</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">buf</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">handler</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">handler</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">log_level</span><span class="p">)</span> <span class="c1"># Input logger in this case is the level to use.</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="c1"># Exceptions don&#39;t propagate through multiprocessing.  So best alternative</span>
+        <span class="c1"># is to catch it and return it.  We can deal with it somehow on the other end.</span>
+        <span class="c1"># Also add more details here with verbose&gt;=2 to help with debugging.</span>
+        <span class="n">tr</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Caught exception:</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">tr</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">e</span>
+
+    <span class="n">handler</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+    <span class="n">buf</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">i</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="run_multi"><a class="viewcode-back" href="../../util.html#piff.util.run_multi">[docs]</a><span class="k">def</span> <span class="nf">run_multi</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a function possibly in multiprocessing mode.</span>
+
+<span class="sd">    This is basically just doing a Pool.map, but it handles the logger properly (which cannot</span>
+<span class="sd">    be pickled, so it cannot be passed to the function being run by the workers).</span>
+
+<span class="sd">    :param func:        The function to run.  Signature should be:</span>
+<span class="sd">                            func(\*args, logger=logger, \*\*kwargs)</span>
+<span class="sd">    :param nproc:       How many processes to run.  If nproc=1, no multiprocessing is done.</span>
+<span class="sd">                        nproc &lt;= 0 means use all the cores.</span>
+<span class="sd">    :param raise_except: Whether to raise any exceptions that happen in individual jobs.</span>
+<span class="sd">    :param args:        a list of args for func for each job to run.</span>
+<span class="sd">    :param logger:      The logger you would pass to func in single-processor mode.</span>
+<span class="sd">    :param kwargs:      a list of kwargs for func for each job to run.  May also be a single dict</span>
+<span class="sd">                        to use for all jobs. [default: None]</span>
+
+<span class="sd">    :returns:   The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="kn">import</span> <span class="n">Pool</span>
+    <span class="k">if</span> <span class="n">galsim</span><span class="o">.</span><span class="n">__version_info__</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">4</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">galsim.utilities</span> <span class="kn">import</span> <span class="n">single_threaded</span>
+    <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">nullcontext</span> <span class="k">as</span> <span class="n">single_threaded</span>
+
+    <span class="n">njobs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">nproc</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">UpdateNProc</span><span class="p">(</span><span class="n">nproc</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">),</span> <span class="p">{},</span> <span class="n">logger</span><span class="p">)</span>
+
+    <span class="n">output_list</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">njobs</span>
+    <span class="n">err_list</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">njobs</span>
+
+    <span class="k">def</span> <span class="nf">log_output</span><span class="p">(</span><span class="n">result</span><span class="p">):</span> <span class="c1"># pragma: no cover (It is covered, but in an async process.)</span>
+        <span class="n">i</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">log</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">log</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Caught exception in multiprocessing job: </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">out</span><span class="p">)</span>
+            <span class="n">err_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
+
+    <span class="k">if</span> <span class="n">nproc</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">njobs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="n">kwargs</span>
+            <span class="k">elif</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover  (We don&#39;t use this option currently)</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="o">**</span><span class="n">k</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">raise_except</span><span class="p">:</span>
+                    <span class="k">raise</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">tr</span> <span class="o">=</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Caught exception:</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">tr</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Ignoring this failure and continuing on.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">output_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">single_threaded</span><span class="p">():</span>
+            <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">nproc</span><span class="p">)</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">njobs</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">k</span> <span class="o">=</span> <span class="n">kwargs</span>
+                <span class="k">elif</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">k</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover  (We don&#39;t use this option currently)</span>
+                    <span class="n">k</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span><span class="n">_run_multi_helper</span><span class="p">,</span>
+                                          <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">k</span><span class="p">,</span> <span class="n">logger</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span><span class="p">),</span>
+                                          <span class="n">callback</span><span class="o">=</span><span class="n">log_output</span><span class="p">)</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="c1"># Make sure we get all the results.  Without this, it works fine on success, but</span>
+            <span class="c1"># errors seems to be swallowed.</span>
+            <span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+            <span class="c1"># These are always necessary to close out the pool.</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span>
+
+        <span class="c1"># Now we can raise an error if there was one.</span>
+        <span class="k">if</span> <span class="n">raise_except</span><span class="p">:</span>
+            <span class="n">errs</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">err_list</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">errs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">output_list</span></div>
+
+
+<div class="viewcode-block" id="calculateSNR"><a class="viewcode-back" href="../../util.html#piff.util.calculateSNR">[docs]</a><span class="k">def</span> <span class="nf">calculateSNR</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the signal-to-noise of a given image.</span>
+
+<span class="sd">    :param image:       The stamp image for a star</span>
+<span class="sd">    :param weight:      The weight image for a star</span>
+<span class="sd">    :param logger:      A logger object for logging debug info. [default: None]</span>
+
+<span class="sd">    :returns: the SNR value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># The S/N value that we use will be the weighted total flux where the weight function</span>
+    <span class="c1"># is the star&#39;s profile itself.  This is the maximum S/N value that any flux measurement</span>
+    <span class="c1"># can possibly produce, which will be closer to an in-practice S/N than using all the</span>
+    <span class="c1"># pixels equally.</span>
+    <span class="c1">#</span>
+    <span class="c1"># F = Sum_i w_i I_i^2</span>
+    <span class="c1"># var(F) = Sum_i w_i^2 I_i^2 var(I_i)</span>
+    <span class="c1">#        = Sum_i w_i I_i^2             &lt;--- Assumes var(I_i) = 1/w_i</span>
+    <span class="c1">#</span>
+    <span class="c1"># S/N = F / sqrt(var(F))</span>
+    <span class="c1">#</span>
+    <span class="c1"># Note that if the image is pure noise, this will produce a &quot;signal&quot; of</span>
+    <span class="c1">#</span>
+    <span class="c1"># F_noise = Sum_i w_i 1/w_i = Npix</span>
+    <span class="c1">#</span>
+    <span class="c1"># So for a more accurate estimate of the S/N of the actual star itself, one should</span>
+    <span class="c1"># subtract off Npix from the measured F.</span>
+    <span class="c1">#</span>
+    <span class="c1"># The final formula then is:</span>
+    <span class="c1">#</span>
+    <span class="c1"># F = Sum_i w_i I_i^2</span>
+    <span class="c1"># S/N = (F-Npix) / sqrt(F)</span>
+
+    <span class="n">I</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">weight</span><span class="o">.</span><span class="n">array</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">I</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">*</span><span class="n">I</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">Npix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">F</span> <span class="o">&lt;</span> <span class="n">Npix</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">F</span> <span class="o">-</span> <span class="n">Npix</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">F</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="calculate_moments"><a class="viewcode-back" href="../../util.html#piff.util.calculate_moments">[docs]</a><span class="k">def</span> <span class="nf">calculate_moments</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">third_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fourth_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">radial</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Calculate a bunch of moments using HSM for the weight function.</span>
+
+<span class="sd">    The flux, 1st, and 2nd order moments are always calculated:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        M_{00} &amp;= \sum W(u,v) I(u,v) \\</span>
+<span class="sd">        M_{10} &amp;= \sum W(u,v) I(u,v) du \\</span>
+<span class="sd">        M_{01} &amp;= \sum W(u,v) I(u,v) dv \\</span>
+<span class="sd">        M_{11} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2) \\</span>
+<span class="sd">        M_{20} &amp;= \sum W(u,v) I(u,v) (du^2 - dv^2) \\</span>
+<span class="sd">        M_{02} &amp;= \sum W(u,v) I(u,v) (2 du dv)</span>
+
+<span class="sd">    where W(u,v) is the weight from the HSM fit and du,dv are the positions relative to the</span>
+<span class="sd">    HSM measured centroid.</span>
+
+<span class="sd">    If ``third_order`` is set to True, then 3rd order moments are also calculated and returned:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        M_{21} &amp;= \sum W(u,v) I(u,v) du (du^2 + dv^2) \\</span>
+<span class="sd">        M_{12} &amp;= \sum W(u,v) I(u,v) dv (du^2 + dv^2) \\</span>
+<span class="sd">        M_{30} &amp;= \sum W(u,v) I(u,v) du (du^2 - 3 dv^2) \\</span>
+<span class="sd">        M_{03} &amp;= \sum W(u,v) I(u,v) dv (3 du^2 - dv^2)</span>
+
+<span class="sd">    If ``fourth_order`` is set to True, then 4th order moments are also calculated and returned:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        M_{22} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2)^2 \\</span>
+<span class="sd">        M_{31} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2) (du^2 - dv^2) \\</span>
+<span class="sd">        M_{13} &amp;= \sum W(u,v) I(u,v) (du^2 + dv^2) (2 du dv) \\</span>
+<span class="sd">        M_{40} &amp;= \sum W(u,v) I(u,v) (du^4 - 6 du^2 dv^2 + dv^4) \\</span>
+<span class="sd">        M_{04} &amp;= \sum W(u,v) I(u,v) (du^2 - dv^2) (4 du dv)</span>
+
+<span class="sd">    Higher order normalized radial moments (4th through 8th, even) are calculated if ``radial``</span>
+<span class="sd">    is set to True:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        r^2 &amp;\equiv du^2 + dv^2 \\</span>
+<span class="sd">        M_{22} &amp;= \sum W(u,v) I(u,v) r^4 \\</span>
+<span class="sd">        M_{33} &amp;= \sum W(u,v) I(u,v) r^6 \\</span>
+<span class="sd">        M_{44} &amp;= \sum W(u,v) I(u,v) r^8  \\</span>
+<span class="sd">        M_{22n} &amp;= M_{22}/M_{11}^2 \\</span>
+<span class="sd">        M_{33n} &amp;= M_{33}/M_{11}^3 \\</span>
+<span class="sd">        M_{44n} &amp;= M_{44}/M_{11}^4</span>
+
+<span class="sd">    For all of these, one can also have error estimates returned if ``errors`` is set to True.</span>
+
+<span class="sd">    :param star:            Input star, with stamp, weight</span>
+<span class="sd">    :param third_order:     Return the 3rd order moments? [default: False]</span>
+<span class="sd">    :param fourth_order:    Return the 4th order moments? [default: False]</span>
+<span class="sd">    :param radial:          Return the higher order radial moments? [default: False]</span>
+<span class="sd">    :param errors:          Return the variance estimates of other returned values? [default: False]</span>
+<span class="sd">    :param logger:          A logger object for logging debug info.  [default: None]</span>
+
+<span class="sd">    :returns: A dict of the calculated moments, with the following keys/values:</span>
+
+<span class="sd">        * M00, M10, M01, M11, M20, M02</span>
+<span class="sd">        * M21, M12, M30, M03                          if ``third_order`` = True</span>
+<span class="sd">        * M22, M31, M13, M40, M04                     if ``fourth_order`` = True</span>
+<span class="sd">        * M22n, M33n, M44n                            if ``radial`` = True</span>
+
+<span class="sd">    If ``errors`` = True, then also a second dict (with the same keys) giving the variances.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># get vectors for data, weight and u, v</span>
+    <span class="n">data</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">getDataVector</span><span class="p">()</span>
+    <span class="c1"># also get the values for the HSM kernel, which is just the fitted hsm model</span>
+    <span class="n">f</span><span class="p">,</span> <span class="n">u0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">flag</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">hsm</span>
+
+    <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;HSM failed with flag </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">flag</span><span class="p">)</span>
+
+    <span class="c1"># build the HSM weight, writing into image</span>
+    <span class="n">profile</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Gaussian</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">u0</span><span class="p">,</span> <span class="n">v0</span><span class="p">)</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">profile</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;sb&#39;</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+
+    <span class="c1"># convert image into kernel</span>
+    <span class="n">kernel</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+    <span class="c1"># Anywhere the data is masked, fill in with the hsm profile.</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">==</span> <span class="mf">0.</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">])</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">kernel</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">])</span>
+
+    <span class="c1"># Notation:</span>
+    <span class="c1">#   W = kernel</span>
+    <span class="c1">#   I = data</span>
+    <span class="c1">#   V = var(data) -- used below.</span>
+    <span class="n">WI</span> <span class="o">=</span> <span class="n">kernel</span> <span class="o">*</span> <span class="n">data</span>
+
+    <span class="n">M00</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WI</span><span class="p">)</span>
+    <span class="n">WI</span> <span class="o">/=</span> <span class="n">M00</span>   <span class="c1"># M00 is the normalization for all other moments.  So just divide once.</span>
+
+    <span class="c1"># subtract off centroid</span>
+    <span class="n">u</span> <span class="o">-=</span> <span class="n">u0</span>
+    <span class="n">v</span> <span class="o">-=</span> <span class="n">v0</span>
+
+    <span class="c1"># Store some quantities that we will use repeatedly below.</span>
+    <span class="c1"># Note: This could still be sped up more by caching more combinations.</span>
+    <span class="n">usq</span> <span class="o">=</span> <span class="n">u</span><span class="o">*</span><span class="n">u</span>
+    <span class="n">vsq</span> <span class="o">=</span> <span class="n">v</span><span class="o">*</span><span class="n">v</span>
+    <span class="n">uv</span> <span class="o">=</span> <span class="n">u</span><span class="o">*</span><span class="n">v</span>
+    <span class="n">rsq</span> <span class="o">=</span> <span class="n">usq</span> <span class="o">+</span> <span class="n">vsq</span>
+    <span class="n">usqmvsq</span> <span class="o">=</span> <span class="n">usq</span> <span class="o">-</span> <span class="n">vsq</span>
+
+    <span class="n">WIu</span> <span class="o">=</span> <span class="n">WI</span> <span class="o">*</span> <span class="n">u</span>
+    <span class="n">WIv</span> <span class="o">=</span> <span class="n">WI</span> <span class="o">*</span> <span class="n">v</span>
+    <span class="n">WIrsq</span> <span class="o">=</span> <span class="n">WI</span> <span class="o">*</span> <span class="n">rsq</span>
+    <span class="n">WIuv</span> <span class="o">=</span> <span class="n">WI</span> <span class="o">*</span> <span class="n">uv</span>
+
+    <span class="c1"># 1st moments, including the centroids</span>
+    <span class="n">M10</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIu</span><span class="p">)</span> <span class="o">+</span> <span class="n">u0</span>
+    <span class="n">M01</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIv</span><span class="p">)</span> <span class="o">+</span> <span class="n">v0</span>
+
+    <span class="c1"># 2nd moments</span>
+    <span class="n">M11</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIrsq</span><span class="p">)</span>
+    <span class="n">M20</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WI</span> <span class="o">*</span> <span class="n">usqmvsq</span><span class="p">)</span>
+    <span class="n">M02</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIuv</span><span class="p">)</span>
+
+    <span class="c1"># Keep track of the dict to return.  We may add more.</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">M00</span><span class="o">=</span><span class="n">M00</span><span class="p">,</span> <span class="n">M10</span><span class="o">=</span><span class="n">M10</span><span class="p">,</span> <span class="n">M01</span><span class="o">=</span><span class="n">M01</span><span class="p">,</span> <span class="n">M11</span><span class="o">=</span><span class="n">M11</span><span class="p">,</span> <span class="n">M20</span><span class="o">=</span><span class="n">M20</span><span class="p">,</span> <span class="n">M02</span><span class="o">=</span><span class="n">M02</span><span class="p">)</span>
+
+    <span class="c1"># 3rd moments</span>
+    <span class="k">if</span> <span class="n">third_order</span><span class="p">:</span>
+        <span class="n">M21</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIu</span> <span class="o">*</span> <span class="n">rsq</span><span class="p">)</span>
+        <span class="n">M12</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIv</span> <span class="o">*</span> <span class="n">rsq</span><span class="p">)</span>
+        <span class="n">M30</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIu</span> <span class="o">*</span> <span class="p">(</span><span class="n">usq</span><span class="o">-</span><span class="mi">3</span><span class="o">*</span><span class="n">vsq</span><span class="p">))</span>
+        <span class="n">M03</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIv</span> <span class="o">*</span> <span class="p">(</span><span class="mi">3</span><span class="o">*</span><span class="n">usq</span><span class="o">-</span><span class="n">vsq</span><span class="p">))</span>
+        <span class="n">ret</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">M21</span><span class="o">=</span><span class="n">M21</span><span class="p">,</span> <span class="n">M12</span><span class="o">=</span><span class="n">M12</span><span class="p">,</span> <span class="n">M30</span><span class="o">=</span><span class="n">M30</span><span class="p">,</span> <span class="n">M03</span><span class="o">=</span><span class="n">M03</span><span class="p">)</span>
+
+    <span class="c1"># 4th moments</span>
+    <span class="k">if</span> <span class="n">fourth_order</span> <span class="ow">or</span> <span class="n">radial</span> <span class="ow">or</span> <span class="n">errors</span><span class="p">:</span>
+        <span class="n">rsq2</span> <span class="o">=</span> <span class="n">rsq</span> <span class="o">*</span> <span class="n">rsq</span>
+        <span class="n">M22</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WI</span> <span class="o">*</span> <span class="n">rsq2</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">fourth_order</span><span class="p">:</span>
+        <span class="n">M31</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIrsq</span> <span class="o">*</span> <span class="n">usqmvsq</span><span class="p">)</span>
+        <span class="n">M13</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIrsq</span> <span class="o">*</span> <span class="n">uv</span><span class="p">)</span>
+        <span class="n">M40</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WI</span> <span class="o">*</span> <span class="p">(</span><span class="n">usqmvsq</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">4</span><span class="o">*</span><span class="n">uv</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+        <span class="n">M04</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WIuv</span> <span class="o">*</span> <span class="n">usqmvsq</span><span class="p">)</span>
+        <span class="n">ret</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">M22</span><span class="o">=</span><span class="n">M22</span><span class="p">,</span> <span class="n">M31</span><span class="o">=</span><span class="n">M31</span><span class="p">,</span> <span class="n">M13</span><span class="o">=</span><span class="n">M13</span><span class="p">,</span> <span class="n">M40</span><span class="o">=</span><span class="n">M40</span><span class="p">,</span> <span class="n">M04</span><span class="o">=</span><span class="n">M04</span><span class="p">)</span>
+
+    <span class="c1"># normalized radial moments</span>
+    <span class="k">if</span> <span class="n">radial</span> <span class="ow">or</span> <span class="p">(</span><span class="n">fourth_order</span> <span class="ow">and</span> <span class="n">errors</span><span class="p">):</span>
+        <span class="n">rsq3</span> <span class="o">=</span> <span class="n">rsq2</span> <span class="o">*</span> <span class="n">rsq</span>
+        <span class="n">M33</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WI</span> <span class="o">*</span> <span class="n">rsq3</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">radial</span><span class="p">:</span>
+        <span class="n">rsq4</span> <span class="o">=</span> <span class="n">rsq3</span> <span class="o">*</span> <span class="n">rsq</span>
+        <span class="n">M44</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WI</span> <span class="o">*</span> <span class="n">rsq4</span><span class="p">)</span>
+        <span class="n">M22n</span> <span class="o">=</span> <span class="n">M22</span><span class="o">/</span><span class="p">(</span><span class="n">M11</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">M33n</span> <span class="o">=</span> <span class="n">M33</span><span class="o">/</span><span class="p">(</span><span class="n">M11</span><span class="o">**</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">M44n</span> <span class="o">=</span> <span class="n">M44</span><span class="o">/</span><span class="p">(</span><span class="n">M11</span><span class="o">**</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">ret</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">M22n</span><span class="o">=</span><span class="n">M22n</span><span class="p">,</span> <span class="n">M33n</span><span class="o">=</span><span class="n">M33n</span><span class="p">,</span> <span class="n">M44n</span><span class="o">=</span><span class="n">M44n</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
+
+        <span class="c1">#</span>
+        <span class="c1"># Consider M00 first.</span>
+        <span class="c1">#</span>
+
+        <span class="c1"># If we take W, w to be fixed and assume that var(I) = 1/w, then</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(M00) = var(sum_k W_k I_k)</span>
+        <span class="c1">#          = sum_k W_k^2 var(I_k)</span>
+        <span class="c1">#          = sum W_k^2 (1/w_k)</span>
+        <span class="c1">#</span>
+        <span class="c1"># However, W is not actually noiseless, since it is estimated from the data.</span>
+        <span class="c1"># In particular it is set to null 5 constraint equations, which are:</span>
+        <span class="c1">#</span>
+        <span class="c1"># sum_k W_k I_k (u-u0) = 0</span>
+        <span class="c1"># sum_k W_k I_k (v-v0) = 0</span>
+        <span class="c1"># sum_k W_k I_k (rsq - ssq) = 0</span>
+        <span class="c1"># sum_k W_k I_k (usqmvsq - e1 ssq) = 0</span>
+        <span class="c1"># sum_k W_k I_k (2 uv - e2 ssq) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># This means dW_i/dI_k != 0.  So,</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(M00) = sum_k (dM00/dI_k)^2 (1/w_k)</span>
+        <span class="c1">#          = sum_k (W_k + sum_i I_i dW_i/dI_k)^2 (1/w_k)</span>
+        <span class="c1">#</span>
+        <span class="c1"># dW_i/dI_k = (dW_i/du0) (du0/dI_k)</span>
+        <span class="c1">#             + (dW_i/dv0) (dv0/dI_k)</span>
+        <span class="c1">#             + (dW_i/dssq) (dssq/dI_k)</span>
+        <span class="c1">#             + (dW_i/de1) (de1/dI_k)</span>
+        <span class="c1">#             + (dW_i/de2) (de2/dI_k)</span>
+        <span class="c1">#</span>
+        <span class="c1"># The first factor in each term comes directly from the Gaussian form of W:</span>
+        <span class="c1">#</span>
+        <span class="c1"># dW_i/du0 = W_i (u_i - u0) / ssq</span>
+        <span class="c1"># dW_i/du0 = W_i (v_i - v0) / ssq</span>
+        <span class="c1"># dW_i/dssq = W_i (rsq_i - 2ssq) / (2ssq^2)</span>
+        <span class="c1"># dW_i/de1 = W_i usqmvsq_i / (2ssq)</span>
+        <span class="c1"># dW_i/de2 = W_i 2 uv_i / (2ssq)</span>
+        <span class="c1">#</span>
+        <span class="c1"># The second factors we can get from the three constraint equations by taking the</span>
+        <span class="c1"># derivative of the whole equation with respect to I_k and then solving for the relevant</span>
+        <span class="c1"># derivative (du0/dI_k, etc.) in each case.  We show the work to derive these below,</span>
+        <span class="c1"># but here are the results:</span>
+        <span class="c1">#</span>
+        <span class="c1"># du0/dI_k = 2 W_k (u_k - u0) / M00</span>
+        <span class="c1"># dv0/dI_k = 2 W_k (v_k - v0) / M00</span>
+        <span class="c1"># dssq/dI_k = 2 W_k (rsq_k - ssq) / M00 / (3 - M22/ssq^2)</span>
+        <span class="c1"># de1/dI_k = 2 W_k (usqmvsq_k / ssq) / M00 / (2 - M22/2ssq^2)</span>
+        <span class="c1"># de2/dI_k = 2 W_k (2 uv_k / ssq) / M00 / (2 - M22/2ssq^2)</span>
+        <span class="c1">#</span>
+        <span class="c1"># Note: those final factors in the last 3 eqns are 1 for Gaussian profiles, but are not</span>
+        <span class="c1"># in general.  Including them makes a difference for highly non-Gaussian profiles, such as</span>
+        <span class="c1"># low-beta Moffat profiles.</span>
+        <span class="c1">#</span>
+        <span class="c1"># To simplify the subsequent notation, we define:</span>
+        <span class="c1">#</span>
+        <span class="c1"># A = 1/(3-M22/ssq^2)</span>
+        <span class="c1"># B = 1/(2-M22/2ssq^2)</span>
+        <span class="c1">#</span>
+        <span class="c1"># So,</span>
+        <span class="c1">#</span>
+        <span class="c1"># dssq/dI_k = 2A W_k (rsq_k - ssq) / M00</span>
+        <span class="c1"># de1/dI_k = 2B W_k (usqmvsq_k / ssq) / M00</span>
+        <span class="c1"># de2/dI_k = 2B W_k (2 uv_k / ssq) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># Putting these together:</span>
+        <span class="c1">#</span>
+        <span class="c1"># dW_i/dI_k = (2 W_i W_k / ssq M00) [ (u_i - u0) (u_k - u0)</span>
+        <span class="c1">#                                     + (v_i - v0) (v_k - v0)</span>
+        <span class="c1">#                                     + A (rsq_i - 2ssq) (rsq_k - ssq) / 2 ssq</span>
+        <span class="c1">#                                     + B (usqmvsq_i / 2) (usqmvsq_k / ssq)</span>
+        <span class="c1">#                                     + 2B (uv_i) (uv_k / ssq) ]</span>
+        <span class="c1">#</span>
+        <span class="c1"># Note: For most of these calculations we&#39;ll ignore terms that are first order in e1 or e2,</span>
+        <span class="c1">#       since stars usually have fairly small ellitpicities, and including those factors</span>
+        <span class="c1">#       properly adds a lot of complication with little impact on accuracy.</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM00/dI_k = W_k + A ([sum_i I_i W_i (rsq_i/ssq - 2)/M00] W_k (rsq_k/ssq - 1))</span>
+        <span class="c1">#                   Note: [..] = -1  (And the corresponding u0,v0,e1,e2 sums are all 0.)</span>
+        <span class="c1">#           = W_k (1 - A (rsq_k/ssq - 1))</span>
+        <span class="c1">#</span>
+        <span class="c1"># So, finally, we have</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(M00) = sum_k W_k^2/w_k (1 - A (rsq_k/ssq - 1))^2</span>
+
+        <span class="c1"># WV = W^2 1/w</span>
+        <span class="n">WV</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">WV</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">]</span> <span class="o">/=</span> <span class="n">weight</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">]</span>  <span class="c1"># Only use 1/w where w != 0</span>
+        <span class="n">WV</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">weight</span><span class="p">[</span><span class="o">~</span><span class="n">mask</span><span class="p">])</span>
+
+        <span class="n">A</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="p">(</span><span class="mi">3</span><span class="o">-</span><span class="n">M22</span><span class="o">/</span><span class="n">M11</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="mi">2</span><span class="o">/</span><span class="p">(</span><span class="mi">4</span><span class="o">-</span><span class="n">M22</span><span class="o">/</span><span class="n">M11</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">dM00</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">A</span><span class="o">*</span><span class="p">(</span><span class="n">rsq</span><span class="o">/</span><span class="n">M11</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># We&#39;ll need this combination a lot below, so save it.</span>
+        <span class="n">varM00</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="n">dM00</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># Set WV = W^2 1/w / M00^2 to incorporate the normalization into the weight for the rest.</span>
+        <span class="n">WV</span> <span class="o">/=</span> <span class="n">M00</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="c1">#</span>
+        <span class="c1"># First order moments:</span>
+        <span class="c1">#</span>
+
+        <span class="c1"># For these, we add on the hsm centroid estimate</span>
+        <span class="c1">#</span>
+        <span class="c1"># M10 = sum(WIu) / M00 + u0</span>
+        <span class="c1"># M01 = sum(WIv) / M00 + v0</span>
+        <span class="c1">#</span>
+        <span class="c1"># So var(u0) and var(v0) need to be included in the variance of M10, M01.</span>
+        <span class="c1"># But also, the first term is something that is designed to be essentially 0 in the</span>
+        <span class="c1"># HSM solution.  So the variances are really just var(u0), var(v0).</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(u0) = sum_k (du0/dI_k)^2 var(I_k)</span>
+        <span class="c1"># var(v0) = sum_k (dv0/dI_k)^2 var(I_k)</span>
+        <span class="c1">#</span>
+        <span class="c1"># We already gave these derivatives above, but we didn&#39;t really derive them.</span>
+        <span class="c1"># We can do that here for du0/dI_k to show how that goes.</span>
+        <span class="c1">#</span>
+        <span class="c1"># We will need the relation:</span>
+        <span class="c1">#</span>
+        <span class="c1"># dW_i/du0 = W_i (u_i - u0) / ssq</span>
+        <span class="c1">#</span>
+        <span class="c1"># Start with</span>
+        <span class="c1">#</span>
+        <span class="c1"># sum_i W_i I_i (u_i-u0) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># and differentiate with respect to I_k (for some particular, but arbitrary, k):</span>
+        <span class="c1">#</span>
+        <span class="c1"># d/dI_k (sum_i W_i I_i (u_i-u0)) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># sum_i W_i I_i (-1) du0/dI_k + sum_i (dW_i/du0 du0/dI_k) I_i (u_i-u0) + W_k (u_k-u0) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># (du0/dI_k) [sum_i W_i I_i ((u_i-u0)^2/ssq - 1)] = -W_k (u_k-u0)</span>
+        <span class="c1">#</span>
+        <span class="c1"># The sum in bracets is basically (&lt;(u-u0)^2&gt;/ssq - 1) M00.</span>
+        <span class="c1"># By symmetry considerations and the fact that &lt;(u-u0)^2 + (v-v0)^2&gt; = ssq, we know that</span>
+        <span class="c1"># &lt;(u-u0)^2&gt;/ssq = 1/2.  (This trick will show up a few times below too.)  So,</span>
+        <span class="c1">#</span>
+        <span class="c1"># (du0/dI_k) (-1/2 M00) = -W_k (u_k-u0)</span>
+        <span class="c1">#</span>
+        <span class="c1"># du0/dI_k = 2 W_k (u_k-u0) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(u0) = sum (2 W (u-u0) / M00)^2 1/w</span>
+        <span class="c1">#         = 4 sum WV (u-u0)^2</span>
+        <span class="c1">#</span>
+        <span class="c1"># Likewise,</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(v0) = 4 sum WV (v-v0)^2</span>
+
+        <span class="n">varM10</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="n">usq</span><span class="p">)</span>
+        <span class="n">varM01</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="n">vsq</span><span class="p">)</span>
+
+        <span class="c1">#</span>
+        <span class="c1"># Second order moments:</span>
+        <span class="c1">#</span>
+
+        <span class="c1"># M11 = ssq, so we already have what we need to calculate the variance from what we</span>
+        <span class="c1"># derived above for varM00.</span>
+        <span class="c1">#</span>
+        <span class="c1"># dssq/dI_k = 2A W_k (rsq_k - ssq) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># Again, we quoted this result above, but let&#39;s derive it here.</span>
+        <span class="c1"># Note: sigma never appears unsquared, so we treat the squared value ssq = sigma^2</span>
+        <span class="c1">#       as the relevant variable.</span>
+        <span class="c1">#</span>
+        <span class="c1"># d/dI_k (sum_i W_i I_i (rsq_i - ssq)) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># sum_i W_i I_i (-1) dssq/dI_k</span>
+        <span class="c1">#       + sum_i (dW_i/dssq dssq/dI_k) I_i (rsq_i-ssq)</span>
+        <span class="c1">#       + W_k (rsq_k-ssq) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># (dssq/dI_k) [sum_i W_i I_i ((rsq_i-2ssq)(rsq_i-ssq)/2ssq^2 - 1)] = -W_k (rsq_k - ssq)</span>
+        <span class="c1"># (dssq/dI_k) [sum_i W_i I_i ((1/2 rsq_i^4/ssq^2 - 3/2 rsq_i/ssq)] = -W_k (rsq_k - ssq)</span>
+        <span class="c1"># (dssq/dI_k) M00 (1/2 M22/M11^2 - 3/2) = -W_k (rsq_k - ssq)</span>
+        <span class="c1">#</span>
+        <span class="c1"># dssq/dI_k = 2 W_k (rsq_k - ssq) / M00 / (3 - M22/M11^2)</span>
+        <span class="c1">#           = 2A W_k (rsq_k - ssq) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(M11) = sum_k (dM11/dI_k)^2 var(I_k)</span>
+        <span class="c1">#          = sum_k (dssq/dI_k)^2 1/w</span>
+        <span class="c1">#          = sum_k (2A W_k/M00 (rsq-ssq))^2 1/w</span>
+        <span class="c1">#          = 4A^2 sum_k WV (rsq-ssq)**2</span>
+
+        <span class="n">varM11</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">A</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq</span> <span class="o">-</span> <span class="n">M11</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># M20 = ssq e1</span>
+        <span class="c1"># M02 = ssq e2</span>
+        <span class="c1">#</span>
+        <span class="c1"># de1/dI_k = 2B W_k (usqmvsq_k / ssq) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># Derivation:</span>
+        <span class="c1">#</span>
+        <span class="c1"># d/dI_k (sum_i W_i I_i (usq_i - vsq_i - e1 ssq)) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># sum_i W_i I_i (-ssq) de1/dI_k</span>
+        <span class="c1">#       + sum_i (dW_i/de1 de1/dI_k) I_i (usq_i - vsq_i - e1 ssq)</span>
+        <span class="c1">#       + W_k (usq_k - vsq_k - e1 ssq) = 0</span>
+        <span class="c1">#</span>
+        <span class="c1"># (de1/dI_k) [sum_i W_i I_i ((usq_i - vsq_i)(usq_i - vsq_i - e1 ssq)/2ssq - ssq)]</span>
+        <span class="c1">#                   = -W_k (usq_k - vsq_k - e1 ssq)</span>
+        <span class="c1"># (de1/dI_k) [ sum_i W_i I_i (usq_i-vsq_i)^2/2ssq</span>
+        <span class="c1">#              - e1/2 sum_i W_i I_i (usq_i-vsq_i)</span>
+        <span class="c1">#              - ssq sum_i W_i I_i ] = -W_k (usq_k - vsq_k - e1 ssq)</span>
+        <span class="c1"># Discard the terms linear in e1.</span>
+        <span class="c1"># (de1/dI_k) M00 ssq (M22/4M11^2 - 1) = -W_k (usq_k - vsq_k)</span>
+        <span class="c1">#</span>
+        <span class="c1"># de1/dI_k = 2 W_k (usqmvsq_k / ssq) / M00 / (2 - M22/2M11^2)</span>
+        <span class="c1">#          = 2B W_k (rsq_k - ssq) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM20/dI_k = e1 dssq/dI_k + ssq de1/dI_k</span>
+        <span class="c1">#           = 2 W_k / M00 (e1 A (rsq_k-ssq) + B usqmvsq_k)</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(M20) = sum_k (dM20/dI_k)^2 var(I_k)</span>
+        <span class="c1">#          = sum_k (2 W_k/M00 (B usqmvsq_k + e1 A (rsq_k - ssq)))^2 1/w</span>
+        <span class="c1">#          = 4 sum_k WV (B usqmvsq_k + A e1 (rsq_k - ssq))^2</span>
+        <span class="c1">#</span>
+        <span class="c1"># Likewise,</span>
+        <span class="c1">#</span>
+        <span class="c1"># var(M02) = 4 sum_k WV (2B uv_k + A e2 (rsq_k - ssq))^2</span>
+
+        <span class="n">varM20</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">B</span><span class="o">*</span><span class="n">usqmvsq</span> <span class="o">+</span> <span class="n">A</span><span class="o">*</span><span class="n">M20</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq</span><span class="o">/</span><span class="n">M11</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">varM02</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">B</span><span class="o">*</span><span class="n">uv</span> <span class="o">+</span> <span class="n">A</span><span class="o">*</span><span class="n">M02</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq</span><span class="o">/</span><span class="n">M11</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># The dict to return for variance values.</span>
+        <span class="n">ret_var</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">M00</span><span class="o">=</span><span class="n">varM00</span><span class="p">,</span> <span class="n">M10</span><span class="o">=</span><span class="n">varM10</span><span class="p">,</span> <span class="n">M01</span><span class="o">=</span><span class="n">varM01</span><span class="p">,</span> <span class="n">M11</span><span class="o">=</span><span class="n">varM11</span><span class="p">,</span> <span class="n">M20</span><span class="o">=</span><span class="n">varM20</span><span class="p">,</span> <span class="n">M02</span><span class="o">=</span><span class="n">varM02</span><span class="p">)</span>
+
+        <span class="c1">#</span>
+        <span class="c1"># Third order moments:</span>
+        <span class="c1">#</span>
+
+        <span class="c1"># The third order moments M21 and M12 are strongly affected by the u0,v0 constraints,</span>
+        <span class="c1"># so their variances are quite a bit lower than what you get from assuming W is constant.</span>
+        <span class="c1">#</span>
+        <span class="c1"># M21 = sum_k W_k I_k ((u-u0)^2 + (v-v0)^2) (u-u0) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># From above:</span>
+        <span class="c1">#</span>
+        <span class="c1"># du0/dI_k = 2 W_k (u_k - u0) / M00</span>
+        <span class="c1"># dM00/dI_k = W_k dM00</span>
+        <span class="c1"># dW_i/dI_k = (2 W_i W_k / ssq M00) [ (u_i - u0) (u_k - u0)</span>
+        <span class="c1">#                                     + (v_i - v0) (v_k - v0)</span>
+        <span class="c1">#                                     + A (rsq_i - 2ssq) (rsq_k - ssq) / 2ssq</span>
+        <span class="c1">#                                     + B (usqmvsq_i / 2) (usqmvsq_k / ssq)</span>
+        <span class="c1">#                                     + 2B (uv_i) (uv_k / ssq) ]</span>
+        <span class="c1">#</span>
+        <span class="c1"># (For dW_i/dI_k, only the u-u0 term is important.)</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM21/dI_k = W_k rsq_k (u_k-u0) / M00</span>
+        <span class="c1">#             + sum_i W_i I_i (-3(u-u0)^2 - (v-v0)^2)) du0/dI_k / M00</span>
+        <span class="c1">#             + sum_i dW_i/dI_k I_i rsq_i (u_i-u0) / M00</span>
+        <span class="c1">#             - M21/M00 dM00/dI_k</span>
+        <span class="c1">#           = W_k rsq_k (u_k-u0) / M00</span>
+        <span class="c1">#             - 2 W_k (u_k-u0) / M00 [sum_i W_i I_i (rsq + 2(u-u0)^2)] / M00</span>
+        <span class="c1">#             + 2 W_k (u_k-u0) / M00 [sum_i W_i I_i rsq_i/ssq (u_i-u0)^2] / M00</span>
+        <span class="c1">#             - W_k M21/M00 dM00</span>
+        <span class="c1">#           = W_k/M00 [(rsq - 4*M11 + M22/M11) (u-u0) - M21 dM00]</span>
+        <span class="c1"># (where, as usual, we ignore terms related to e1,e2.)</span>
+        <span class="c1">#</span>
+        <span class="c1"># Similarly,</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM12/dI_k = W_k/M00 [(rsq - 4*M11 + M22/M11) (v-v0) - M12 dM00]</span>
+        <span class="c1">#</span>
+        <span class="c1"># It turns out that M30 and M03 are not significantly affected by any of the constraint</span>
+        <span class="c1"># equations.  The result is what you would get by keeping W constant:</span>
+        <span class="c1">#</span>
+        <span class="c1"># M30 = sum_k W_k I_k ((u-u0)^2 - 3(v-v0)^2) (u-u0) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM30/dI_k = W_k (u_k-u0)^2 - 3(v_k-v0)^2) (u_k-u0) / M00</span>
+        <span class="c1">#             + sum_i W_i I_i (-3(u-u0)^2 + 3(v-v0)^2)) du0/dI_k / M00</span>
+        <span class="c1">#             + sum_i W_i I_i (6(v-v0)^2 (u-u0)) dv0/dI_k / M00</span>
+        <span class="c1">#             + sum_i dW_i/dI_k I_i ((u_i-u0)^2 - 3(v-v0)^2) (u_i-u0) / M00</span>
+        <span class="c1">#             - M30/M00 dM00/dI_k</span>
+        <span class="c1">#           = W_k/M00 [(u^2-3v^2) (u-u0) - M30 dM00]</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM03/dI_k = W_k/M00 [(3u^2-v^2) (v-v0) - M13 dM00]</span>
+
+        <span class="k">if</span> <span class="n">third_order</span><span class="p">:</span>
+            <span class="n">varM21</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">u</span><span class="o">*</span><span class="p">(</span><span class="n">rsq</span> <span class="o">-</span> <span class="mi">4</span><span class="o">*</span><span class="n">M11</span> <span class="o">+</span> <span class="n">M22</span><span class="o">/</span><span class="n">M11</span><span class="p">)</span> <span class="o">-</span> <span class="n">M21</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM12</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">v</span><span class="o">*</span><span class="p">(</span><span class="n">rsq</span> <span class="o">-</span> <span class="mi">4</span><span class="o">*</span><span class="n">M11</span> <span class="o">+</span> <span class="n">M22</span><span class="o">/</span><span class="n">M11</span><span class="p">)</span> <span class="o">-</span> <span class="n">M12</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM30</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">u</span><span class="o">*</span><span class="p">(</span><span class="n">usq</span><span class="o">-</span><span class="mi">3</span><span class="o">*</span><span class="n">vsq</span><span class="p">)</span> <span class="o">-</span> <span class="n">M30</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM03</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">v</span><span class="o">*</span><span class="p">(</span><span class="mi">3</span><span class="o">*</span><span class="n">usq</span><span class="o">-</span><span class="n">vsq</span><span class="p">)</span> <span class="o">-</span> <span class="n">M03</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">ret_var</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">M21</span><span class="o">=</span><span class="n">varM21</span><span class="p">,</span> <span class="n">M12</span><span class="o">=</span><span class="n">varM12</span><span class="p">,</span> <span class="n">M30</span><span class="o">=</span><span class="n">varM30</span><span class="p">,</span> <span class="n">M03</span><span class="o">=</span><span class="n">varM03</span><span class="p">)</span>
+
+        <span class="c1">#</span>
+        <span class="c1"># Fourth order moments:</span>
+        <span class="c1">#</span>
+
+        <span class="c1"># M22 is primarily affected by the ssq constraint perturbing W:</span>
+        <span class="c1">#</span>
+        <span class="c1"># dW_i/dI_k = (2A W_i W_k / ssq M00) (rsq_i - 2ssq) (rsq_k - ssq) / 2ssq</span>
+        <span class="c1">#</span>
+        <span class="c1"># M22 = sum_k W_k I_k rsq^2 / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM22/dI_k = W_k rsq_k^2 / M00</span>
+        <span class="c1">#             + W_k A (rsq_k/ssq-1)/(ssq M00) sum_i W_i I_i rsq_i^2 (rsq_i-2ssq) / M00</span>
+        <span class="c1">#             - M22/M00 dM00/dI_k</span>
+        <span class="c1">#           = W_k rsq_k^2 / M00</span>
+        <span class="c1">#             + W_k A (rsq_k/ssq-1)/M00 (M33/ssq - 2M22)</span>
+        <span class="c1">#             - W_k M22/M00 dM00</span>
+        <span class="c1">#           = W_k/M00 [rsq^2 + A*(rsq/ssq-1)*(M33/ssq - 2M22) - M22 dM00]</span>
+        <span class="c1">#</span>
+        <span class="c1"># M31 is affected by the e1 constraint equation:</span>
+        <span class="c1">#</span>
+        <span class="c1"># dW_i/dI_k = B (W_i W_k / ssq M00) usqmvsq_i usqmvsq_k / ssq</span>
+        <span class="c1">#</span>
+        <span class="c1"># M31 = sum_k W_k I_k rsq * ((u-u0)^2 - (v-v0)^2) / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM31/dI_k = W_k rsq_k usqmvsq_k / M00</span>
+        <span class="c1">#             + B W_k usqmvsq_k/(ssq^2 M00) sum_i W_i I_i rsq_i usqmvsq_i^2 / M00</span>
+        <span class="c1">#             - M31/M00 dM00/dI_k</span>
+        <span class="c1">#           = W_k rsq_k usqmvsq_k / M00</span>
+        <span class="c1">#             + B W_k usqmvsq_k/(ssq^2 M00) (M33/2)</span>
+        <span class="c1">#             - W_k M31/M00 dM00</span>
+        <span class="c1">#           = W_k/M00 [usqmvsq (rsq + B M33/(2ssq^2)) - M31 dM00]</span>
+        <span class="c1">#</span>
+        <span class="c1"># Similarly (using the e2 constraint),</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM13/dI_k = W_k/M00 [2*uv (rsq + M33/(2ssq^2)) - M13 dM00]</span>
+        <span class="c1">#</span>
+        <span class="c1"># M40 and M04 are essentialy unaffected by the constraints, so the naive calculation</span>
+        <span class="c1"># is pretty accurate (just like M30 and M03).</span>
+        <span class="c1">#</span>
+        <span class="c1"># dM40/dI_k = W_k/M00 [(usq^2 - 6uv^2 + vsq^2) - M40 dM00]</span>
+        <span class="c1"># dM04/dI_k = W_k/M00 [(usq - vsq)(4uv) - M40 dM00]</span>
+
+        <span class="k">if</span> <span class="n">fourth_order</span> <span class="ow">or</span> <span class="n">radial</span><span class="p">:</span>
+            <span class="n">varM22</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq2</span> <span class="o">+</span> <span class="n">A</span><span class="o">*</span><span class="p">(</span><span class="n">rsq</span><span class="o">/</span><span class="n">M11</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">M33</span><span class="o">/</span><span class="n">M11</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">M22</span><span class="p">)</span> <span class="o">-</span> <span class="n">M22</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fourth_order</span><span class="p">:</span>
+            <span class="n">varM31</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">usqmvsq</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq</span> <span class="o">+</span> <span class="n">B</span><span class="o">*</span><span class="n">M33</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">M11</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">-</span> <span class="n">M31</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM13</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">uv</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq</span> <span class="o">+</span> <span class="n">B</span><span class="o">*</span><span class="n">M33</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">M11</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span> <span class="o">-</span> <span class="n">M13</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM40</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">usqmvsq</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">4</span><span class="o">*</span><span class="n">uv</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="n">M40</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM04</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="n">usqmvsq</span><span class="o">*</span><span class="n">uv</span> <span class="o">-</span> <span class="n">M04</span> <span class="o">*</span> <span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">ret_var</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">M22</span><span class="o">=</span><span class="n">varM22</span><span class="p">,</span> <span class="n">M31</span><span class="o">=</span><span class="n">varM31</span><span class="p">,</span> <span class="n">M13</span><span class="o">=</span><span class="n">varM13</span><span class="p">,</span> <span class="n">M40</span><span class="o">=</span><span class="n">varM40</span><span class="p">,</span> <span class="n">M04</span><span class="o">=</span><span class="n">varM04</span><span class="p">)</span>
+
+        <span class="c1">#</span>
+        <span class="c1"># Normalized radial moments</span>
+        <span class="c1">#</span>
+
+        <span class="c1"># The normalized radial moment of degree d is</span>
+        <span class="c1">#</span>
+        <span class="c1"># Mddn = Mdd M11^-d</span>
+        <span class="c1">#      = sum_k W_k I_k (rsq/ssq)^d / M00</span>
+        <span class="c1">#</span>
+        <span class="c1"># dMddn/dI_k = W_k (rsq_k/ssq)^d / M00</span>
+        <span class="c1">#              + (1/M00) sum_i W_i I_i rsq_i^d (-d ssq^-(d+1)) dssq/dI_k</span>
+        <span class="c1">#              + W_k A (rsq/ssq-1)/(ssq M00) sum_i W_i I_i (rsq_i/ssq)^d (rsq_i-2ssq) / M00</span>
+        <span class="c1">#              - W_k Mddn/M00 dM00</span>
+        <span class="c1">#            = W_k (rsq_k/ssq)^d / M00</span>
+        <span class="c1">#              - W_k/M00 A (rsq/ssq-1) (2d Mddn)</span>
+        <span class="c1">#              + W_k/M00 A (rsq/ssq-1) (Md+1,d+1n - 2 Mddn)</span>
+        <span class="c1">#              - W_k/M00 Mddn dM00</span>
+        <span class="c1">#            = W_k/M00 [(rsq/ssq)^d + A (rsq/ssq - 1) (Md+1,d+1n - (2d+2) Mddn) - Mddn dM00]</span>
+
+        <span class="k">if</span> <span class="n">radial</span><span class="p">:</span>
+            <span class="n">M55n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WI</span> <span class="o">*</span> <span class="n">rsq4</span> <span class="o">*</span> <span class="n">rsq</span><span class="p">)</span> <span class="o">/</span> <span class="n">M11</span><span class="o">**</span><span class="mi">5</span>
+            <span class="n">varM22n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq2</span><span class="o">/</span><span class="n">M11</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">A</span><span class="o">*</span><span class="p">(</span><span class="n">rsq</span><span class="o">/</span><span class="n">M11</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">M33n</span> <span class="o">-</span> <span class="mi">6</span><span class="o">*</span><span class="n">M22n</span><span class="p">)</span> <span class="o">-</span> <span class="n">M22n</span><span class="o">*</span><span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM33n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq3</span><span class="o">/</span><span class="n">M11</span><span class="o">**</span><span class="mi">3</span> <span class="o">+</span> <span class="n">A</span><span class="o">*</span><span class="p">(</span><span class="n">rsq</span><span class="o">/</span><span class="n">M11</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">M44n</span> <span class="o">-</span> <span class="mi">8</span><span class="o">*</span><span class="n">M33n</span><span class="p">)</span> <span class="o">-</span> <span class="n">M33n</span><span class="o">*</span><span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">varM44n</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WV</span> <span class="o">*</span> <span class="p">(</span><span class="n">rsq4</span><span class="o">/</span><span class="n">M11</span><span class="o">**</span><span class="mi">4</span> <span class="o">+</span> <span class="n">A</span><span class="o">*</span><span class="p">(</span><span class="n">rsq</span><span class="o">/</span><span class="n">M11</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">M55n</span> <span class="o">-</span> <span class="mi">10</span><span class="o">*</span><span class="n">M44n</span><span class="p">)</span> <span class="o">-</span> <span class="n">M44n</span><span class="o">*</span><span class="n">dM00</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">ret_var</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">M22n</span><span class="o">=</span><span class="n">varM22n</span><span class="p">,</span> <span class="n">M33n</span><span class="o">=</span><span class="n">varM33n</span><span class="p">,</span> <span class="n">M44n</span><span class="o">=</span><span class="n">varM44n</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ret</span><span class="p">,</span> <span class="n">ret_var</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ret</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

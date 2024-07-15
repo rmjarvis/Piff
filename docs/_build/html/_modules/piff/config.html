@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.config &mdash; Piff 1.3.3 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> Piff
+          </a>
+              <div class="version">
+                1.3
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../util.html">Utility Functions</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>piff.config</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.config</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: config</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+
+<div class="viewcode-block" id="setup_logger"><a class="viewcode-back" href="../../piffify.html#piff.setup_logger">[docs]</a><span class="k">def</span> <span class="nf">setup_logger</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a logger object to use for logging progress</span>
+
+<span class="sd">    Note: This will update the verbosity if a previous call to setup_logger used a different</span>
+<span class="sd">    value for verbose.  However, it will not update the handler to use a different log_file</span>
+<span class="sd">    or switch between using a log_file and stdout.</span>
+
+<span class="sd">    :param verbose:     A number from 0-3 giving the level of verbosity to use. [default: 1]</span>
+<span class="sd">    :param log_file:    A file name to which to output the logging information. [default: None]</span>
+
+<span class="sd">    :returns: a logging.Logger instance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">logging</span>
+    <span class="c1"># Parse the integer verbosity level from the command line args into a logging_level string</span>
+    <span class="n">logging_levels</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">0</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">CRITICAL</span><span class="p">,</span>
+                       <span class="mi">1</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span>
+                       <span class="mi">2</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+                       <span class="mi">3</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span> <span class="p">}</span>
+    <span class="n">logging_level</span> <span class="o">=</span> <span class="n">logging_levels</span><span class="p">[</span><span class="n">verbose</span><span class="p">]</span>
+
+    <span class="c1"># Setup logging to go to sys.stdout or (if requested) to an output file</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;piff&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Remove any existing handlers</span>
+    <span class="k">if</span> <span class="n">log_file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="n">log_file</span><span class="p">)</span>
+    <span class="n">formatter</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># Simple text output</span>
+    <span class="n">handle</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">formatter</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging_level</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">logger</span></div>
+
+
+<div class="viewcode-block" id="parse_variables"><a class="viewcode-back" href="../../piffify.html#piff.parse_variables">[docs]</a><span class="k">def</span> <span class="nf">parse_variables</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">variables</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse configuration variables and add them to the config dict</span>
+
+<span class="sd">    The command line variables should be specified as key=value.</span>
+<span class="sd">    The key string can include dots, such as interp.order=2, which means to set::</span>
+
+<span class="sd">        config[&#39;interp&#39;][&#39;order&#39;] = 2</span>
+
+<span class="sd">    :param config:      The configuration dict to which to write the key,value pairs.</span>
+<span class="sd">    :param varaibles:   A list of (typically command line) variables to parse.</span>
+<span class="sd">    :param logger:      A logger object for logging debug info.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Note: This is basically a copy of the GalSim function ParseVariables in the galsim.py script.</span>
+    <span class="n">new_params</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Parsing additional variable: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;=&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Improper variable specificationi: </span><span class="si">%s</span><span class="s1">.  Use field.item=value.&#39;</span><span class="o">%</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Use YAML parser to evaluate the string in case it is a list for instance.</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">yaml</span><span class="o">.</span><span class="n">YAMLError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Caught </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Unable to parse </span><span class="si">%s</span><span class="s1">.  Treating it as a string.&#39;</span><span class="p">,</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">new_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">UpdateConfig</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">new_params</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="read_config"><a class="viewcode-back" href="../../piffify.html#piff.read_config">[docs]</a><span class="k">def</span> <span class="nf">read_config</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read a configuration dict from a file.</span>
+
+<span class="sd">    :param file_name:   The file name from which the configuration dict should be read.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">fin</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">config</span></div>
+
+
+<span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a Piff model according to the specifications in a config dict.</span>
+
+<span class="sd">    Note: This is almost the same as the piffify function/executable.  The difference is</span>
+<span class="sd">          that it returns the resulting psf, rather than writing it to a file.</span>
+
+<span class="sd">    :param config:      The configuration file that defines how to build the model</span>
+<span class="sd">    :param logger:      A logger object for logging progress. [default: None]</span>
+
+<span class="sd">    :returns: the psf model</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.input</span> <span class="kn">import</span> <span class="n">Input</span>
+    <span class="kn">from</span> <span class="nn">.select</span> <span class="kn">import</span> <span class="n">Select</span>
+    <span class="kn">from</span> <span class="nn">.psf</span> <span class="kn">import</span> <span class="n">PSF</span>
+
+    <span class="k">if</span> <span class="n">logger</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">verbose</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">,</span> <span class="s1">&#39;psf&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in config dict&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="c1"># Import extra modules if requested</span>
+    <span class="k">if</span> <span class="s1">&#39;modules&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+        <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">ImportModules</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="c1"># We used to allow a bunch of items in config[&#39;input&#39;], which now belong in config[&#39;select&#39;]</span>
+    <span class="c1"># For the 1.x series, allow the old API, but give a warning.</span>
+    <span class="n">select_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">Select</span><span class="o">.</span><span class="n">base_keys</span><span class="p">)</span>
+    <span class="n">user_input_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">depr_keys</span> <span class="o">=</span> <span class="n">select_keys</span> <span class="o">&amp;</span> <span class="n">user_input_keys</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">depr_keys</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;WARNING: Items </span><span class="si">%r</span><span class="s2"> should now be in the &#39;select&#39; field of the config file.&quot;</span><span class="p">,</span>
+                     <span class="nb">sorted</span><span class="p">(</span><span class="n">depr_keys</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s1">&#39;select&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;select&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">depr_keys</span><span class="p">:</span>
+            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;select&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="c1"># read in the input images</span>
+    <span class="n">objects</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span> <span class="o">=</span> <span class="n">Input</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+    <span class="n">stars</span> <span class="o">=</span> <span class="n">Select</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;select&#39;</span><span class="p">,{}),</span> <span class="n">objects</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+    <span class="n">psf</span> <span class="o">=</span> <span class="n">PSF</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;psf&#39;</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+    <span class="n">psf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+    <span class="c1"># Attach these for reference</span>
+    <span class="n">psf</span><span class="o">.</span><span class="n">initial_objects</span> <span class="o">=</span> <span class="n">objects</span>
+    <span class="n">psf</span><span class="o">.</span><span class="n">initial_stars</span> <span class="o">=</span> <span class="n">stars</span>
+
+    <span class="k">return</span> <span class="n">psf</span>
+
+<div class="viewcode-block" id="piffify"><a class="viewcode-back" href="../../piffify.html#piff.piffify">[docs]</a><span class="k">def</span> <span class="nf">piffify</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a Piff model according to the specifications in a config dict.</span>
+
+<span class="sd">    This includes writing the model to disk according to the output field.</span>
+<span class="sd">    If you would rather get the psf object in return, see the process function.</span>
+
+<span class="sd">    :param config:      The configuration file that defines how to build the model</span>
+<span class="sd">    :param logger:      A logger object for logging progress. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.output</span> <span class="kn">import</span> <span class="n">Output</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">,</span> <span class="s1">&#39;output&#39;</span><span class="p">,</span> <span class="s1">&#39;psf&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in config dict&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">logger</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">verbose</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+
+    <span class="n">psf</span> <span class="o">=</span> <span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+
+    <span class="c1"># write it out to a file</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">Output</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span></div>
+
+<span class="k">def</span> <span class="nf">plotify</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Take a Piff model, load in images, and execute output.</span>
+
+<span class="sd">    :param config:      The configuration file that defines how to build the model</span>
+<span class="sd">    :param logger:      A logger object for logging progress. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">piff</span>
+    <span class="kn">from</span> <span class="nn">.psf</span> <span class="kn">import</span> <span class="n">PSF</span>
+    <span class="kn">from</span> <span class="nn">.output</span> <span class="kn">import</span> <span class="n">Output</span>
+    <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span>
+
+    <span class="k">if</span> <span class="n">logger</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">verbose</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">,</span> <span class="s1">&#39;output&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in config dict&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;file_name&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in config dict output&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="c1"># Import extra modules if requested</span>
+    <span class="k">if</span> <span class="s1">&#39;modules&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+        <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">ImportModules</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="c1"># load psf by looking at output file</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;dir&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]:</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;dir&#39;</span><span class="p">],</span> <span class="n">file_name</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Looking for PSF at </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+    <span class="n">psf</span> <span class="o">=</span> <span class="n">PSF</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+    <span class="c1"># The stars we care about for plotify are psf.stars, not what would be made from scratch by</span>
+    <span class="c1"># processing the input and select fields.  For one, there may be a random component to that</span>
+    <span class="c1"># process, which would be different this time.  But also, some input objects might have been</span>
+    <span class="c1"># removed as outliers, so we don&#39;t want to include them here.</span>
+    <span class="c1"># However, the psf.stars do not have the images loaded (to save space in the output file</span>
+    <span class="c1"># so it&#39;s not enormous).  So we need to load in the images for the stats.</span>
+    <span class="n">input_handler_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">piff</span><span class="p">,</span> <span class="s1">&#39;Input&#39;</span> <span class="o">+</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">,</span><span class="s1">&#39;Files&#39;</span><span class="p">))</span>
+    <span class="n">input_handler</span> <span class="o">=</span> <span class="n">input_handler_class</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">],</span> <span class="n">logger</span><span class="p">)</span>
+    <span class="n">stars</span> <span class="o">=</span> <span class="n">input_handler</span><span class="o">.</span><span class="n">load_images</span><span class="p">(</span><span class="n">psf</span><span class="o">.</span><span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+    <span class="c1"># We don&#39;t want to rewrite the PSF to disk, so jump straight to the stats_list</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">Output</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;stats_list = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">output</span><span class="o">.</span><span class="n">stats_list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">stats</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">stats_list</span><span class="p">:</span>
+        <span class="n">stats</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span><span class="n">stars</span><span class="p">,</span><span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">stats</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">meanify</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Take Piff output(s), build an average of the FoV, and write output average.</span>
+
+<span class="sd">    :param config:      The configuration file that defines how to build the model</span>
+<span class="sd">    :param logger:      A logger object for logging progress. [default: None]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span>
+    <span class="kn">import</span> <span class="nn">glob</span>
+    <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+    <span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">binned_statistic_2d</span>
+    <span class="kn">import</span> <span class="nn">fitsio</span>
+
+    <span class="k">if</span> <span class="n">logger</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">verbose</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">setup_logger</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">,</span> <span class="s1">&#39;hyper&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in config dict&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;file_name&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in config dict output&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;file_name&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> field is required in config dict hyper&quot;</span><span class="o">%</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s1">&#39;dir&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]:</span>
+        <span class="nb">dir</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;dir&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">dir</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="s1">&#39;bin_spacing&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">]:</span>
+        <span class="n">bin_spacing</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;bin_spacing&#39;</span><span class="p">]</span> <span class="c1">#in arcsec</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">bin_spacing</span> <span class="o">=</span> <span class="mf">120.</span> <span class="c1">#default bin_spacing: 120 arcsec</span>
+
+    <span class="k">if</span> <span class="s1">&#39;statistic&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;statistic&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;median&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> is not a suported statistic (only mean and median are currently &quot;</span>
+                             <span class="s2">&quot;suported)&quot;</span><span class="o">%</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;statistic&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">stat_used</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;statistic&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">stat_used</span> <span class="o">=</span> <span class="s1">&#39;mean&#39;</span> <span class="c1">#default statistics: arithmetic mean over each bin</span>
+
+    <span class="k">if</span> <span class="s1">&#39;params_fitted&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;params_fitted&#39;</span><span class="p">])</span> <span class="o">!=</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;must give a list of index for params_fitted&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">params_fitted</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;params_fitted&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">params_fitted</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">psf_list</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">psf_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;file_name may not be an empty list&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="n">psf_list</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_name</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">psf_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No files found corresponding to &quot;</span><span class="o">+</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;file_name should be either a list or a string&quot;</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;psf_list = </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">psf_list</span><span class="p">)</span>
+    <span class="n">npsfs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">psf_list</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;npsfs = </span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">npsfs</span><span class="p">)</span>
+    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">psf_list</span>
+
+    <span class="n">file_name_in</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">]</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Looking for PSF at </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file_name_in</span><span class="p">)</span>
+
+    <span class="n">file_name_out</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;file_name&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;dir&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">]:</span>
+        <span class="n">file_name_out</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;hyper&#39;</span><span class="p">][</span><span class="s1">&#39;dir&#39;</span><span class="p">],</span> <span class="n">file_name_out</span><span class="p">)</span>
+
+    <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">fi</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">file_name_in</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Loading file </span><span class="si">{0}</span><span class="s1"> of </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fi</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_name_in</span><span class="p">)))</span>
+        <span class="n">fits</span> <span class="o">=</span> <span class="n">fitsio</span><span class="o">.</span><span class="n">FITS</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">coord</span><span class="p">,</span> <span class="n">param</span> <span class="o">=</span> <span class="n">Star</span><span class="o">.</span><span class="n">read_coords_params</span><span class="p">(</span><span class="n">fits</span><span class="p">,</span> <span class="s1">&#39;psf_stars&#39;</span><span class="p">)</span>
+        <span class="n">fits</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+
+    <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Computing average for </span><span class="si">{0}</span><span class="s1"> params with </span><span class="si">{1}</span><span class="s1"> stars&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)))</span>
+
+    <span class="k">if</span> <span class="n">params_fitted</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">params_fitted</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+    <span class="n">lu_min</span><span class="p">,</span> <span class="n">lu_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">lv_min</span><span class="p">,</span> <span class="n">lv_max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="n">nbin_u</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">lu_max</span> <span class="o">-</span> <span class="n">lu_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">bin_spacing</span><span class="p">)</span>
+    <span class="n">nbin_v</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">lv_max</span> <span class="o">-</span> <span class="n">lv_min</span><span class="p">)</span> <span class="o">/</span> <span class="n">bin_spacing</span><span class="p">)</span>
+    <span class="n">binning</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lu_min</span><span class="p">,</span> <span class="n">lu_max</span><span class="p">,</span> <span class="n">nbin_u</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lv_min</span><span class="p">,</span> <span class="n">lv_max</span><span class="p">,</span> <span class="n">nbin_v</span><span class="p">)]</span>
+    <span class="n">nbinning</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">binning</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">binning</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">params0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nbinning</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+    <span class="n">Filter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span><span class="p">]</span><span class="o">*</span><span class="n">nbinning</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">params_fitted</span><span class="p">:</span>
+            <span class="n">average</span><span class="p">,</span> <span class="n">u0</span><span class="p">,</span> <span class="n">v0</span><span class="p">,</span> <span class="n">bin_target</span> <span class="o">=</span> <span class="n">binned_statistic_2d</span><span class="p">(</span><span class="n">coords</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">coords</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span>
+                                                              <span class="n">params</span><span class="p">[:,</span><span class="n">i</span><span class="p">],</span> <span class="n">bins</span><span class="o">=</span><span class="n">binning</span><span class="p">,</span>
+                                                              <span class="n">statistic</span><span class="o">=</span><span class="n">stat_used</span><span class="p">)</span>
+            <span class="n">average</span> <span class="o">=</span> <span class="n">average</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">average</span> <span class="o">=</span> <span class="n">average</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">Filter</span> <span class="o">&amp;=</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">average</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">params0</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">average</span>
+
+    <span class="c1"># get center of each bin</span>
+    <span class="n">u0</span> <span class="o">=</span> <span class="n">u0</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">u0</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">u0</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="mf">2.</span>
+    <span class="n">v0</span> <span class="o">=</span> <span class="n">v0</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">v0</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">v0</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="mf">2.</span>
+    <span class="n">u0</span><span class="p">,</span> <span class="n">v0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">u0</span><span class="p">,</span> <span class="n">v0</span><span class="p">)</span>
+
+    <span class="n">coords0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">u0</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">v0</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span>
+
+    <span class="c1"># remove any entries with nan (counts == 0 and non finite value in</span>
+    <span class="c1"># the 2D statistic computation)</span>
+    <span class="n">coords0</span> <span class="o">=</span> <span class="n">coords0</span><span class="p">[</span><span class="n">Filter</span><span class="p">]</span>
+    <span class="n">params0</span> <span class="o">=</span> <span class="n">params0</span><span class="p">[</span><span class="n">Filter</span><span class="p">]</span>
+
+    <span class="n">dtypes</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;COORDS0&#39;</span><span class="p">,</span> <span class="n">coords0</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">coords0</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+              <span class="p">(</span><span class="s1">&#39;PARAMS0&#39;</span><span class="p">,</span> <span class="n">params0</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">params0</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+          <span class="p">]</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtypes</span><span class="p">)</span>
+
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;COORDS0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">coords0</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;PARAMS0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params0</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Writing average solution to </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_name_out</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">fitsio</span><span class="o">.</span><span class="n">FITS</span><span class="p">(</span><span class="n">file_name_out</span><span class="p">,</span><span class="s1">&#39;rw&#39;</span><span class="p">,</span><span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">extname</span><span class="o">=</span><span class="s1">&#39;average_solution&#39;</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
