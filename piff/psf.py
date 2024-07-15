@@ -117,7 +117,7 @@ class PSF(object):
         raise NotImplementedError("Derived classes must define the parseKwargs function")
 
     def draw(self, x, y, chipnum=None, flux=1.0, center=None, offset=None, stamp_size=48,
-             image=None, logger=None, apodize=None, **kwargs):
+             image=None, logger=None, apodize=(1.0, 4.25), **kwargs):
         r"""Draws an image of the PSF at a given location.
 
         The normal usage would be to specify (chipnum, x, y), in which case Piff will use the
