@@ -17,12 +17,10 @@
 """
 
 import numpy as np
-import fitsio
 import galsim
-import sys
 
 from .star import Star, StarData
-from .util import write_kwargs, read_kwargs
+from .util import read_kwargs
 
 class PSF(object):
     """The base class for describing a PSF model across a field of view.
@@ -722,34 +720,34 @@ class PSF(object):
         :param file_name:   The name of the file to write to.
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        from .writers import Writer
+
         logger = galsim.config.LoggerWrapper(logger)
         logger.warning("Writing PSF to file %s",file_name)
 
-        with fitsio.FITS(file_name,'rw',clobber=True) as f:
-            self._write(f, 'psf', logger)
+        with Writer.open(file_name) as w:
+            self._write(w, 'psf', logger=logger)
 
-    def _write(self, fits, extname, logger=None):
+    def _write(self, writer, name, logger):
         """This is the function that actually does the work for the write function.
         Composite PSF classes that need to iterate can call this multiple times as needed.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the psf information.
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with this PSF in the serialized output.
         :param logger:      A logger object for logging debug info.
         """
         from . import __version__ as piff_version
-        if len(fits) == 1:
-            header = {'piff_version': piff_version}
-            fits.write(data=None, header=header)
         psf_type = self._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=psf_type, piff_version=piff_version))
-        logger.info("Wrote the basic PSF information to extname %s", extname)
-        if hasattr(self, 'stars'):
-            Star.write(self.stars, fits, extname=extname + '_stars')
-            logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
-        if hasattr(self, 'wcs'):
-            self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
-            logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
-        self._finish_write(fits, extname=extname, logger=logger)
+        writer.write_struct(name, dict(self.kwargs, type=psf_type, piff_version=piff_version))
+        logger.info("Wrote the basic PSF information to name %s", writer.get_full_name(name))
+        with writer.nested(name) as w:
+            if hasattr(self, 'stars'):
+                Star._write(self.stars, w, 'stars')
+                logger.info("Wrote the PSF stars to name %s", w.get_full_name('stars'))
+            if hasattr(self, 'wcs'):
+                w.write_wcs_map('wcs', self.wcs, self.pointing)
+                logger.info("Wrote the PSF WCS to name %s", w.get_full_name('wcs'))
+            self._finish_write(w, logger=logger)
 
     @classmethod
     def read(cls, file_name, logger=None):
@@ -816,54 +814,6 @@ class PSF(object):
         psf.piff_version = piff_version
 
         return psf
-
-    def writeWCS(self, fits, extname, logger):
-        """Write the WCS information to a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write to
-        :param logger:      A logger object for logging debug info.
-        """
-        import base64
-        try:
-            import cPickle as pickle
-        except ImportError:
-            import pickle
-        logger = galsim.config.LoggerWrapper(logger)
-
-        # Start with the chipnums
-        chipnums = list(self.wcs.keys())
-        cols = [ chipnums ]
-        dtypes = [ ('chipnums', int) ]
-
-        # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
-        max_len = np.max([ len(s) for s in wcs_str ])
-        # Some GalSim WCS serializations are rather long.  In particular, the Pixmappy one
-        # is longer than the maximum length allowed for a column in a fits table (28799).
-        # So split it into chunks of size 2**14 (mildly less than this maximum).
-        chunk_size = 2**14
-        nchunks = max_len // chunk_size + 1
-        cols.append( [nchunks]*len(chipnums) )
-        dtypes.append( ('nchunks', int) )
-
-        # Update to size of chunk we actually need.
-        chunk_size = (max_len + nchunks - 1) // nchunks
-
-        chunks = [ [ s[i:i+chunk_size] for i in range(0, max_len, chunk_size) ] for s in wcs_str ]
-        cols.extend(zip(*chunks))
-        dtypes.extend( ('wcs_str_%04d'%i, bytes, chunk_size) for i in range(nchunks) )
-
-        if self.pointing is not None:
-            # Currently, there is only one pointing for all the chips, but write it out
-            # for each row anyway.
-            dtypes.extend( (('ra', float), ('dec', float)) )
-            ra = [self.pointing.ra / galsim.hours] * len(chipnums)
-            dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
-            cols.extend( (ra, dec) )
-
-        data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname)
 
     @classmethod
     def readWCS(cls, fits, extname, logger):

@@ -292,11 +292,10 @@ class GPInterp(Interp):
             fitted_stars.append(Star(star.data, fit))
         return fitted_stars
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
@@ -320,7 +319,7 @@ class GPInterp(Interp):
         data['ROWS'] = self.rows
         data['OPTIMIZER'] = self.optimizer
 
-        fits.write_table(data, extname=extname+'_kernel')
+        writer.write_table('kernel', data)
 
     def _finish_read(self, fits, extname):
         """Finish the reading process with any class-specific steps.

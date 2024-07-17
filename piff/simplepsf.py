@@ -23,7 +23,7 @@ from .model import Model
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
-from .util import write_kwargs, read_kwargs
+from .util import read_kwargs
 
 class SimplePSF(PSF):
     """A PSF class that uses a single model and interpolator.
@@ -242,11 +242,10 @@ class SimplePSF(PSF):
     def _getRawProfile(self, star):
         return self.model.getProfile(star.fit.get_params(self._num)), self.model._method
 
-    def _finish_write(self, fits, extname, logger):
+    def _finish_write(self, writer, logger):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
         logger = galsim.config.LoggerWrapper(logger)
@@ -257,15 +256,15 @@ class SimplePSF(PSF):
             'nremoved' : self.nremoved,
             'niter' : self.niter,
         }
-        write_kwargs(fits, extname + '_chisq', chisq_dict)
-        logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
-        self.model.write(fits, extname + '_model')
-        logger.debug("Wrote the PSF model to extension %s",extname + '_model')
-        self.interp.write(fits, extname + '_interp')
-        logger.debug("Wrote the PSF interp to extension %s",extname + '_interp')
+        writer.write_struct('chisq', chisq_dict)
+        logger.debug("Wrote the chisq info to %s", writer.get_full_name('chisq'))
+        self.model._write(writer, 'model')
+        logger.debug("Wrote the PSF model to %s", writer.get_full_name('model'))
+        self.interp._write(writer, 'interp')
+        logger.debug("Wrote the PSF interp to %s", writer.get_full_name('interp'))
         if self.outliers:
-            self.outliers.write(fits, extname + '_outliers')
-            logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
+            self.outliers._write(writer, 'outliers')
+            logger.debug("Wrote the PSF outliers to %s", writer.get_full_name('outliers'))
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.

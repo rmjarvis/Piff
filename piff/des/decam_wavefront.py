@@ -154,13 +154,12 @@ class DECamWavefront(KNNInterp):
 
         return targets
 
-    def _finish_write(self, fits, extname):
-        """Write the solution to a FITS binary table.
+    def _finish_write(self, writer):
+        """Write the solution.
 
         Save the knn params and the locations and targets arrays
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension with the interp information.
+        :param writer:      A writer object that encapsulates the serialization format.
         """
 
         dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape),
@@ -175,7 +174,7 @@ class DECamWavefront(KNNInterp):
         data['MISALIGNMENT'] = self.misalignment
 
         # write to fits
-        fits.write_table(data, extname=extname + '_solution')
+        writer.write_table('solution', data)
 
     def _finish_read(self, fits, extname):
         """Read the solution from a FITS binary table.

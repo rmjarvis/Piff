@@ -16,10 +16,7 @@
 .. module:: model
 """
 
-import numpy as np
-import galsim
-
-from .util import write_kwargs, read_kwargs
+from .util import read_kwargs
 from .star import Star
 
 
@@ -157,30 +154,41 @@ class Model(object):
     def write(self, fits, extname):
         """Write a Model to a FITS file.
 
+        This method exists for backwards compatibility; subclasses should
+        reimplement _write or _finish_write instead.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write the model information.
+        """
+        from .writers import FitsWriter
+        self._write(FitsWriter(fits, None, {}), extname)
+
+    def _write(self, writer, name):
+        """Write a Model via a Writer object.
+
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
 
         The base class implemenation works if the class has a self.kwargs attribute and these
         are all simple values (str, float, or int)
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the model information.
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with this model in the serialized output.
         """
         # First write the basic kwargs that works for all Model classes
         model_type = self._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=model_type))
-
+        writer.write_struct(name, dict(self.kwargs, type=model_type))
         # Now do any class-specific steps.
-        self._finish_write(fits, extname)
+        with writer.nested(name) as w:
+            self._finish_write(w)
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Model classes need to write extra information to the
         fits file.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         pass
 
