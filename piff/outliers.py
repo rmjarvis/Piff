@@ -22,7 +22,7 @@ import math
 import galsim
 from scipy.stats import chi2
 
-from .util import write_kwargs, read_kwargs
+from .util import read_kwargs
 
 class Outliers(object):
     """The base class for handling outliers.
@@ -97,22 +97,32 @@ class Outliers(object):
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write the outliers information.
         """
+        from .writers import FitsWriter
+        self._write(FitsWriter(fits, None, {}), extname)
+
+    def _write(self, writer, name):
+        """Write an Outers via a Writer object.
+
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with the Ootliers in the serialized output.
+        """
         # First write the basic kwargs that works for all Outliers classes
         outliers_type = self._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=outliers_type))
+        writer.write_struct(name, dict(self.kwargs, type=outliers_type))
 
         # Now do any class-specific steps.
-        self._finish_write(fits, extname)
+        with writer.nested(name) as w:
+            self._finish_write(w)
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Outliers classes need to write extra information to the
         fits file.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with the outliers in the serialized output.
         """
         pass
 

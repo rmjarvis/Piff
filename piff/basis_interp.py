@@ -434,11 +434,10 @@ class BasisPolynomial(BasisInterp):
         out[0] = value  # The constant term is always first.
         return out
 
-    def _finish_write(self, fits, extname):
-        """Write the solution to a FITS binary table.
+    def _finish_write(self, writer):
+        """Write the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         if self.q is None:
             raise RuntimeError("Solution not set yet.  Cannot write this BasisPolynomial.")
@@ -446,7 +445,7 @@ class BasisPolynomial(BasisInterp):
         dtypes = [ ('q', float, self.q.shape) ]
         data = np.zeros(1, dtype=dtypes)
         data['q'] = self.q
-        fits.write_table(data, extname=extname + '_solution')
+        writer.write_table('solution', data)
 
     def _finish_read(self, fits, extname):
         """Read the solution from a FITS binary table.

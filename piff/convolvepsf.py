@@ -20,7 +20,7 @@ import numpy as np
 import galsim
 
 from .psf import PSF
-from .util import write_kwargs, read_kwargs
+from .util import read_kwargs
 from .star import Star, StarFit
 from .outliers import Outliers
 
@@ -271,11 +271,10 @@ class ConvolvePSF(PSF):
         else:
             return galsim.Convolve(profiles), method
 
-    def _finish_write(self, fits, extname, logger):
+    def _finish_write(self, writer, logger):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
         logger = galsim.config.LoggerWrapper(logger)
@@ -285,13 +284,13 @@ class ConvolvePSF(PSF):
             'dof' : self.dof,
             'nremoved' : self.nremoved,
         }
-        write_kwargs(fits, extname + '_chisq', chisq_dict)
-        logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
+        writer.write_struct('chisq', chisq_dict)
+        logger.debug("Wrote the chisq info to extension %s", writer.get_full_name('chisq'))
         for k, comp in enumerate(self.components):
-            comp._write(fits, extname + '_' + str(k), logger=logger)
+            comp._write(writer, str(k), logger=logger)
         if self.outliers:
-            self.outliers.write(fits, extname + '_outliers')
-            logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
+            self.outliers._write(writer, 'outliers')
+            logger.debug("Wrote the PSF outliers to extension %s", writer.get_full_name('outliers'))
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.

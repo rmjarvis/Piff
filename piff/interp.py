@@ -17,7 +17,7 @@
 """
 
 import numpy as np
-from .util import write_kwargs, read_kwargs
+from .util import read_kwargs
 
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
@@ -177,32 +177,44 @@ class Interp(object):
     def write(self, fits, extname):
         """Write an Interp to a FITS file.
 
+        This method exists for backwards compatibility; subclasses should
+        reimplement _write or _finish_write instead.
+
+        :param fits:        An open fitsio.FITS object
+        :param extname:     The name of the extension to write the interpolator information.
+        """
+        from .writers import FitsWriter
+        self._write(FitsWriter(fits, None, {}), extname)
+
+    def _write(self, writer, name):
+        """Write an Interp via a Writer object.
+
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
 
-        The base class implemenation works if the class has a self.kwargs attribute and these
+        The base class implementation works if the class has a self.kwargs attribute and these
         are all simple values (str, float, or int).
 
         However, the derived class will need to implement _finish_write to write the solution
         parameters to a binary table.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the interpolator information.
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with this interpolator in the serialized output.
         """
         # First write the basic kwargs that works for all Interp classes
         interp_type = self.__class__._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=interp_type))
+        writer.write_struct(name, dict(self.kwargs, type=interp_type))
 
         # Now do the class-specific steps.  Typically, this will write out the solution parameters.
-        self._finish_write(fits, extname)
+        with writer.nested(name) as w:
+            self._finish_write(w)
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
         The base class implementation doesn't do anything, but this will probably always be
         overridden by the derived class.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         raise NotImplementedError("Derived classes must define the _finish_write method.")
 

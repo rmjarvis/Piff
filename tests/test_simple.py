@@ -713,8 +713,8 @@ def test_interp():
     np.testing.assert_raises(NotImplementedError, interp.interpolateList, [None])
 
     filename1 = os.path.join('output','test_interp.fits')
-    with fitsio.FITS(filename1,'rw',clobber=True) as f:
-        np.testing.assert_raises(NotImplementedError, interp._finish_write, f, extname='interp')
+    with piff.writers.FitsWriter.open(filename1) as w:
+        np.testing.assert_raises(NotImplementedError, interp._finish_write, w.nested('interp'))
     filename2 = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with fitsio.FITS(filename2,'r') as f:
         np.testing.assert_raises(NotImplementedError, interp._finish_read, f, extname='interp')

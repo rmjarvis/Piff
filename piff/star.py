@@ -328,12 +328,23 @@ class Star(object):
         return cls(data, fit)
 
     @classmethod
-    def write(self, stars, fits, extname):
+    def write(cls, stars, fits, extname):
         """Write a list of stars to a FITS file.
 
         :param stars:       A list of stars to write
         :param fits:        An open fitsio.FITS object
         :param extname:     The name of the extension to write to
+        """
+        from .writers import FitsWriter
+        cls._write(stars, FitsWriter(fits, None, {}), extname)
+
+    @classmethod
+    def _write(cls, stars, writer, name):
+        """Write a list of stars to a Writer object.
+
+        :param stars:       A list of stars to write
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with these stars in the serialized output.
         """
         # TODO This doesn't write everything out.  Probably want image as an optional I/O.
 
@@ -406,7 +417,7 @@ class Star(object):
             cols.append( [s.data.pointing.dec / galsim.degrees for s in stars ] )
 
         data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname, header=header)
+        writer.write_table(name, data, metadata=header)
 
     @classmethod
     def read_coords_params(cls, fits, extname):

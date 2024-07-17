@@ -101,29 +101,6 @@ def adjust_value(value, dtype):
             # For other numpy arrays, we can use astype instead.
             return np.array(value).astype(t)
 
-def write_kwargs(fits, extname, kwargs):
-    """A helper function for writing a single row table into a fits file with the values
-    and column names given by a kwargs dict.
-
-    :param fits:        An open fitsio.FITS instance
-    :param extname:     The extension to write to
-    :param kwargs:      A kwargs dict to be written as a FITS binary table.
-    """
-    from . import __version__ as piff_version
-    cols = []
-    dtypes = []
-    for key, value in kwargs.items():
-        # Don't add values that are None to the table.
-        if value is None:
-            continue
-        dt = make_dtype(key, value)
-        value = adjust_value(value,dt)
-        cols.append([value])
-        dtypes.append(dt)
-    data = np.array(list(zip(*cols)), dtype=dtypes)
-    header = {'piff_version': piff_version}
-    fits.write_table(data, extname=extname, header=header)
-
 def read_kwargs(fits, extname):
     """A helper function for reading a single row table from a fits file returning the values
     and column names as a kwargs dict.

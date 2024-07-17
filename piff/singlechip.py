@@ -21,7 +21,7 @@ import copy
 import galsim
 
 from .psf import PSF
-from .util import write_kwargs, read_kwargs, make_dtype, adjust_value, run_multi
+from .util import make_dtype, adjust_value, run_multi
 
 # Used by SingleChipPSF.fit
 def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_funcs, draw_method, logger):
@@ -178,14 +178,13 @@ class SingleChipPSF(PSF):
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum]._getRawProfile(star)
 
-    def _finish_write(self, fits, extname, logger):
+    def _finish_write(self, writer, logger):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        # Write the colnums to an extension.
+        # Write the colnums to a table.
         chipnums = list(self.psf_by_chip.keys())
         chipnums = [c for c in chipnums if self.psf_by_chip[c] is not None]
         dt = make_dtype('chipnums', chipnums[0])
@@ -193,11 +192,11 @@ class SingleChipPSF(PSF):
         cols = [ chipnums ]
         dtypes = [ dt ]
         data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname + '_chipnums')
+        writer.write_table('chipnums', data)
 
-        # Add _1, _2, etc. to the extname for the psf model of each chip.
+        # Append 1, 2, etc. to the name for the psf model of each chip.
         for chipnum in chipnums:
-            self.psf_by_chip[chipnum]._write(fits, extname + '_%s'%chipnum, logger)
+            self.psf_by_chip[chipnum]._write(writer, str(chipnum), logger)
 
     def _finish_read(self, fits, extname, logger):
         """Finish the reading process with any class-specific steps.
