@@ -22,7 +22,6 @@ import math
 import galsim
 from scipy.stats import chi2
 
-from .util import read_kwargs
 
 class Outliers(object):
     """The base class for handling outliers.
@@ -135,15 +134,25 @@ class Outliers(object):
 
         :returns: an Outliers handler
         """
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        outliers_type = fits[extname].read()['type']
-        assert len(outliers_type) == 1
-        try:
-            outliers_type = str(outliers_type[0].decode())
-        except AttributeError:
-            # fitsio 1.0 returns strings
-            outliers_type = outliers_type[0]
+        from .readers import FitsReader
+        result = cls._read(FitsReader(fits, None), extname)
+        assert result is not None
+        return result
+
+    @classmethod
+    def _read(cls, reader, name):
+        """Read a Outliers from a FITS file.
+
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with the outliers in the serialized output.
+
+        :returns: an Outliers handler, or None if there isn't one.
+        """
+        kwargs = reader.read_struct(name)
+        if kwargs is None:
+            return None
+        assert 'type' in kwargs
+        outliers_type = kwargs.pop('type')
 
         # Old output files had the full name.  Fix it if necessary.
         if (outliers_type.endswith('Outliers')
@@ -155,21 +164,19 @@ class Outliers(object):
             raise ValueError("outliers type %s is not a valid Piff Outliers"%outliers_type)
         outliers_cls = Outliers.valid_outliers_types[outliers_type]
 
-        kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type',None)
         outliers = outliers_cls(**kwargs)
-        outliers._finish_read(fits, extname)
+        with reader.nested(name) as r:
+            outliers._finish_read(r)
         return outliers
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Outliers classes need to read extra information from the
         fits file.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         pass
 

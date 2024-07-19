@@ -20,7 +20,6 @@ import numpy as np
 import galsim
 
 from .psf import PSF
-from .util import read_kwargs
 from .star import Star, StarFit
 from .outliers import Outliers
 
@@ -309,24 +308,20 @@ class SumPSF(PSF):
             self.outliers._write(writer, 'outliers')
             logger.debug("Wrote the PSF outliers to %s", writer.get_full_name('outliers'))
 
-    def _finish_read(self, fits, extname, logger):
+    def _finish_read(self, reader, logger):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param reader:      A reader object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        chisq_dict = read_kwargs(fits, extname + '_chisq')
+        chisq_dict = reader.read_struct('chisq')
         for key in chisq_dict:
             setattr(self, key, chisq_dict[key])
 
         ncomponents = self.components
         self.components = []
         for k in range(ncomponents):
-            self.components.append(PSF._read(fits, extname + '_' + str(k), logger=logger))
-        if extname + '_outliers' in fits:
-            self.outliers = Outliers.read(fits, extname + '_outliers')
-        else:
-            self.outliers = None
+            self.components.append(PSF._read(reader, str(k), logger=logger))
+        self.outliers = Outliers._read(reader, 'outliers')
         # Set up all the num's properly now that everything is constructed.
         self.set_num(None)

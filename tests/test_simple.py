@@ -716,8 +716,8 @@ def test_interp():
     with piff.writers.FitsWriter.open(filename1) as w:
         np.testing.assert_raises(NotImplementedError, interp._finish_write, w.nested('interp'))
     filename2 = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
-    with fitsio.FITS(filename2,'r') as f:
-        np.testing.assert_raises(NotImplementedError, interp._finish_read, f, extname='interp')
+    with piff.readers.FitsReader.open(filename2) as r:
+        np.testing.assert_raises(NotImplementedError, interp._finish_read, r.nested('interp'))
 
     # Invalid to read a type that isn't a piff.Interp type.
     # Mock this by pretending that Mean is the only subclass of Interp.

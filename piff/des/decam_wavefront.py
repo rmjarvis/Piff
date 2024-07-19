@@ -176,13 +176,13 @@ class DECamWavefront(KNNInterp):
         # write to fits
         writer.write_table('solution', data)
 
-    def _finish_read(self, fits, extname):
-        """Read the solution from a FITS binary table.
+    def _finish_read(self, reader):
+        """Read the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interp information.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
-        data = fits[extname + '_solution'].read()
+        data = reader.read_table('solution')
+        assert data is not None
 
         # self.locations and self.targets assigned in _fit
         self._fit(data['LOCATIONS'][0], data['TARGETS'][0])

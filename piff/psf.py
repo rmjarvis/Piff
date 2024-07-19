@@ -20,7 +20,6 @@ import numpy as np
 import galsim
 
 from .star import Star, StarData
-from .util import read_kwargs
 
 class PSF(object):
     """The base class for describing a PSF model across a field of view.
@@ -758,26 +757,27 @@ class PSF(object):
 
         :returns: a PSF instance
         """
+        from .readers import FitsReader
+
         logger = galsim.config.LoggerWrapper(logger)
         logger.warning("Reading PSF from file %s",file_name)
 
-        with fitsio.FITS(file_name,'r') as f:
+        with FitsReader.open(file_name) as r:
             logger.debug('opened FITS file')
-            return cls._read(f, 'psf', logger)
+            return cls._read(r, 'psf', logger)
 
     @classmethod
-    def _read(cls, fits, extname, logger):
+    def _read(cls, reader, name, logger):
         """This is the function that actually does the work for the read function.
         Composite PSF classes that need to iterate can call this multiple times as needed.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the psf information.
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this PSF in the serialized output.
         :param logger:      A logger object for logging debug info.
         """
         # Read the type and kwargs from the base extension
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        kwargs = read_kwargs(fits, extname)
+        kwargs = reader.read_struct(name)
+        assert kwargs is not None
         psf_type = kwargs.pop('type')
 
         # Old output files had the full class name.  Fix it if necessary.
@@ -796,96 +796,26 @@ class PSF(object):
         # Make the PSF instance
         psf = psf_cls(**kwargs)
 
-        # Read the stars, wcs, pointing values
-        if extname + '_stars' in fits:
-            stars = Star.read(fits, extname + '_stars')
-            logger.debug("stars = %s",stars)
-            psf.stars = stars
-        if extname + '_wcs' in fits:
-            wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
-            logger.debug("wcs = %s, pointing = %s",wcs,pointing)
-            psf.wcs = wcs
-            psf.pointing = pointing
+        with reader.nested(name) as r:
+            # Read the stars, wcs, pointing values
+            stars = Star._read(r, 'stars')
+            if stars is not None:
+                logger.debug("stars = %s", stars)
+                psf.stars = stars
+            wcs, pointing = r.read_wcs_map('wcs', logger=logger)
+            if wcs is not None:
+                logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+                psf.wcs = wcs
+                psf.pointing = pointing
 
-        # Just in case the class needs to do something else at the end.
-        psf._finish_read(fits, extname, logger)
+            # Just in case the class needs to do something else at the end.
+            psf._finish_read(r, logger)
 
-        # Save the piff version as an attibute.
+        # Save the piff version as an attribute.
         psf.piff_version = piff_version
 
         return psf
 
-    @classmethod
-    def readWCS(cls, fits, extname, logger):
-        """Read the WCS information from a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to read from
-        :param logger:      A logger object for logging debug info.
-
-        :returns: wcs, pointing where wcs is a dict of galsim.BaseWCS instances and
-                                      pointing is a galsim.CelestialCoord instance
-        """
-        import base64
-        try:
-            import cPickle as pickle
-        except ImportError:
-            import pickle
-
-        assert extname in fits
-        assert 'chipnums' in fits[extname].get_colnames()
-        assert 'nchunks' in fits[extname].get_colnames()
-
-        data = fits[extname].read()
-
-        chipnums = data['chipnums']
-        nchunks = data['nchunks']
-        nchunks = nchunks[0]  # These are all equal, so just take first one.
-
-        wcs_keys = [ 'wcs_str_%04d'%i for i in range(nchunks) ]
-        wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
-        try:
-            wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-        except TypeError:  # pragma: no cover
-            # fitsio 1.0 returns strings
-            wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-
-        wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
-        # Convert back into wcs objects
-        try:
-            wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
-        except Exception:
-            # If the file was written by py2, the bytes encoding might raise here,
-            # or it might not until we try to use it.
-            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
-
-        wcs = dict(zip(chipnums, wcs_list))
-
-        try:
-            # If this doesn't work, then the file was probably written by py2, not py3
-            repr(wcs)
-        except Exception:
-            logger.info('Failed to decode wcs with bytes encoding.')
-            logger.info('Retry with encoding="latin1" in case file written with python 2.')
-            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
-            wcs = dict(zip(chipnums, wcs_list))
-            repr(wcs)
-
-        # Work-around for a change in the GalSim API with 2.0
-        # If the piff file was written with pre-2.0 GalSim, this fixes it.
-        for key in wcs:
-            w = wcs[key]
-            if hasattr(w, '_origin') and  isinstance(w._origin, galsim._galsim.PositionD):
-                w._origin = galsim.PositionD(w._origin)
-
-        if 'ra' in fits[extname].get_colnames():
-            ra = data['ra']
-            dec = data['dec']
-            pointing = galsim.CelestialCoord(ra[0] * galsim.hours, dec[0] * galsim.degrees)
-        else:
-            pointing = None
-
-        return wcs, pointing
 
 # Make a global function, piff.read, as an alias for piff.PSF.read, since that's the main thing
 # users will want to do as their starting point for using a piff file.

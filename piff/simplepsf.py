@@ -23,7 +23,6 @@ from .model import Model
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
-from .util import read_kwargs
 
 class SimplePSF(PSF):
     """A PSF class that uses a single model and interpolator.
@@ -266,19 +265,16 @@ class SimplePSF(PSF):
             self.outliers._write(writer, 'outliers')
             logger.debug("Wrote the PSF outliers to %s", writer.get_full_name('outliers'))
 
-    def _finish_read(self, fits, extname, logger):
+    def _finish_read(self, reader, logger):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this PSF in the serialized output.
         :param logger:      A logger object for logging debug info.
         """
-        chisq_dict = read_kwargs(fits, extname + '_chisq')
+        chisq_dict = reader.read_struct('chisq')
         for key in chisq_dict:
             setattr(self, key, chisq_dict[key])
-        self.model = Model.read(fits, extname + '_model')
-        self.interp = Interp.read(fits, extname + '_interp')
-        if extname + '_outliers' in fits:
-            self.outliers = Outliers.read(fits, extname + '_outliers')
-        else:
-            self.outliers = None
+        self.model = Model._read(reader, 'model')
+        self.interp = Interp._read(reader, 'interp')
+        self.outliers = Outliers._read(reader, 'outliers')

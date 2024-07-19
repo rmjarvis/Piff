@@ -17,7 +17,6 @@
 """
 
 import numpy as np
-from .util import read_kwargs
 
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
@@ -227,36 +226,39 @@ class Interp(object):
 
         :returns: an interpolator built with a information in the FITS file.
         """
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        assert 'type' in fits[extname].read().dtype.names
-        # interp_type = fits[extname].read_column('type')
-        interp_type = fits[extname].read()['type']
-        assert len(interp_type) == 1
-        try:
-            interp_type = str(interp_type[0].decode())
-        except AttributeError:
-            # fitsio 1.0 returns strings
-            interp_type = interp_type[0]
+        from .readers import FitsReader
+        return cls._read(FitsReader(fits, None), extname)
+
+    @classmethod
+    def _read(cls, reader, name):
+        """Read an Interp via a Reader object.
+
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this interpolator in the serialized output.
+
+        :returns: an interpolator built from serialized information.
+        """
+        kwargs = reader.read_struct(name)
+        assert kwargs is not None
+        assert 'type' in kwargs
+        interp_type = kwargs.pop('type')
 
         # Check that interp_type is a valid Interp type.
         if interp_type not in Interp.valid_interp_types:
             raise ValueError("interp type %s is not a valid Piff Interpolation"%interp_type)
         interp_cls = Interp.valid_interp_types[interp_type]
 
-        kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type',None)
         interp = interp_cls(**kwargs)
-        interp._finish_read(fits, extname)
+        with reader.nested(name) as r:
+            interp._finish_read(r)
         return interp
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
         The base class implementation doesn't do anything, but this will probably always be
         overridden by the derived class.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         raise NotImplementedError("Derived classes must define the _finish_read method.")

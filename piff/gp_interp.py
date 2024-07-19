@@ -321,13 +321,13 @@ class GPInterp(Interp):
 
         writer.write_table('kernel', data)
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
-        data = fits[extname+'_kernel'].read()
+        data = reader.read_table('kernel')
+        assert data is not None
         # Run fit to set up GP, but don't actually do any hyperparameter optimization. Just
         # set the GP up using the current hyperparameters.
         # Need to give back average fits files if needed.

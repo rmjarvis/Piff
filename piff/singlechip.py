@@ -198,15 +198,16 @@ class SingleChipPSF(PSF):
         for chipnum in chipnums:
             self.psf_by_chip[chipnum]._write(writer, str(chipnum), logger)
 
-    def _finish_read(self, fits, extname, logger):
+    def _finish_read(self, reader, logger):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param reader:      A reader object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        chipnums = fits[extname + '_chipnums'].read()['chipnums']
+        table = reader.read_table('chipnums')
+        assert table is not None
+        chipnums = table['chipnums']
         self.psf_by_chip = {}
         for chipnum in chipnums:
-            self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
+            self.psf_by_chip[chipnum] = PSF._read(reader, str(chipnum), logger)
         self.single_psf = self.psf_by_chip[chipnums[0]]

@@ -451,11 +451,27 @@ class Star(object):
 
         :returns: a list of Star instances
         """
-        assert extname in fits
-        colnames = fits[extname].get_colnames()
-        header = fits[extname].read_header()
-        if 'PARAMS_LENS' in header:
-            params_lens = np.atleast_1d(eval(header['PARAMS_LENS']))
+        from .readers import FitsReader
+        result = cls._read(FitsReader(fits, None), extname)
+        assert result is not None
+        return result
+
+    @classmethod
+    def _read(cls, reader, name):
+        """Read stars from a FITS file.
+
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:         Name associated with the stars in the serialized output.
+        :returns: a list of Star instances, or None if there aren't any
+        """
+        metadata = {}
+        data = reader.read_table(name, metadata)
+        if data is None:
+            return None
+
+        colnames = list(data.dtype.names)
+        if 'PARAMS_LENS' in metadata:
+            params_lens = np.atleast_1d(eval(metadata['PARAMS_LENS']))
         else:
             params_lens = None
 
@@ -468,7 +484,6 @@ class Star(object):
         # These two might not be there, but if they are, remove them.
         colnames = [key for key in colnames if key not in ['reserve', 'flag_psf']]
 
-        data = fits[extname].read()
         x_list = data['x']
         y_list = data['y']
         u_list = data['u']
