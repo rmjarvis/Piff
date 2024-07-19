@@ -16,7 +16,6 @@
 .. module:: model
 """
 
-from .util import read_kwargs
 from .star import Star
 
 
@@ -204,29 +203,37 @@ class Model(object):
 
         :returns: a model built with a information in the FITS file.
         """
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        model_type = fits[extname].read()['type']
-        assert len(model_type) == 1
-        try:
-            model_type = str(model_type[0].decode())
-        except AttributeError:
-            # fitsio 1.0 returns strings
-            model_type = model_type[0]
+        from .readers import FitsReader
+        return cls._read(FitsReader(fits, None), extname)
+
+    @classmethod
+    def _read(cls, reader, name):
+        """Read a Model from a FITS file.
+
+        Note: the returned Model will not have its parameters set.  This just initializes a fresh
+        model that can be used to interpret interpolated vectors.
+
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this model in the serialized output.
+
+        :returns: a model built with a information in the FITS file
+        """
+        kwargs = reader.read_struct(name)
+        assert kwargs is not None
+        assert 'type' in kwargs
+        model_type = kwargs.pop('type')
 
         # Check that model_type is a valid Model type.
         if model_type not in Model.valid_model_types:
             raise ValueError("model type %s is not a valid Piff Model"%model_type)
         model_cls = Model.valid_model_types[model_type]
 
-        kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type',None)
         if 'force_model_center' in kwargs: # pragma: no cover
             # old version of this parameter name.
             kwargs['centered'] = kwargs.pop('force_model_center')
         model_cls._fix_kwargs(kwargs)
         model = model_cls(**kwargs)
-        model._finish_read(fits, extname)
+        model._finish_read(reader)
         return model
 
     @classmethod
@@ -243,14 +250,13 @@ class Model(object):
         """
         pass
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Model classes need to read extra information from the
         fits file.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         pass

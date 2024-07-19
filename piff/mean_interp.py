@@ -70,11 +70,11 @@ class Mean(Interp):
         data = np.array(list(zip(*cols)), dtype=dtypes)
         writer.write_table('solution', data)
 
-    def _finish_read(self, fits, extname):
-        """Read the solution from a FITS binary table.
+    def _finish_read(self, reader):
+        """Read the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension
+        :param reader:      A reader object that encapsulates the serialization format.
         """
-        data = fits[extname + '_solution'].read()
+        data = reader.read_table('solution')
+        assert data is not None
         self.mean = data['mean']

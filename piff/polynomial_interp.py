@@ -370,17 +370,16 @@ class Polynomial(Interp):
         writer.write_table('solution', data, metadata=header)
 
 
-    def _finish_read(self, fits, extname):
-        """Read the solution from a fits file.
+    def _finish_read(self, reader):
+        """Read the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         # Read the solution extension.
-        data = fits[extname + '_solution'].read()
-        header = fits[extname + '_solution'].read_header()
-
-        self.nparam = header['NPARAM']
+        metadata = {}
+        data = reader.read_table('solution', metadata=metadata)
+        assert data is not None
+        self.nparam = metadata['NPARAM']
 
         # Run setup functions to get these values right.
         self._set_function(self.poly_type)

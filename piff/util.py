@@ -101,21 +101,6 @@ def adjust_value(value, dtype):
             # For other numpy arrays, we can use astype instead.
             return np.array(value).astype(t)
 
-def read_kwargs(fits, extname):
-    """A helper function for reading a single row table from a fits file returning the values
-    and column names as a kwargs dict.
-
-    :param fits:        An open fitsio.FITS instance
-    :param extname:     The extension to read.
-
-    :returns: A dict of the kwargs that were read from the file.
-    """
-    cols = fits[extname].get_colnames()
-    data = fits[extname].read()
-    assert len(data) == 1
-    kwargs = dict([ (col, data[col][0]) for col in cols ])
-    return kwargs
-
 def estimate_cov_from_jac(jac):
     """Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
     .. math::
