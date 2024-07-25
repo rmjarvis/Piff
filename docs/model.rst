@@ -9,12 +9,19 @@ The Model base class
 .. autoclass:: piff.Model
    :members:
 
+    .. automethod:: piff.Model._finish_write
+    .. automethod:: piff.Model._finish_read
+    .. automethod:: piff.Model._fix_kwargs
+
 
 Models based on GalSim objects
 ------------------------------
 
 .. autoclass:: piff.GSObjectModel
    :members:
+
+    .. automethod:: piff.GSObjectModel._resid
+    .. automethod:: piff.GSObjectModel._get_params
 
 .. autoclass:: piff.Gaussian
    :members:
