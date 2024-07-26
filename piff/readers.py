@@ -91,18 +91,6 @@ class FitsReader:
         :returns:  A numpy array with a structured dtype, or `None` if no
                    object with this name was saved.
         """
-        return self.read_array(name, metadata)
-
-    def read_array(self, name, metadata=None):
-        """Load a regular a numpy array that does not have a structured dtype.
-
-        :param name:      Name used to save this array in `FitsWriter.write_array`.
-        :param metadata:  If not `None`, a `dict` to be filled with any
-                          metadata associated with the array on write.  Key
-                          case may not be preserved!
-
-        :returns:  A numpy array, or `None` if no object with this name was saved.
-        """
         extname = self.get_full_name(name)
         if extname not in self._fits:
             return None

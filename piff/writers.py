@@ -94,23 +94,6 @@ class FitsWriter:
             header = self._header
         self._fits.write_table(array, extname=self.get_full_name(name), header=header)
 
-    def write_array(self, name, array, metadata=None):
-        """Write a numpy array that does not have a structured dtype.
-
-        :param name:      Name used to save this array.
-        :param metadata:  A `dict` of simple metadata to save with the array.
-                          Keys must be `str` (case may not be preserved) and
-                          values must be `int`, `float`, `str`, or `bool`.
-        """
-        if metadata:
-            header = self._header.copy()
-            header.update(metadata)
-        else:
-            header = self._header
-        self._fits.write_image(
-            array, extname=self.get_full_name(name), header=self._header
-        )
-
     def write_wcs_map(self, name, wcs_map, pointing):
         """Write a regular a map of WCS objects and an optoinal pointing coord.
 
