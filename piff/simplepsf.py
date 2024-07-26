@@ -257,12 +257,12 @@ class SimplePSF(PSF):
         }
         writer.write_struct('chisq', chisq_dict)
         logger.debug("Wrote the chisq info to %s", writer.get_full_name('chisq'))
-        self.model._write(writer, 'model')
+        self.model.write(writer, 'model')
         logger.debug("Wrote the PSF model to %s", writer.get_full_name('model'))
-        self.interp._write(writer, 'interp')
+        self.interp.write(writer, 'interp')
         logger.debug("Wrote the PSF interp to %s", writer.get_full_name('interp'))
         if self.outliers:
-            self.outliers._write(writer, 'outliers')
+            self.outliers.write(writer, 'outliers')
             logger.debug("Wrote the PSF outliers to %s", writer.get_full_name('outliers'))
 
     def _finish_read(self, reader, logger):
@@ -275,6 +275,6 @@ class SimplePSF(PSF):
         chisq_dict = reader.read_struct('chisq')
         for key in chisq_dict:
             setattr(self, key, chisq_dict[key])
-        self.model = Model._read(reader, 'model')
-        self.interp = Interp._read(reader, 'interp')
-        self.outliers = Outliers._read(reader, 'outliers')
+        self.model = Model.read(reader, 'model')
+        self.interp = Interp.read(reader, 'interp')
+        self.outliers = Outliers.read(reader, 'outliers')

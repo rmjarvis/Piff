@@ -366,9 +366,10 @@ def test_disk():
     # save and load
     model = piff.Optical(lam=700.0, template='des')
     model_file = os.path.join('output','optics.fits')
-    with fitsio.FITS(model_file, 'rw', clobber=True) as f:
-        model.write(f, 'optics')
-        model2 = piff.Optical.read(f, 'optics')
+    with piff.writers.FitsWriter.open(model_file) as w:
+        model.write(w, 'optics')
+    with piff.readers.FitsReader.open(model_file) as r:
+        model2 = piff.Optical.read(r, 'optics')
 
     for key in model.kwargs:
         assert key in model2.kwargs, 'key %r missing from model2 kwargs'%key

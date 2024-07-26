@@ -165,9 +165,10 @@ def test_disk():
     knn.initialize(star_list)
     knn.solve(star_list)
     knn_file = os.path.join('output','knn_interp.fits')
-    with fitsio.FITS(knn_file,'rw',clobber=True) as f:
-        knn.write(f, 'knn')
-        knn2 = piff.KNNInterp.read(f, 'knn')
+    with piff.writers.FitsWriter.open(knn_file) as w:
+        knn.write(w, 'knn')
+    with piff.readers.FitsReader.open(knn_file) as r:
+        knn2 = piff.KNNInterp.read(r, 'knn')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
     np.testing.assert_array_equal(knn.kwargs['keys'], knn2.kwargs['keys'])
@@ -246,9 +247,10 @@ def test_decam_disk():
     knn.misalign_wavefront(misalignment)
 
     knn_file = os.path.join('output','decam_wavefront.fits')
-    with fitsio.FITS(knn_file,'rw',clobber=True) as f:
-        knn.write(f, 'decam_wavefront')
-        knn2 = piff.des.DECamWavefront.read(f, 'decam_wavefront')
+    with piff.writers.FitsWriter.open(knn_file) as w:
+        knn.write(w, 'decam_wavefront')
+    with piff.readers.FitsReader.open(knn_file) as r:
+        knn2 = piff.des.DECamWavefront.read(r, 'decam_wavefront')
     np.testing.assert_array_equal(knn.locations, knn2.locations)
     np.testing.assert_array_equal(knn.targets, knn2.targets)
     np.testing.assert_array_equal(knn.keys, knn2.keys)

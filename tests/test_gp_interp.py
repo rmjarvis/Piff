@@ -224,10 +224,10 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
 
     # Check I/O.
     file_name = os.path.join('output', 'test_gp.fits')
-    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
-        interp.write(fout, extname='gp')
-    with fitsio.FITS(file_name,'r') as fin:
-        interp2 = piff.Interp.read(fin, extname='gp')
+    with piff.writers.FitsWriter.open(file_name) as w:
+        interp.write(w, 'gp')
+    with piff.readers.FitsReader.open(file_name) as r:
+        interp2 = piff.Interp.read(r, 'gp')
 
     stars_test = interp2.interpolateList(stars_validation)
     y_test = np.array([star.fit.params for star in stars_test])

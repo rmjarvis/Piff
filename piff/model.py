@@ -150,19 +150,7 @@ class Model(object):
         prof.drawImage(image, method=self._method, center=star.image_pos)
         return Star(star.data.withNew(image=image), star.fit)
 
-    def write(self, fits, extname):
-        """Write a Model to a FITS file.
-
-        This method exists for backwards compatibility; subclasses should
-        reimplement _write or _finish_write instead.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the model information.
-        """
-        from .writers import FitsWriter
-        self._write(FitsWriter(fits, None, {}), extname)
-
-    def _write(self, writer, name):
+    def write(self, writer, name):
         """Write a Model via a Writer object.
 
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
@@ -192,22 +180,7 @@ class Model(object):
         pass
 
     @classmethod
-    def read(cls, fits, extname):
-        """Read a Model from a FITS file.
-
-        Note: the returned Model will not have its parameters set.  This just initializes a fresh
-        model that can be used to interpret interpolated vectors.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the model information.
-
-        :returns: a model built with a information in the FITS file.
-        """
-        from .readers import FitsReader
-        return cls._read(FitsReader(fits, None), extname)
-
-    @classmethod
-    def _read(cls, reader, name):
+    def read(cls, reader, name):
         """Read a Model from a FITS file.
 
         Note: the returned Model will not have its parameters set.  This just initializes a fresh

@@ -159,11 +159,11 @@ def test_base():
     # Mock this by pretending that MADOutliers is the only subclass of Outliers.
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.Outliers.valid_outliers_types', {'MAD': piff.outliers.MADOutliers}):
-        with fitsio.FITS(filename,'r') as f:
-            np.testing.assert_raises(ValueError, piff.Outliers.read, f, extname='psf_outliers')
+        with piff.readers.FitsReader.open(filename) as r:
+            np.testing.assert_raises(ValueError, piff.Outliers.read, r, 'psf_outliers')
 
-    with fitsio.FITS(filename,'r') as f:
-        out = piff.Outliers.read(f, extname='psf_outliers')
+    with piff.readers.FitsReader.open(filename) as r:
+        out = piff.Outliers.read(r, 'psf_outliers')
         print(out)
 
     # Check that registering new types works correctly

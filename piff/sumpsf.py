@@ -305,7 +305,7 @@ class SumPSF(PSF):
         for k, comp in enumerate(self.components):
             comp._write(writer, str(k), logger=logger)
         if self.outliers:
-            self.outliers._write(writer, 'outliers')
+            self.outliers.write(writer, 'outliers')
             logger.debug("Wrote the PSF outliers to %s", writer.get_full_name('outliers'))
 
     def _finish_read(self, reader, logger):
@@ -322,6 +322,6 @@ class SumPSF(PSF):
         self.components = []
         for k in range(ncomponents):
             self.components.append(PSF._read(reader, str(k), logger=logger))
-        self.outliers = Outliers._read(reader, 'outliers')
+        self.outliers = Outliers.read(reader, 'outliers')
         # Set up all the num's properly now that everything is constructed.
         self.set_num(None)
