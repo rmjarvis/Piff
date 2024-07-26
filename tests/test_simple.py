@@ -665,12 +665,12 @@ def test_model():
     # Mock this by pretending that Gaussian is the only subclass of Model.
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.Model.valid_model_types', {'Gaussian': piff.Gaussian}):
-        with fitsio.FITS(filename,'r') as f:
-            np.testing.assert_raises(ValueError, piff.Model.read, f, extname='psf_model')
+        with piff.readers.FitsReader.open(filename) as r:
+            np.testing.assert_raises(ValueError, piff.Model.read, r, 'psf_model')
 
     # But normally this file can be read...
-    with fitsio.FITS(filename,'r') as f:
-        model = piff.Model.read(f, extname='psf_model')
+    with piff.readers.FitsReader.open(filename) as r:
+        model = piff.Model.read(r, 'psf_model')
         print(model)
 
     # We don't have any abstract model base classes (as we do for interp for instance),
@@ -722,12 +722,12 @@ def test_interp():
     # Invalid to read a type that isn't a piff.Interp type.
     # Mock this by pretending that Mean is the only subclass of Interp.
     with mock.patch('piff.Interp.valid_interp_types', {'Mean': piff.Mean}):
-        with fitsio.FITS(filename2,'r') as f:
-            np.testing.assert_raises(ValueError, piff.Interp.read, f, extname='psf_interp')
+        with piff.readers.FitsReader.open(filename2) as r:
+            np.testing.assert_raises(ValueError, piff.Interp.read, r, 'psf_interp')
 
     # But normally this file can be read...
-    with fitsio.FITS(filename2,'r') as f:
-        interp = piff.Interp.read(f, extname='psf_interp')
+    with piff.readers.FitsReader.open(filename2) as r:
+        interp = piff.Interp.read(r, 'psf_interp')
         print(interp)
 
     # BasisInterp is an abstract base class, so it shouldn't be in the list of valid types

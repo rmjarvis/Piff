@@ -173,19 +173,7 @@ class Interp(object):
         """
         return [ self.interpolate(star) for star in stars ]
 
-    def write(self, fits, extname):
-        """Write an Interp to a FITS file.
-
-        This method exists for backwards compatibility; subclasses should
-        reimplement _write or _finish_write instead.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the interpolator information.
-        """
-        from .writers import FitsWriter
-        self._write(FitsWriter(fits, None, {}), extname)
-
-    def _write(self, writer, name):
+    def write(self, writer, name):
         """Write an Interp via a Writer object.
 
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
@@ -218,19 +206,7 @@ class Interp(object):
         raise NotImplementedError("Derived classes must define the _finish_write method.")
 
     @classmethod
-    def read(cls, fits, extname):
-        """Read an Interp from a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the interpolator information.
-
-        :returns: an interpolator built with a information in the FITS file.
-        """
-        from .readers import FitsReader
-        return cls._read(FitsReader(fits, None), extname)
-
-    @classmethod
-    def _read(cls, reader, name):
+    def read(cls, reader, name):
         """Read an Interp via a Reader object.
 
         :param reader:      A reader object that encapsulates the serialization format.

@@ -328,18 +328,7 @@ class Star(object):
         return cls(data, fit)
 
     @classmethod
-    def write(cls, stars, fits, extname):
-        """Write a list of stars to a FITS file.
-
-        :param stars:       A list of stars to write
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write to
-        """
-        from .writers import FitsWriter
-        cls._write(stars, FitsWriter(fits, None, {}), extname)
-
-    @classmethod
-    def _write(cls, stars, writer, name):
+    def write(cls, stars, writer, name):
         """Write a list of stars to a Writer object.
 
         :param stars:       A list of stars to write
@@ -443,21 +432,7 @@ class Star(object):
         return coords, params
 
     @classmethod
-    def read(cls, fits, extname):
-        """Read stars from a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to read from
-
-        :returns: a list of Star instances
-        """
-        from .readers import FitsReader
-        result = cls._read(FitsReader(fits, None), extname)
-        assert result is not None
-        return result
-
-    @classmethod
-    def _read(cls, reader, name):
+    def read(cls, reader, name):
         """Read stars from a FITS file.
 
         :param reader:      A reader object that encapsulates the serialization format.

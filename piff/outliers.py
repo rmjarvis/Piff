@@ -90,16 +90,7 @@ class Outliers(object):
         kwargs['logger'] = logger
         return kwargs
 
-    def write(self, fits, extname):
-        """Write an Outliers to a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the outliers information.
-        """
-        from .writers import FitsWriter
-        self._write(FitsWriter(fits, None, {}), extname)
-
-    def _write(self, writer, name):
+    def write(self, writer, name):
         """Write an Outers via a Writer object.
 
         :param writer:      A writer object that encapsulates the serialization format.
@@ -126,21 +117,7 @@ class Outliers(object):
         pass
 
     @classmethod
-    def read(cls, fits, extname):
-        """Read a Outliers from a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the outliers information.
-
-        :returns: an Outliers handler
-        """
-        from .readers import FitsReader
-        result = cls._read(FitsReader(fits, None), extname)
-        assert result is not None
-        return result
-
-    @classmethod
-    def _read(cls, reader, name):
+    def read(cls, reader, name):
         """Read a Outliers from a FITS file.
 
         :param reader:      A reader object that encapsulates the serialization format.

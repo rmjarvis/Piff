@@ -741,7 +741,7 @@ class PSF(object):
         logger.info("Wrote the basic PSF information to name %s", writer.get_full_name(name))
         with writer.nested(name) as w:
             if hasattr(self, 'stars'):
-                Star._write(self.stars, w, 'stars')
+                Star.write(self.stars, w, 'stars')
                 logger.info("Wrote the PSF stars to name %s", w.get_full_name('stars'))
             if hasattr(self, 'wcs'):
                 w.write_wcs_map('wcs', self.wcs, self.pointing)
@@ -798,7 +798,7 @@ class PSF(object):
 
         with reader.nested(name) as r:
             # Read the stars, wcs, pointing values
-            stars = Star._read(r, 'stars')
+            stars = Star.read(r, 'stars')
             if stars is not None:
                 logger.debug("stars = %s", stars)
                 psf.stars = stars

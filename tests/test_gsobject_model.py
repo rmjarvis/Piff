@@ -163,10 +163,10 @@ def test_simple():
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_test.fits')
-        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
-            model.write(f, 'psf_model')
-        with fitsio.FITS(outfile, 'r') as f:
-            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        with piff.writers.FitsWriter.open(outfile) as w:
+            model.write(w, 'psf_model')
+        with piff.readers.FitsReader.open(outfile) as r:
+            roundtrip_model = piff.GSObjectModel.read(r, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
         # Check the deprecated name in config
@@ -903,10 +903,10 @@ def test_direct():
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_direct_test.fits')
-        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
-            model.write(f, 'psf_model')
-        with fitsio.FITS(outfile, 'r') as f:
-            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        with piff.writers.FitsWriter.open(outfile) as w:
+            model.write(w, 'psf_model')
+        with piff.readers.FitsReader.open(outfile) as r:
+            roundtrip_model = piff.GSObjectModel.read(r, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
     # repeat with fastfit=False
@@ -958,10 +958,10 @@ def test_direct():
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_direct_test.fits')
-        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
-            model.write(f, 'psf_model')
-        with fitsio.FITS(outfile, 'r') as f:
-            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        with piff.writers.FitsWriter.open(outfile) as w:
+            model.write(w, 'psf_model')
+        with piff.readers.FitsReader.open(outfile) as r:
+            roundtrip_model = piff.GSObjectModel.read(r, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
 @timer

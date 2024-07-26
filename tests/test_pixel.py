@@ -359,9 +359,9 @@ def test_basis_interp():
     np.testing.assert_raises(RuntimeError, basis.solve, [star])
     np.testing.assert_raises(RuntimeError, basis.interpolate, star)
     file_name = os.path.join('output','test_basis_interp.fits')
-    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
+    with piff.writers.FitsWriter.open(file_name) as w:
         with np.testing.assert_raises(RuntimeError):
-            basis.write(fout, extname='basis')
+            basis.write(w, 'basis')
 
     # Other options for order
     basis = piff.BasisPolynomial(order=2)
