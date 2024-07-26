@@ -18,7 +18,6 @@
 
 from contextlib import contextmanager
 
-import os
 import fitsio
 import galsim
 import numpy as np
@@ -26,113 +25,8 @@ import numpy as np
 from .util import make_dtype, adjust_value
 
 
-class Writer:
-    """An interface for writing that abstracts the serialization format.
-
-    The `open` static method should be used to obtain the right writer for
-    a particular file based on its extension, but specific subclasses can be
-    constructed directly as well.
-
-    A `Writer` subclass is always paired with a `Reader` subclass, and the
-    methods of `Reader` each directly correspond to a method of `Writer`.
-
-    All `Reader` and `Writer` methods take a ``name`` argument that is
-    associated with the low-level data structured being saved.  When writing,
-    an object can chose not to write a subobject at all with a given name, and
-    then check to see if the corresponding `Reader` method returns `None`, but
-    a `Reader` cannot be used to see what type of data structure was saved with
-    a given name; if this can change, the write implementation must store this
-    explicitly and use it when invoking the `Reader`.
-    """
-
-    @staticmethod
-    @contextmanager
-    def open(file_name):
-        """Return a context manager that yields a `Writer` appropriate for the
-        given filename.
-
-        :param filename:   Name of the file to open (`str`).
-
-        :returns:  A context manager that yields a `Writer`.
-        """
-        _, ext = os.path.splitext(file_name)
-        if ext == ".fits" or ext == ".piff":
-            with FitsWriter._open(file_name) as writer:
-                yield writer
-            return
-        else:
-            raise NotImplementedError(f"No writer for extension {ext!r}.")
-
-    def write_struct(self, name, struct):
-        """Write a simple flat dictionary.
-
-        :param name:        Name used to save this struct.
-        :param struct:      A `dict` with `str` keys and `int`, `float`, `str`,
-                            `bool`, or `None` values.
-        """
-        raise NotImplementedError()
-
-    def write_table(self, name, table, metadata=None):
-        """Write a table via a numpy array.
-
-        :param name:      Name used to save this table.
-        :param metadata:  A `dict` of simple metadata to save with the table.
-                          Keys must be `str` (case may not be preserved) and
-                          values must be `int`, `float`, `str`, or `bool`.
-        """
-        raise NotImplementedError()
-
-    def write_array(self, name, array, metadata=None):
-        """Write a numpy array that does not have a structured dtype.
-
-        :param name:      Name used to save this array.
-        :param metadata:  A `dict` of simple metadata to save with the array.
-                          Keys must be `str` (case may not be preserved) and
-                          values must be `int`, `float`, `str`, or `bool`.
-        """
-        raise NotImplementedError()
-
-    def write_wcs_map(self, name, wcs_map, pointing):
-        """Write a regular a map of WCS objects and an optoinal pointing coord.
-
-        :param name:      Name used to save this struct in `Writer.write_array`.
-        :param wcs_map:   A `dict` mapping `int` chipnum to `galsim.BaseWCS`.
-        :param pointing:  A `galsim.CelestialCoord`, or `None`.
-        :param logger:    A logger object for logging debug info.
-        """
-        raise NotImplementedError()
-
-    def nested(self, name):
-        """Return a context manager that yields a new `Writer` that nests all
-        names it is given within this one.
-
-        :param name:     Base name for all objects written with the returned object.
-
-        :returns:     A context manager that yields a nested writer object.
-
-        It is implementation-defined whether the content written by the nested
-        writer is actually written immediately or only when the context manager
-        exits.
-        """
-        raise NotImplementedError()
-
-    def get_full_name(self, name):
-        """Return the full name of a data structure saved with the given name,
-        combining it with any base names added if this `Writer` was created by
-        the `nested` method.
-        """
-        raise NotImplementedError()
-
-
-class FitsWriter(Writer):
-    """A `Writer` implementation that writes to multiple FITS HDUs.
-
-    This reader is intended to writes files that would be readable Piff before
-    the `Reader` and `Writer` abstractions were added.
-
-    `FitsWriter.nested` yields a writer that writes to the same file and
-    prepends all names with its base name to form the EXTNAME, concatenating
-    them with ``_``.
+class FitsWriter:
+    """A writer object that writes to multiple FITS HDUs.
 
     :param fits:        An already-open `fitsio.FITS` object.
     :param base_name:   Base name to prepend to all object names, or `None`.
@@ -146,7 +40,7 @@ class FitsWriter(Writer):
 
     @classmethod
     @contextmanager
-    def _open(cls, file_name):
+    def open(cls, file_name):
         """Return a context manager that opens the given FITS file and yields
         a `FitsWriter` object.
 
@@ -166,7 +60,12 @@ class FitsWriter(Writer):
             yield cls(f, base_name=None, header=header.copy())
 
     def write_struct(self, name, struct):
-        # Docstring inherited.
+        """Write a simple flat dictionary.
+
+        :param name:        Name used to save this struct.
+        :param struct:      A `dict` with `str` keys and `int`, `float`, `str`,
+                            `bool`, or `None` values.
+        """
         cols = []
         dtypes = []
         for key, value in struct.items():
@@ -181,7 +80,13 @@ class FitsWriter(Writer):
         return self.write_table(name, table)
 
     def write_table(self, name, array, metadata=None):
-        # Docstring inherited.
+        """Write a table via a numpy array.
+
+        :param name:      Name used to save this table.
+        :param metadata:  A `dict` of simple metadata to save with the table.
+                          Keys must be `str` (case may not be preserved) and
+                          values must be `int`, `float`, `str`, or `bool`.
+        """
         if metadata:
             header = self._header.copy()
             header.update(metadata)
@@ -190,7 +95,13 @@ class FitsWriter(Writer):
         self._fits.write_table(array, extname=self.get_full_name(name), header=header)
 
     def write_array(self, name, array, metadata=None):
-        # Docstring inherited.
+        """Write a numpy array that does not have a structured dtype.
+
+        :param name:      Name used to save this array.
+        :param metadata:  A `dict` of simple metadata to save with the array.
+                          Keys must be `str` (case may not be preserved) and
+                          values must be `int`, `float`, `str`, or `bool`.
+        """
         if metadata:
             header = self._header.copy()
             header.update(metadata)
@@ -201,7 +112,13 @@ class FitsWriter(Writer):
         )
 
     def write_wcs_map(self, name, wcs_map, pointing):
-        # Docstring inherited.
+        """Write a regular a map of WCS objects and an optoinal pointing coord.
+
+        :param name:      Name used to save this WCS map.
+        :param wcs_map:   A `dict` mapping `int` chipnum to `galsim.BaseWCS`.
+        :param pointing:  A `galsim.CelestialCoord`, or `None`.
+        :param logger:    A logger object for logging debug info.
+        """
         import base64
         import pickle
         # Start with the chipnums
@@ -243,11 +160,23 @@ class FitsWriter(Writer):
 
     @contextmanager
     def nested(self, name):
-        # Docstring inherited.
+        """Return a context manager that yields a new `FitsWriter` that nests
+        all names it is given within this one.
+
+        :param name:     Base name for all objects written with the returned object.
+
+        :returns:     A context manager that yields a nested writer object.
+        """
         yield FitsWriter(
             self._fits, base_name=self.get_full_name(name), header=self._header
         )
 
     def get_full_name(self, name):
-        # Docstring inherited.
+        """Return the full name of a data structure saved with the given name,
+        combining it with any base names added if this `FitsWriter` was created
+        by the `nested` method.
+
+        The FITS implementation concatenates with ``_`` as a delimiter, and
+        uses the full name as the EXTNAME header value.
+        """
         return name if self._base_name is None else f"{self._base_name}_{name}"

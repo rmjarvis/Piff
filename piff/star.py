@@ -329,7 +329,7 @@ class Star(object):
 
     @classmethod
     def write(cls, stars, writer, name):
-        """Write a list of stars to a Writer object.
+        """Write a list of stars to a writer object.
 
         :param stars:       A list of stars to write
         :param writer:      A writer object that encapsulates the serialization format.

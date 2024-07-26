@@ -91,7 +91,7 @@ class Outliers(object):
         return kwargs
 
     def write(self, writer, name):
-        """Write an Outers via a Writer object.
+        """Write an Outers via a writer object.
 
         :param writer:      A writer object that encapsulates the serialization format.
         :param name:        A name to associate with the Ootliers in the serialized output.
