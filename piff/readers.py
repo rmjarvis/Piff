@@ -20,7 +20,6 @@ from contextlib import contextmanager
 
 import fitsio
 import galsim
-import numpy as np
 
 
 class FitsReader:
@@ -63,13 +62,7 @@ class FitsReader:
         cols = self._fits[extname].get_colnames()
         data = self._fits[extname].read()
         assert len(data) == 1
-        struct = dict([ (col, data[col][0]) for col in cols ])
-        for k, v in struct.items():
-            # We assume all bytes are supposed to be strs in read_struct, but
-            # not in read_table.
-            if isinstance(v, bytes):
-                struct[k] = v.decode()
-        return struct
+        return dict([ (col, data[col][0]) for col in cols ])
 
     def read_table(self, name, metadata=None):
         """Load a table as a numpy array.
