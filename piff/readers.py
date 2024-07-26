@@ -65,19 +65,10 @@ class FitsReader:
         assert len(data) == 1
         struct = dict([ (col, data[col][0]) for col in cols ])
         for k, v in struct.items():
-            # Convert numpy scalar types to native Python types.  We assume all
-            # bytes are supposed to be strs in read_struct, but not in
-            # read_table.  Conversions from numeric types are important because
-            # numpy scalars don't always satisfy the expected isinstance
-            # checks.
+            # We assume all bytes are supposed to be strs in read_struct, but
+            # not in read_table.
             if isinstance(v, bytes):
                 struct[k] = v.decode()
-            elif isinstance(v, np.bool_):
-                struct[k] = bool(v)
-            elif isinstance(v, np.integer):
-                struct[k] = int(v)
-            elif isinstance(v, np.floating):
-                struct[k] = float(v)
         return struct
 
     def read_table(self, name, metadata=None):
