@@ -203,11 +203,7 @@ class FitsWriter(Writer):
     def write_wcs_map(self, name, wcs_map, pointing):
         # Docstring inherited.
         import base64
-
-        try:
-            import cPickle as pickle
-        except ImportError:
-            import pickle
+        import pickle
         # Start with the chipnums
         chipnums = list(wcs_map.keys())
         cols = [chipnums]
