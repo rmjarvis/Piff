@@ -174,7 +174,7 @@ class Interp(object):
         return [ self.interpolate(star) for star in stars ]
 
     def write(self, writer, name):
-        """Write an Interp via a Writer object.
+        """Write an Interp via a writer object.
 
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
 
@@ -207,7 +207,7 @@ class Interp(object):
 
     @classmethod
     def read(cls, reader, name):
-        """Read an Interp via a Reader object.
+        """Read an Interp via a reader object.
 
         :param reader:      A reader object that encapsulates the serialization format.
         :param name:        Name associated with this interpolator in the serialized output.

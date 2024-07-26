@@ -719,12 +719,12 @@ class PSF(object):
         :param file_name:   The name of the file to write to.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        from .writers import Writer
+        from .writers import FitsWriter
 
         logger = galsim.config.LoggerWrapper(logger)
         logger.warning("Writing PSF to file %s",file_name)
 
-        with Writer.open(file_name) as w:
+        with FitsWriter.open(file_name) as w:
             self._write(w, 'psf', logger=logger)
 
     def _write(self, writer, name, logger):
