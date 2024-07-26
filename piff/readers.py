@@ -200,10 +200,7 @@ class FitsReader(Reader):
     def read_wcs_map(self, name, logger):
         # Docstring inherited.
         import base64
-        try:
-            import cPickle as pickle
-        except ImportError:
-            import pickle
+        import pickle
 
         extname = self.get_full_name(name)
         if extname not in self._fits:
