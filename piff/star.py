@@ -433,7 +433,7 @@ class Star(object):
 
     @classmethod
     def read(cls, reader, name):
-        """Read stars from a FITS file.
+        """Read a list of stars via an open reader object.
 
         :param reader:      A reader object that encapsulates the serialization format.
         :param name:         Name associated with the stars in the serialized output.
