@@ -1039,57 +1039,57 @@ def test_single_image():
 
     try:
         import jax
-    except ImportError:
-        print("JAX not installed. Skipping JAX tests.")
-    else:
-        configJax = copy.deepcopy(config)
-        configJax['psf']['interp']['use_jax'] = True
         jax.config.update("jax_enable_x64", True)
-        test_star_jax = []
+    except ImportError:
+        print("JAX not installed.")
 
-        for conf in [config, configJax]:
-            print("Running piffify function")
-            piff.piffify(conf)
+    configJax = copy.deepcopy(config)
+    configJax['psf']['interp']['use_jax'] = True
+    test_star_jax = []
+
+    for conf in [config, configJax]:
+        print("Running piffify function")
+        piff.piffify(conf)
+        psf = piff.read(psf_file)
+        test_star = psf.drawStar(target_star)
+        test_star_jax.append(test_star)
+        print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
+        np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
+
+        # Test using the piffify executable
+        with open('pixel_moffat.yaml','w') as f:
+            f.write(yaml.dump(conf, default_flow_style=False))
+        if __name__ == '__main__':
+            print("Running piffify executable")
+            if os.path.exists(psf_file):
+                os.remove(psf_file)
+            piffify_exe = get_script_name('piffify')
+            p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
+            p.communicate()
             psf = piff.read(psf_file)
             test_star = psf.drawStar(target_star)
-            test_star_jax.append(test_star)
-            print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
             np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
-            # Test using the piffify executable
-            with open('pixel_moffat.yaml','w') as f:
-                f.write(yaml.dump(conf, default_flow_style=False))
-            if __name__ == '__main__':
-                print("Running piffify executable")
-                if os.path.exists(psf_file):
-                    os.remove(psf_file)
-                piffify_exe = get_script_name('piffify')
-                p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
-                p.communicate()
-                psf = piff.read(psf_file)
-                test_star = psf.drawStar(target_star)
-                np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
+        # test copy_image property of draw
+        target_star_copy = psf.interp.interpolate(target_star)
+        test_star_copy = psf.model.draw(target_star_copy, copy_image=True)
+        test_star_nocopy = psf.model.draw(target_star_copy, copy_image=False)
+        # if we modify target_star_copy, then test_star_nocopy should be modified, but not test_star_copy
+        target_star_copy.image.array[0,0] = 23456
+        assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
+        assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
+        # however the other pixels SHOULD still be all the same value
+        assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
+        assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
 
-            # test copy_image property of draw
-            target_star_copy = psf.interp.interpolate(target_star)
-            test_star_copy = psf.model.draw(target_star_copy, copy_image=True)
-            test_star_nocopy = psf.model.draw(target_star_copy, copy_image=False)
-            # if we modify target_star_copy, then test_star_nocopy should be modified, but not test_star_copy
-            target_star_copy.image.array[0,0] = 23456
-            assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
-            assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
-            # however the other pixels SHOULD still be all the same value
-            assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
-            assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
+        # check that drawing onto an image does not return a copy
+        image = psf.draw(x=x0, y=y0)
+        image_reference = psf.draw(x=x0, y=y0, image=image)
+        image_reference.array[0,0] = 123456
+        assert image.array[0,0] == image_reference.array[0,0]
 
-            # check that drawing onto an image does not return a copy
-            image = psf.draw(x=x0, y=y0)
-            image_reference = psf.draw(x=x0, y=y0, image=image)
-            image_reference.array[0,0] = 123456
-            assert image.array[0,0] == image_reference.array[0,0]
-
-        # check that the two versions (jax vs numpy/scipy) of the test star are the same
-        np.testing.assert_allclose(test_star_jax[0].image.array, test_star_jax[1].image.array)
+    # check that the two versions (jax vs numpy/scipy) of the test star are the same
+    np.testing.assert_allclose(test_star_jax[0].image.array, test_star_jax[1].image.array)
 
 @timer
 def test_des_image():
