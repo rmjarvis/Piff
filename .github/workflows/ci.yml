@@ -21,7 +21,7 @@ jobs:
             matrix:
                 # First all python versions in basic linux
                 os: [ ubuntu-latest ]
-                py: [ 3.9, "3.10", 3.11, 3.12 ]
+                py: [ 3.7, 3.8, 3.9, "3.10", 3.11, 3.12 ]
                 CC: [ gcc ]
                 CXX: [ g++ ]
                 FFTW_DIR: [ "/usr/local/lib/" ]
@@ -114,6 +114,11 @@ jobs:
                 # Note: Pin pillow <10 until this bug is fixed:
                 #       https://github.com/python-pillow/Pillow/issues/7259
                 pip install -U nose coverage "pytest<8" nbval ipykernel "pillow<10"
+
+            - name: Install Jax
+              if: matrix.py == 3.9 || matrix.py == 3.10 || matrix.py == 3.11 || matrix.py == 3.12
+              run: |
+                pip install -U jax
 
             - name: Install Pixmappy (not on pip)
               run: |

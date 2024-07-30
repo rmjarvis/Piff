@@ -32,6 +32,9 @@ try:
 
 except ImportError:
     CAN_USE_JAX = False
+    # define dummy functions for jax
+    def jit(f):
+        return f
 else:
     CAN_USE_JAX = True
     jax.config.update("jax_enable_x64", True)
@@ -46,8 +49,8 @@ def jax_solve(ATA, ATb):
     # Original code:
     # dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
     # New code:
-    factor = (jax.scipy.linalg.cholesky(ATA, overwrite_a=True, lower=False), False)
-    dq = jax.scipy.linalg.cho_solve(factor, ATb, overwrite_b=False)
+    (factor, lower) = (jax.scipy.linalg.cholesky(ATA, overwrite_a=True, lower=False), False)
+    dq = jax.scipy.linalg.cho_solve((factor, lower), ATb, overwrite_b=False)
     return dq
 
 @jit
