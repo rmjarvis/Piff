@@ -24,14 +24,17 @@ import warnings
 from .interp import Interp
 from .star import Star
 
-import jax
-# If uncommented, the following line will make the code run in double precision
-# and have identical results as running the original code in double precision.
-# jax.config.update("jax_enable_x64", True)
-from jax import jit
-from jax import numpy as jnp
-from jax import vmap
+try: 
+    import jax
+    from jax import jit
+    from jax import numpy as jnp
+    from jax import vmap
 
+except ImportError:
+    CAN_USE_JAX = False
+else:
+    CAN_USE_JAX = True
+    jax.config.update("jax_enable_x64", True)
 
 # Bellow are implementations of _solve_direct using JAX.
 # if jax.config.update("jax_enable_x64", True) it will give the
@@ -51,19 +54,19 @@ def jax_solve(ATA, ATb):
 def build_ATA_ATb(alpha, beta, K):
     ATb = (beta[:, jnp.newaxis] * K).flatten()
     tmp1 = alpha[:, :, jnp.newaxis] * K
-    tmp2 = K[jnp.newaxis, :, jnp.newaxis, jnp.newaxis] * tmp1[:, jnp.newaxis, :, :]
-    return tmp2, ATb
+    ATA = K[jnp.newaxis, :, jnp.newaxis, jnp.newaxis] * tmp1[:, jnp.newaxis, :, :]
+    return ATA, ATb
 
 @jit
 def vmap_build_ATA_ATb(Ks, alphas, betas):
     # Use vmap to vectorize build_ATA_ATb across the first dimension of Ks, alphas, and betas
     vmapped_build_ATA_ATb = vmap(build_ATA_ATb, in_axes=(0, 0, 0))
     # Get the vectorized results
-    tmp2s, ATbs = vmapped_build_ATA_ATb(alphas, betas, Ks)
+    ATAs, ATbs = vmapped_build_ATA_ATb(alphas, betas, Ks)
     # Sum the results along the first axis
     ATb = jnp.sum(ATbs, axis=0)
-    tmp2 = jnp.sum(tmp2s, axis=0)
-    return tmp2, ATb
+    ATA = jnp.sum(ATAs, axis=0)
+    return ATA, ATb
 
 
 class BasisInterp(Interp):
@@ -292,7 +295,6 @@ class BasisInterp(Interp):
 
         # Build ATA and ATb by accumulating the chunks for each star as we go.
         nq = np.prod(self.q.shape)
-        logger.info(f'nq = {nq}')
         ATA = np.zeros((nq, nq), dtype=float)
         ATb = np.zeros(nq, dtype=float)
 
@@ -309,8 +311,8 @@ class BasisInterp(Interp):
             alphas = np.array(alphas).reshape((len(alphas), alphas[0].shape[0], alphas[0].shape[1]))
             betas = np.array(betas).reshape((len(betas), betas[0].shape[0]))
             Ks = np.array(Ks).reshape((len(Ks), Ks[0].shape[0]))
-            tmp2, ATb = vmap_build_ATA_ATb(Ks, alphas, betas)
-            ATA = tmp2.reshape(nq,nq)
+            ATA, ATb = vmap_build_ATA_ATb(Ks, alphas, betas)
+            ATA = ATA.reshape(nq,nq)
         else:
             for s in stars:
                 # Get the basis function values at this star
@@ -418,9 +420,8 @@ class BasisPolynomial(BasisInterp):
     :param use_qr:      Use QR decomposition for the solution rather than the more direct least
                         squares solution.  QR decomposition requires more memory than the default
                         and is somewhat slower (nearly a factor of 2); however, it is significantly
-                        less susceptible to numerical errors from high condition matrices.
+    :param use_jax:     Use JAX for solving the linear algebra equations rather than numpy/scipy.
                         Therefore, it may be preferred for some use cases. [default: False]
-    :param use_jax:     Use JAX in _solve_direct compared to classic numpy/scipy. [default: False]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
@@ -443,6 +444,10 @@ class BasisPolynomial(BasisInterp):
         self.use_qr = use_qr
 
         self.use_jax = use_jax
+
+        if not CAN_USE_JAX and self.use_jax:
+            logger.warning("JAX is not installed. Switching to numpy/scipy.")
+            self.use_jax = False
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
