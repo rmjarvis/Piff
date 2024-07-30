@@ -449,7 +449,6 @@ class BasisPolynomial(BasisInterp):
         self.use_jax = use_jax
 
         if not CAN_USE_JAX and self.use_jax:
-            logger.warning("JAX is not installed. Switching to numpy/scipy.")
             self.use_jax = False
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
