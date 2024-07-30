@@ -432,6 +432,8 @@ class BasisPolynomial(BasisInterp):
     def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, use_jax=False, logger=None):
         super(BasisPolynomial, self).__init__()
 
+        logger = galsim.config.LoggerWrapper(logger)
+
         self._keys = keys
         if hasattr(order,'__len__'):
             if not len(order)==len(keys):
@@ -449,6 +451,7 @@ class BasisPolynomial(BasisInterp):
         self.use_jax = use_jax
 
         if not CAN_USE_JAX and self.use_jax:
+            logger.warning("JAX not installed. Reverting to numpy/scipy.")
             self.use_jax = False
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
