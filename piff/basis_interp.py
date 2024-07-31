@@ -104,6 +104,7 @@ class BasisInterp(Interp):
         self.q = None
         self.set_num(None)
         self._use_jax = False # The default.  May be overridden by subclasses.
+        self._use_cpp = False
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
@@ -293,6 +294,15 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
+        if self._use_cpp:
+            self._solve_direct_cpp(stars, logger)
+        else:
+            self._solve_direct_pure_python(self, stars, logger)
+
+    def _solve_direct_cpp(self, stars, logger):
+        raise NotImplementedError("TO DO")
+
+    def _solve_direct_pure_python(self, stars, logger):
         """The implementation of solve() when use_qr = False.
         """
 
