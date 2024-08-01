@@ -38,6 +38,7 @@ except ImportError:
     print("Using distutils version",distutils.__version__)
 
 from distutils.command.install_headers import install_headers
+from pybind11.setup_helpers import Pybind11Extension
 
 try:
     from sysconfig import get_config_vars
@@ -291,6 +292,8 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (version_file,))
 print('Piff version is %s'%(piff_version))
 
+basis_cpp_mod = Pybind11Extension("piff/basic_solver", ["src/basic_solver.cpp"])
+
 dist = setup(name="Piff",
       version=piff_version,
       author="Mike Jarvis",
@@ -303,6 +306,7 @@ dist = setup(name="Piff",
       packages=packages,
       package_data={'piff' : shared_data},
       install_requires=dependencies,
+      ext_modules=[basis_cpp_mod],
       cmdclass = {'build_ext': my_builder,
                   'install_scripts': my_install_scripts,
                   'easy_install': my_easy_install,
