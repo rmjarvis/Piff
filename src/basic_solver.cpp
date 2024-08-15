@@ -140,8 +140,7 @@ template<class T>
 auto _solve_direct_cpp(
         std::vector<py::array_t<T>> bList,
         std::vector<py::array_t<T>> AList,
-        std::vector<py::array_t<T>> KList,
-        ssize_t K_size) {
+        std::vector<py::array_t<T>> KList) {
 
     // check some properties of the inputs, more will be done later in the
     // implementation function
@@ -188,5 +187,5 @@ PYBIND11_MODULE(basic_solver, m) {
     //m.def("_solve_direct_cpp", &_solve_direct_cpp<float>, py::return_value_policy::move,
     //    py::arg("bList"),py::arg("AList"),py::arg("KList"), py::arg("K_size") );
     m.def("_solve_direct_cpp", &_solve_direct_cpp<double>, py::return_value_policy::move,
-        py::arg("bList"),py::arg("AList"),py::arg("KList"), py::arg("K_size") );
+        py::arg("bList"),py::arg("AList"),py::arg("KList") );
 }
