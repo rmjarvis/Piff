@@ -23,6 +23,7 @@ import warnings
 
 from .interp import Interp
 from .star import Star
+from . import basic_solver
 
 try: 
     import jax
@@ -103,8 +104,8 @@ class BasisInterp(Interp):
         self.use_qr = False  # The default.  May be overridden by subclasses.
         self.q = None
         self.set_num(None)
-        self._use_jax = False # The default.  May be overridden by subclasses.
-        self._use_cpp = False
+        self.use_jax = False # The default.  May be overridden by subclasses.
+        self.use_cpp = False # The default.  May be overridden by subclasses.
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
@@ -294,13 +295,25 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
-        if self._use_cpp:
+        if self.use_cpp:
             self._solve_direct_cpp(stars, logger)
         else:
-            self._solve_direct_pure_python(self, stars, logger)
+            self._solve_direct_pure_python(stars, logger)
 
     def _solve_direct_cpp(self, stars, logger):
-        raise NotImplementedError("TO DO")
+        print('PF: I am using cpp for solve_direct')
+        Ks = []
+        alphas = []
+        betas = []
+        for s in stars:
+            # Get the basis function values at this star
+            K = self.basis(s)
+            Ks.append(K)
+            alphas.append(s.fit.alpha)
+            betas.append(s.fit.beta)
+        dq = basic_solver._solve_direct_cpp(betas, alphas, Ks)
+        self.q += dq.reshape(self.q.shape)
+
 
     def _solve_direct_pure_python(self, stars, logger):
         """The implementation of solve() when use_qr = False.
@@ -312,6 +325,7 @@ class BasisInterp(Interp):
         ATb = np.zeros(nq, dtype=float)
 
         if self.use_jax:
+            print('PF: I am using JAX for solve_direct')
             Ks = []
             alphas = []
             betas = []
@@ -327,6 +341,7 @@ class BasisInterp(Interp):
             ATA, ATb = vmap_build_ATA_ATb(Ks, alphas, betas)
             ATA = ATA.reshape(nq,nq)
         else:
+            print('PF: I am using numpy/scipy for solve_direct')
             for s in stars:
                 # Get the basis function values at this star
                 K = self.basis(s)
@@ -439,7 +454,7 @@ class BasisPolynomial(BasisInterp):
     """
     _type_name = 'BasisPolynomial'
 
-    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, use_jax=False, logger=None):
+    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, use_jax=False, use_cpp=False, logger=None):
         super(BasisPolynomial, self).__init__()
 
         logger = galsim.config.LoggerWrapper(logger)
@@ -459,6 +474,10 @@ class BasisPolynomial(BasisInterp):
         self.use_qr = use_qr
 
         self.use_jax = use_jax
+        self.use_cpp = use_cpp
+
+        if self.use_cpp and self.use_jax:
+            raise ValueError('Cannot use both JAX and C++ for solving the linear algebra equations.')
 
         if not CAN_USE_JAX and self.use_jax:
             logger.warning("JAX not installed. Reverting to numpy/scipy.")
@@ -473,6 +492,7 @@ class BasisPolynomial(BasisInterp):
             'keys' : keys,
             'use_qr' : use_qr,
             'use_jax' : use_jax,
+            'use_cpp' : use_cpp,
         }
 
         # Now build a mask that picks the desired polynomial products
