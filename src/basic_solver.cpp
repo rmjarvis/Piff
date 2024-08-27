@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/eigen.h>
 #include <Eigen/Cholesky>
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -71,7 +72,8 @@ auto _solve_direct_cpp_impl(
         ssize_t A_shape_zero = A_buffer_info.shape[0];
 
         // verify that sizes for the input arrays
-        if (b_buffer_info.shape[0] != A_shape_one) {
+        /*
+        if (b_buffer_info.shape[0] != A_shape_zero) {
             throw pybind11::value_error("The shape of A must match the length of b along the 1st axis");
         }
 
@@ -86,6 +88,7 @@ auto _solve_direct_cpp_impl(
         if (A_shape[0] != A_shape_zero || A_shape[1] != A_shape_one) {
             throw std::runtime_error("The shape of A must remain the same for every input");
         }
+        */
 
         // calculate the outer product of the K parameters so that it can be re-used in the
         // following loops
@@ -127,13 +130,13 @@ auto _solve_direct_cpp_impl(
     auto lltDecomp = view.llt();
     Eigen::Matrix<T, Eigen::Dynamic, 1> result;
     if (lltDecomp.info() == Eigen::ComputationInfo::Success) {
-        result = view.llt().solve(ATb_map);
+        result = lltDecomp.solve(ATb_map);
     } else {
         auto decomp = view.ldlt();
         result = decomp.solve(ATb_map);
     }
     return result;
-    //return std::tuple (ATA, ATb);
+    // return std::tuple (result, ATA, ATb);
 }
 
 template<class T>
