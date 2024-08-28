@@ -303,17 +303,16 @@ class BasisInterp(Interp):
     def _solve_direct_cpp(self, stars, logger):
         print('PF: I am using cpp for solve_direct')
         Ks = []
-        alphas = []
-        betas = []
+        As = []
+        bs = []
         for s in stars:
             # Get the basis function values at this star
             K = self.basis(s)
             Ks.append(K)
-            alphas.append(s.fit.alpha)
-            betas.append(s.fit.beta)
-        dq = basic_solver._solve_direct_cpp(betas, alphas, Ks)
+            As.append(s.fit.A)
+            bs.append(s.fit.b)
+        dq = basic_solver._solve_direct_cpp(bs, As, Ks)
         self.q += dq.reshape(self.q.shape)
-
 
     def _solve_direct_pure_python(self, stars, logger):
         """The implementation of solve() when use_qr = False.
