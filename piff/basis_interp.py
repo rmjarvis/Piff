@@ -444,16 +444,25 @@ class BasisPolynomial(BasisInterp):
                         [default: ('u','v')]
     :param max_order:   The maximum total order to use for cross terms between keys.
                         [default: None, which uses the maximum value of any individual key's order]
-    :param use_qr:      Use QR decomposition for the solution rather than the more direct least
+    :param solver:      Which solver to use to solve linear algebra of interpolation. Solvers
+                        available are "des", "qr", "jax", and "cpp".
+                        "des": Default. It is what was used for des PSF estimations.
+                        "qr": Use QR decomposition for the solution rather than the more direct least
                         squares solution.  QR decomposition requires more memory than the default
                         and is somewhat slower (nearly a factor of 2); however, it is significantly
-    :param use_jax:     Use JAX for solving the linear algebra equations rather than numpy/scipy.
-                        Therefore, it may be preferred for some use cases. [default: False]
+                        less susceptible to numerical errors from high condition matrices.
+                        "jax": Use JAX for solving the linear algebra equations rather than numpy/scipy.
+                        Equivalent to "des" solver therefore, it may be preferred for some use cases. It will
+                        be faster than "des" solver on multi-core cpu / gpu are available.
+                        "cpp": Use C++/eigen for solving the linear algebra equations rather than
+                        numpy/scipy Equivalent to "des" solver, therefore, it may be preferred for some
+                        use cases. On a single core cpu (and more), it will be faster than "des" solver
+                        if the number of training stars is more than ~30.
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
 
-    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, use_jax=False, use_cpp=False, logger=None):
+    def __init__(self, order, keys=('u','v'), max_order=None, solver="des", logger=None):
         super(BasisPolynomial, self).__init__()
 
         logger = galsim.config.LoggerWrapper(logger)
@@ -470,17 +479,27 @@ class BasisPolynomial(BasisInterp):
             self._max_order = np.max(self._orders)
         else:
             self._max_order = max_order
-        self.use_qr = use_qr
 
-        self.use_jax = use_jax
-        self.use_cpp = use_cpp
+        self.use_qr = False
+        self.use_jax = False
+        self.use_cpp = False
+        self.use_des = False
 
-        if self.use_cpp and self.use_jax:
-            raise ValueError('Cannot use both JAX and C++ for solving the linear algebra equations.')
+        if solver == "qr":
+            self.use_qr = True
+        elif solver == "jax":
+            self.use_jax = True
+        elif solver == "cpp":
+            self.use_cpp = True
+        elif solver == "des":
+            self.use_des = True
+        else:
+            raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
 
         if not CAN_USE_JAX and self.use_jax:
             logger.warning("JAX not installed. Reverting to numpy/scipy.")
             self.use_jax = False
+            self.use_des = True
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
