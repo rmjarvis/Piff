@@ -508,9 +508,7 @@ class BasisPolynomial(BasisInterp):
         self.kwargs = {
             'order' : order,
             'keys' : keys,
-            'use_qr' : use_qr,
-            'use_jax' : use_jax,
-            'use_cpp' : use_cpp,
+            'solver': solver,
         }
 
         # Now build a mask that picks the desired polynomial products
