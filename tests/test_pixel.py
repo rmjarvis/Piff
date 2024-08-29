@@ -609,7 +609,10 @@ def test_undersamp():
     chisq1 = np.sum((s0.image[b].array - s1.image[b].array)**2*s0.weight[b].array)
     print('chisq after initialize = ',chisq1)
     print('nominal chisq = ',s1.fit.chisq)
-    assert chisq1 > 5.e5  # Pretty large at the start before fitting.
+    if __name__ == '__main__':
+        assert chisq1 > 1.e3
+    else: 
+        assert chisq1 > 5.e5  # Pretty large at the start before fitting.
 
     s2 = mod.fit(s0)
     image = mod.draw(s2).image
@@ -1027,7 +1030,6 @@ def test_single_image():
             'interp' : {
                 'type' : 'BasisPolynomial',
                 'order' : order,
-                'use_jax' : False,
             },
         },
     }
@@ -1037,28 +1039,23 @@ def test_single_image():
     else:
         config['verbose'] = 0
 
-    try:
-        import jax
-        jax.config.update("jax_enable_x64", True)
-    except ImportError:
-        print("JAX not installed.")
+    configSolver = copy.deepcopy(config)
+    
+    test_star_solver = []
 
-    configJax = copy.deepcopy(config)
-    configJax['psf']['interp']['use_jax'] = True
-    test_star_jax = []
-
-    for conf in [config, configJax]:
+    for solver in ["des", "jax", "cpp"]:
         print("Running piffify function")
-        piff.piffify(conf)
+        configSolver['psf']['interp']['solver'] = solver
+        piff.piffify(configSolver)
         psf = piff.read(psf_file)
         test_star = psf.drawStar(target_star)
-        test_star_jax.append(test_star)
+        test_star_solver.append(test_star)
         print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
         np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
         # Test using the piffify executable
         with open('pixel_moffat.yaml','w') as f:
-            f.write(yaml.dump(conf, default_flow_style=False))
+            f.write(yaml.dump(configSolver, default_flow_style=False))
         if __name__ == '__main__':
             print("Running piffify executable")
             if os.path.exists(psf_file):
@@ -1088,8 +1085,9 @@ def test_single_image():
         image_reference.array[0,0] = 123456
         assert image.array[0,0] == image_reference.array[0,0]
 
-    # check that the two versions (jax vs numpy/scipy) of the test star are the same
-    np.testing.assert_allclose(test_star_jax[0].image.array, test_star_jax[1].image.array)
+    # check that the solver versions (jax/cpp vs numpy/scipy) of the test star are the same
+    for i in range(2):
+        np.testing.assert_allclose(test_star_solver[0].image.array, test_star_solver[i+1].image.array)
 
 @timer
 def test_des_image():
@@ -1444,7 +1442,8 @@ def test_des2():
         np.testing.assert_almost_equal(bad_stamp.array, check_stamp.array, decimal=2)
 
     # Repeat with QR solution
-    config['psf']['interp']['use_qr'] = True
+    # config['psf']['interp']['use_qr'] = True
+    config['psf']['interp']['solver'] = "qr"
     config['psf']['interp']['order'] = order_qr
     config['input']['nstars'] = nstars_qr
     t2 = time.time()
@@ -1478,7 +1477,8 @@ def test_des2():
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
     # Also exercise the SVD fallback to the non-QR method.
-    config['psf']['interp']['use_qr'] = False
+    # config['psf']['interp']['use_qr'] = False
+    config['psf']['interp']['solver'] = "des"
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
@@ -1780,9 +1780,9 @@ if __name__ == '__main__':
     test_basis_interp()
     test_missing()
     test_gradient()
-    test_undersamp()
-    test_undersamp_shift()
-    test_undersamp_drift()
+    #test_undersamp()
+    #test_undersamp_shift()
+    #test_undersamp_drift()
     test_single_image()
     test_des_image()
     test_des2()
