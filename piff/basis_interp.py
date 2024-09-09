@@ -312,13 +312,6 @@ class BasisInterp(Interp):
             As.append(s.fit.A)
             bs.append(s.fit.b)
         dq = basic_solver._solve_direct_cpp(bs, As, Ks)
-        # TO DO: Remove this dirty block.
-        # the shape of dq out of cpp is somehow not correct,
-        # so I this is why there is this dirty trick. Need to
-        # debug cpp instead but I am doing this to move forward in
-        # unit testing.
-        nq = np.prod(self.q.shape) # TO DO: to fix in cpp
-        dq = dq[:nq] # TO DO: to fix in cpp
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct_python(self, stars, logger):

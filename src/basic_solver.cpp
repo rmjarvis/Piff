@@ -23,21 +23,21 @@ auto _solve_direct_cpp_impl(
     // Allocate and initialize container array for the A transpose A matrix.
     // For some reason it is faster to allocate a numpy array and then map
     // it to Eigen than allocating an Eigen array directly
-    py::array_t<T, py::array::f_style> ATA(std::vector({b_shape[0]*N, b_shape[0]*N}));
+    py::array_t<T, py::array::f_style> ATA(std::vector({A_shape[1]*N, A_shape[1]*N}));
     py::buffer_info ATA_buffer = ATA.request();
     T __restrict * ATA_data = static_cast<T *>(ATA_buffer.ptr);
     // set it all to zero
-    memset(ATA_data, 0, b_shape[0]*N*b_shape[0]*N*sizeof(T));
+    memset(ATA_data, 0, A_shape[1]*N*A_shape[1]*N*sizeof(T));
     Eigen::Map< Eigen::Matrix<T,
                               Eigen::Dynamic,
                               Eigen::Dynamic,
-                              Eigen::ColMajor> > ATA_eig(ATA_data, b_shape[0]*N, b_shape[0]*N);
+                              Eigen::ColMajor> > ATA_eig(ATA_data, A_shape[1]*N, A_shape[1]*N);
 
     // Allocate an array for b, similar to ATA
-    auto ATb = py::array_t<T>(b_shape[0]*N);
+    auto ATb = py::array_t<T>(A_shape[1]*N);
     py::buffer_info ATb_buffer = ATb.request();
     T __restrict * ATb_data = static_cast<T *>(ATb_buffer.ptr);
-    memset(ATb_data, 0, b_shape[0]*N*sizeof(T));
+    memset(ATb_data, 0, A_shape[1]*N*sizeof(T));
 
     /*
     Eigen::MatrixXd ATA(M*N, M*N);
@@ -49,9 +49,9 @@ auto _solve_direct_cpp_impl(
 
 
     // Allocate intermediate arrays that will be reused in the following loops
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> ATA_small(b_shape[0],b_shape[0]);
+    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> ATA_small(A_shape[1],A_shape[1]);
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> K_cross(N, N);
-    Eigen::Vector<T, Eigen::Dynamic> ATb_small(b_shape[0]);
+    Eigen::Vector<T, Eigen::Dynamic> ATb_small(A_shape[1]);
 
     // loop over each Star
     for (ssize_t c=0; c < AList.size(); ++c) {
@@ -125,7 +125,7 @@ auto _solve_direct_cpp_impl(
 
     // solve Ax=b. If the matrix can be decomposed using llt do that (faster) if it cant be
     // then use the slower ldlt method
-    Eigen::Map<const Eigen::VectorXd> ATb_map(ATb_data, b_buffer_info.shape[0]*N);
+    Eigen::Map<const Eigen::VectorXd> ATb_map(ATb_data, A_shape[1]*N);
     auto view = ATA_eig. template selfadjointView<Eigen::Upper>();
     auto lltDecomp = view.llt();
     Eigen::Matrix<T, Eigen::Dynamic, 1> result;
