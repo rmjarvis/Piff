@@ -350,7 +350,8 @@ int main() {
 """
     import tempfile
     cpp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.cpp')
-    cpp_file.write(cpp_code)
+    cpp_bytes = cpp_code.encode()
+    cpp_file.write(cpp_bytes)
     cpp_file.close()
 
     # Just get a named temporary file to write to:
