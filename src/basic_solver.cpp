@@ -23,7 +23,8 @@ auto _solve_direct_cpp_impl(
     // Allocate and initialize container array for the A transpose A matrix.
     // For some reason it is faster to allocate a numpy array and then map
     // it to Eigen than allocating an Eigen array directly
-    py::array_t<T, py::array::f_style> ATA(std::vector({A_shape[1]*N, A_shape[1]*N}));
+    // TO DO PF: make sure that A_shape[1] exist. A_shape.at(1)
+    py::array_t<T, py::array::f_style> ATA(std::vector<ssize_t>({A_shape[1]*N, A_shape[1]*N}));
     py::buffer_info ATA_buffer = ATA.request();
     T __restrict * ATA_data = static_cast<T *>(ATA_buffer.ptr);
     // set it all to zero

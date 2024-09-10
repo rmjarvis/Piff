@@ -1,4 +1,7 @@
 import sys,os,glob,re
+import shutil
+import urllib.request as urllib2
+import tarfile
 
 try:
     from setuptools import setup, Extension, find_packages
@@ -62,17 +65,34 @@ if "--debug" in sys.argv:
     undef_macros+=['NDEBUG']
 
 copt =  {
-    'gcc' : ['-fopenmp','-O3','-ffast-math'],
-    'icc' : ['-openmp','-O3'],
-    'clang' : ['-O3','-ffast-math'],
-    'clang w/ OpenMP' : ['-fopenmp=libomp','-O3','-ffast-math'],
+    'gcc' : ['-O2','-std=c++14','-fvisibility=hidden','-fopenmp'],
+    'gcc w/ GPU' : ['-O2','-std=c++14','-fvisibility=hidden','-fopenmp','-foffload=nvptx-none','-DGALSIM_USE_GPU'],
+    'icc' : ['-O2','-vec-report0','-std=c++14','-openmp'],
+    'clang' : ['-O2','-std=c++14',
+               '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
+    'clang w/ OpenMP' : ['-O2','-std=c++14','-fopenmp',
+                         '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
+    'clang w/ Intel OpenMP' : ['-O2','-std=c++14','-Xpreprocessor','-fopenmp',
+                                '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
+    'clang w/ manual OpenMP' : ['-O2','-std=c++14','-Xpreprocessor','-fopenmp',
+                                '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
+    'clang w/ GPU' : ['-O2','-msse2','-std=c++14','-fopenmp','-fopenmp-targets=nvptx64-nvidia-cuda',
+                      '-Wno-openmp-mapping','-Wno-unknown-cuda-version',
+                      '-Wno-shorten-64-to-32','-fvisibility=hidden', '-DGALSIM_USE_GPU'],
+    'nvc++' : ['-O2','-std=c++14','-mp=gpu','-DGALSIM_USE_GPU'],
     'unknown' : [],
 }
 lopt =  {
     'gcc' : ['-fopenmp'],
+    'gcc w/ GPU' : ['-fopenmp','-foffload=nvptx-none', '-foffload=-lm'],
     'icc' : ['-openmp'],
-    'clang' : [],
-    'clang w/ OpenMP' : ['-fopenmp=libomp'],
+    'clang' : ['-stdlib=libc++'],
+    'clang w/ OpenMP' : ['-stdlib=libc++','-fopenmp'],
+    'clang w/ Intel OpenMP' : ['-stdlib=libc++','-liomp5'],
+    'clang w/ manual OpenMP' : ['-stdlib=libc++','-lomp'],
+    'clang w/ GPU' : ['-fopenmp','-fopenmp-targets=nvptx64-nvidia-cuda',
+                      '-Wno-openmp-mapping','-Wno-unknown-cuda-version'],
+    'nvc++' : ['-mp=gpu'],
     'unknown' : [],
 }
 
@@ -200,6 +220,39 @@ def find_eigen_dir(output=False):
             print(e)
 
     raise OSError("Could not find Eigen")
+
+def find_pybind_path():
+
+    # Finally, add pybind11's include dir
+    import pybind11
+    import os
+    print('PyBind11 is version ',pybind11.__version__)
+    print('Looking for pybind11 header files: ')
+    locations = [pybind11.get_include(user=True),
+                 pybind11.get_include(user=False),
+                 '/usr/include',
+                 '/usr/local/include',
+                 None]
+    for try_dir in locations:
+        if try_dir is None:
+            # Last time through, raise an error.
+            print("Could not find pybind11 header files.")
+            print("They should have been in one of the following locations:")
+            for l in locations:
+                if l is not None:
+                    print("   ", l)
+            raise OSError("Could not find PyBind11")
+        print('  ',try_dir,end='')
+        if os.path.isfile(os.path.join(try_dir, 'pybind11/pybind11.h')):
+            print('  (yes)')
+            # builder.include_dirs.append(try_dir)
+            pybind_path = try_dir # os.path.join(try_dir, 'pybind11')
+            break
+        else:
+            raise OSError("Could not find PyBind11")
+            print('  (no)')
+
+    return pybind_path
 
 def get_compiler(cc):
     """Try to figure out which kind of compiler this really is.
@@ -367,12 +420,14 @@ class my_builder( build_ext ):
         else:
             print('Using compiler %s, which is %s'%(cc,comp_type))
         # Add the appropriate extra flags for that compiler.
-        eigen_path = find_eigen_dir(output=False)
+        eigen_path = find_eigen_dir(output=True)
+        pybind_path = find_pybind_path()
         for e in self.extensions:
             e.extra_compile_args = copt[ comp_type ]
             e.extra_link_args = lopt[ comp_type ]
             e.include_dirs = ['include']
             e.include_dirs.append(eigen_path)
+            e.include_dirs.append(pybind_path)
         # Now run the normal build function.
         build_ext.build_extensions(self)
 
