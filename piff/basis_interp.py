@@ -462,7 +462,7 @@ class BasisPolynomial(BasisInterp):
     """
     _type_name = 'BasisPolynomial'
 
-    def __init__(self, order, keys=('u','v'), max_order=None, solver="des", logger=None):
+    def __init__(self, order, keys=('u','v'), max_order=None, solver="des", use_qr=False, logger=None):
         super(BasisPolynomial, self).__init__()
 
         logger = galsim.config.LoggerWrapper(logger)
@@ -485,6 +485,8 @@ class BasisPolynomial(BasisInterp):
         self.use_cpp = False
         self.use_des = False
 
+        valid_solver = ["des", "qr", "jax", "cpp"]
+
         if solver == "qr":
             self.use_qr = True
         elif solver == "jax":
@@ -495,6 +497,14 @@ class BasisPolynomial(BasisInterp):
             self.use_des = True
         else:
             raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
+
+        # To match old API when jax and cpp were not part of solving
+        # basis interp.
+        if use_qr and solver not in ["des", "qr"]: 
+            raise NotImplementedError(f"use_qr and {solver} are not compatible")
+        if use_qr:
+            self.use_qr = True
+            self.use_des = False
 
         if not CAN_USE_JAX and self.use_jax:
             logger.warning("JAX not installed. Reverting to numpy/scipy.")
