@@ -301,7 +301,6 @@ class BasisInterp(Interp):
             self._solve_direct_python(stars, logger)
 
     def _solve_direct_cpp(self, stars, logger):
-        print('PF: I am using cpp for solve_direct')
         Ks = []
         As = []
         bs = []
@@ -324,7 +323,6 @@ class BasisInterp(Interp):
         ATb = np.zeros(nq, dtype=float)
 
         if self.use_jax:
-            print('PF: I am using JAX for solve_direct')
             Ks = []
             alphas = []
             betas = []
@@ -340,7 +338,6 @@ class BasisInterp(Interp):
             ATA, ATb = vmap_build_ATA_ATb(Ks, alphas, betas)
             ATA = ATA.reshape(nq,nq)
         else:
-            print('PF: I am using numpy/scipy for solve_direct')
             for s in stars:
                 # Get the basis function values at this star
                 K = self.basis(s)
