@@ -1442,8 +1442,7 @@ def test_des2():
         np.testing.assert_almost_equal(bad_stamp.array, check_stamp.array, decimal=2)
 
     # Repeat with QR solution
-    # config['psf']['interp']['use_qr'] = True
-    config['psf']['interp']['solver'] = "qr"
+    config['psf']['interp']['use_qr'] = True
     config['psf']['interp']['order'] = order_qr
     config['input']['nstars'] = nstars_qr
     t2 = time.time()
@@ -1477,7 +1476,7 @@ def test_des2():
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
     # Also exercise the SVD fallback to the non-QR method.
-    # config['psf']['interp']['use_qr'] = False
+    config['psf']['interp']['use_qr'] = False
     config['psf']['interp']['solver'] = "des"
     t6 = time.time()
     piff.piffify(config)
