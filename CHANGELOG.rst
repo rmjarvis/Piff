@@ -58,3 +58,4 @@ Changes from version 1.4.0 to 1.4.1
   To recover the old version without these images, use ``include_ave = False``. (#167)
 - Fixed a bug where reflux errors could cause the fit not to converge even though the
   offending stars had already been flagged and removed from consideration.
+- Fixed an error in TwoDHist stats that T_model was incorrectly using the star data.
