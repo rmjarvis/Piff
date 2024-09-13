@@ -45,21 +45,22 @@ class SizeMagStats(Stats):
 
         # measure everything with hsm
         logger.info("Measuring Star and Model Shapes")
-        _, star_shapes, psf_shapes = self.measureShapes(psf, stars, logger=logger)
+        use_stars = [s for s in stars if not s.is_flagged]
+        _, star_shapes, psf_shapes = self.measureShapes(psf, use_stars, logger=logger)
 
+        # If initial_objects is available, measure their shapes.
         if hasattr(psf, 'initial_stars'):
-            # remove initial objects that ended up being used.
             init_pos = [s.image_pos for s in psf.initial_stars]
             initial_objects = [s for s in psf.initial_objects if s.image_pos not in init_pos]
-            star_pos = [s.image_pos for s in stars]
-            initial_stars = [s for s in psf.initial_stars if s.image_pos not in star_pos]
             _, obj_shapes, _ = self.measureShapes(None, initial_objects, logger=logger)
-            _, init_shapes, _ = self.measureShapes(None, initial_stars, logger=logger)
         else:
             # if didn't make psf using process, then inital fields will be absent.
             # Just make them empty arrays.
             obj_shapes = np.empty(shape=(0,7))
-            init_shapes = np.empty(shape=(0,7))
+
+        # All stars that were flagged during processing will be marked as candidate stars
+        cand_stars = [s for s in stars if s.is_flagged]
+        _, cand_shapes, _ = self.measureShapes(None, cand_stars, logger=logger)
 
         # Pull out the sizes and fluxes
         flag_star = star_shapes[:, 6]
@@ -74,15 +75,15 @@ class SizeMagStats(Stats):
         mask = flag_obj == 0
         self.f_obj = obj_shapes[mask, 0]
         self.T_obj = obj_shapes[mask, 3]
-        flag_init = init_shapes[:, 6]
-        mask = flag_init == 0
-        self.f_init = init_shapes[mask, 0]
-        self.T_init = init_shapes[mask, 3]
+        flag_cand = cand_shapes[:, 6]
+        mask = flag_cand == 0
+        self.f_cand = cand_shapes[mask, 0]
+        self.T_cand = cand_shapes[mask, 3]
 
         # Calculate the magnitudes
         self.m_star = self.zeropoint - 2.5 * np.log10(self.f_star)
         self.m_psf = self.zeropoint - 2.5 * np.log10(self.f_psf)
-        self.m_init = self.zeropoint - 2.5 * np.log10(self.f_init)
+        self.m_cand = self.zeropoint - 2.5 * np.log10(self.f_cand)
         self.m_obj = self.zeropoint - 2.5 * np.log10(self.f_obj)
 
     def plot(self, logger=None, **kwargs):
@@ -104,7 +105,7 @@ class SizeMagStats(Stats):
             ymax = np.median(self.T_obj)*2 if len(self.T_obj) > 0 else 1.0
         else:
             xmin = np.floor(np.min(self.m_star))
-            xmin = np.min(self.m_init, initial=xmin)  # Do it this way in case m_init is empty.
+            xmin = np.min(self.m_cand, initial=xmin)  # Do it this way in case m_cand is empty.
             xmax = np.ceil(np.max(self.m_star))
             xmax = np.max(self.m_obj, initial=xmax)   # Likewise, m_obj might be empty.
             ymax = max(np.median(self.T_star)*2, np.max(self.T_star)*1.01)
@@ -118,13 +119,13 @@ class SizeMagStats(Stats):
         # the star area or vice versa.  We implement this by sorting all of them in magnitude
         # and then plotting the indices mod 20.
         group_obj = np.ones_like(self.m_obj) * 1
-        group_init = np.ones_like(self.m_init) * 2
+        group_cand = np.ones_like(self.m_cand) * 2
         group_star = np.ones_like(self.m_star) * 3
         group_psf = np.ones_like(self.m_psf) * 4
 
-        g = np.concatenate([group_obj, group_init, group_star, group_psf])
-        m = np.concatenate([self.m_obj, self.m_init, self.m_star, self.m_psf])
-        T = np.concatenate([self.T_obj, self.T_init, self.T_star, self.T_psf])
+        g = np.concatenate([group_obj, group_cand, group_star, group_psf])
+        m = np.concatenate([self.m_obj, self.m_cand, self.m_star, self.m_psf])
+        T = np.concatenate([self.T_obj, self.T_cand, self.T_star, self.T_psf])
 
         index = np.argsort(m)
         n = np.arange(len(m))
@@ -134,7 +135,7 @@ class SizeMagStats(Stats):
 
             obj = ax.scatter(m[s][g[s] == 1], T[s][g[s] == 1],
                              color='black', marker='o', s=2., **kwargs)
-            init = ax.scatter(m[s][g[s] == 2], T[s][g[s] == 2],
+            cand = ax.scatter(m[s][g[s] == 2], T[s][g[s] == 2],
                               color='magenta', marker='o', s=8., **kwargs)
             star = ax.scatter(m[s][g[s] == 3], T[s][g[s] == 3],
                               color='green', marker='*', s=40., **kwargs)
@@ -142,7 +143,7 @@ class SizeMagStats(Stats):
                              marker='o', s=50.,
                              facecolors='none', edgecolors='cyan', **kwargs)
 
-        ax.legend([obj, init, star, psf],
+        ax.legend([obj, cand, star, psf],
               ['Detected Object', 'Candidate Star', 'PSF Star', 'PSF Model'],
               loc='lower left', frameon=True, fontsize=15)
 
