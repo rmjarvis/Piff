@@ -109,9 +109,13 @@ class StarStats(Stats):
         # if including the average image, put that first.
         logger.info("Making average star and model")
         if self.include_ave:
-            ave_star_image = np.mean([s.image.array for s in calculated_stars if s is not None],
+            ave_star_image = np.mean([s.image.array/np.max(s.image.array)
+                                        for s in calculated_stars
+                                        if s is not None and not s.is_flagged],
                                      axis=0)
-            ave_model_image = np.mean([s.image.array for s in calculated_models if s is not None],
+            ave_model_image = np.mean([s.image.array/np.max(s.image.array)
+                                        for s in calculated_models
+                                        if s is not None and not s.is_flagged],
                                       axis=0)
             ave_star_image = galsim.Image(ave_star_image)
             ave_model_image = galsim.Image(ave_model_image)
