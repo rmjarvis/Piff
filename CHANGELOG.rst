@@ -59,3 +59,6 @@ Changes from version 1.4.0 to 1.4.1
 - Fixed a bug where reflux errors could cause the fit not to converge even though the
   offending stars had already been flagged and removed from consideration.
 - Fixed an error in TwoDHist stats that T_model was incorrectly using the star data.
+- Fixed an error that caused the candidate stars not to display correctly in SizeMag plot.
+- Added an option to show large T candidate stars in SizeMag plot that would otherwise be
+  off the top of the plot.

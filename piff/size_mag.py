@@ -27,13 +27,16 @@ class SizeMagStats(Stats):
 
     :param file_name:       Name of the file to output to. [default: None]
     :param zeropoint:       Zeropoint to use = the magnitude of flux=1. [default: 30]
+    :param show_large_cand: Whether to display candidate stars with large sizes that otherwise
+                            would be off the top of the plot. [default: False]
     :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'SizeMag'
 
-    def __init__(self, file_name=None, zeropoint=30, logger=None):
+    def __init__(self, file_name=None, zeropoint=30, show_large_cand=False, logger=None):
         self.file_name = file_name
         self.zeropoint = zeropoint
+        self.show_large_cand = show_large_cand
 
     def compute(self, psf, stars, logger=None):
         """
@@ -109,6 +112,8 @@ class SizeMagStats(Stats):
             xmax = np.ceil(np.max(self.m_star))
             xmax = np.max(self.m_obj, initial=xmax)   # Likewise, m_obj might be empty.
             ymax = max(np.median(self.T_star)*2, np.max(self.T_star)*1.01)
+            if self.show_large_cand:
+                ymax = np.max(self.T_cand*1.01, initial=ymax)
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(0, ymax)
         ax.set_xlabel('Magnitude (ZP=%s)'%self.zeropoint, fontsize=15)
