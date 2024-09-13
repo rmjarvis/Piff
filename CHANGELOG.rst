@@ -56,3 +56,5 @@ Changes from version 1.4.0 to 1.4.1
 - Added an image of the average star and model in the StarImages output plot. (#167)
 - Changed the default behavior of the StarImages plot to include the average star and model.
   To recover the old version without these images, use ``include_ave = False``. (#167)
+- Fixed a bug where reflux errors could cause the fit not to converge even though the
+  offending stars had already been flagged and removed from consideration.
