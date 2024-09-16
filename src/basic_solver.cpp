@@ -40,15 +40,6 @@ auto _solve_direct_cpp_impl(
     T __restrict * ATb_data = static_cast<T *>(ATb_buffer.ptr);
     memset(ATb_data, 0, A_shape[1]*N*sizeof(T));
 
-    /*
-    Eigen::MatrixXd ATA(M*N, M*N);
-    std::memset(ATA.data(), 0, M*N*M*N*sizeof(T));
-
-    Eigen::VectorXd ATb(M*N);
-    std::memset(ATb.data(), 0, M*N*sizeof(T));
-    */
-
-
     // Allocate intermediate arrays that will be reused in the following loops
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> ATA_small(A_shape[1],A_shape[1]);
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> K_cross(N, N);
@@ -71,25 +62,6 @@ auto _solve_direct_cpp_impl(
         // set some variables for sizes
         ssize_t A_shape_one = A_buffer_info.shape[1];
         ssize_t A_shape_zero = A_buffer_info.shape[0];
-
-        // verify that sizes for the input arrays
-        /*
-        if (b_buffer_info.shape[0] != A_shape_zero) {
-            throw pybind11::value_error("The shape of A must match the length of b along the 1st axis");
-        }
-
-        if (K_buffer_info.shape[0] != N) {
-            throw std::runtime_error("The shape of K must remain the same for every input");
-        }
-
-        if (b_shape[0] != b_buffer_info.shape[0]) {
-            throw std::runtime_error("The shape of b must remain the same for every input");
-        }
-
-        if (A_shape[0] != A_shape_zero || A_shape[1] != A_shape_one) {
-            throw std::runtime_error("The shape of A must remain the same for every input");
-        }
-        */
 
         // calculate the outer product of the K parameters so that it can be re-used in the
         // following loops
@@ -137,7 +109,6 @@ auto _solve_direct_cpp_impl(
         result = decomp.solve(ATb_map);
     }
     return result;
-    // return std::tuple (result, ATA, ATb);
 }
 
 template<class T>
