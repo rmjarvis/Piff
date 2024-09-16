@@ -301,6 +301,9 @@ class BasisInterp(Interp):
             self._solve_direct_python(stars, logger)
 
     def _solve_direct_cpp(self, stars, logger):
+        """The implementation in C++ of solve() when use_qr = False.
+        """
+
         Ks = []
         As = []
         bs = []
@@ -314,7 +317,7 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct_python(self, stars, logger):
-        """The implementation of solve() when use_qr = False.
+        """The implementation in python of solve() when use_qr = False.
         """
 
         # Build ATA and ATb by accumulating the chunks for each star as we go.
