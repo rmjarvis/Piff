@@ -1050,7 +1050,9 @@ def test_single_image():
     
     test_star_solver = []
 
-    for solver in ["des", "jax", "cpp"]:
+    solvers = ["des", "qr", "jax", "cpp"]
+
+    for solver in solvers:
         print("Running piffify function")
         configSolver['psf']['interp']['solver'] = solver
         piff.piffify(configSolver)
@@ -1092,8 +1094,8 @@ def test_single_image():
         image_reference.array[0,0] = 123456
         assert image.array[0,0] == image_reference.array[0,0]
 
-    # check that the solver versions (jax/cpp vs numpy/scipy) of the test star are the same
-    for i in range(2):
+    # check that the solver versions (qr/jax/cpp vs numpy/scipy) of the test star are the same
+    for i in range(len(solvers)-1):
         np.testing.assert_allclose(test_star_solver[0].image.array, test_star_solver[i+1].image.array)
 
 @timer
