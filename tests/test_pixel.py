@@ -351,6 +351,13 @@ def test_basis_interp():
     basis = piff.BasisPolynomial(order=0)
     assert not basis.use_qr
 
+    # Test exeption of API:
+    with np.testing.assert_raises(ValueError):
+        basis = piff.BasisPolynomial(order=2, solver="42")
+
+    with np.testing.assert_raises(NotImplementedError):
+        basis = piff.BasisPolynomial(order=2, solver="cpp", use_qr=True)
+
     star = make_gaussian_data(2.0, 0., 0., flux=100, du=0.2, fpu=2, fpv=3)
     assert star.u == 2
     assert star.v == 3
