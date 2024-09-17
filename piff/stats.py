@@ -357,12 +357,13 @@ class ShapeHistStats(Stats):
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars for which hsm was successful and not flagged
         flag_data = shapes_data[:, 6]
         flag_model = shapes_model[:, 6]
-        mask = (flag_data == 0) & (flag_model == 0)
+        flag_psf = np.array([s.is_flagged for s in stars], dtype=int)
+        mask = (flag_data == 0) & (flag_model == 0) & (flag_psf == 0)
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  ShapeHist plot will be empty.")
+            logger.warning("All stars had hsm errors or were flagged. ShapeHist plot will be empty.")
             self.skip = True
 
         # define terms for the catalogs
@@ -555,12 +556,13 @@ class RhoStats(Stats):
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars for which hsm was successful and not flagged
         flag_data = shapes_data[:, 6]
         flag_model = shapes_model[:, 6]
-        mask = (flag_data == 0) & (flag_model == 0)
+        flag_psf = np.array([s.is_flagged for s in stars], dtype=int)
+        mask = (flag_data == 0) & (flag_model == 0) & (flag_psf == 0)
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  Rho plot will be empty.")
+            logger.warning("All stars had hsm errors or were flagged. Rho plot will be empty.")
             self.skip = True
             return
 
