@@ -456,16 +456,6 @@ class InputFiles(Input):
             sky_hdu = params.get('sky_hdu', None)
             noise = params.get('noise', None)
 
-            self.image_file_name.append(image_file_name)
-            self.image_kwargs.append({
-                    'image_file_name' : image_file_name,
-                    'image_hdu' : image_hdu,
-                    'weight_hdu' : weight_hdu,
-                    'badpix_hdu' : badpix_hdu,
-                    'sky_file_name' : sky_file_name,
-                    'sky_hdu' : sky_hdu,
-                    'noise' : noise})
-
             # Read the catalog
             cat_file_name = params['cat_file_name']
             cat_hdu = params.get('cat_hdu', None)
@@ -486,6 +476,17 @@ class InputFiles(Input):
             satur = params.get('satur', None)
             trust_pos = params.get('trust_pos', None)
             nstars = params.get('nstars', None)
+
+            self.image_file_name.append(image_file_name)
+            self.image_kwargs.append({
+                    'image_file_name' : image_file_name,
+                    'image_hdu' : image_hdu,
+                    'weight_hdu' : weight_hdu,
+                    'badpix_hdu' : badpix_hdu,
+                    'sky_file_name' : sky_file_name,
+                    'sky_hdu' : sky_hdu,
+                    'noise' : noise,
+                    'gain' : gain or 1})
 
             if sky_col is not None and sky is not None:
                 raise ValueError("Cannot provide both sky_col and sky.")
@@ -731,7 +732,7 @@ class InputFiles(Input):
 
     @staticmethod
     def readImage(image_file_name, image_hdu, weight_hdu, badpix_hdu,
-                  sky_file_name, sky_hdu, noise, logger):
+                  sky_file_name, sky_hdu, noise, gain, logger):
         """Read in the image and weight map (or make one if no weight information is given
 
         :param image_file_name: The name of the file to read.
@@ -742,6 +743,7 @@ class InputFiles(Input):
                                 (if any).
         :param sky_hdu:         The hdu to use in the sky_file_name (if any).
         :param noise:           A constant noise value to use in lieu of a weight map.
+        :param gain:            The gain to use if converting sky -> weight
         :param logger:          A logger object for logging debug info.
 
         :returns: image, weight
@@ -771,6 +773,10 @@ class InputFiles(Input):
         elif noise is not None:
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
             weight = galsim.ImageF(image.bounds, init_value=1./noise)
+        elif sky_file_name is not None:
+            # If we have sky, but not weight, try to make a reasonable weight from the sky noise.
+            weight = sky / gain  # This is the variance
+            weight.invertSelf()  # w = 1/variance
         else:
             logger.debug("Making trivial (wt==1) weight image")
             weight = galsim.ImageF(image.bounds, init_value=1)
