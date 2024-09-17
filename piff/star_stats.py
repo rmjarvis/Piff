@@ -115,7 +115,8 @@ class StarStats(Stats):
                                      axis=0)
             ave_model_image = np.mean([s.image.array/np.max(s.image.array)
                                         for s in calculated_models
-                                        if s is not None and not s.is_flagged],
+                                        if s is not None and not s.is_flagged
+                                            and np.max(s.image.array) != 0.],
                                       axis=0)
             ave_star_image = galsim.Image(ave_star_image)
             ave_model_image = galsim.Image(ave_model_image)
