@@ -75,13 +75,14 @@ class TwoDHistStats(Stats):
         positions, shapes_truth, shapes_model = self.measureShapes(
             psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars for which hsm was successful and not flagged
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
-        mask = (flag_truth == 0) & (flag_model == 0)
+        flag_psf = np.array([s.is_flagged for s in stars], dtype=int)
+        mask = (flag_truth == 0) & (flag_model == 0) & (flag_psf == 0)
         logger.info("%d/%d measurements were successful",np.sum(mask),len(mask))
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  TwoDHist plot will be empty.")
+            logger.warning("All stars had hsm errors or were flagged. TwoDHist plot will be empty.")
             self.skip = True
             return
 
@@ -450,13 +451,14 @@ class WhiskerStats(Stats):
         positions, shapes_truth, shapes_model = self.measureShapes(
             psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars for which hsm was successful and not flagged
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
-        mask = (flag_truth == 0) & (flag_model == 0)
+        flag_psf = np.array([s.is_flagged for s in stars], dtype=int)
+        mask = (flag_truth == 0) & (flag_model == 0) & (flag_psf == 0)
         logger.info("%d/%d measurements were successful",np.sum(mask),len(mask))
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  Whisker plot will be empty.")
+            logger.warning("All stars had hsm errors or were flagged. Whisker plot will be empty.")
             self.skip = True
             return
 
