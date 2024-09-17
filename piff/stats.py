@@ -763,6 +763,7 @@ class HSMCatalogStats(Stats):
         :g1_model:  The g1 component of the PSF model.
         :g2_model:  The g2 component of the PSF model.
         :reserve:   Whether the star was a reserve star.
+        :flag_psf:  1 if the PSF fitter rejected the star for some reason.  0 otherwise.
         :flag_data: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
         :flag_model: 0 where HSM succeeded on the PSF model, >0 where it failed (see above).
 
