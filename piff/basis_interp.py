@@ -106,6 +106,7 @@ class BasisInterp(Interp):
         self.set_num(None)
         self.use_jax = False # The default.  May be overridden by subclasses.
         self.use_cpp = False # The default.  May be overridden by subclasses.
+        self.cpp_use_float32 = False # The default. May be overridden by subclasses.
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
@@ -310,9 +311,9 @@ class BasisInterp(Interp):
         for s in stars:
             # Get the basis function values at this star
             K = self.basis(s)
-            Ks.append(K)
-            As.append(s.fit.A)
-            bs.append(s.fit.b)
+            Ks.append(K if not self.cpp_use_float32 else K.astype(np.float32))
+            As.append(s.fit.A if not self.cpp_use_float32 else s.fit.A.astype(np.float32))
+            bs.append(s.fit.b if not self.cpp_use_float32 else s.fit.b.astype(np.float32))
         dq = basic_solver._solve_direct_cpp(bs, As, Ks)
         self.q += dq.reshape(self.q.shape)
 
@@ -458,11 +459,21 @@ class BasisPolynomial(BasisInterp):
                         numpy/scipy Equivalent to "des" solver, therefore, it may be preferred for some
                         use cases. On a single core cpu (and more), it will be faster than "des" solver
                         if the number of training stars is more than ~30.
+    :param cpp_use_float32 When solving with the cpp solver, use float32. [default: False]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
 
-    def __init__(self, order, keys=('u','v'), max_order=None, solver="des", use_qr=False, logger=None):
+    def __init__(
+            self,
+            order,
+            keys=('u','v'),
+            max_order=None,
+            solver="des",
+            use_qr=False,
+            cpp_use_float32=False,
+            logger=None
+        ):
         super(BasisPolynomial, self).__init__()
 
         logger = galsim.config.LoggerWrapper(logger)
@@ -484,6 +495,7 @@ class BasisPolynomial(BasisInterp):
         self.use_jax = False
         self.use_cpp = False
         self.use_des = False
+        self.cpp_use_float32 = cpp_use_float32
 
         valid_solver = ["des", "qr", "jax", "cpp"]
 
