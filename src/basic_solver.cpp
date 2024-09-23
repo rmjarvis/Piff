@@ -10,9 +10,9 @@ namespace py = pybind11;
 
 template<class T, ssize_t N>
 auto _solve_direct_cpp_impl(
-        std::vector<py::array_t<T>> bList,
-        std::vector<py::array_t<T>> AList,
-        std::vector<py::array_t<T>> KList) {
+        std::vector<py::array_t<T, py::array::f_style>> bList,
+        std::vector<py::array_t<T, py::array::f_style>> AList,
+        std::vector<py::array_t<T, py::array::f_style>> KList) {
     // get size info
     py::buffer_info b_buffer_info = bList[0].request();
     py::buffer_info A_buffer_info = AList[0].request();
@@ -98,7 +98,7 @@ auto _solve_direct_cpp_impl(
 
     // solve Ax=b. If the matrix can be decomposed using llt do that (faster) if it cant be
     // then use the slower ldlt method
-    Eigen::Map<const Eigen::VectorXd> ATb_map(ATb_data, A_shape[1]*N);
+    Eigen::Map<const Eigen::Vector<T, Eigen::Dynamic>> ATb_map(ATb_data, A_shape[1]*N);
     auto view = ATA_eig. template selfadjointView<Eigen::Upper>();
     auto lltDecomp = view.llt();
     Eigen::Matrix<T, Eigen::Dynamic, 1> result;
@@ -113,9 +113,9 @@ auto _solve_direct_cpp_impl(
 
 template<class T>
 auto _solve_direct_cpp(
-        std::vector<py::array_t<T>> bList,
-        std::vector<py::array_t<T>> AList,
-        std::vector<py::array_t<T>> KList) {
+        std::vector<py::array_t<T, py::array::f_style>> bList,
+        std::vector<py::array_t<T, py::array::f_style>> AList,
+        std::vector<py::array_t<T, py::array::f_style>> KList) {
 
     // check some properties of the inputs, more will be done later in the
     // implementation function
@@ -159,8 +159,8 @@ auto _solve_direct_cpp(
 
 
 PYBIND11_MODULE(basic_solver, m) {
-    //m.def("_solve_direct_cpp", &_solve_direct_cpp<float>, py::return_value_policy::move,
-    //    py::arg("bList"),py::arg("AList"),py::arg("KList"), py::arg("K_size") );
+    m.def("_solve_direct_cpp", &_solve_direct_cpp<float>, py::return_value_policy::move,
+        py::arg("bList"),py::arg("AList"),py::arg("KList") );
     m.def("_solve_direct_cpp", &_solve_direct_cpp<double>, py::return_value_policy::move,
         py::arg("bList"),py::arg("AList"),py::arg("KList") );
 }
