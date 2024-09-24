@@ -439,28 +439,28 @@ class BasisPolynomial(BasisInterp):
 
     Use type name "BasisPolynomial" in a config field to use this interpolant.
 
-    :param order:       The order to use for each key.  Can be a single value (applied to all
-                        keys) or an array matching number of keys.
-    :param keys:        List of keys for properties that will be used as the polynomial arguments.
-                        [default: ('u','v')]
-    :param max_order:   The maximum total order to use for cross terms between keys.
-                        [default: None, which uses the maximum value of any individual key's order]
-    :param solver:      Which solver to use to solve linear algebra of interpolation. Solvers
-                        available are "des", "qr", "jax", and "cpp".
-                        "des": Default. It is what was used for des PSF estimations.
-                        "qr": Use QR decomposition for the solution rather than the more direct least
-                        squares solution.  QR decomposition requires more memory than the default
-                        and is somewhat slower (nearly a factor of 2); however, it is significantly
-                        less susceptible to numerical errors from high condition matrices.
-                        "jax": Use JAX for solving the linear algebra equations rather than numpy/scipy.
-                        Equivalent to "des" solver therefore, it may be preferred for some use cases. It will
-                        be faster than "des" solver on multi-core cpu / gpu are available.
-                        "cpp": Use C++/eigen for solving the linear algebra equations rather than
-                        numpy/scipy Equivalent to "des" solver, therefore, it may be preferred for some
-                        use cases. On a single core cpu (and more), it will be faster than "des" solver
-                        if the number of training stars is more than ~30.
-    :param cpp_use_float32 When solving with the cpp solver, use float32. [default: False]
-    :param logger:      A logger object for logging debug info. [default: None]
+    :param order:           The order to use for each key.  Can be a single value (applied to all
+                            keys) or an array matching number of keys.
+    :param keys:            List of keys for properties that will be used as the polynomial arguments.
+                            [default: ('u','v')]
+    :param max_order:       The maximum total order to use for cross terms between keys.
+                            [default: None, which uses the maximum value of any individual key's order]
+    :param solver:          Which solver to use to solve linear algebra of interpolation. Solvers
+                            available are "des", "qr", "jax", and "cpp".
+                            "des": Default. It is what was used for des PSF estimations.
+                            "qr": Use QR decomposition for the solution rather than the more direct least
+                            squares solution.  QR decomposition requires more memory than the default
+                            and is somewhat slower (nearly a factor of 2); however, it is significantly
+                            less susceptible to numerical errors from high condition matrices.
+                            "jax": Use JAX for solving the linear algebra equations rather than numpy/scipy.
+                            Equivalent to "des" solver therefore, it may be preferred for some use cases. It will
+                            be faster than "des" solver on multi-core cpu / gpu are available.
+                            "cpp": Use C++/eigen for solving the linear algebra equations rather than
+                            numpy/scipy Equivalent to "des" solver, therefore, it may be preferred for some
+                            use cases. On a single core cpu (and more), it will be faster than "des" solver
+                            if the number of training stars is more than ~30.
+    :param cpp_use_float32: When solving with the cpp solver, use float32. [default: False]
+    :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
 
