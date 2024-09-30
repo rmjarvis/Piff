@@ -79,10 +79,10 @@ auto _solve_direct_cpp_impl(
         ATb_small = A_map.transpose() * b_map;
     
         // Calculate ATb contribution for this list entry
-        for (ssize_t o = 0; o < A_shape_one; o ++) {
-            ssize_t base_pos = o*N;
+        for (ssize_t k = 0; k < A_shape_one; k ++) {
+            ssize_t base_pos = k*N;
             for (ssize_t l = 0; l < N; l++) {
-                ATb_data[base_pos+l] += K_data[l] * ATb_small(o);
+                ATb_data[base_pos+l] += K_data[l] * ATb_small(k);
             }
         }
 
