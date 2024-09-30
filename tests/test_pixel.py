@@ -341,7 +341,7 @@ def test_basis_interp():
     # Users shouldn't ever make a BasisInterp base class directly.
     # But it's not actually an error until they try to do something non-trivial.
     basis = piff.BasisInterp()
-    assert not basis.use_qr
+    assert not basis.solver == "qr"
     assert basis.q == None
 
     np.testing.assert_raises(NotImplementedError, basis.basis, None)
@@ -349,7 +349,7 @@ def test_basis_interp():
 
     # The BaisPolynomial class is the real thing that gets made in practice
     basis = piff.BasisPolynomial(order=0)
-    assert not basis.use_qr
+    assert not basis.solver == "qr"
 
     # Test exeption of API:
     with np.testing.assert_raises(ValueError):

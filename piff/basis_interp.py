@@ -101,11 +101,9 @@ class BasisInterp(Interp):
 
     def __init__(self):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
-        self.use_qr = False  # The default.  May be overridden by subclasses.
+        self.solver = "scipy"  # The default.  May be overridden by subclasses.
         self.q = None
         self.set_num(None)
-        self.use_jax = False # The default.  May be overridden by subclasses.
-        self.use_cpp = False # The default.  May be overridden by subclasses.
         self.cpp_use_float32 = False # The default. May be overridden by subclasses.
 
     def initialize(self, stars, logger=None):
@@ -211,7 +209,7 @@ class BasisInterp(Interp):
         # It just requires a lot of memory.
 
         logger = galsim.config.LoggerWrapper(logger)
-        if self.use_qr:
+        if self.solver == "qr":
             self._solve_qr(stars, logger)
         else:
             self._solve_direct(stars, logger)
@@ -296,7 +294,7 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
-        if self.use_cpp:
+        if self.solver == "cpp":
             self._solve_direct_cpp(stars, logger)
         else:
             self._solve_direct_python(stars, logger)
@@ -326,7 +324,7 @@ class BasisInterp(Interp):
         ATA = np.zeros((nq, nq), dtype=float)
         ATb = np.zeros(nq, dtype=float)
 
-        if self.use_jax:
+        if self.solver == "jax":
             Ks = []
             alphas = []
             betas = []
@@ -371,7 +369,7 @@ class BasisInterp(Interp):
                 # assuming just 'sym' instead (which does an LDL decomposition rather than
                 # Cholesky) would help.  If this fails, the matrix is usually high enough
                 # condition that it is functionally singular, and switching to SVD is warranted.
-                if self.use_jax:
+                if self.solver == "jax":
                     dq = jax_solve(ATA, ATb)
                 else:
                     dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
@@ -491,23 +489,11 @@ class BasisPolynomial(BasisInterp):
         else:
             self._max_order = max_order
 
-        self.use_qr = False
-        self.use_jax = False
-        self.use_cpp = False
-        self.use_scipy = False
         self.cpp_use_float32 = cpp_use_float32
 
         valid_solver = ["scipy", "qr", "jax", "cpp"]
 
-        if solver == "qr":
-            self.use_qr = True
-        elif solver == "jax":
-            self.use_jax = True
-        elif solver == "cpp":
-            self.use_cpp = True
-        elif solver == "scipy":
-            self.use_scipy = True
-        else:
+        if solver not in valid_solver:
             raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
 
         # To match old API when jax and cpp were not part of solving
@@ -515,13 +501,11 @@ class BasisPolynomial(BasisInterp):
         if use_qr and solver not in ["scipy", "qr"]:
             raise NotImplementedError(f"use_qr and {solver} are not compatible")
         if use_qr:
-            self.use_qr = True
-            self.use_scipy = False
+            self.solver = "qr"
 
-        if not CAN_USE_JAX and self.use_jax:
+        if not CAN_USE_JAX and self.solver == "jax":
             logger.warning("JAX not installed. Reverting to numpy/scipy.")
-            self.use_jax = False
-            self.use_scipy = True
+            self.solver = "scipy"
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
