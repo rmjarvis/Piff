@@ -489,6 +489,7 @@ class BasisPolynomial(BasisInterp):
         else:
             self._max_order = max_order
 
+        self.solver = solver
         self.cpp_use_float32 = cpp_use_float32
 
         valid_solver = ["scipy", "qr", "jax", "cpp"]
