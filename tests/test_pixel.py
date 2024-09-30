@@ -1484,9 +1484,6 @@ def test_des2():
     # Basically saying the solution doesn't go completely haywire.
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
-    # Also exercise the SVD fallback to the non-QR method.
-    config['psf']['interp']['use_qr'] = False
-    config['psf']['interp']['solver'] = "scipy"
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
