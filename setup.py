@@ -66,20 +66,11 @@ if "--debug" in sys.argv:
 
 copt =  {
     'gcc' : ['-O2','-std=c++14','-fvisibility=hidden','-fopenmp'],
-    'gcc w/ GPU' : ['-O2','-std=c++14','-fvisibility=hidden','-fopenmp','-foffload=nvptx-none','-DGALSIM_USE_GPU'],
     'icc' : ['-O2','-vec-report0','-std=c++14','-openmp'],
     'clang' : ['-O2','-std=c++14',
                '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
     'clang w/ OpenMP' : ['-O2','-std=c++14','-fopenmp',
                          '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
-    'clang w/ Intel OpenMP' : ['-O2','-std=c++14','-Xpreprocessor','-fopenmp',
-                                '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
-    'clang w/ manual OpenMP' : ['-O2','-std=c++14','-Xpreprocessor','-fopenmp',
-                                '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
-    'clang w/ GPU' : ['-O2','-msse2','-std=c++14','-fopenmp','-fopenmp-targets=nvptx64-nvidia-cuda',
-                      '-Wno-openmp-mapping','-Wno-unknown-cuda-version',
-                      '-Wno-shorten-64-to-32','-fvisibility=hidden', '-DGALSIM_USE_GPU'],
-    'nvc++' : ['-O2','-std=c++14','-mp=gpu','-DGALSIM_USE_GPU'],
     'unknown' : [],
 }
 lopt =  {
