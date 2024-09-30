@@ -446,18 +446,18 @@ class BasisPolynomial(BasisInterp):
     :param max_order:       The maximum total order to use for cross terms between keys.
                             [default: None, which uses the maximum value of any individual key's order]
     :param solver:          Which solver to use to solve linear algebra of interpolation. Solvers
-                            available are "des", "qr", "jax", and "cpp".
-                            "des": Default. It is what was used for des PSF estimations.
+                            available are "scipy", "qr", "jax", and "cpp".
+                            "scipy": Default. Use scipy to solve.
                             "qr": Use QR decomposition for the solution rather than the more direct least
                             squares solution.  QR decomposition requires more memory than the default
                             and is somewhat slower (nearly a factor of 2); however, it is significantly
                             less susceptible to numerical errors from high condition matrices.
                             "jax": Use JAX for solving the linear algebra equations rather than numpy/scipy.
-                            Equivalent to "des" solver therefore, it may be preferred for some use cases. It will
-                            be faster than "des" solver on multi-core cpu / gpu are available.
+                            Equivalent to "scipy" solver therefore, it may be preferred for some use cases. It will
+                            be faster than "scipy" solver on multi-core cpu / gpu are available.
                             "cpp": Use C++/eigen for solving the linear algebra equations rather than
-                            numpy/scipy Equivalent to "des" solver, therefore, it may be preferred for some
-                            use cases. On a single core cpu (and more), it will be faster than "des" solver
+                            numpy/scipy Equivalent to "scipy" solver, therefore, it may be preferred for some
+                            use cases. On a single core cpu (and more), it will be faster than "scipy" solver
                             if the number of training stars is more than ~30.
     :param cpp_use_float32: When solving with the cpp solver, use float32. [default: False]
     :param logger:          A logger object for logging debug info. [default: None]
@@ -469,7 +469,7 @@ class BasisPolynomial(BasisInterp):
             order,
             keys=('u','v'),
             max_order=None,
-            solver="des",
+            solver="scipy",
             use_qr=False,
             cpp_use_float32=False,
             logger=None
@@ -494,10 +494,10 @@ class BasisPolynomial(BasisInterp):
         self.use_qr = False
         self.use_jax = False
         self.use_cpp = False
-        self.use_des = False
+        self.use_scipy = False
         self.cpp_use_float32 = cpp_use_float32
 
-        valid_solver = ["des", "qr", "jax", "cpp"]
+        valid_solver = ["scipy", "qr", "jax", "cpp"]
 
         if solver == "qr":
             self.use_qr = True
@@ -505,23 +505,23 @@ class BasisPolynomial(BasisInterp):
             self.use_jax = True
         elif solver == "cpp":
             self.use_cpp = True
-        elif solver == "des":
-            self.use_des = True
+        elif solver == "scipy":
+            self.use_scipy = True
         else:
             raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
 
         # To match old API when jax and cpp were not part of solving
         # basis interp.
-        if use_qr and solver not in ["des", "qr"]: 
+        if use_qr and solver not in ["scipy", "qr"]:
             raise NotImplementedError(f"use_qr and {solver} are not compatible")
         if use_qr:
             self.use_qr = True
-            self.use_des = False
+            self.use_scipy = False
 
         if not CAN_USE_JAX and self.use_jax:
             logger.warning("JAX not installed. Reverting to numpy/scipy.")
             self.use_jax = False
-            self.use_des = True
+            self.use_scipy = True
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
