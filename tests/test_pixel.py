@@ -1050,7 +1050,7 @@ def test_single_image():
     
     test_star_solver = []
 
-    solvers = ["des", "qr", "jax", "cpp"]
+    solvers = ["scipy", "qr", "jax", "cpp"]
 
     for solver in solvers:
         print("Running piffify function")
@@ -1486,7 +1486,7 @@ def test_des2():
 
     # Also exercise the SVD fallback to the non-QR method.
     config['psf']['interp']['use_qr'] = False
-    config['psf']['interp']['solver'] = "des"
+    config['psf']['interp']['solver'] = "scipy"
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
