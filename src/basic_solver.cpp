@@ -8,11 +8,13 @@
 namespace py = pybind11;
 
 
+// TO DO: template<class T> //, ssize_t N>
 template<class T, ssize_t N>
 auto _solve_direct_cpp_impl(
         std::vector<py::array_t<T, py::array::f_style>> bList,
         std::vector<py::array_t<T, py::array::f_style>> AList,
         std::vector<py::array_t<T, py::array::f_style>> KList) {
+        // TO DO: Add this instead--> ssize_t N) {
     // get size info
     py::buffer_info b_buffer_info = bList[0].request();
     py::buffer_info A_buffer_info = AList[0].request();
@@ -92,6 +94,8 @@ auto _solve_direct_cpp_impl(
             for (ssize_t i = 0; i < j+1; i++) {
                 ssize_t base_pos = i*N;
                 ATA_eig.template block<N, N>(base_pos, base_pos_j) += ATA_small(i,j)*K_cross;
+                // TO DO: this is where it was supposed to make the difference because of block assignement.
+                // TO DO: ATA_eig.block(base_pos, base_pos_j, N, N)  += ATA_small(i,j)*K_cross;
             }
         }
     }
@@ -102,9 +106,14 @@ auto _solve_direct_cpp_impl(
     auto view = ATA_eig. template selfadjointView<Eigen::Upper>();
     auto lltDecomp = view.llt();
     Eigen::Matrix<T, Eigen::Dynamic, 1> result;
+    // TO DO from Mike's comment:
+    // Eigen::Vector<T, Eigen::Dynamic> result;
     if (lltDecomp.info() == Eigen::ComputationInfo::Success) {
         result = lltDecomp.solve(ATb_map);
     } else {
+        // TO DO: lltDecomp.info() == Eigen::ComputationInfo::Success --> Do that for ldlt and if/ else then svd solver.
+        // there is already the pseudo inverse in Eigen implemented. Orthogonal decomposition and then call pseudo inverse.
+        // equivalent of np.linalg.pinv
         auto decomp = view.ldlt();
         result = decomp.solve(ATb_map);
     }
@@ -127,6 +136,8 @@ auto _solve_direct_cpp(
     }
 
     py::buffer_info K_buffer_info = KList[0].request();
+
+    // TO DO: return _solve_direct_cpp_impl<T>(bList, AList, KList,  K_buffer_info.shape[0]);
 
     // Switch on the length of the K parameter, this templated value
     // allows the compiler to make various optimizations

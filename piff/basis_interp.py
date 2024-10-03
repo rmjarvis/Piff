@@ -490,6 +490,9 @@ class BasisPolynomial(BasisInterp):
             self._max_order = max_order
 
         self.solver = solver
+        # TO DO: add that as "cpp32" solver
+        # TO DO: add a warning in the doc
+        # TO DO: write its own unit tests.
         self.cpp_use_float32 = cpp_use_float32
 
         valid_solver = ["scipy", "qr", "jax", "cpp"]
