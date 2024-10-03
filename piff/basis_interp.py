@@ -104,7 +104,6 @@ class BasisInterp(Interp):
         self.solver = "scipy"  # The default.  May be overridden by subclasses.
         self.q = None
         self.set_num(None)
-        self.cpp_use_float32 = False # The default. May be overridden by subclasses.
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
@@ -294,7 +293,7 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
-        if self.solver == "cpp":
+        if self.solver == "cpp" or self.solver == "cpp32":
             self._solve_direct_cpp(stars, logger)
         else:
             self._solve_direct_python(stars, logger)
@@ -303,15 +302,17 @@ class BasisInterp(Interp):
         """The implementation in C++ of solve() when use_qr = False.
         """
 
+        cpp_use_float32 = self.solver == "cpp32"
+
         Ks = []
         As = []
         bs = []
         for s in stars:
             # Get the basis function values at this star
             K = self.basis(s)
-            Ks.append(K if not self.cpp_use_float32 else K.astype(np.float32))
-            As.append(s.fit.A if not self.cpp_use_float32 else s.fit.A.astype(np.float32))
-            bs.append(s.fit.b if not self.cpp_use_float32 else s.fit.b.astype(np.float32))
+            Ks.append(K if not cpp_use_float32 else K.astype(np.float32))
+            As.append(s.fit.A if not cpp_use_float32 else s.fit.A.astype(np.float32))
+            bs.append(s.fit.b if not cpp_use_float32 else s.fit.b.astype(np.float32))
         dq = basic_solver._solve_direct_cpp(bs, As, Ks)
         self.q += dq.reshape(self.q.shape)
 
@@ -444,7 +445,7 @@ class BasisPolynomial(BasisInterp):
     :param max_order:       The maximum total order to use for cross terms between keys.
                             [default: None, which uses the maximum value of any individual key's order]
     :param solver:          Which solver to use to solve linear algebra of interpolation. Solvers
-                            available are "scipy", "qr", "jax", and "cpp".
+                            available are "scipy", "qr", "jax", "cpp", "cpp32".
                             "scipy": Default. Use scipy to solve.
                             "qr": Use QR decomposition for the solution rather than the more direct least
                             squares solution.  QR decomposition requires more memory than the default
@@ -457,7 +458,8 @@ class BasisPolynomial(BasisInterp):
                             numpy/scipy Equivalent to "scipy" solver, therefore, it may be preferred for some
                             use cases. On a single core cpu (and more), it will be faster than "scipy" solver
                             if the number of training stars is more than ~30.
-    :param cpp_use_float32: When solving with the cpp solver, use float32. [default: False]
+                            "cpp32": Same as cpp solver but use float32, faster than cpp with a trade for accuracy.
+                            Great power imply great responsability, to use carefully.
     :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
@@ -469,7 +471,6 @@ class BasisPolynomial(BasisInterp):
             max_order=None,
             solver="scipy",
             use_qr=False,
-            cpp_use_float32=False,
             logger=None
         ):
         super(BasisPolynomial, self).__init__()
@@ -490,12 +491,8 @@ class BasisPolynomial(BasisInterp):
             self._max_order = max_order
 
         self.solver = solver
-        # TO DO: add that as "cpp32" solver
-        # TO DO: add a warning in the doc
-        # TO DO: write its own unit tests.
-        self.cpp_use_float32 = cpp_use_float32
 
-        valid_solver = ["scipy", "qr", "jax", "cpp"]
+        valid_solver = ["scipy", "qr", "jax", "cpp", "cpp32"]
 
         if solver not in valid_solver:
             raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
