@@ -1050,7 +1050,8 @@ def test_single_image():
     
     test_star_solver = []
 
-    solvers = ["scipy", "qr", "jax", "cpp"]
+    solvers = ["scipy", "qr", "jax", "cpp", "cpp32"]
+    rtols = [1e-7, 1e-7, 1e-7, 1e-1]
 
     for solver in solvers:
         print("Running piffify function")
@@ -1096,7 +1097,9 @@ def test_single_image():
 
     # check that the solver versions (qr/jax/cpp vs numpy/scipy) of the test star are the same
     for i in range(len(solvers)-1):
-        np.testing.assert_allclose(test_star_solver[0].image.array, test_star_solver[i+1].image.array)
+        np.testing.assert_allclose(test_star_solver[0].image.array,
+                                   test_star_solver[i+1].image.array,
+                                   rtol=rtols[i])
 
 @timer
 def test_des_image():
