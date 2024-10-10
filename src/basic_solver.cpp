@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/eigen.h>
 #include <Eigen/Cholesky>
+#include <Eigen/Dense>
 #include <iostream>
 
 namespace py = pybind11;
@@ -105,14 +106,21 @@ auto _solve_direct_cpp_impl(
     auto view = ATA_eig. template selfadjointView<Eigen::Upper>();
     auto lltDecomp = view.llt();
     Eigen::Vector<T, Eigen::Dynamic> result;
+
     if (lltDecomp.info() == Eigen::ComputationInfo::Success) {
         result = lltDecomp.solve(ATb_map);
     } else {
-        // TO DO: lltDecomp.info() == Eigen::ComputationInfo::Success --> Do that for ldlt and if/ else then svd solver.
-        // there is already the pseudo inverse in Eigen implemented. Orthogonal decomposition and then call pseudo inverse.
-        // equivalent of np.linalg.pinv
         auto decomp = view.ldlt();
-        result = decomp.solve(ATb_map);
+        if (decomp.info() == Eigen::ComputationInfo::Success) {
+            result = decomp.solve(ATb_map);
+        } else {
+            // Really slow, but back-up solution if everything up does not work.
+            // There is something similar implemented in the python/scipy solutions.
+            Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> temporary;
+            temporary = ATA_eig;
+            auto pinv = temporary.completeOrthogonalDecomposition().pseudoInverse();
+            result = pinv * ATb_map;
+        }
     }
     return result;
 }
