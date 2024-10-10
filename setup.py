@@ -1,4 +1,7 @@
 import sys,os,glob,re
+import shutil
+import urllib.request as urllib2
+import tarfile
 
 try:
     from setuptools import setup, Extension, find_packages
@@ -38,6 +41,7 @@ except ImportError:
     print("Using distutils version",distutils.__version__)
 
 from distutils.command.install_headers import install_headers
+from pybind11.setup_helpers import Pybind11Extension
 
 try:
     from sysconfig import get_config_vars
@@ -61,17 +65,25 @@ if "--debug" in sys.argv:
     undef_macros+=['NDEBUG']
 
 copt =  {
-    'gcc' : ['-fopenmp','-O3','-ffast-math'],
-    'icc' : ['-openmp','-O3'],
-    'clang' : ['-O3','-ffast-math'],
-    'clang w/ OpenMP' : ['-fopenmp=libomp','-O3','-ffast-math'],
+    'gcc' : ['-O2','-std=c++14','-fvisibility=hidden','-fopenmp'],
+    'icc' : ['-O2','-vec-report0','-std=c++14','-openmp'],
+    'clang' : ['-O2','-std=c++14',
+               '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
+    'clang w/ OpenMP' : ['-O2','-std=c++14','-fopenmp',
+                         '-Wno-shorten-64-to-32','-fvisibility=hidden','-stdlib=libc++'],
     'unknown' : [],
 }
 lopt =  {
     'gcc' : ['-fopenmp'],
+    'gcc w/ GPU' : ['-fopenmp','-foffload=nvptx-none', '-foffload=-lm'],
     'icc' : ['-openmp'],
-    'clang' : [],
-    'clang w/ OpenMP' : ['-fopenmp=libomp'],
+    'clang' : ['-stdlib=libc++'],
+    'clang w/ OpenMP' : ['-stdlib=libc++','-fopenmp'],
+    'clang w/ Intel OpenMP' : ['-stdlib=libc++','-liomp5'],
+    'clang w/ manual OpenMP' : ['-stdlib=libc++','-lomp'],
+    'clang w/ GPU' : ['-fopenmp','-fopenmp-targets=nvptx64-nvidia-cuda',
+                      '-Wno-openmp-mapping','-Wno-unknown-cuda-version'],
+    'nvc++' : ['-mp=gpu'],
     'unknown' : [],
 }
 
@@ -80,6 +92,158 @@ if "--debug" in sys.argv:
     copt['icc'].append('-g')
     copt['clang'].append('-g')
     copt['clang w/ OpenMP'].append('-g')
+
+# Check for Eigen in some likely places
+def find_eigen_dir(output=False):
+
+    import distutils.sysconfig
+
+    try_dirs = []
+
+    # Start with a user-specified directory.
+    if 'EIGEN_DIR' in os.environ:
+        try_dirs.append(os.environ['EIGEN_DIR'])
+        try_dirs.append(os.path.join(os.environ['EIGEN_DIR'], 'include'))
+
+    # Add the python system include directory.
+    try_dirs.append(distutils.sysconfig.get_config_var('INCLUDEDIR'))
+
+    # If using Anaconda, add their lib dir in case fftw is installed there.
+    # (With envs, this might be different than the sysconfig LIBDIR.)
+    if 'CONDA_PREFIX' in os.environ:
+        try_dirs.append(os.path.join(os.environ['CONDA_PREFIX'],'lib'))
+
+    # Some standard install locations:
+    try_dirs.extend(['/usr/local/include', '/usr/include'])
+    if sys.platform == "darwin":
+        try_dirs.extend(['/sw/include', '/opt/local/include'])
+
+    # Also if there is a C_INCLUDE_PATH, check those dirs.
+    for path in ['C_INCLUDE_PATH']:
+        if path in os.environ:
+            for dir in os.environ[path].split(':'):
+                try_dirs.append(dir)
+
+    # Finally, (last resort) check our own download of eigen.
+    if os.path.isdir('downloaded_eigen'):
+        try_dirs.extend(glob.glob(os.path.join('downloaded_eigen','*')))
+
+    if output: print("Looking for Eigen:")
+    for dir in try_dirs:
+        if dir is None: continue
+        if not os.path.isdir(dir): continue
+        if output: print("  ", dir, end='')
+        if os.path.isfile(os.path.join(dir, 'Eigen/Core')):
+            if output: print("  (yes)")
+            return dir
+        if os.path.isfile(os.path.join(dir, 'eigen3', 'Eigen/Core')):
+            dir = os.path.join(dir, 'eigen3')
+            if output:
+                # Only print this if the eigen3 addition was key to finding it.
+                print("\n  ", dir, "  (yes)")
+            return dir
+        if output: print("  (no)")
+
+    if output:
+        print("Could not find Eigen in any of the standard locations.")
+        print("Will now try to download it from gitlab.com. This requires an internet")
+        print("connection, so it will fail if you are currently offline.")
+        print("If Eigen is installed in a non-standard location, and you want to use that")
+        print("instead, you should make sure the right directory is either in your")
+        print("C_INCLUDE_PATH or specified in an EIGEN_DIR environment variable.")
+
+    try:
+        dir = 'downloaded_eigen'
+        if os.path.isdir(dir):
+            # If this exists, it was tried above and failed.  Something must be wrong with it.
+            print("Previous attempt to download eigen found. Deleting and trying again.")
+            shutil.rmtree(dir)
+        os.mkdir(dir)
+        url = 'https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2'
+        if output:
+            print("Downloading eigen from ",url)
+        # Unfortunately, gitlab doesn't allow direct downloads. We need to spoof the request
+        # so it thinks we're a web browser.
+        # cf. https://stackoverflow.com/questions/42863240/how-to-get-round-the-http-error-403-forbidden-with-urllib-request-using-python
+        page=urllib2.Request(url,headers={'User-Agent': 'Mozilla/5.0'})
+        data=urllib2.urlopen(page).read()
+        fname = 'eigen.tar.bz2'
+        with open(fname, 'wb') as f:
+            f.write(data)
+        if output:
+            print("Downloaded %s.  Unpacking tarball."%fname)
+        with tarfile.open(fname) as tar:
+
+            def is_within_directory(directory, target):
+
+                abs_directory = os.path.abspath(directory)
+                abs_target = os.path.abspath(target)
+
+                prefix = os.path.commonprefix([abs_directory, abs_target])
+
+                return prefix == abs_directory
+
+            def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                # Avoid security vulnerability in tar.extractall function.
+                # This bit of code was added by the Advanced Research Center at Trellix in PR #1188.
+                # For more information about the security vulnerability, see
+                # https://github.com/advisories/GHSA-gw9q-c7gh-j9vm
+
+                for member in tar.getmembers():
+                    member_path = os.path.join(path, member.name)
+                    if not is_within_directory(path, member_path):
+                        raise Exception("Attempted Path Traversal in Tar File")
+
+                tar.extractall(path, members, numeric_owner=numeric_owner)
+
+            safe_extract(tar, dir)
+        os.remove(fname)
+        # This actually extracts into a subdirectory with a name eigen-eigen-5a0156e40feb/
+        # I'm not sure if that name is reliable, so use glob to get it.
+        dir = glob.glob(os.path.join(dir,'*'))[0]
+        if os.path.isfile(os.path.join(dir, 'Eigen/Core')):
+            return dir
+        elif output:
+            print("Downloaded eigen, but it didn't have the expected Eigen/Core file.")
+    except Exception as e:
+        if output:
+            print("Error encountered while downloading Eigen from the internet")
+            print(e)
+
+    raise OSError("Could not find Eigen")
+
+def find_pybind_path():
+
+    # Finally, add pybind11's include dir
+    import pybind11
+    import os
+    print('PyBind11 is version ',pybind11.__version__)
+    print('Looking for pybind11 header files: ')
+    locations = [pybind11.get_include(user=True),
+                 pybind11.get_include(user=False),
+                 '/usr/include',
+                 '/usr/local/include',
+                 None]
+    for try_dir in locations:
+        if try_dir is None:
+            # Last time through, raise an error.
+            print("Could not find pybind11 header files.")
+            print("They should have been in one of the following locations:")
+            for l in locations:
+                if l is not None:
+                    print("   ", l)
+            raise OSError("Could not find PyBind11")
+        print('  ',try_dir,end='')
+        if os.path.isfile(os.path.join(try_dir, 'pybind11/pybind11.h')):
+            print('  (yes)')
+            # builder.include_dirs.append(try_dir)
+            pybind_path = try_dir # os.path.join(try_dir, 'pybind11')
+            break
+        else:
+            raise OSError("Could not find PyBind11")
+            print('  (no)')
+
+    return pybind_path
 
 def get_compiler(cc):
     """Try to figure out which kind of compiler this really is.
@@ -177,7 +341,8 @@ int main() {
 """
     import tempfile
     cpp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.cpp')
-    cpp_file.write(cpp_code)
+    cpp_bytes = cpp_code.encode()
+    cpp_file.write(cpp_bytes)
     cpp_file.close()
 
     # Just get a named temporary file to write to:
@@ -247,10 +412,14 @@ class my_builder( build_ext ):
         else:
             print('Using compiler %s, which is %s'%(cc,comp_type))
         # Add the appropriate extra flags for that compiler.
+        eigen_path = find_eigen_dir(output=True)
+        pybind_path = find_pybind_path()
         for e in self.extensions:
             e.extra_compile_args = copt[ comp_type ]
             e.extra_link_args = lopt[ comp_type ]
             e.include_dirs = ['include']
+            e.include_dirs.append(eigen_path)
+            e.include_dirs.append(pybind_path)
         # Now run the normal build function.
         build_ext.build_extensions(self)
 
@@ -291,6 +460,8 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (version_file,))
 print('Piff version is %s'%(piff_version))
 
+basis_cpp_mod = Pybind11Extension("piff/basic_solver", ["src/basic_solver.cpp"])
+
 dist = setup(name="Piff",
       version=piff_version,
       author="Mike Jarvis",
@@ -303,6 +474,7 @@ dist = setup(name="Piff",
       packages=packages,
       package_data={'piff' : shared_data},
       install_requires=dependencies,
+      ext_modules=[basis_cpp_mod],
       cmdclass = {'build_ext': my_builder,
                   'install_scripts': my_install_scripts,
                   'easy_install': my_easy_install,

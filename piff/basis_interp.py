@@ -23,6 +23,7 @@ import warnings
 
 from .interp import Interp
 from .star import Star
+from . import basic_solver
 
 try: 
     import jax
@@ -100,10 +101,9 @@ class BasisInterp(Interp):
 
     def __init__(self):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
-        self.use_qr = False  # The default.  May be overridden by subclasses.
+        self.solver = "scipy"  # The default.  May be overridden by subclasses.
         self.q = None
         self.set_num(None)
-        self._use_jax = False # The default.  May be overridden by subclasses.
 
     def initialize(self, stars, logger=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
@@ -208,7 +208,7 @@ class BasisInterp(Interp):
         # It just requires a lot of memory.
 
         logger = galsim.config.LoggerWrapper(logger)
-        if self.use_qr:
+        if self.solver == "qr":
             self._solve_qr(stars, logger)
         else:
             self._solve_direct(stars, logger)
@@ -293,7 +293,31 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
-        """The implementation of solve() when use_qr = False.
+        if self.solver == "cpp" or self.solver == "cpp32":
+            self._solve_direct_cpp(stars, logger)
+        else:
+            self._solve_direct_python(stars, logger)
+
+    def _solve_direct_cpp(self, stars, logger):
+        """The implementation in C++ of solve() when use_qr = False.
+        """
+
+        cpp_use_float32 = self.solver == "cpp32"
+
+        Ks = []
+        As = []
+        bs = []
+        for s in stars:
+            # Get the basis function values at this star
+            K = self.basis(s)
+            Ks.append(K if not cpp_use_float32 else K.astype(np.float32))
+            As.append(s.fit.A if not cpp_use_float32 else s.fit.A.astype(np.float32))
+            bs.append(s.fit.b if not cpp_use_float32 else s.fit.b.astype(np.float32))
+        dq = basic_solver._solve_direct_cpp(bs, As, Ks)
+        self.q += dq.reshape(self.q.shape)
+
+    def _solve_direct_python(self, stars, logger):
+        """The implementation in python of solve() when use_qr = False.
         """
 
         # Build ATA and ATb by accumulating the chunks for each star as we go.
@@ -301,7 +325,7 @@ class BasisInterp(Interp):
         ATA = np.zeros((nq, nq), dtype=float)
         ATb = np.zeros(nq, dtype=float)
 
-        if self.use_jax:
+        if self.solver == "jax":
             Ks = []
             alphas = []
             betas = []
@@ -346,7 +370,7 @@ class BasisInterp(Interp):
                 # assuming just 'sym' instead (which does an LDL decomposition rather than
                 # Cholesky) would help.  If this fails, the matrix is usually high enough
                 # condition that it is functionally singular, and switching to SVD is warranted.
-                if self.use_jax:
+                if self.solver == "jax":
                     dq = jax_solve(ATA, ATb)
                 else:
                     dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
@@ -414,22 +438,41 @@ class BasisPolynomial(BasisInterp):
 
     Use type name "BasisPolynomial" in a config field to use this interpolant.
 
-    :param order:       The order to use for each key.  Can be a single value (applied to all
-                        keys) or an array matching number of keys.
-    :param keys:        List of keys for properties that will be used as the polynomial arguments.
-                        [default: ('u','v')]
-    :param max_order:   The maximum total order to use for cross terms between keys.
-                        [default: None, which uses the maximum value of any individual key's order]
-    :param use_qr:      Use QR decomposition for the solution rather than the more direct least
-                        squares solution.  QR decomposition requires more memory than the default
-                        and is somewhat slower (nearly a factor of 2); however, it is significantly
-    :param use_jax:     Use JAX for solving the linear algebra equations rather than numpy/scipy.
-                        Therefore, it may be preferred for some use cases. [default: False]
-    :param logger:      A logger object for logging debug info. [default: None]
+    :param order:           The order to use for each key.  Can be a single value (applied to all
+                            keys) or an array matching number of keys.
+    :param keys:            List of keys for properties that will be used as the polynomial arguments.
+                            [default: ('u','v')]
+    :param max_order:       The maximum total order to use for cross terms between keys.
+                            [default: None, which uses the maximum value of any individual key's order]
+    :param solver:          Which solver to use to solve linear algebra of interpolation. Solvers
+                            available are "scipy", "qr", "jax", "cpp", "cpp32".
+                            "scipy": Default. Use scipy to solve.
+                            "qr": Use QR decomposition for the solution rather than the more direct least
+                            squares solution.  QR decomposition requires more memory than the default
+                            and is somewhat slower (nearly a factor of 2); however, it is significantly
+                            less susceptible to numerical errors from high condition matrices.
+                            "jax": Use JAX for solving the linear algebra equations rather than numpy/scipy.
+                            Equivalent to "scipy" solver therefore, it may be preferred for some use cases. It will
+                            be faster than "scipy" solver on multi-core cpu / gpu are available.
+                            "cpp": Use C++/eigen for solving the linear algebra equations rather than
+                            numpy/scipy Equivalent to "scipy" solver, therefore, it may be preferred for some
+                            use cases. On a single core cpu (and more), it will be faster than "scipy" solver
+                            if the number of training stars is more than ~30.
+                            "cpp32": Same as cpp solver but use float32, faster than cpp with a trade for accuracy.
+                            Great power imply great responsability, to use carefully.
+    :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
 
-    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, use_jax=False, logger=None):
+    def __init__(
+            self,
+            order,
+            keys=('u','v'),
+            max_order=None,
+            solver="scipy",
+            use_qr=False,
+            logger=None
+        ):
         super(BasisPolynomial, self).__init__()
 
         logger = galsim.config.LoggerWrapper(logger)
@@ -446,13 +489,24 @@ class BasisPolynomial(BasisInterp):
             self._max_order = np.max(self._orders)
         else:
             self._max_order = max_order
-        self.use_qr = use_qr
 
-        self.use_jax = use_jax
+        self.solver = solver
 
-        if not CAN_USE_JAX and self.use_jax:
+        valid_solver = ["scipy", "qr", "jax", "cpp", "cpp32"]
+
+        if solver not in valid_solver:
+            raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
+
+        # To match old API when jax and cpp were not part of solving
+        # basis interp.
+        if use_qr and solver not in ["scipy", "qr"]:
+            raise NotImplementedError(f"use_qr and {solver} are not compatible")
+        if use_qr:
+            self.solver = "qr"
+
+        if not CAN_USE_JAX and self.solver == "jax":
             logger.warning("JAX not installed. Reverting to numpy/scipy.")
-            self.use_jax = False
+            self.solver = "scipy"
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
@@ -461,8 +515,7 @@ class BasisPolynomial(BasisInterp):
         self.kwargs = {
             'order' : order,
             'keys' : keys,
-            'use_qr' : use_qr,
-            'use_jax' : use_jax,
+            'solver': solver,
         }
 
         # Now build a mask that picks the desired polynomial products
