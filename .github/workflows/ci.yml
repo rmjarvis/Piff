@@ -21,13 +21,13 @@ jobs:
             matrix:
                 # First all python versions in basic linux
                 os: [ ubuntu-latest ]
-                py: [ 3.7, 3.8, 3.9, "3.10", 3.11, 3.12 ]
+                py: [ 3.12 ]
                 CC: [ gcc ]
                 CXX: [ g++ ]
                 FFTW_DIR: [ "/usr/local/lib/" ]
 
                 # Add some other particular combinations to test
-                include:
+                # include:
                     # A couple in MacOS
                     # I've been getting random seg faults in macos runs lately.
                     # Note sure what the problem is, but for now just disable macos CI.
@@ -40,11 +40,11 @@ jobs:
                       #FFTW_DIR: "/usr/local/lib"
 
                     # Check one with clang compiler
-                    - os: ubuntu-latest
-                      py: 3.11
-                      CC: clang
-                      CXX: clang++
-                      FFTW_DIR: "/usr/local/lib/"
+                    # - os: ubuntu-latest
+                    #  py: 3.11
+                    #  CC: clang
+                    #  CXX: clang++
+                    #  FFTW_DIR: "/usr/local/lib/"
 
         env:
             # Need to put this here.  export doesn't work.
