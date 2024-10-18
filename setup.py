@@ -460,7 +460,8 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (version_file,))
 print('Piff version is %s'%(piff_version))
 
-basis_cpp_mod = Pybind11Extension("piff/basic_solver", ["src/basic_solver.cpp"])
+basis_cpp_mod_test = Pybind11Extension("piff/basic_solver", ["src/basic_solver.cpp"])
+basis_cpp_mod_test = Pybind11Extension("piff/basic_solver_test", ["src/basic_solver_test.cpp"])
 
 dist = setup(name="Piff",
       version=piff_version,

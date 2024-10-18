@@ -24,6 +24,7 @@ import warnings
 from .interp import Interp
 from .star import Star
 from . import basic_solver
+from . import basic_solver_test
 
 try: 
     import jax
