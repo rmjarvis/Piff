@@ -460,7 +460,7 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (version_file,))
 print('Piff version is %s'%(piff_version))
 
-basis_cpp_mod_test = Pybind11Extension("piff/basic_solver", ["src/basic_solver.cpp"])
+basis_cpp_mod = Pybind11Extension("piff/basic_solver", ["src/basic_solver.cpp"])
 basis_cpp_mod_test = Pybind11Extension("piff/basic_solver_test", ["src/basic_solver_test.cpp"])
 
 dist = setup(name="Piff",
@@ -475,7 +475,7 @@ dist = setup(name="Piff",
       packages=packages,
       package_data={'piff' : shared_data},
       install_requires=dependencies,
-      ext_modules=[basis_cpp_mod],
+      ext_modules=[basis_cpp_mod, basis_cpp_mod_test],
       cmdclass = {'build_ext': my_builder,
                   'install_scripts': my_install_scripts,
                   'easy_install': my_easy_install,

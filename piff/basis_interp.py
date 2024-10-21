@@ -294,7 +294,7 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
-        if self.solver == "cpp" or self.solver == "cpp32":
+        if self.solver in {"cpp", "cpp32", "cpp_test"}:
             self._solve_direct_cpp(stars, logger)
         else:
             self._solve_direct_python(stars, logger)
@@ -314,7 +314,12 @@ class BasisInterp(Interp):
             Ks.append(K if not cpp_use_float32 else K.astype(np.float32))
             As.append(s.fit.A if not cpp_use_float32 else s.fit.A.astype(np.float32))
             bs.append(s.fit.b if not cpp_use_float32 else s.fit.b.astype(np.float32))
-        dq = basic_solver._solve_direct_cpp(bs, As, Ks)
+        if self.solver in {"cpp", "cpp32"}:
+            dq = basic_solver._solve_direct_cpp(bs, As, Ks)
+        else:
+            logger.info("PFFFF: use test C++")
+            logger.info(f"PFFFF K[0] shape: {np.shape(Ks[0])}")
+            dq = basic_solver_test._solve_direct_cpp_test(bs, As, Ks)
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct_python(self, stars, logger):
@@ -493,7 +498,7 @@ class BasisPolynomial(BasisInterp):
 
         self.solver = solver
 
-        valid_solver = ["scipy", "qr", "jax", "cpp", "cpp32"]
+        valid_solver = ["scipy", "qr", "jax", "cpp", "cpp32", "cpp_test"]
 
         if solver not in valid_solver:
             raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")

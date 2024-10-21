@@ -44,7 +44,7 @@ auto _solve_direct_cpp_impl_test(
 
     // Allocate intermediate arrays that will be reused in the following loops
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> ATA_small(A_shape[1],A_shape[1]);
-    Eigen::Matrix<T, N, N> K_cross(N, N);
+    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> K_cross(N, N);
     Eigen::Vector<T, Eigen::Dynamic> ATb_small(A_shape[1]);
 
     // loop over each Star
@@ -67,7 +67,7 @@ auto _solve_direct_cpp_impl_test(
 
         // calculate the outer product of the K parameters so that it can be re-used in the
         // following loops
-        Eigen::Map<const Eigen::Vector<T, N>> K_vec(K_data, N);
+        Eigen::Map<const Eigen::Vector<T, Eigen::Dynamic>> K_vec(K_data, N);
         K_cross = K_vec *K_vec.transpose();
 
         Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> A_map(A_data, A_shape_zero, A_shape_one);
@@ -93,9 +93,9 @@ auto _solve_direct_cpp_impl_test(
             ssize_t base_pos_j = j*N;
             for (ssize_t i = 0; i < j+1; i++) {
                 ssize_t base_pos = i*N;
-                ATA_eig.template block<N, N>(base_pos, base_pos_j) += ATA_small(i,j)*K_cross;
+                // ATA_eig.template block<N, N>(base_pos, base_pos_j) += ATA_small(i,j)*K_cross;
                 // TO DO: this is where it was supposed to make the difference because of block assignement.
-                // TO DO: ATA_eig.block(base_pos, base_pos_j, N, N)  += ATA_small(i,j)*K_cross;
+                ATA_eig.block(base_pos, base_pos_j, N, N) += ATA_small(i,j)*K_cross;
             }
         }
     }
