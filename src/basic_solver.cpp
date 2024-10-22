@@ -89,7 +89,7 @@ auto _solve_direct_cpp_impl(
         }
 
         // Calculate ATA contribution for this list entry
-        if (n<11) {
+        if (n<31) {
             for (ssize_t j = 0; j < A_shape_one; j++) {
                 ssize_t base_pos_j = j*N;
                 for (ssize_t i = 0; i < j+1; i++) {
@@ -174,8 +174,48 @@ auto _solve_direct_cpp(
             return _solve_direct_cpp_impl<T, 9>(bList, AList, KList, K_buffer_info.shape[0]);
         case 10:
             return _solve_direct_cpp_impl<T, 10>(bList, AList, KList, K_buffer_info.shape[0]);
-        default:
+        case 11:
             return _solve_direct_cpp_impl<T, 11>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 12:
+            return _solve_direct_cpp_impl<T, 12>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 13:
+            return _solve_direct_cpp_impl<T, 13>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 14:
+            return _solve_direct_cpp_impl<T, 14>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 15:
+            return _solve_direct_cpp_impl<T, 15>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 16:
+            return _solve_direct_cpp_impl<T, 16>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 17:
+            return _solve_direct_cpp_impl<T, 17>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 18:
+            return _solve_direct_cpp_impl<T, 18>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 19:
+            return _solve_direct_cpp_impl<T, 19>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 20:
+            return _solve_direct_cpp_impl<T, 20>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 21:
+            return _solve_direct_cpp_impl<T, 21>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 22:
+            return _solve_direct_cpp_impl<T, 22>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 23:
+            return _solve_direct_cpp_impl<T, 23>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 24:
+            return _solve_direct_cpp_impl<T, 24>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 25:
+            return _solve_direct_cpp_impl<T, 25>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 26:
+            return _solve_direct_cpp_impl<T, 26>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 27:
+            return _solve_direct_cpp_impl<T, 27>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 28:
+            return _solve_direct_cpp_impl<T, 28>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 29:
+            return _solve_direct_cpp_impl<T, 29>(bList, AList, KList, K_buffer_info.shape[0]);
+        case 30:
+            return _solve_direct_cpp_impl<T, 30>(bList, AList, KList, K_buffer_info.shape[0]);
+        default:
+            return _solve_direct_cpp_impl<T, 31>(bList, AList, KList, K_buffer_info.shape[0]);
     }
 }
 
