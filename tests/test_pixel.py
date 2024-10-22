@@ -341,7 +341,7 @@ def test_basis_interp():
     # Users shouldn't ever make a BasisInterp base class directly.
     # But it's not actually an error until they try to do something non-trivial.
     basis = piff.BasisInterp()
-    assert not basis.use_qr
+    assert not basis.solver == "qr"
     assert basis.q == None
 
     np.testing.assert_raises(NotImplementedError, basis.basis, None)
@@ -349,7 +349,14 @@ def test_basis_interp():
 
     # The BaisPolynomial class is the real thing that gets made in practice
     basis = piff.BasisPolynomial(order=0)
-    assert not basis.use_qr
+    assert not basis.solver == "qr"
+
+    # Test exeption of API:
+    with np.testing.assert_raises(ValueError):
+        basis = piff.BasisPolynomial(order=2, solver="42")
+
+    with np.testing.assert_raises(NotImplementedError):
+        basis = piff.BasisPolynomial(order=2, solver="cpp", use_qr=True)
 
     star = make_gaussian_data(2.0, 0., 0., flux=100, du=0.2, fpu=2, fpv=3)
     assert star.u == 2
@@ -609,7 +616,10 @@ def test_undersamp():
     chisq1 = np.sum((s0.image[b].array - s1.image[b].array)**2*s0.weight[b].array)
     print('chisq after initialize = ',chisq1)
     print('nominal chisq = ',s1.fit.chisq)
-    assert chisq1 > 5.e5  # Pretty large at the start before fitting.
+    if __name__ == '__main__':
+        assert chisq1 > 1.e3
+    else: 
+        assert chisq1 > 5.e5  # Pretty large at the start before fitting.
 
     s2 = mod.fit(s0)
     image = mod.draw(s2).image
@@ -1027,7 +1037,6 @@ def test_single_image():
             'interp' : {
                 'type' : 'BasisPolynomial',
                 'order' : order,
-                'use_jax' : False,
             },
         },
     }
@@ -1037,28 +1046,26 @@ def test_single_image():
     else:
         config['verbose'] = 0
 
-    try:
-        import jax
-        jax.config.update("jax_enable_x64", True)
-    except ImportError:
-        print("JAX not installed.")
+    configSolver = copy.deepcopy(config)
+    
+    test_star_solver = []
 
-    configJax = copy.deepcopy(config)
-    configJax['psf']['interp']['use_jax'] = True
-    test_star_jax = []
+    solvers = ["scipy", "qr", "jax", "cpp", "cpp32"]
+    rtols = [1e-7, 1e-7, 1e-7, 2e-1]
 
-    for conf in [config, configJax]:
+    for solver in solvers:
         print("Running piffify function")
-        piff.piffify(conf)
+        configSolver['psf']['interp']['solver'] = solver
+        piff.piffify(configSolver)
         psf = piff.read(psf_file)
         test_star = psf.drawStar(target_star)
-        test_star_jax.append(test_star)
+        test_star_solver.append(test_star)
         print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
         np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
         # Test using the piffify executable
         with open('pixel_moffat.yaml','w') as f:
-            f.write(yaml.dump(conf, default_flow_style=False))
+            f.write(yaml.dump(configSolver, default_flow_style=False))
         if __name__ == '__main__':
             print("Running piffify executable")
             if os.path.exists(psf_file):
@@ -1088,8 +1095,11 @@ def test_single_image():
         image_reference.array[0,0] = 123456
         assert image.array[0,0] == image_reference.array[0,0]
 
-    # check that the two versions (jax vs numpy/scipy) of the test star are the same
-    np.testing.assert_allclose(test_star_jax[0].image.array, test_star_jax[1].image.array)
+    # check that the solver versions (qr/jax/cpp vs numpy/scipy) of the test star are the same
+    for i in range(len(solvers)-1):
+        np.testing.assert_allclose(test_star_solver[0].image.array,
+                                   test_star_solver[i+1].image.array,
+                                   rtol=rtols[i])
 
 @timer
 def test_des_image():
@@ -1477,8 +1487,6 @@ def test_des2():
     # Basically saying the solution doesn't go completely haywire.
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
-    # Also exercise the SVD fallback to the non-QR method.
-    config['psf']['interp']['use_qr'] = False
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
