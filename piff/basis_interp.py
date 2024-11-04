@@ -444,25 +444,29 @@ class BasisPolynomial(BasisInterp):
                             [default: ('u','v')]
     :param max_order:       The maximum total order to use for cross terms between keys.
                             [default: None, which uses the maximum value of any individual key's order]
-    :param solver:          Which solver to use to solve linear algebra of interpolation. Solvers
-                            available are "scipy", "qr", "jax", "cpp", "cpp32".
-                            "scipy": Default. Use scipy to solve.
-                            "qr": Use QR decomposition for the solution rather than the more direct least
-                            squares solution.  QR decomposition requires more memory than the default
-                            and is somewhat slower (nearly a factor of 2); however, it is significantly
-                            less susceptible to numerical errors from high condition matrices.
-                            "jax": Use JAX for solving the linear algebra equations rather than numpy/scipy.
-                            Equivalent to "scipy" solver therefore, it may be preferred for some use cases. It will
-                            be faster than "scipy" solver on multi-core cpu / gpu are available.
-                            "cpp": Use C++/eigen for solving the linear algebra equations rather than
-                            numpy/scipy Equivalent to "scipy" solver, therefore, it may be preferred for some
-                            use cases. On a single core cpu (and more), it will be faster than "scipy" solver
-                            if the number of training stars is more than ~30. With a Piff config using `PixelGrid`
-                            with `size=25` and `interp="Lanczos(11)"` and a second order polynomial for interpolation,
-                            and running on ~O(100) PSFs reserved stars on a 4GB single core CPU, "cpp" solver is 60%
-                            faster than "scipy" solver.
-                            "cpp32": Same as cpp solver but use float32, faster than cpp with a trade for accuracy.
-                            Great power imply great responsability, to use carefully.
+    :param solver:          "scipy":
+                                Default. Use scipy to solve.
+                            "cpp":
+                                Use C++/eigen for solving the linear algebra equations rather than
+                                numpy/scipy Equivalent to "scipy" solver, therefore, it may be preferred for some
+                                use cases. On a single core cpu (and more), it will be faster than default "scipy" solver
+                                if the number of training stars is more than ~30. With a Piff config using `PixelGrid`
+                                with `size=25` and `interp="Lanczos(11)"` and a second order polynomial for interpolation,
+                                and running on ~O(100) PSFs reserved stars on a 4GB single core CPU, "cpp" solver is 60%
+                                faster than "scipy" solver.
+                            "jax":
+                                Use JAX for solving the linear algebra equations rather than numpy/scipy.
+                                Equivalent to "scipy" solver therefore, it may be preferred for some use cases. It will
+                                be faster than "scipy" solver if multi-core cpu or gpu are available.
+                            "qr":
+                                Use QR decomposition for the solution rather than the more direct least
+                                squares solution.  QR decomposition requires more memory than the default
+                                and is somewhat slower (nearly a factor of 2); however, it is significantly
+                                less susceptible to numerical errors from high condition matrices.
+                            "cpp32":
+                                Same as cpp solver but use float32, faster than cpp with a trade for accuracy,
+                                to use carefully.
+                            Solvers available are "scipy", "cpp", "jax", "qr", "cpp32".
     :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
@@ -505,6 +509,7 @@ class BasisPolynomial(BasisInterp):
         if use_qr and solver not in ["scipy", "qr"]:
             raise NotImplementedError(f"use_qr and {solver} are not compatible")
         if use_qr:
+            logger.warning("use_qr=True should now be written solver='qr'")
             self.solver = "qr"
 
         if not CAN_USE_JAX and self.solver == "jax":
