@@ -457,7 +457,10 @@ class BasisPolynomial(BasisInterp):
                             "cpp": Use C++/eigen for solving the linear algebra equations rather than
                             numpy/scipy Equivalent to "scipy" solver, therefore, it may be preferred for some
                             use cases. On a single core cpu (and more), it will be faster than "scipy" solver
-                            if the number of training stars is more than ~30.
+                            if the number of training stars is more than ~30. With a Piff config using `PixelGrid`
+                            with `size=25` and `interp="Lanczos(11)"` and a second order polynomial for interpolation,
+                            and running on ~O(100) PSFs reserved stars on a 4GB single core CPU, "cpp" solver is 60%
+                            faster than "scipy" solver.
                             "cpp32": Same as cpp solver but use float32, faster than cpp with a trade for accuracy.
                             Great power imply great responsability, to use carefully.
     :param logger:          A logger object for logging debug info. [default: None]
