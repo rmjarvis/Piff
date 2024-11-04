@@ -509,7 +509,8 @@ class BasisPolynomial(BasisInterp):
         if use_qr and solver not in ["scipy", "qr"]:
             raise NotImplementedError(f"use_qr and {solver} are not compatible")
         if use_qr:
-            logger.warning("use_qr=True should now be written solver='qr'")
+            logger.error("WARNING: use_qr=True is deprecated. "
+                         "Use solver='qr' instead.")
             self.solver = "qr"
 
         if not CAN_USE_JAX and self.solver == "jax":
