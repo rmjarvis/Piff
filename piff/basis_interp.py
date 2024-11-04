@@ -466,7 +466,7 @@ class BasisPolynomial(BasisInterp):
                             "cpp32":
                                 Same as cpp solver but use float32, faster than cpp with a trade for accuracy,
                                 to use carefully.
-                            Solvers available are "scipy", "cpp", "jax", "qr", "cpp32".
+                            Solvers available are "scipy", "cpp", "jax", "qr", "cpp32". See above for details.
     :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
