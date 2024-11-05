@@ -293,7 +293,7 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
-        if self.solver == "cpp" or self.solver == "cpp32":
+        if self.solver == "cpp":
             self._solve_direct_cpp(stars, logger)
         else:
             self._solve_direct_python(stars, logger)
@@ -302,17 +302,15 @@ class BasisInterp(Interp):
         """The implementation in C++ of solve() when use_qr = False.
         """
 
-        cpp_use_float32 = self.solver == "cpp32"
-
         Ks = []
         As = []
         bs = []
         for s in stars:
             # Get the basis function values at this star
             K = self.basis(s)
-            Ks.append(K if not cpp_use_float32 else K.astype(np.float32))
-            As.append(s.fit.A if not cpp_use_float32 else s.fit.A.astype(np.float32))
-            bs.append(s.fit.b if not cpp_use_float32 else s.fit.b.astype(np.float32))
+            Ks.append(K)
+            As.append(s.fit.A)
+            bs.append(s.fit.b)
         dq = basic_solver._solve_direct_cpp(bs, As, Ks)
         self.q += dq.reshape(self.q.shape)
 
@@ -463,10 +461,7 @@ class BasisPolynomial(BasisInterp):
                                 squares solution.  QR decomposition requires more memory than the default
                                 and is somewhat slower (nearly a factor of 2); however, it is significantly
                                 less susceptible to numerical errors from high condition matrices.
-                            "cpp32":
-                                Same as cpp solver but use float32, faster than cpp with a trade for accuracy,
-                                to use carefully.
-                            Solvers available are "scipy", "cpp", "jax", "qr", "cpp32". See above for details.
+                            Solvers available are "scipy", "cpp", "jax", "qr". See above for details.
     :param logger:          A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
@@ -499,7 +494,7 @@ class BasisPolynomial(BasisInterp):
 
         self.solver = solver
 
-        valid_solver = ["scipy", "qr", "jax", "cpp", "cpp32"]
+        valid_solver = ["scipy", "qr", "jax", "cpp"]
 
         if solver not in valid_solver:
             raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")

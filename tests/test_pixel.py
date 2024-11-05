@@ -1050,8 +1050,8 @@ def test_single_image():
     
     test_star_solver = []
 
-    solvers = ["scipy", "qr", "jax", "cpp", "cpp32"]
-    rtols = [1e-7, 1e-7, 1e-7, 2e-1]
+    solvers = ["scipy", "qr", "jax", "cpp"]
+    rtols = [1e-7, 1e-7, 1e-7]
 
     for solver in solvers:
         print("Running piffify function")
