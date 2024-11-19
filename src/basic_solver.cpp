@@ -26,9 +26,11 @@ std::shared_ptr<T> allocateAlignedMemory(int n)
     return owner;
 }
 
+// Useful shorthand
+const int X = Eigen::Dynamic;
 
 template<class T, ssize_t N>
-Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
+Eigen::Vector<T, X> _solve_direct_cpp_impl(
         std::vector<py::array_t<T, py::array::f_style>> bList,
         std::vector<py::array_t<T, py::array::f_style>> AList,
         std::vector<py::array_t<T, py::array::f_style>> KList,
@@ -45,10 +47,8 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
     auto ATA_data = allocateAlignedMemory<T>(A_shape[1]*N * A_shape[1]*N);
     // set it all to zero
     memset(ATA_data.get(), 0, A_shape[1]*n*A_shape[1]*n*sizeof(T));
-    Eigen::Map< Eigen::Matrix<T,
-                              Eigen::Dynamic,
-                              Eigen::Dynamic,
-                              Eigen::ColMajor> > ATA_eig(ATA_data.get(), A_shape[1]*n, A_shape[1]*n);
+    Eigen::Map< Eigen::Matrix<T, X, X, Eigen::ColMajor>> ATA_eig(
+        ATA_data.get(), A_shape[1]*n, A_shape[1]*n);
 
     // Allocate an array for b, similar to ATA
     auto ATb = py::array_t<T>(A_shape[1]*n);
@@ -57,9 +57,9 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
     memset(ATb_data, 0, A_shape[1]*n*sizeof(T));
 
     // Allocate intermediate arrays that will be reused in the following loops
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> ATA_small(A_shape[1],A_shape[1]);
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> K_cross(n, n);
-    Eigen::Vector<T, Eigen::Dynamic> ATb_small(A_shape[1]);
+    Eigen::Matrix<T, X, X> ATA_small(A_shape[1],A_shape[1]);
+    Eigen::Matrix<T, N, N> K_cross(n, n);
+    Eigen::Vector<T, X> ATb_small(A_shape[1]);
 
     // loop over each Star
     for (ssize_t c=0; c < AList.size(); ++c) {
@@ -81,17 +81,17 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
 
         // calculate the outer product of the K parameters so that it can be re-used in the
         // following loops
-        Eigen::Map<const Eigen::Vector<T, Eigen::Dynamic>> K_vec(K_data, n);
+        Eigen::Map<const Eigen::Vector<T, N>> K_vec(K_data, n);
         K_cross = K_vec *K_vec.transpose();
 
-        Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> A_map(A_data, A_shape_zero, A_shape_one);
+        Eigen::Map<const Eigen::Matrix<T, X, X>> A_map(A_data, A_shape_zero, A_shape_one);
         // reset the ATA array to all zeros
         ATA_small.setZero();
         // since the array will be self-adjoint, use Eigen such that only half the number
         // of comutations need done.
         ATA_small.template selfadjointView<Eigen::Upper>().rankUpdate(A_map.transpose());
 
-        Eigen::Map<const Eigen::Matrix<T, Eigen::Dynamic, 1>> b_map(b_data, b_buffer_info.shape[0]);
+        Eigen::Map<const Eigen::Matrix<T, X, 1>> b_map(b_data, b_buffer_info.shape[0]);
         ATb_small = A_map.transpose() * b_map;
     
         // Calculate ATb contribution for this list entry
@@ -114,10 +114,10 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
 
     // solve Ax=b. If the matrix can be decomposed using llt do that (faster) if it cant be
     // then use the slower ldlt method
-    Eigen::Map<const Eigen::Vector<T, Eigen::Dynamic>> ATb_map(ATb_data, A_shape[1]*n);
+    Eigen::Map<const Eigen::Vector<T, X>> ATb_map(ATb_data, A_shape[1]*n);
     auto view = ATA_eig. template selfadjointView<Eigen::Upper>();
     auto lltDecomp = view.llt();
-    Eigen::Vector<T, Eigen::Dynamic> result;
+    Eigen::Vector<T, X> result;
 
     if (lltDecomp.info() == Eigen::ComputationInfo::Success) {
         result = lltDecomp.solve(ATb_map);
@@ -128,8 +128,7 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
         } else {
             // Really slow, but back-up solution if everything up does not work.
             // There is something similar implemented in the python/scipy solutions.
-            Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> temporary;
-            temporary = ATA_eig;
+            Eigen::Matrix<T, X, X> temporary = ATA_eig;
             auto pinv = temporary.completeOrthogonalDecomposition().pseudoInverse();
             result = pinv * ATb_map;
         }
@@ -138,7 +137,7 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
 }
 
 template<class T>
-Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp(
+Eigen::Vector<T, X> _solve_direct_cpp(
         std::vector<py::array_t<T, py::array::f_style>> bList,
         std::vector<py::array_t<T, py::array::f_style>> AList,
         std::vector<py::array_t<T, py::array::f_style>> KList)
@@ -154,72 +153,73 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp(
     }
 
     py::buffer_info K_buffer_info = KList[0].request();
+    const int n = K_buffer_info.shape[0];
 
     // Switch on the length of the K parameter, this templated value
     // allows the compiler to make various optimizations
-    switch (K_buffer_info.shape[0]) {
+    switch (n) {
         case 1:
-            return _solve_direct_cpp_impl<T, 1>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 1>(bList, AList, KList, n);
         case 2:
-            return _solve_direct_cpp_impl<T, 2>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 2>(bList, AList, KList, n);
         case 3:
-            return _solve_direct_cpp_impl<T, 3>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 3>(bList, AList, KList, n);
         case 4:
-            return _solve_direct_cpp_impl<T, 4>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 4>(bList, AList, KList, n);
         case 5:
-            return _solve_direct_cpp_impl<T, 5>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 5>(bList, AList, KList, n);
         case 6:
-            return _solve_direct_cpp_impl<T, 6>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 6>(bList, AList, KList, n);
         case 7:
-            return _solve_direct_cpp_impl<T, 7>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 7>(bList, AList, KList, n);
         case 8:
-            return _solve_direct_cpp_impl<T, 8>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 8>(bList, AList, KList, n);
         case 9:
-            return _solve_direct_cpp_impl<T, 9>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 9>(bList, AList, KList, n);
         case 10:
-            return _solve_direct_cpp_impl<T, 10>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 10>(bList, AList, KList, n);
         case 11:
-            return _solve_direct_cpp_impl<T, 11>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 11>(bList, AList, KList, n);
         case 12:
-            return _solve_direct_cpp_impl<T, 12>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 12>(bList, AList, KList, n);
         case 13:
-            return _solve_direct_cpp_impl<T, 13>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 13>(bList, AList, KList, n);
         case 14:
-            return _solve_direct_cpp_impl<T, 14>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 14>(bList, AList, KList, n);
         case 15:
-            return _solve_direct_cpp_impl<T, 15>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 15>(bList, AList, KList, n);
         case 16:
-            return _solve_direct_cpp_impl<T, 16>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 16>(bList, AList, KList, n);
         case 17:
-            return _solve_direct_cpp_impl<T, 17>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 17>(bList, AList, KList, n);
         case 18:
-            return _solve_direct_cpp_impl<T, 18>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 18>(bList, AList, KList, n);
         case 19:
-            return _solve_direct_cpp_impl<T, 19>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 19>(bList, AList, KList, n);
         case 20:
-            return _solve_direct_cpp_impl<T, 20>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 20>(bList, AList, KList, n);
         case 21:
-            return _solve_direct_cpp_impl<T, 21>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 21>(bList, AList, KList, n);
         case 22:
-            return _solve_direct_cpp_impl<T, 22>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 22>(bList, AList, KList, n);
         case 23:
-            return _solve_direct_cpp_impl<T, 23>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 23>(bList, AList, KList, n);
         case 24:
-            return _solve_direct_cpp_impl<T, 24>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 24>(bList, AList, KList, n);
         case 25:
-            return _solve_direct_cpp_impl<T, 25>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 25>(bList, AList, KList, n);
         case 26:
-            return _solve_direct_cpp_impl<T, 26>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 26>(bList, AList, KList, n);
         case 27:
-            return _solve_direct_cpp_impl<T, 27>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 27>(bList, AList, KList, n);
         case 28:
-            return _solve_direct_cpp_impl<T, 28>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 28>(bList, AList, KList, n);
         case 29:
-            return _solve_direct_cpp_impl<T, 29>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 29>(bList, AList, KList, n);
         case 30:
-            return _solve_direct_cpp_impl<T, 30>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, 30>(bList, AList, KList, n);
         default:
-            return _solve_direct_cpp_impl<T, Eigen::Dynamic>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, X>(bList, AList, KList, n);
     }
 }
 
