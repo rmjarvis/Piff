@@ -103,22 +103,11 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
         }
 
         // Calculate ATA contribution for this list entry
-        if (n<31) {
-            for (ssize_t j = 0; j < A_shape_one; j++) {
-                ssize_t base_pos_j = j*N;
-                for (ssize_t i = 0; i < j+1; i++) {
-                    ssize_t base_pos = i*N;
-                    ATA_eig.template block<N, N>(base_pos, base_pos_j) += ATA_small(i,j)*K_cross;
-                }
-            }
-        }
-        else {
-            for (ssize_t j = 0; j < A_shape_one; j++) {
-                ssize_t base_pos_j = j*n;
-                for (ssize_t i = 0; i < j+1; i++) {
-                    ssize_t base_pos = i*n;
-                    ATA_eig.block(base_pos, base_pos_j, n, n) += ATA_small(i,j)*K_cross;
-                }
+        for (ssize_t j = 0; j < A_shape_one; j++) {
+            ssize_t base_pos_j = j*n;
+            for (ssize_t i = 0; i < j+1; i++) {
+                ssize_t base_pos = i*n;
+                ATA_eig.template block<N, N>(base_pos, base_pos_j, n, n) += ATA_small(i,j)*K_cross;
             }
         }
     }
@@ -230,7 +219,7 @@ Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp(
         case 30:
             return _solve_direct_cpp_impl<T, 30>(bList, AList, KList, K_buffer_info.shape[0]);
         default:
-            return _solve_direct_cpp_impl<T, 31>(bList, AList, KList, K_buffer_info.shape[0]);
+            return _solve_direct_cpp_impl<T, Eigen::Dynamic>(bList, AList, KList, K_buffer_info.shape[0]);
     }
 }
 
