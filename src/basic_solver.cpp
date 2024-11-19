@@ -28,11 +28,12 @@ std::shared_ptr<T> allocateAlignedMemory(int n)
 
 
 template<class T, ssize_t N>
-auto _solve_direct_cpp_impl(
+Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp_impl(
         std::vector<py::array_t<T, py::array::f_style>> bList,
         std::vector<py::array_t<T, py::array::f_style>> AList,
         std::vector<py::array_t<T, py::array::f_style>> KList,
-        ssize_t n) {
+        ssize_t n)
+{
 
     // get size info
     py::buffer_info b_buffer_info = bList[0].request();
@@ -148,10 +149,11 @@ auto _solve_direct_cpp_impl(
 }
 
 template<class T>
-auto _solve_direct_cpp(
+Eigen::Vector<T, Eigen::Dynamic> _solve_direct_cpp(
         std::vector<py::array_t<T, py::array::f_style>> bList,
         std::vector<py::array_t<T, py::array::f_style>> AList,
-        std::vector<py::array_t<T, py::array::f_style>> KList) {
+        std::vector<py::array_t<T, py::array::f_style>> KList)
+{
 
     // check some properties of the inputs, more will be done later in the
     // implementation function
@@ -232,11 +234,10 @@ auto _solve_direct_cpp(
     }
 }
 
-
-
-PYBIND11_MODULE(_piff, m) {
+void pyExportCppSolve(py::module& m)
+{
     m.def("_solve_direct_cpp", &_solve_direct_cpp<float>, py::return_value_policy::move,
-        py::arg("bList"),py::arg("AList"),py::arg("KList") );
+          py::arg("bList"),py::arg("AList"),py::arg("KList") );
     m.def("_solve_direct_cpp", &_solve_direct_cpp<double>, py::return_value_policy::move,
-        py::arg("bList"),py::arg("AList"),py::arg("KList") );
+          py::arg("bList"),py::arg("AList"),py::arg("KList") );
 }
