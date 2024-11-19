@@ -8,6 +8,28 @@
 
 namespace py = pybind11;
 
+// A custom deleter that finds the original address of the memory allocation directly
+// before the stored pointer and frees that using delete []
+template <typename T>
+struct AlignedDeleter {
+    void operator()(T* p) const { delete [] ((char**)p)[-1]; }
+};
+
+template <typename T>
+std::shared_ptr<T> allocateAlignedMemory(int n)
+{
+    // This bit is based on the answers here:
+    // http://stackoverflow.com/questions/227897/how-to-allocate-aligned-memory-only-using-the-standard-library/227900
+    // The point of this is to get the _data pointer aligned to a 16 byte (128 bit) boundary.
+    // Arrays that are so aligned can use SSE operations and so can be much faster than
+    // non-aligned memroy.  FFTW in particular is faster if it gets aligned data.
+    char* mem = new char[n * sizeof(T) + sizeof(char*) + 15];
+    T* data = reinterpret_cast<T*>( (uintptr_t)(mem + sizeof(char*) + 15) & ~(size_t) 0x0F );
+    ((char**)data)[-1] = mem;
+    std::shared_ptr<T> owner(data, AlignedDeleter<T>());
+    return owner;
+}
+
 
 template<class T, ssize_t N>
 auto _solve_direct_cpp_impl(
@@ -26,9 +48,10 @@ auto _solve_direct_cpp_impl(
     // Allocate and initialize container array for the A transpose A matrix.
     // For some reason it is faster to allocate a numpy array and then map
     // it to Eigen than allocating an Eigen array directly
-    py::array_t<T, py::array::f_style> ATA(std::vector<ssize_t>({A_shape[1]*n, A_shape[1]*n}));
-    py::buffer_info ATA_buffer = ATA.request();
-    T __restrict * ATA_data = static_cast<T *>(ATA_buffer.ptr);
+    // py::array_t<T, py::array::f_style> ATA(std::vector<ssize_t>({A_shape[1]*n, A_shape[1]*n}));
+    // py::buffer_info ATA_buffer = ATA.request();
+    // T __restrict * ATA_data = static_cast<T *>(ATA_buffer.ptr);
+    auto ATA_data = allocateAlignedMemory<T>(A_shape[1]*N * A_shape[1]*N);
     // set it all to zero
     memset(ATA_data, 0, A_shape[1]*n*A_shape[1]*n*sizeof(T));
     Eigen::Map< Eigen::Matrix<T,
