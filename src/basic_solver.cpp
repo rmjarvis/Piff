@@ -53,11 +53,11 @@ auto _solve_direct_cpp_impl(
     // T __restrict * ATA_data = static_cast<T *>(ATA_buffer.ptr);
     auto ATA_data = allocateAlignedMemory<T>(A_shape[1]*N * A_shape[1]*N);
     // set it all to zero
-    memset(ATA_data, 0, A_shape[1]*n*A_shape[1]*n*sizeof(T));
+    memset(ATA_data.get(), 0, A_shape[1]*n*A_shape[1]*n*sizeof(T));
     Eigen::Map< Eigen::Matrix<T,
                               Eigen::Dynamic,
                               Eigen::Dynamic,
-                              Eigen::ColMajor> > ATA_eig(ATA_data, A_shape[1]*n, A_shape[1]*n);
+                              Eigen::ColMajor> > ATA_eig(ATA_data.get(), A_shape[1]*n, A_shape[1]*n);
 
     // Allocate an array for b, similar to ATA
     auto ATb = py::array_t<T>(A_shape[1]*n);
