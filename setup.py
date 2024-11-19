@@ -2,6 +2,7 @@ import sys,os,glob,re
 import shutil
 import urllib.request as urllib2
 import tarfile
+import glob
 
 try:
     from setuptools import setup, Extension, find_packages
@@ -443,7 +444,8 @@ class my_install_scripts( install_scripts ):  # For distutils
         install_scripts.run(self)
         self.distribution.script_install_dir = self.install_dir
 
-dependencies = ['galsim>=2.3', 'numpy>=1.17', 'scipy>=1.2', 'pyyaml>=5.1', 'treecorr>=4.3.1', 'fitsio>=1.0', 'matplotlib>=3.3', 'LSSTDESC.Coord>=1.0', 'treegp>=0.6', 'threadpoolctl>=3.1']
+build_dep = ['setuptools>=38', 'numpy>=1.17', 'pybind11>=2.2']
+run_dep = ['galsim>=2.3', 'numpy>=1.17', 'scipy>=1.2', 'pyyaml>=5.1', 'treecorr>=4.3.1', 'fitsio>=1.0', 'matplotlib>=3.3', 'LSSTDESC.Coord>=1.0', 'treegp>=0.6', 'threadpoolctl>=3.1']
 
 with open('README.rst') as file:
     long_description = file.read()
@@ -460,7 +462,8 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (version_file,))
 print('Piff version is %s'%(piff_version))
 
-basis_cpp_mod = Pybind11Extension("piff/basic_solver", ["src/basic_solver.cpp"])
+sources = glob.glob(os.path.join('src','*.cpp'))
+ext = Pybind11Extension("piff._piff", sources)
 
 dist = setup(name="Piff",
       version=piff_version,
@@ -473,8 +476,9 @@ dist = setup(name="Piff",
       download_url="https://github.com/rmjarvis/Piff/releases/tag/v%s.zip"%piff_version,
       packages=packages,
       package_data={'piff' : shared_data},
-      install_requires=dependencies,
-      ext_modules=[basis_cpp_mod],
+      setup_requires=build_dep,
+      install_requires=run_dep,
+      ext_modules=[ext],
       cmdclass = {'build_ext': my_builder,
                   'install_scripts': my_install_scripts,
                   'easy_install': my_easy_install,

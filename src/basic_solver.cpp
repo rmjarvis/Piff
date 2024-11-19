@@ -234,7 +234,7 @@ auto _solve_direct_cpp(
 
 
 
-PYBIND11_MODULE(basic_solver, m) {
+PYBIND11_MODULE(_piff, m) {
     m.def("_solve_direct_cpp", &_solve_direct_cpp<float>, py::return_value_policy::move,
         py::arg("bList"),py::arg("AList"),py::arg("KList") );
     m.def("_solve_direct_cpp", &_solve_direct_cpp<double>, py::return_value_policy::move,
