@@ -23,7 +23,7 @@ import warnings
 
 from .interp import Interp
 from .star import Star
-from . import basic_solver
+from . import _piff
 
 try: 
     import jax
@@ -311,7 +311,7 @@ class BasisInterp(Interp):
             Ks.append(K)
             As.append(s.fit.A)
             bs.append(s.fit.b)
-        dq = basic_solver._solve_direct_cpp(bs, As, Ks)
+        dq = _piff._solve_direct_cpp(bs, As, Ks)
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct_python(self, stars, logger):
