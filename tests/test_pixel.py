@@ -1458,9 +1458,24 @@ def test_des2():
     config['psf']['interp']['order'] = order_qr
     config['input']['nstars'] = nstars_qr
     t2 = time.time()
-    piff.piffify(config)
+    with CaptureLog(1) as cl:
+        piff.piffify(config, logger=cl.logger)
     t3 = time.time()
     print('Time for QR solution = ',t3-t2)
+    assert "WARNING: use_qr=True is deprecated" in cl.output
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol, atol=tol)
+
+    # Repeat with the new solver usage, rather than the deprecated use_qr=True
+    del config['psf']['interp']['use_qr']
+    config['psf']['interp']['solver'] = 'qr'
+    t2 = time.time()
+    with CaptureLog(1) as cl:
+        piff.piffify(config, logger=cl.logger)
+    t3 = time.time()
+    print('Time for QR solution = ',t3-t2)
+    assert "WARNING" not in cl.output
     psf = piff.read(psf_file)
     test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol, atol=tol)
@@ -1488,8 +1503,7 @@ def test_des2():
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
     # Also exercise the SVD fallback to the non-QR method.
-    config['psf']['interp']['use_qr'] = False
-
+    config['psf']['interp']['solver'] = 'scipy'
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
