@@ -20,6 +20,7 @@ from contextlib import contextmanager
 
 import fitsio
 import galsim
+import copy
 
 
 class FitsReader:
@@ -145,6 +146,14 @@ class FitsReader:
             w = wcs[key]
             if hasattr(w, '_origin') and isinstance(w._origin, galsim._galsim.PositionD):
                 w._origin = galsim.PositionD(w._origin)
+
+        # Work-around for a change in astropy v6.1.5
+        try:
+            copy.deepcopy(wcs)
+        except AttributeError as e:
+            from .des import fix_y6
+            if not fix_y6(wcs):  # pragma: no cover
+                raise
 
         if 'ra' in self._fits[extname].get_colnames():
             ra = data['ra']
