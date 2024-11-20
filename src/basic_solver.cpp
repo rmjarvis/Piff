@@ -111,22 +111,21 @@ Eigen::Vector<T, X> _solve_direct_cpp_impl(
 
     // solve Ax=b. If the matrix can be decomposed using llt do that (faster) if it can't be
     // then use the slower ldlt method
-    auto view = ATA.template selfadjointView<Eigen::Upper>();
-    auto lltDecomp = view.llt();
+    auto ATA_sym = ATA.template selfadjointView<Eigen::Upper>();
     Eigen::Vector<T, X> result;
 
-    if (lltDecomp.info() == Eigen::ComputationInfo::Success) {
-        result = lltDecomp.solve(ATb);
+    auto llt_decomp = ATA_sym.llt();
+    if (llt_decomp.info() == Eigen::ComputationInfo::Success) {
+        result = llt_decomp.solve(ATb);
     } else {
-        auto decomp = view.ldlt();
-        if (decomp.info() == Eigen::ComputationInfo::Success) {
-            result = decomp.solve(ATb);
+        auto ldlt_decomp = ATA_sym.ldlt();
+        if (ldlt_decomp.info() == Eigen::ComputationInfo::Success) {
+            result = ldlt_decomp.solve(ATb);
         } else {
             // Really slow, but back-up solution if everything up does not work.
             // There is something similar implemented in the python/scipy solutions.
-            Eigen::Matrix<T, X, X> temporary = ATA;
-            auto pinv = temporary.completeOrthogonalDecomposition().pseudoInverse();
-            result = pinv * ATb;
+            auto pqrp_decomp = ATA.fullPivHouseholderQr();
+            result = pqrp_decomp.solve(ATb);
         }
     }
     return result;
