@@ -32,8 +32,7 @@ def fix_y6(wcs_dict):
             for e in wcs._wcs.pmap.elements:
                 for d in getattr(e, 'tweak_data', []):
                     if hasattr(d, 'array'):
-                        if hasattr(d.array, 'nbytes'):
-                            d.array._tbsize = d.array.nbytes
+                        d.array._tbsize = d.array.nbytes
         return True
     except Exception as e:  # pragma: no cover
         return False
