@@ -41,17 +41,17 @@ Eigen::Vector<T, X> _solve_direct_cpp_impl(
     std::vector<ssize_t> b_shape = b_buffer_info.shape;
     std::vector<ssize_t> A_shape = A_buffer_info.shape;
 
-    auto ATA_data = allocateAlignedMemory<T>(A_shape[1]*N * A_shape[1]*N);
-    // set it all to zero
+    // Allocate space for ATA, making sure to use 128 bit aligned memory, since that
+    // helps Eigen use faster SSE commands.
+    std::shared_ptr<T> ATA_data = allocateAlignedMemory<T>(A_shape[1]*N * A_shape[1]*N);
     memset(ATA_data.get(), 0, A_shape[1]*n*A_shape[1]*n*sizeof(T));
-    Eigen::Map< Eigen::Matrix<T, X, X, Eigen::ColMajor>> ATA_eig(
+    Eigen::Map< Eigen::Matrix<T, X, X, Eigen::ColMajor>> ATA(
         ATA_data.get(), A_shape[1]*n, A_shape[1]*n);
 
-    // Allocate an array for b, similar to ATA
-    auto ATb = py::array_t<T>(A_shape[1]*n);
-    py::buffer_info ATb_buffer = ATb.request();
-    T __restrict * ATb_data = static_cast<T *>(ATb_buffer.ptr);
-    memset(ATb_data, 0, A_shape[1]*n*sizeof(T));
+    // Allocate space for ATb
+    std::shared_ptr<T> ATb_data = allocateAlignedMemory<T>(A_shape[1]*n);
+    memset(ATb_data.get(), 0, A_shape[1]*n*sizeof(T));
+    Eigen::Map<Eigen::Vector<T, X>> ATb(ATb_data.get(), A_shape[1]*n);
 
     // Allocate intermediate arrays that will be reused in the following loops
     Eigen::Matrix<T, X, X> ATA_small(A_shape[1],A_shape[1]);
@@ -95,7 +95,7 @@ Eigen::Vector<T, X> _solve_direct_cpp_impl(
         for (ssize_t k = 0; k < A_shape_one; k ++) {
             ssize_t base_pos = k*n;
             for (ssize_t l = 0; l < n; l++) {
-                ATb_data[base_pos+l] += K_data[l] * ATb_small(k);
+                ATb[base_pos+l] += K_data[l] * ATb_small(k);
             }
         }
 
@@ -104,30 +104,29 @@ Eigen::Vector<T, X> _solve_direct_cpp_impl(
             ssize_t base_pos_j = j*n;
             for (ssize_t i = 0; i < j+1; i++) {
                 ssize_t base_pos = i*n;
-                ATA_eig.template block<N, N>(base_pos, base_pos_j, n, n) += ATA_small(i,j)*K_cross;
+                ATA.template block<N, N>(base_pos, base_pos_j, n, n) += ATA_small(i,j)*K_cross;
             }
         }
     }
 
-    // solve Ax=b. If the matrix can be decomposed using llt do that (faster) if it cant be
+    // solve Ax=b. If the matrix can be decomposed using llt do that (faster) if it can't be
     // then use the slower ldlt method
-    Eigen::Map<const Eigen::Vector<T, X>> ATb_map(ATb_data, A_shape[1]*n);
-    auto view = ATA_eig. template selfadjointView<Eigen::Upper>();
+    auto view = ATA.template selfadjointView<Eigen::Upper>();
     auto lltDecomp = view.llt();
     Eigen::Vector<T, X> result;
 
     if (lltDecomp.info() == Eigen::ComputationInfo::Success) {
-        result = lltDecomp.solve(ATb_map);
+        result = lltDecomp.solve(ATb);
     } else {
         auto decomp = view.ldlt();
         if (decomp.info() == Eigen::ComputationInfo::Success) {
-            result = decomp.solve(ATb_map);
+            result = decomp.solve(ATb);
         } else {
             // Really slow, but back-up solution if everything up does not work.
             // There is something similar implemented in the python/scipy solutions.
-            Eigen::Matrix<T, X, X> temporary = ATA_eig;
+            Eigen::Matrix<T, X, X> temporary = ATA;
             auto pinv = temporary.completeOrthogonalDecomposition().pseudoInverse();
-            result = pinv * ATb_map;
+            result = pinv * ATb;
         }
     }
     return result;
