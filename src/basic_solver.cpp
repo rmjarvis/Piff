@@ -2,14 +2,14 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include <pybind11/eigen.h>
-#include <Eigen/Cholesky>
 #include <Eigen/Dense>
-#include <iostream>
 
 namespace py = pybind11;
 
-// AlignedDeleted and allocateAlignedMemory
-// are borrowed from GalSim:
+// Useful shorthand
+const int X = Eigen::Dynamic;
+
+// AlignedDeleted and allocateAlignedMemory are borrowed from GalSim:
 // https://github.com/GalSim-developers/GalSim/blob/releases/2.6/src/Image.cpp#L127
 template <typename T>
 struct AlignedDeleter {
@@ -25,9 +25,6 @@ std::shared_ptr<T> allocateAlignedMemory(int n)
     std::shared_ptr<T> owner(data, AlignedDeleter<T>());
     return owner;
 }
-
-// Useful shorthand
-const int X = Eigen::Dynamic;
 
 template<class T, ssize_t N>
 Eigen::Vector<T, X> _solve_direct_cpp_impl(
