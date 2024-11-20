@@ -62,7 +62,7 @@ Eigen::Vector<T, X> _solve_direct_cpp_impl(
     Eigen::Vector<T, X> ATb_small(A_shape[1]);
 
     // loop over each Star
-    for (ssize_t c=0; c < AList.size(); ++c) {
+    for (size_t c=0; c < AList.size(); ++c) {
         // build b
         py::buffer_info b_buffer_info = bList[c].request();
         T __restrict *b_data = static_cast<T *>(b_buffer_info.ptr);
