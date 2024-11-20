@@ -1046,17 +1046,14 @@ def test_single_image():
     else:
         config['verbose'] = 0
 
-    configSolver = copy.deepcopy(config)
-    
     test_star_solver = []
 
     solvers = ["scipy", "qr", "jax", "cpp"]
-    rtols = [1e-7, 1e-7, 1e-7]
 
     for solver in solvers:
         print("Running piffify function")
-        configSolver['psf']['interp']['solver'] = solver
-        piff.piffify(configSolver)
+        config['psf']['interp']['solver'] = solver
+        piff.piffify(config)
         psf = piff.read(psf_file)
         test_star = psf.drawStar(target_star)
         test_star_solver.append(test_star)
@@ -1065,7 +1062,7 @@ def test_single_image():
 
         # Test using the piffify executable
         with open('pixel_moffat.yaml','w') as f:
-            f.write(yaml.dump(configSolver, default_flow_style=False))
+            f.write(yaml.dump(config, default_flow_style=False))
         if __name__ == '__main__':
             print("Running piffify executable")
             if os.path.exists(psf_file):
@@ -1099,7 +1096,7 @@ def test_single_image():
     for i in range(len(solvers)-1):
         np.testing.assert_allclose(test_star_solver[0].image.array,
                                    test_star_solver[i+1].image.array,
-                                   rtol=rtols[i])
+                                   rtol=1.e-7)
 
 @timer
 def test_des_image():
