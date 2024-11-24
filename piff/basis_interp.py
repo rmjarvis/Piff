@@ -434,35 +434,38 @@ class BasisPolynomial(BasisInterp):
     The maximum order is normally the maximum order of any given key's order, but you may
     specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, max_order=2.)
 
+    There are several options for what code to use for doing the linear algebra, controlled
+    by the ``solver`` parameter, which can take one of the following values:
+
+    1. "scipy" uses regular numpy array functionality to build the matrices, and then uses
+       ``scipy.linalg.solve`` to find the solution.  It starts by assuming the matrix
+       is positive definite, and it falls back to an SVD solution when that is not the case.
+    2. "qr" will also use numpy to build the matrices, but then it uses QR decomposition
+       for the solution rather than the more direct least squares solution.
+       QR decomposition requires more memory than the default and is somewhat slower
+       (nearly a factor of 2); however, it is significantly less susceptible to
+       numerical errors from high condition matrices.
+    3. "jax" uses the JAX module for building and solving the linear algebra equations
+       rather than numpy/scipy. It should be equivalent in its results to the "scipy" option,
+       but it may be faster if a multi-core cpu or gpu is available.
+    4. "cpp" uses the Eigen linear algebra package in C++ to build and solve the linear
+       algebra equations rather than numpy/scipy.  On a single core cpu (and more), it
+       will be faster than default "scipy" solver if the number of training stars is more
+       than ~30. With a Piff config using `PixelGrid` with ``size=25`` and ``interp="Lanczos(11)"``
+       and a second order polynomial for interpolation, and running on ~O(100) PSFs reserved
+       stars on a 4GB single core CPU, "cpp" solver is 60% faster than "scipy" solver.
+
     Use type name "BasisPolynomial" in a config field to use this interpolant.
 
-    :param order:           The order to use for each key.  Can be a single value (applied to all
-                            keys) or an array matching number of keys.
-    :param keys:            List of keys for properties that will be used as the polynomial arguments.
-                            [default: ('u','v')]
-    :param max_order:       The maximum total order to use for cross terms between keys.
-                            [default: None, which uses the maximum value of any individual key's order]
-    :param solver:          "scipy":
-                                Default. Use scipy to solve.
-                            "cpp":
-                                Use C++/eigen for solving the linear algebra equations rather than
-                                numpy/scipy Equivalent to "scipy" solver, therefore, it may be preferred for some
-                                use cases. On a single core cpu (and more), it will be faster than default "scipy" solver
-                                if the number of training stars is more than ~30. With a Piff config using `PixelGrid`
-                                with `size=25` and `interp="Lanczos(11)"` and a second order polynomial for interpolation,
-                                and running on ~O(100) PSFs reserved stars on a 4GB single core CPU, "cpp" solver is 60%
-                                faster than "scipy" solver.
-                            "jax":
-                                Use JAX for solving the linear algebra equations rather than numpy/scipy.
-                                Equivalent to "scipy" solver therefore, it may be preferred for some use cases. It will
-                                be faster than "scipy" solver if multi-core cpu or gpu are available.
-                            "qr":
-                                Use QR decomposition for the solution rather than the more direct least
-                                squares solution.  QR decomposition requires more memory than the default
-                                and is somewhat slower (nearly a factor of 2); however, it is significantly
-                                less susceptible to numerical errors from high condition matrices.
-                            Solvers available are "scipy", "cpp", "jax", "qr". See above for details.
-    :param logger:          A logger object for logging debug info. [default: None]
+    :param order:       The order to use for each key.  Can be a single value (applied to all
+                        keys) or an array matching number of keys.
+    :param keys:        List of keys for properties that will be used as the polynomial arguments.
+                        [default: ('u','v')]
+    :param max_order:   The maximum total order to use for cross terms between keys.
+                        [default: None, which uses the maximum value of any individual key's order]
+    :param solver:      Which solver to use.  Solvers available are "scipy", "qr", "jax",
+                        "cpp". See above for details.
+    :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
 
