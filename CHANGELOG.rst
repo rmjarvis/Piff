@@ -7,6 +7,13 @@ A complete list of all new features and changes is given below.
 whose issue numbers are listed below for the relevant items.
 
 
+Dependency Changes
+------------------
+
+- Added dependencies, Eigen and PyBind11.  These were already implicit dependencies through
+  GalSim, but now they are used explicitly in Piff.  (#173)
+
+
 API Changes
 -----------
 
