@@ -379,7 +379,7 @@ int main() {
         #    http://bugs.python.org/issue9031
         #    http://bugs.python.org/issue1222585
         # So just switch it manually and see if that works.
-        cmd = ['c++'] + lopt[cc_type] + [o_file.name,'-o',exe_file.name]
+        cmd = [os.environ.get('CXX', 'c++')] + lopt[cc_type] + [o_file.name,'-o',exe_file.name]
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         lines = p.stdout.readlines()
         p.communicate()
