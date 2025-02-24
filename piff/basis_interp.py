@@ -311,6 +311,15 @@ class BasisInterp(Interp):
             Ks.append(K)
             As.append(s.fit.A)
             bs.append(s.fit.b)
+        import pickle
+        import glob
+        dic = {"As": As,
+               "bs": bs,
+               "Ks": Ks}
+        pkls = glob.glob('/sdf/data/rubin/user/leget/lsst_dev/tickets/DM-49086/As_bs_Ks*')
+        fpkl = open(f'/sdf/data/rubin/user/leget/lsst_dev/tickets/DM-49086/As_bs_Ks_{len(pkls)}.pkl','wb')
+        pickle.dump(dic, fpkl)
+        fpkl.close()
         dq = _piff._solve_direct_cpp(bs, As, Ks)
         self.q += dq.reshape(self.q.shape)
 
@@ -336,6 +345,16 @@ class BasisInterp(Interp):
             alphas = np.array(alphas).reshape((len(alphas), alphas[0].shape[0], alphas[0].shape[1]))
             betas = np.array(betas).reshape((len(betas), betas[0].shape[0]))
             Ks = np.array(Ks).reshape((len(Ks), Ks[0].shape[0]))
+            import pickle
+            import glob
+            dic = {"alphas": alphas,
+                   "betas": betas,
+                   "Ks": Ks,
+                   "nq": nq}
+            pkls = glob.glob('/sdf/data/rubin/user/leget/lsst_dev/tickets/DM-49086/alphas_betas_ks*')
+            fpkl = open(f'/sdf/data/rubin/user/leget/lsst_dev/tickets/DM-49086/alphas_betas_ks_{len(pkls)}.pkl','wb')
+            pickle.dump(dic, fpkl)
+            fpkl.close()
             ATA, ATb = vmap_build_ATA_ATb(Ks, alphas, betas)
             ATA = ATA.reshape(nq,nq)
         else:

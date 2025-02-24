@@ -291,6 +291,9 @@ class PixelGrid(Model):
 
         # Only use data points where model gives reasonable support
         u0, v0 = star.fit.center
+        logger.info(f'PFF u0, v0: {u0}, {v0}')
+        logger.info(f'PFF u, v: {np.mean(u)}, {np.mean(v)}')
+        logger.info(f'PFF maxv: {self.maxuv}')
         u -= u0
         v -= v0
         mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv) & (weight != 0)
@@ -467,6 +470,12 @@ class PixelGrid(Model):
         chisq = np.sum(b**2)
         dof = np.count_nonzero(weight)
         logger.debug('chisq,dof = %s,%s',chisq,dof)
+
+        logger.info(f'### DEBUG ####')
+        logger.info(f'PFF SUM A: {np.sum(A)}')
+        logger.info(f'PFF NMASK: {nmask}')
+        logger.info(f'PFF SW: {np.mean(sw)}')
+        logger.info(f'##############')
 
         return Star(star.data, star.fit.withNew(chisq=chisq, dof=dof, A=A, b=b))
 

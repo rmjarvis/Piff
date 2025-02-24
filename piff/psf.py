@@ -333,13 +333,14 @@ class PSF(object):
         for star in stars:
             try:
                 star = self.reflux(star, logger=logger)
+                new_stars.append(star)
             except Exception as e:
                 logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                 star.image_pos)
                 logger.warning("  -- Caught exception: %s", e)
                 nremoved += 1
                 star = star.flag_if(True)
-            new_stars.append(star)
+            # new_stars.append(star)
         return new_stars, nremoved
 
     def remove_outliers(self, stars, iteration, logger):

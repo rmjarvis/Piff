@@ -3,6 +3,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/eigen.h>
 #include <Eigen/Dense>
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -114,16 +115,25 @@ Eigen::Vector<T, X> _solve_direct_cpp_impl(
     auto ATA_sym = ATA.template selfadjointView<Eigen::Upper>();
     Eigen::Vector<T, X> result;
 
+    std::string message0 = "Before solving!";
+    std::cout << message0 << std::endl;
+
     auto llt_decomp = ATA_sym.llt();
     if (llt_decomp.info() == Eigen::ComputationInfo::Success) {
+        std::string message1 = "After success llt!";
+        std::cout << message1 << std::endl;
         result = llt_decomp.solve(ATb);
     } else {
         auto ldlt_decomp = ATA_sym.ldlt();
         if (ldlt_decomp.info() == Eigen::ComputationInfo::Success) {
+            std::string message2 = "After success ldlt!";
+            std::cout << message2 << std::endl;
             result = ldlt_decomp.solve(ATb);
         } else {
             // Really slow, but back-up solution if everything up does not work.
             // There is something similar implemented in the python/scipy solutions.
+            std::string message3 = "Solve Qr...!";
+            std::cout << message3 << std::endl;
             auto pqrp_decomp = ATA.fullPivHouseholderQr();
             result = pqrp_decomp.solve(ATb);
         }
