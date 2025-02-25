@@ -94,6 +94,11 @@ jobs:
                 ls -lF /usr/local/Cellar
                 ls $FFTW_DIR
 
+            - name: Install libbz2
+              # Necessary for fitsio.  cf. https://github.com/esheldon/fitsio/issues/414
+              if: matrix.os == 'ubuntu-latest'
+              run: sudo -H apt-get install -y libbz2-dev
+
             - name: Install dependencies with pip
               run: |
                 python -m pip install -U pip
