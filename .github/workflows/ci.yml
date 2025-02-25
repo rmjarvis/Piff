@@ -94,10 +94,11 @@ jobs:
                 ls -lF /usr/local/Cellar
                 ls $FFTW_DIR
 
-            - name: Install libbz2
-              # Necessary for fitsio.  cf. https://github.com/esheldon/fitsio/issues/414
+            - name: Install libbz2, libjpeg
+              # bz2 necessary for fitsio.  cf. https://github.com/esheldon/fitsio/issues/414
+              # jpeg necessary for matplotlib (via pillow)
               if: matrix.os == 'ubuntu-latest'
-              run: sudo -H apt-get install -y libbz2-dev
+              run: sudo -H apt-get install -y libbz2-dev libjpeg-dev
 
             - name: Install dependencies with pip
               run: |
