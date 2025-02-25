@@ -334,11 +334,12 @@ class PSF(object):
             try:
                 star = self.reflux(star, logger=logger)
             except Exception as e:
-                logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                star.image_pos)
-                logger.warning("  -- Caught exception: %s", e)
-                nremoved += 1
-                star = star.flag_if(True)
+                if not star.is_flagged:
+                    logger.warning("Failed trying to reflux star at %s.  Excluding it.",
+                                   star.image_pos)
+                    logger.warning("  -- Caught exception: %s", e)
+                    nremoved += 1
+                    star = star.flag_if(True)
             new_stars.append(star)
         return new_stars, nremoved
 
