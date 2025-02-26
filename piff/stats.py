@@ -157,10 +157,7 @@ class Stats(object):
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
-        if matplotlib.__version__ >= "3.6":
-            fig.set_layout_engine('tight')
-        else:  # pragma: no cover
-            fig.set_tight_layout(True)
+        fig.set_layout_engine('tight')
         canvas.print_figure(file_name, dpi=100)
 
     def measureShapes(self, psf, stars, model_properties=None, fourth_order=False,
@@ -420,12 +417,8 @@ class ShapeHistStats(Stats):
             nbins = int(np.sqrt(len(self.T))+1)
             logger.info("nstars = %d, using %d bins for Shape Histograms",len(self.T),nbins)
 
-        if np.__version__ >= '1.23':  # pragma: no branch
-            lower = dict(method='lower')
-            higher = dict(method='higher')
-        else:
-            lower = dict(interpolation='lower')
-            higher = dict(interpolation='higher')
+        lower = dict(method='lower')
+        higher = dict(method='higher')
 
         # axs[0,0] = size distributions
         ax = axs[0, 0]
