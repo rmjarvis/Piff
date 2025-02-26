@@ -117,9 +117,7 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                # Note: Pin pillow <10 until this bug is fixed:
-                #       https://github.com/python-pillow/Pillow/issues/7259
-                pip install -U nose coverage "pytest<8" nbval ipykernel "pillow<10"
+                pip install -U nose coverage "pytest<8" nbval ipykernel pillow
 
             - name: Install Jax
               if: matrix.py == 3.9 || matrix.py == 3.10 || matrix.py == 3.11 || matrix.py == 3.12
