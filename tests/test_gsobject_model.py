@@ -1133,6 +1133,15 @@ def test_fail():
     assert stars[0].is_flagged
     print('8')
 
+    # If we repeat reflux with those objects, don't count the same object as failing again.
+    # cf. PR #178 where this used to be done wrongly.
+    with mock.patch('numpy.linalg.solve', side_effect=np.linalg.LinAlgError) as raising_solve:
+        with CaptureLog(3) as cl:
+            stars, nremoved = psf.reflux_stars(stars, logger=cl.logger)
+    assert "Failed trying to reflux star" not in cl.output
+    assert nremoved == 0
+    assert stars[0].is_flagged  # Still flagged from before.
+
     # There is a check for GalSim errors.  The easiest way to make that hit is to
     # use a gsobj with very low maximum_fft_size.
     gsp = galsim.GSParams(maximum_fft_size=2048)
