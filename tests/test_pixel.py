@@ -21,7 +21,7 @@ import subprocess
 import time
 import os
 import fitsio
-import copy
+import pickle
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -1789,6 +1789,50 @@ def test_convert_func():
         print('true params = ',model_im.array.ravel())
         print('fitted params = ',star1.fit.params)
         np.testing.assert_allclose(star1.fit.params, model_im.array.ravel(), rtol=2.e-3)
+
+@timer
+def test_convergence_centering_failed():
+
+    # Before https://rubinobs.atlassian.net/browse/DM-49152, it was
+    # running an infinite number of time. Reason is because fitting center
+    # looks to fail in some cases. So now it should converge if center fail.
+    # It should converged now and exclude properly stars that were not
+    # able to be get a good center fit and then being reflux. If centering,
+    # is fixed, this test might need to be removed.
+
+    piffConfig = {
+        'type': 'Simple',
+        'model': {
+            'type': 'PixelGrid',
+            'scale': 0.2,
+            'size': 25,
+            'interp': 'Lanczos(11)'
+        },
+        'interp': {
+            'type': 'BasisPolynomial',
+            'order': 1,
+            'solver': 'scipy'
+        },
+        'outliers': {
+            'type': 'Chisq',
+            'nsigma': 4.0,
+            'max_remove': 0.05
+        },
+        'max_iter': 30
+    }
+
+    dic = pickle.load(open('input/testStars.pkl', 'rb'))
+    stars = dic['stars']
+    wcs = {0: galsim.PixelScale(0.20038369063248057)}
+    pointing = None
+
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.fit(stars, wcs, pointing)
+
+    if not piffResult.niter == 6:
+        raise ValueError('Maximum number of iterations in this example must be 6.')
+    if not np.shape(piffResult.stars[28].fit.A) == (0, 625):
+        raise ValueError('Centroid failed for this star, expected shape of A is (0,625)')
 
 
 if __name__ == '__main__':
