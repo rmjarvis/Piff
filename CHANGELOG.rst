@@ -43,3 +43,10 @@ Bug fixes
 ---------
 
 - Fixed some places where the stats were not correctly using the new flagging interface. (#174)
+
+Changes from version 1.5.0 to 1.5.1
+-----------------------------------
+
+- Fixed a bug that could rarely cause a (nearly) infinite loop when recentering fails. (#178)
+- Stopped supporting a few old versions of dependencies. (#178)
+- Added official support for python 3.13.
