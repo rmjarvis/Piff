@@ -177,7 +177,7 @@ def find_pybind_path():
     return pybind_path
 
 build_dep = ['setuptools>=38', 'numpy>=2.0', 'pybind11>=2.2']
-run_dep = ['galsim>=2.4', 'numpy>=2.0', 'scipy>=1.2', 'pyyaml>=5.1', 'treecorr>=5.0', 'fitsio>=1.0', 'matplotlib>=3.6', 'LSSTDESC.Coord>=1.0', 'treegp>=1.3', 'threadpoolctl>=3.1']
+run_dep = ['galsim>=2.4', 'numpy>=1.17', 'scipy>=1.2', 'pyyaml>=5.1', 'treecorr>=4.3.1', 'fitsio>=1.0', 'matplotlib>=3.6', 'LSSTDESC.Coord>=1.0', 'treegp>=1.3', 'threadpoolctl>=3.1']
 
 with open('README.rst') as file:
     long_description = file.read()

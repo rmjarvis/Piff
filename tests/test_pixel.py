@@ -21,7 +21,6 @@ import subprocess
 import time
 import os
 import fitsio
-import pickle
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -1821,19 +1820,52 @@ def test_convergence_centering_failed():
         'max_iter': 30
     }
 
-    dic = pickle.load(open('input/testStars.pkl', 'rb'))
-    stars = dic['stars']
-    wcs = {0: galsim.PixelScale(0.20038369063248057)}
+    starData = fitsio.read('input/testStarsRubin.fits')
+    image = starData["IMAGE"][0]
+    weight = starData["WEIGHT"][0]
+    x = starData["X"][0]
+    y = starData["Y"][0]
+    xmin = starData["XMIN"][0]
+    xmax = starData["XMAX"][0]
+    ymin = starData["YMIN"][0]
+    ymax = starData["YMAX"][0]
+
+    nstars = len(x)
+    stars = []
+
+    gswcs = galsim.PixelScale(0.20038369063248057)
+    wcs = {0: gswcs}
     pointing = None
+
+    stars = []
+
+    for i in range(nstars):
+
+        bds = galsim.BoundsI(
+                    galsim.PositionI(xmin[i], ymin[i]),
+                    galsim.PositionI(xmax[i], ymax[i])
+                )
+        gsImage = galsim.Image(bds, wcs=gswcs, dtype=float)
+        gsImage.array[:] = image[i]
+
+        gsWeight = galsim.Image(bds, wcs=gswcs, dtype=float)
+        gsWeight.array[:] = weight[i]
+
+        image_pos = galsim.PositionD(x[i], y[i])
+        data = piff.StarData(
+            gsImage,
+            image_pos,
+            weight=gsWeight,
+            pointing=pointing
+        )
+        stars.append(piff.Star(data, None))
+
 
     piffResult = piff.PSF.process(piffConfig)
     piffResult.fit(stars, wcs, pointing)
 
-    if not piffResult.niter == 6:
-        raise ValueError('Maximum number of iterations in this example must be 6.')
-    if not np.shape(piffResult.stars[28].fit.A) == (0, 625):
-        raise ValueError('Centroid failed for this star, expected shape of A is (0,625)')
-
+    assert piffResult.niter == 4, 'Maximum number of iterations in this example must be 6.'
+    assert np.shape(piffResult.stars[28].fit.A) == (0, 625), 'Centroid failed for this star, expected shape of A is (0,625)'
 
 if __name__ == '__main__':
     #import cProfile, pstats
