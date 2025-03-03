@@ -1864,7 +1864,7 @@ def test_convergence_centering_failed():
     piffResult = piff.PSF.process(piffConfig)
     piffResult.fit(stars, wcs, pointing)
 
-    assert piffResult.niter == 4, 'Maximum number of iterations in this example must be 6.'
+    assert piffResult.niter == 6, 'Maximum number of iterations in this example must be 6.'
     assert np.shape(piffResult.stars[28].fit.A) == (0, 625), 'Centroid failed for this star, expected shape of A is (0,625)'
 
 if __name__ == '__main__':
