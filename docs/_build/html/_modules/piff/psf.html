@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>piff.psf &mdash; Piff 1.5.0 documentation</title>
+  <title>piff.psf &mdash; Piff 1.5.1 documentation</title>
       <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -418,11 +418,12 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">star</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reflux</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed trying to reflux star at </span><span class="si">%s</span><span class="s2">.  Excluding it.&quot;</span><span class="p">,</span>
-                                <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;  -- Caught exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
-                <span class="n">nremoved</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">flag_if</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">star</span><span class="o">.</span><span class="n">is_flagged</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed trying to reflux star at </span><span class="si">%s</span><span class="s2">.  Excluding it.&quot;</span><span class="p">,</span>
+                                   <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;  -- Caught exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                    <span class="n">nremoved</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">star</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">flag_if</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">new_stars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">new_stars</span><span class="p">,</span> <span class="n">nremoved</span></div>
 
