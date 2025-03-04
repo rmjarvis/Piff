@@ -1897,6 +1897,7 @@ if __name__ == '__main__':
     test_var()
     test_color()
     test_convert_func()
+    test_convergence_centering_failed()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)
