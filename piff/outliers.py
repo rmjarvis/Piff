@@ -343,8 +343,8 @@ class ChisqOutliers(Outliers):
             max_remove = int(math.ceil(max_remove * len(use_stars)))
 
         # Remake the chisq, etc. with all the stars now.
-        all_chisq = np.array([s.fit.chisq for s in stars])
-        all_dof = np.array([s.fit.dof for s in stars])
+        all_chisq = np.array([s.fit.chisq if s.fit.chisq is not None else 0 for s in stars])
+        all_dof = np.array([s.fit.dof if s.fit.dof is not None else 0 for s in stars])
         all_thresh = np.array([self._get_thresh(d) for d in all_dof]) * factor
         good = all_chisq <= all_thresh
 

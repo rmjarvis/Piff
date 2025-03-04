@@ -132,6 +132,9 @@ class SimplePSF(PSF):
         for star in stars:
             try:
                 star = self.model.initialize(star, logger=logger, default_init=default_init)
+                # if failed to fit center it will be flagged already
+                if star.is_flagged:
+                    nremoved += 1
             except Exception as e:
                 logger.warning("Failed initializing star at %s. Excluding it.", star.image_pos)
                 logger.warning("  -- Caught exception: %s",e)

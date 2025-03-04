@@ -148,15 +148,24 @@ class PSF(object):
             # (Skip w=0 pixels here.)
             mask = weight!=0
             flux = np.sum(data[mask])
+            centerSuccess = True
             if self.fit_center and not star.data.properties.get('trust_pos',False):
                 flux = flux if flux != 0 else 1  # Don't divide by 0.
                 # Initial center is the centroid of the data.
                 Ix = np.sum(data[mask] * u[mask]) / flux
                 Iy = np.sum(data[mask] * v[mask]) / flux
+                if not (u[0] <= Ix <= u[-1]):
+                    centerSuccess = False
+                if not (v[0] <= Iy <= v[-1]):
+                    centerSuccess = False
                 center = (Ix,Iy)
             else:
                 center = star.fit.center
-            new_stars.append(Star(star.data, star.fit.withNew(flux=flux, center=center)))
+            st = Star(star.data, star.fit.withNew(flux=flux, center=center))
+            if not centerSuccess:
+                logger.warning(f"Failed to initialize center for star at location: ({star.x}, {star.y}), excluding it.")
+                st = st.flag_if(True)
+            new_stars.append(st)
         return new_stars
 
     def initialize_params(self, stars, logger=None, default_init=None):
@@ -170,9 +179,14 @@ class PSF(object):
 
         :returns: the initialized stars, nremoved
         """
+        # Check if when fitting center, any failed.
+        nremoved = 0
+        for star in stars:
+            if star.is_flagged:
+                nremoved += 1
         # Probably most derived classes need to do something here, but if not the default
         # behavior is just to return the input stars list.
-        return stars, 0
+        return stars, nremoved
 
     def single_iteration(self, stars, logger, convert_funcs, draw_method):
         """Perform a single iteration of the solver.
