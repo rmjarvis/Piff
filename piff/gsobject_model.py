@@ -51,7 +51,8 @@ class GSObjectModel(Model):
     :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
                         class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
-                        this model is an element of a Sum composite PSF. [default: False]
+                        this model is an element of a Sum composite PSF. [default: False,
+                        unless init=='zero', in which case it is automatically True.]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
@@ -382,11 +383,20 @@ class GSObjectModel(Model):
         flux_scaling = None
         if init == 'zero':
             flux_scaling = 1.e-6
+            # Also, make sure fit_flux=True.  Otherwise, this won't work properly.
+            if not self._fit_flux:
+                logger.info('Setting fit_flux=True, since init=zero')
+                self._fit_flux = True
+                self.kwargs['fit_flux'] = True
         elif init == 'delta':
             size *= 1.e-6
         elif isinstance(init, tuple):
             flux_scaling, size_scaling = init
             size *= size_scaling
+            if not self._fit_flux:
+                logger.info(f'Setting fit_flux=True, since init={init}')
+                self._fit_flux = True
+                self.kwargs['fit_flux'] = True
         elif init.startswith('(') and init.endswith(')'):
             flux_scaling, size_scaling = eval(init)
             size *= size_scaling
@@ -405,8 +415,8 @@ class GSObjectModel(Model):
             params = [flux_scaling] + params
             params_var = [0.] + params_var
         else:
-            if flux_scaling is not None:
-                raise ValueError("{} initialization requires fit_flux=True".format(init))
+            # This should have been guaranteed above.
+            assert flux_scaling is None
         params = np.array(params)
         params_var = np.array(params_var)
 
