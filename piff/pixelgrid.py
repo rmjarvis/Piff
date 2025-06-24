@@ -57,7 +57,8 @@ class PixelGrid(Model):
     :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
                         class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
-                        this model is an element of a Sum composite PSF. [default: False]
+                        this model is an element of a Sum composite PSF. [default: False,
+                        unless init=='zero', in which case it is automatically True.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
 
@@ -148,6 +149,12 @@ class PixelGrid(Model):
                 # valid flux.  But 1.e-10 x smaller than the image should be a good starting
                 # point for most uses of the zero initialization.
                 params *= 1.e-10
+
+                # Also, make sure fit_flux=True.  Otherwise, this won't work properly.
+                if not self._fit_flux:
+                    logger.info('Setting fit_flux=True, since init=zero')
+                    self._fit_flux = True
+                    self.kwargs['fit_flux'] = True
 
         elif init == 'delta':
             params = np.zeros(self.size**2)
