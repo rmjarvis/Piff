@@ -389,7 +389,6 @@ def test_basis_interp():
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[-1,0])
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[-4,-1])
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=-2)
-    np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[3,3], max_order=-1)
 
 
 @timer
@@ -1728,6 +1727,15 @@ def test_color():
     piff.piffify(config)
     psf = piff.read(psf_file)
 
+    # Show that the basis includes cross terms:
+    np.testing.assert_equal(psf.interp._orders, [2,2,1])
+    assert psf.interp._max_order == 2
+    s = psf.stars[0]
+    np.testing.assert_allclose(
+        psf.interp.basis(s),
+        [ 1, s['color'], s['v'], s['v']*s['color'], s['v']**2,
+            s['u'], s['u']*s['color'], s['u']*s['v'], s['u']**2 ])
+
     for s in psf.stars:
         orig_stamp = s.image
         weight = s.weight
@@ -1741,6 +1749,35 @@ def test_color():
         assert chisq < dof * 1.5  # These chisq are even (a lot) smaller.  Not sure why...
                                   # Anyway, I think the fit is working, just this test doesn't
                                   # seem quite the right thing.
+
+    # Repeat without the cross-terms between color and u/v.
+    config['psf']['interp']['max_order'] = { ('u','v') : 2 }
+    piff.piffify(config)
+    psf = piff.read(psf_file)
+
+    # Show that the basis now doesn't include cross terms:
+    np.testing.assert_equal(psf.interp._orders, [2,2,1])
+    assert psf.interp._max_order ==  { ('u','v') : 2 }
+    s = psf.stars[0]
+    print(s['u'], s['v'], s['color'])
+    print('basis = ',psf.interp.basis(s))
+    np.testing.assert_allclose(
+        psf.interp.basis(s),
+        [ 1, s['color'], s['v'], s['v']**2, s['u'], s['u']*s['v'], s['u']**2 ])
+
+    # Still works just as well without the cross terms.
+    for s in psf.stars:
+        orig_stamp = s.image
+        weight = s.weight
+        offset = s.center_to_offset(s.fit.center)
+        image = psf.draw(x=s['x'], y=s['y'], color=s['color'],
+                         stamp_size=32, flux=s.fit.flux, offset=offset)
+        resid = image - orig_stamp
+        chisq = np.sum(resid.array**2 * weight.array)
+        dof = np.sum(weight.array != 0)
+        print('color = ',s['color'],'chisq = ',chisq,'dof = ',dof)
+        assert chisq < dof * 1.5
+
 
 @timer
 def test_convert_func():
