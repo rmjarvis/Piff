@@ -45,14 +45,16 @@ class ConvolvePSF(PSF):
                         [default: None]
     :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
                         [default: 0.1]
+    :param min_iter:    Minimum number of iterations to try. [default: 2]
     :param max_iter:    Maximum number of iterations to try. [default: 30]
     """
     _type_name = 'Convolve'
 
-    def __init__(self, components, outliers=None, chisq_thresh=0.1, max_iter=30):
+    def __init__(self, components, outliers=None, chisq_thresh=0.1, min_iter=2, max_iter=30):
         self.components = components
         self.outliers = outliers
         self.chisq_thresh = chisq_thresh
+        self.min_iter = min_iter
         self.max_iter = max_iter
         self.kwargs = {
             # If components is a list, mark the number of components here for I/O purposes.
@@ -60,6 +62,7 @@ class ConvolvePSF(PSF):
             'components': len(components) if isinstance(components, list) else components,
             'outliers': 0,
             'chisq_thresh': self.chisq_thresh,
+            'min_iter': self.min_iter,
             'max_iter': self.max_iter,
         }
         self.chisq = 0.
