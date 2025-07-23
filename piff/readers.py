@@ -63,7 +63,12 @@ class FitsReader:
         cols = self._fits[extname].get_colnames()
         data = self._fits[extname].read()
         assert len(data) == 1
-        return dict([ (col, data[col][0]) for col in cols ])
+        struct = dict([ (col, data[col][0]) for col in cols ])
+        # If any dicts were converted to str, convert back.
+        for k,v in struct.items():
+            if isinstance(v, str) and v[0] == '{':
+                struct[k] = eval(v)
+        return struct
 
     def read_table(self, name, metadata=None):
         """Load a table as a numpy array.
