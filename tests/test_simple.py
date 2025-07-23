@@ -240,6 +240,7 @@ def test_single_image():
     # Check default values of options
     psf = piff.SimplePSF(model, interp)
     assert psf.chisq_thresh == 0.1
+    assert psf.min_iter == 2
     assert psf.max_iter == 30
     assert psf.outliers == None
     assert psf.interp_property_names == ('u','v')
@@ -260,6 +261,7 @@ def test_single_image():
                         'fastfit': True,
                         'include_pixel': False},
             'interp' : { 'type' : 'Mean' },
+            'min_iter' : 3,
             'max_iter' : 10,
             'chisq_thresh' : 0.2,
         },
@@ -269,8 +271,9 @@ def test_single_image():
 
     # Use a SimplePSF to process the stars data this time.
     interp = piff.Mean()
-    psf = piff.SimplePSF(model, interp, max_iter=10, chisq_thresh=0.2)
+    psf = piff.SimplePSF(model, interp, min_iter=3, max_iter=10, chisq_thresh=0.2)
     assert psf.chisq_thresh == 0.2
+    assert psf.min_iter == 3
     assert psf.max_iter == 10
 
     # Error if input has no stars
@@ -332,6 +335,7 @@ def test_single_image():
     assert psf2.chisq == psf.chisq
     assert psf2.last_delta_chisq == psf.last_delta_chisq
     assert psf2.chisq_thresh == psf.chisq_thresh
+    assert psf2.min_iter == psf.min_iter
     assert psf2.max_iter == psf.max_iter
     assert psf2.dof == psf.dof
     assert psf2.nremoved == psf.nremoved
@@ -360,6 +364,7 @@ def test_single_image():
     assert psf3.chisq == psf.chisq
     assert psf3.last_delta_chisq == psf.last_delta_chisq
     assert psf3.chisq_thresh == psf.chisq_thresh
+    assert psf3.min_iter == psf.min_iter
     assert psf3.max_iter == psf.max_iter
     assert psf3.dof == psf.dof
     assert psf3.nremoved == psf.nremoved
@@ -385,6 +390,7 @@ def test_single_image():
     assert psf4.chisq == psf.chisq
     assert psf4.last_delta_chisq == psf.last_delta_chisq
     assert psf4.chisq_thresh == psf.chisq_thresh
+    assert psf4.min_iter == psf.min_iter
     assert psf4.max_iter == psf.max_iter
     assert psf4.dof == psf.dof
     assert psf4.nremoved == psf.nremoved

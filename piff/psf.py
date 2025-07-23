@@ -436,7 +436,11 @@ class PSF(object):
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
             # Also, don't quit if we removed any outliers.
-            if (iter_nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < self.chisq_thresh*dof):
+            if (iter_nremoved == 0 and
+                oldchisq > 0 and
+                oldchisq - chisq < self.chisq_thresh * dof and
+                iteration+1 >= self.min_iter
+                ):
                 return
             oldchisq = chisq
 
