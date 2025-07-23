@@ -467,8 +467,13 @@ class BasisPolynomial(BasisInterp):
                         [default: ('u','v')]
     :param max_order:   The maximum total order to use for cross terms between keys.
                         [default: None, which uses the maximum value of any individual key's order]
+                        If this is an integer, it applies to all pairs, but you may also specify
+                        a dict mapping pairs of keys to an integer.  E.g. {('u','v'):3,
+                        ('u','z'):0, ('v','z'):0}.  This sets the maximum order for cross terms
+                        between these pairs.  Furthermore, any pairs for which you want to skip
+                        cross terms (max=0) may be omitted from the dict.
     :param solver:      Which solver to use.  Solvers available are "scipy", "qr", "jax",
-                        "cpp". See above for details.
+                        "cpp". See above for details. [default: 'scipy']
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
@@ -519,12 +524,13 @@ class BasisPolynomial(BasisInterp):
             logger.info("JAX not installed. Reverting to numpy/scipy.")
             self.solver = "scipy"
 
-        if self._max_order<0 or np.any(np.array(self._orders) < 0):
+        if np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
         self.kwargs = {
             'order' : order,
+            'max_order' : max_order,
             'keys' : keys,
             'solver': solver,
         }
@@ -533,9 +539,38 @@ class BasisPolynomial(BasisInterp):
         # Start with 1d arrays giving orders in all dimensions
         ord_ranges = [np.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
-        #sumorder = np.sum(np.ix_(*ord_ranges))  # This version doesn't work in numpy 1.19
         sumorder = np.sum(np.meshgrid(*ord_ranges, indexing='ij'), axis=0)
-        self._mask = sumorder <= self._max_order
+
+        if isinstance(self._max_order, dict):
+            # This code is not particularly efficient.  Hopefully it doesn't matter.
+            # Basically set a maxorder for each element in sumorder based on whether it is
+            # a) a power of a single key.  Use the order for that key.
+            # b) a cross-product of multiple keys.  Use it only if it is in the max_order dict.
+            max_orders = np.zeros_like(sumorder)
+
+            def get_indices(arr, pre=()):
+                # Get the index tuples of the given multi-dimensional array.
+                if not isinstance(arr, np.ndarray):
+                    yield pre
+                else:
+                    for i in range(len(arr)):
+                        yield from get_indices(arr[i], pre + (i,))
+            for index in get_indices(sumorder):
+                for k, order in enumerate(self._orders):
+                    if index[k] > 0 and all(index[j] == 0 for j in range(len(index)) if j != k):
+                        max_orders[index] = order
+                for keys, order in self._max_order.items():
+                    kk = [keys.index(key) for key in keys]
+                    ok = True
+                    for k in range(len(self._orders)):
+                        if index[k] > 0 and k not in kk: ok = False
+                        if index[k] == 0 and k in kk: ok = False
+                    if ok:
+                        max_orders[index] = order
+        else:
+            max_orders = self._max_order
+
+        self._mask = sumorder <= max_orders
 
     def getProperties(self, star):
         return np.array([star.data[k] for k in self._keys], dtype=float)
@@ -562,7 +597,6 @@ class BasisPolynomial(BasisInterp):
             p[1:] = vals[i]
             pows1d.append(np.cumprod(p))
         # Use trick to produce outer product of all these powers
-        #pows2d = np.prod(np.ix_(*pows1d))
         pows2d = np.prod(np.meshgrid(*pows1d, indexing='ij'), axis=0)
         # Return linear array of terms making total power constraint
         return pows2d[self._mask]
@@ -599,4 +633,3 @@ class BasisPolynomial(BasisInterp):
         data = reader.read_table('solution')
         assert data is not None
         self.q = data['q'][0]
-
