@@ -72,6 +72,8 @@ class FitsWriter:
             # Don't add values that are None to the table.
             if value is None:
                 continue
+            if isinstance(value, dict):
+                value = repr(value)
             dt = make_dtype(key, value)
             value = adjust_value(value, dt)
             cols.append([value])
