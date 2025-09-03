@@ -129,6 +129,15 @@ class PixelGrid(Model):
         if init is None: init = 'hsm'
         logger.debug("initializing PixelGrid with method %s",init)
 
+        # Check if the star's image data is large enough to adequately fit the PixelGrid.
+        ny, nx = star.image.array.shape
+        pixel_scale = star.image.wcs.maxLinearScale(star.image.center)
+        min_xy_size = self.size * self.scale / pixel_scale
+        if max(nx,ny) < min_xy_size:
+            logger.warning(f"Image size ({nx},{ny}) is too small to constrain this PixelGrid. "
+                           f"Minimum size required for this grid is {min_xy_size} pixels.")
+            raise RuntimeError("Star's image is too small.")
+
         if init == 'hsm' or init == 'zero':
             # Calculate the second moment to initialize an initial Gaussian profile.
             # hsm returns: flux, x, y, sigma, g1, g2, flag
