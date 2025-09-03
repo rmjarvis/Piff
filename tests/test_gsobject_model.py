@@ -284,12 +284,13 @@ def test_simple():
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
 
-        # init=zero required fit_flux
+        # init=zero forces fit_flux=True
         config['model']['fit_flux'] = False
         model = piff.Model.process(config['model'], logger)
         psf1 = piff.SimplePSF(model, None)
-        with np.testing.assert_raises(ValueError):
-            model.initialize(fiducial_star)
+        with CaptureLog() as cl:
+            model.initialize(fiducial_star, logger=cl.logger)
+        assert "Setting fit_flux=True" in cl.output
 
         print('Initializing with delta')
         config['model']['init'] = 'delta'
@@ -377,11 +378,13 @@ def test_simple():
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
 
+        # tuple init also forces fit_flux=True.
         config['model']['fit_flux'] = False
         model = piff.Model.process(config['model'], logger)
         psf1 = piff.SimplePSF(model, None)
-        with np.testing.assert_raises(ValueError):
-            model.initialize(fiducial_star)
+        with CaptureLog() as cl:
+            model.initialize(fiducial_star, logger=cl.logger)
+        assert "Setting fit_flux=True" in cl.output
 
         # Invalid init method raises an error
         config['model']['init'] = 'invalid'
