@@ -228,7 +228,7 @@ def test_center():
     du = 0.7
     s = make_gaussian_data(2.0, x0, y0, influx, du=du)
 
-    mod = piff.PixelGrid(0.8, 29, centered=True)
+    mod = piff.PixelGrid(0.8, 27, centered=True)
     star = mod.initialize(s)
     psf = piff.SimplePSF(mod, None)
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
@@ -617,7 +617,7 @@ def test_undersamp():
     print('nominal chisq = ',s1.fit.chisq)
     if __name__ == '__main__':
         assert chisq1 > 1.e3
-    else: 
+    else:
         assert chisq1 > 5.e5  # Pretty large at the start before fitting.
 
     s2 = mod.fit(s0)
@@ -1882,8 +1882,9 @@ def test_too_small():
         'model': {
             'type': 'PixelGrid',
             'scale': 1.0,
-            # NOTE: size <= 23 works here
             # The input data images are 21x21.
+            # NOTE: size <= 23 worked here in Piff 1.5.
+            #       But now requires size <= 21 to avoid exatrapolation around the edges.
             'size': 25
         },
         'interp': {
@@ -1904,12 +1905,14 @@ def test_too_small():
 
     # The original behavior was to complete successfully, but the model had crazy values
     # off the edge of the constrained region.
-    piffResult.fit(stars, wcs, pointing)
-    im = piffResult.draw(10, 10)
-    assert im(10,10) < 0  # This is bad.  Prefer an error above.
+    with CaptureLog(2) as cl:
+        with np.testing.assert_raises(TypeError):
+            piffResult.fit(stars, wcs, pointing, logger=cl.logger)
+    assert "Image size (21,21) is too small to constrain this PixelGrid." in cl.output
+    assert "Removed 12 stars in initialize" in cl.output
 
     # This configuration works.
-    piffConfig['model']['size'] = 23
+    piffConfig['model']['size'] = 21
     piffResult = piff.PSF.process(piffConfig)
     piffResult.fit(stars, wcs, pointing)
     im = piffResult.draw(10, 10)
