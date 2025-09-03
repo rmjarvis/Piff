@@ -1906,7 +1906,7 @@ def test_too_small():
     # The original behavior was to complete successfully, but the model had crazy values
     # off the edge of the constrained region.
     with CaptureLog(2) as cl:
-        with np.testing.assert_raises(TypeError):
+        with np.testing.assert_raises(RuntimeError):
             piffResult.fit(stars, wcs, pointing, logger=cl.logger)
     assert "Image size (21,21) is too small to constrain this PixelGrid." in cl.output
     assert "Removed 12 stars in initialize" in cl.output

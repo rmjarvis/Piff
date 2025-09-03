@@ -117,7 +117,10 @@ class BasisInterp(Interp):
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
-        c = np.mean([s.fit.get_params(self._num) for s in stars], axis=0)
+        params = [s.fit.get_params(self._num) for s in stars if not s.is_flagged]
+        if len(params) == 0:
+            raise RuntimeError("All stars are flagged.  Cannot initialize BasisPolynomial.")
+        c = np.mean(params, axis=0)
         self.q = c[:,np.newaxis] * self.constant(1.)[np.newaxis,:]
         stars = self.interpolateList(stars)
         return stars
