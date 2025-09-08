@@ -228,7 +228,7 @@ def test_center():
     du = 0.7
     s = make_gaussian_data(2.0, x0, y0, influx, du=du)
 
-    mod = piff.PixelGrid(0.8, 29, centered=True)
+    mod = piff.PixelGrid(0.8, 27, centered=True)
     star = mod.initialize(s)
     psf = piff.SimplePSF(mod, None)
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
@@ -617,7 +617,7 @@ def test_undersamp():
     print('nominal chisq = ',s1.fit.chisq)
     if __name__ == '__main__':
         assert chisq1 > 1.e3
-    else: 
+    else:
         assert chisq1 > 5.e5  # Pretty large at the start before fitting.
 
     s2 = mod.fit(s0)
@@ -1867,6 +1867,58 @@ def test_convergence_centering_failed():
     assert piffResult.niter == 6, 'Maximum number of iterations in this example must be 6.'
     assert np.shape(piffResult.stars[28].fit.A) == (0, 625), 'Centroid failed for this star, expected shape of A is (0,625)'
 
+
+@timer
+def test_too_small():
+    """Test that PixelGrid fails gracefully if the data images are too small to constrain
+    the full extent of the pixel grid."""
+
+    # This test comes directly from the bug report in issue #131
+    import pickle
+    stars = pickle.load(open("input/stars_131.pickle", "rb"))
+
+    piffConfig = {
+        'type': "Simple",
+        'model': {
+            'type': 'PixelGrid',
+            'scale': 1.0,
+            # The input data images are 21x21.
+            # NOTE: size <= 23 worked here in Piff 1.5.
+            #       But now requires size <= 21 to avoid exatrapolation around the edges.
+            'size': 25
+        },
+        'interp': {
+            'type': 'BasisPolynomial',
+            'order': 1
+        },
+        'outliers': {
+            'type': 'Chisq',
+            'nsigma': 4,
+            'max_remove': 0.05
+        }
+    }
+
+    piffResult = piff.PSF.process(piffConfig)
+    # Run on a single CCD, and in image coords rather than sky coords.
+    wcs = {0: galsim.PixelScale(1.0)}
+    pointing = None
+
+    # The original behavior was to complete successfully, but the model had crazy values
+    # off the edge of the constrained region.
+    with CaptureLog(2) as cl:
+        with np.testing.assert_raises(RuntimeError):
+            piffResult.fit(stars, wcs, pointing, logger=cl.logger)
+    assert "Image size (21,21) is too small to constrain this PixelGrid." in cl.output
+    assert "Removed 12 stars in initialize" in cl.output
+
+    # This configuration works.
+    piffConfig['model']['size'] = 21
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.fit(stars, wcs, pointing)
+    im = piffResult.draw(10, 10)
+    assert im(10,10) > 0
+
+
 if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
@@ -1887,6 +1939,7 @@ if __name__ == '__main__':
     test_var()
     test_color()
     test_convert_func()
+    test_too_small()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)
