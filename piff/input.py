@@ -102,7 +102,8 @@ class Input(object):
 
         :returns: a list of Star instances
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         if self.nimages == 1:
             logger.debug("Making star list")
@@ -122,8 +123,8 @@ class Input(object):
         # Concatenate the star lists into a single list
         stars = [s for slist in all_stars if slist is not None for s in slist if slist]
 
-        logger.warning("Read a total of %d objects from %d image%s",len(stars),self.nimages,
-                       "s" if self.nimages > 1 else "")
+        logger.info("Read a total of %d objects from %d image%s",len(stars),self.nimages,
+                    "s" if self.nimages > 1 else "")
 
         return stars
 
@@ -268,7 +269,8 @@ class InputFiles(Input):
 
     def __init__(self, config, logger=None):
         import copy
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         req = { 'image_file_name': str,
                 'cat_file_name': str,
@@ -412,7 +414,7 @@ class InputFiles(Input):
         if cat_list is not None:
             logger.debug('cat_list = %s',cat_list)
             if len(cat_list) == 1 and nimages > 1:
-                logger.info("Using the same catlist for all image")
+                logger.verbose("Using the same catlist for all image")
                 cat_list = cat_list * nimages
             elif nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
@@ -433,7 +435,7 @@ class InputFiles(Input):
         self.remove_signal_from_weight = config.get('remove_signal_from_weight', False)
         self.invert_weight = config.get('invert_weight', False)
 
-        logger.info("Reading in %d images",nimages)
+        logger.verbose("Reading in %d images",nimages)
         for image_num in range(nimages):
 
             # This changes for each input image.
@@ -540,7 +542,8 @@ class InputFiles(Input):
 
         :returns: a new list of Stars with the images information loaded.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         images = {}
         weight_images = {}
@@ -570,7 +573,8 @@ class InputFiles(Input):
     def _getRawImageData(image_kwargs, cat_kwargs, wcs,
                          invert_weight, remove_signal_from_weight,
                          logger=None):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         image, weight = InputFiles.readImage(logger=logger, **image_kwargs)
 
         if invert_weight:
@@ -599,8 +603,8 @@ class InputFiles(Input):
                 # If no gain provided, then we want to estimate the gain from the weight image.
                 weight, g = InputFiles._removeSignalFromWeight(signal, weight)
                 extra_props['gain'] = np.array([g] * len(image_pos), dtype=float)
-                logger.warning("Empirically determined gain = %f",g)
-            logger.info("Removed signal from weight image.")
+                logger.info("Empirically determined gain = %f",g)
+            logger.verbose("Removed signal from weight image.")
 
         return image, weight, image_pos, extra_props
 
@@ -613,7 +617,7 @@ class InputFiles(Input):
         """
         image, wt, image_pos, extra_props = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight, logger)
-        logger.info("Processing catalog %s with %d objects",chipnum,len(image_pos))
+        logger.verbose("Processing catalog %s with %d objects",chipnum,len(image_pos))
 
         objects = []
 
@@ -636,11 +640,11 @@ class InputFiles(Input):
                     logger.warning("Skipping this object.")
                     continue
                 if use_partial:
-                    logger.info("Object at position %f,%f overlaps the edge of the image.  "
+                    logger.verbose("Object at position %f,%f overlaps the edge of the image.  "
                                 "Using smaller than the full stamp size: %s", x, y, bounds)
                 else:
-                    logger.warning("Object at position %f,%f overlaps the edge of the image.", x, y)
-                    logger.warning("Skipping this object.")
+                    logger.info("Object at position %f,%f overlaps the edge of the image.", x, y)
+                    logger.info("Skipping this object.")
                     continue
             stamp = image[bounds].copy()
             wt_stamp = wt[bounds].copy()
@@ -663,9 +667,9 @@ class InputFiles(Input):
             if 'satur' in props:
                 max_val = np.max(stamp.array)
                 if max_val > props['satur']:
-                    logger.warning("Object at position %f,%f has saturated pixels.", x, y)
-                    logger.warning("Maximum value is %f.", max_val)
-                    logger.warning("Skipping this object.")
+                    logger.info("Object at position %f,%f has saturated pixels.", x, y)
+                    logger.info("Maximum value is %f.", max_val)
+                    logger.info("Skipping this object.")
                     continue
 
             # Subtract the sky
@@ -693,11 +697,11 @@ class InputFiles(Input):
             image_hdu = kwargs['image_hdu']
             image = galsim.fits.read(image_file_name, hdu=image_hdu)
             if 'wcs' in config:
-                logger.warning("Using custom wcs from config for %s",image_file_name)
+                logger.info("Using custom wcs from config for %s",image_file_name)
                 base = { 'input' : config, 'index_key' : 'image_num', 'image_num' : image_num }
                 wcs = galsim.config.BuildWCS(config, 'wcs', base, logger)
             else:
-                logger.warning("Getting wcs from image file %s",image_file_name)
+                logger.info("Getting wcs from image file %s",image_file_name)
                 wcs = image.wcs
             self.wcs_list.append(wcs)
             self.center_list.append(image.true_center)
@@ -747,26 +751,26 @@ class InputFiles(Input):
         :returns: image, weight
         """
         # Read in the image
-        logger.warning("Reading image file %s",image_file_name)
+        logger.info("Reading image file %s",image_file_name)
         image = galsim.fits.read(image_file_name, hdu=image_hdu)
 
         # If requested, subtract a sky image
         if sky_file_name is not None:
             hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
-            logger.info("Reading sky image %s.", sky_file_name + hdu_str)
+            logger.verbose("Reading sky image %s.", sky_file_name + hdu_str)
             sky = galsim.fits.read(sky_file_name, hdu=sky_hdu)
             image -= sky
 
         # Either read in the weight image, or build a dummy one
         if weight_hdu is not None:
-            logger.info("Reading weight image from hdu %d.", weight_hdu)
+            logger.verbose("Reading weight image from hdu %d.", weight_hdu)
             weight = galsim.fits.read(image_file_name, hdu=weight_hdu)
             if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
             if np.any(weight.array < 0):
-                logger.error("Warning: weight map has invalid negative-valued pixels. "+
-                             "Taking them to be 0.0")
+                logger.warning("Warning: weight map has invalid negative-valued pixels. "+
+                               "Taking them to be 0.0")
                 weight.array[weight.array < 0] = 0.
         elif noise is not None:
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
@@ -777,7 +781,7 @@ class InputFiles(Input):
 
         # If requested, set wt=0 for any bad pixels
         if badpix_hdu is not None:
-            logger.info("Reading badpix image from hdu %d.", badpix_hdu)
+            logger.verbose("Reading badpix image from hdu %d.", badpix_hdu)
             badpix = galsim.fits.read(image_file_name, hdu=badpix_hdu)
             # The badpix image may be offset by 32768 from the true value.
             # If so, subtract it off.
@@ -855,11 +859,11 @@ class InputFiles(Input):
 
         if cat_file_name is None:
             # This is possible e.g. when loading images into an existing list of star instances.
-            logger.warning("Not reading input catalog.")
+            logger.info("Not reading input catalog.")
             return None, None
 
         # Read in the star catalog
-        logger.warning("Reading input catalog %s.",cat_file_name)
+        logger.info("Reading input catalog %s.",cat_file_name)
         cat = fitsio.read(cat_file_name, cat_hdu)
 
         if flag_col is not None:
@@ -867,27 +871,27 @@ class InputFiles(Input):
                 raise ValueError("flag_col = %s is not a column in %s"%(flag_col,cat_file_name))
             col = cat[flag_col]
             if len(col.shape) == 2:
-                logger.warning("Flag col (%s) is multidimensional.  Treating as an array of bool",
-                               flag_col)
+                logger.info("Flag col (%s) is multidimensional.  Treating as an array of bool",
+                            flag_col)
             if use_flag is not None:
                 # Remove any objects with flag & use_flag == 0
                 mask = InputFiles._flag_select(col, use_flag) == 0
-                logger.info("Removing objects with flag (col %s) & %d == 0",flag_col,use_flag)
+                logger.verbose("Removing objects with flag (col %s) & %d == 0",flag_col,use_flag)
                 if skip_flag != -1:
                     mask |= InputFiles._flag_select(col, skip_flag) != 0
-                    logger.info("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
+                    logger.verbose("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
             else:
                 # Remove any objects with flag & skip_flag != 0
                 mask = InputFiles._flag_select(col, skip_flag) != 0
                 if skip_flag == -1:
-                    logger.info("Removing objects with flag (col %s) != 0",flag_col)
+                    logger.verbose("Removing objects with flag (col %s) != 0",flag_col)
                 else:
-                    logger.info("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
+                    logger.verbose("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
             cat = cat[mask == 0]
 
         # Limit to nstars objects
         if nstars is not None and nstars < len(cat):
-            logger.info("Limiting to %d objects for %s",nstars,cat_file_name)
+            logger.verbose("Limiting to %d objects for %s",nstars,cat_file_name)
             cat = cat[:nstars]
 
         # Make the list of positions:
@@ -1044,7 +1048,8 @@ class InputFiles(Input):
            individual WCS functions. [Not implemented currently.]
         """
         import fitsio
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         if (ra is None) != (dec is None):
             raise ValueError("Only one of ra, dec was specified")
@@ -1056,9 +1061,9 @@ class InputFiles(Input):
                     wcs = self.wcs_list[0]
                     center = self.center_list[0]
                     self.pointing = wcs.toWorld(center)
-                    logger.info("Setting pointing to image center: %.3f h, %.3f d",
-                                self.pointing.ra / galsim.hours,
-                                self.pointing.dec / galsim.degrees)
+                    logger.verbose("Setting pointing to image center: %.3f h, %.3f d",
+                                   self.pointing.ra / galsim.hours,
+                                   self.pointing.dec / galsim.degrees)
                 else:
                     # Use the mean of all the image centers
                     plist = [wcs.toWorld(center)
@@ -1069,18 +1074,18 @@ class InputFiles(Input):
                     y = np.mean(ylist)
                     z = np.mean(zlist)
                     self.pointing = galsim.CelestialCoord.from_xyz(x,y,z)
-                    logger.info("Setting pointing to mean of image centers: %.3f h, %.3f d",
-                                self.pointing.ra / galsim.hours,
-                                self.pointing.dec / galsim.degrees)
+                    logger.verbose("Setting pointing to mean of image centers: %.3f h, %.3f d",
+                                   self.pointing.ra / galsim.hours,
+                                   self.pointing.dec / galsim.degrees)
             else:
                 self.pointing = None
         elif type(ra) in [float, int]:
             ra = float(ra) * galsim.hours
             dec = float(dec) * galsim.degrees
             self.pointing = galsim.CelestialCoord(ra,dec)
-            logger.info("Setting pointing to: %.3f h, %.3f d",
-                        self.pointing.ra / galsim.hours,
-                        self.pointing.dec / galsim.degrees)
+            logger.verbose("Setting pointing to: %.3f h, %.3f d",
+                           self.pointing.ra / galsim.hours,
+                           self.pointing.dec / galsim.degrees)
         elif str(ra) != ra:
             raise ValueError("Unable to parse input ra: %s"%ra)
         elif str(dec) != dec:
@@ -1089,15 +1094,15 @@ class InputFiles(Input):
             ra = galsim.Angle.from_hms(ra)
             dec = galsim.Angle.from_dms(dec)
             self.pointing = galsim.CelestialCoord(ra,dec)
-            logger.info("Setting pointing to: %.3f h, %.3f d",
-                        self.pointing.ra / galsim.hours,
-                        self.pointing.dec / galsim.degrees)
+            logger.verbose("Setting pointing to: %.3f h, %.3f d",
+                           self.pointing.ra / galsim.hours,
+                           self.pointing.dec / galsim.degrees)
         else:
             file_name = self.image_file_name[0]
             if len(self.chipnums) == 1:
-                logger.info("Setting pointing from keywords %s, %s", ra, dec)
+                logger.verbose("Setting pointing from keywords %s, %s", ra, dec)
             else:
-                logger.info("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
+                logger.verbose("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
             fits = fitsio.FITS(file_name)
             hdu = 1 if file_name.endswith('.fz') else 0
             header = fits[hdu].read_header()

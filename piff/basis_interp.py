@@ -24,6 +24,7 @@ import warnings
 from .interp import Interp
 from .star import Star
 from . import _piff
+from .config import LoggerWrapper
 
 try: 
     import jax
@@ -154,7 +155,7 @@ class BasisInterp(Interp):
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         if self.q is None:
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 
@@ -210,7 +211,7 @@ class BasisInterp(Interp):
         # QR method often has fewer numerical problems than the direct method for large matrices.
         # It just requires a lot of memory.
 
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         if self.solver == "qr":
             self._solve_qr(stars, logger)
         else:
@@ -260,15 +261,15 @@ class BasisInterp(Interp):
         if cond < 1.e-12:
             # Note: this calculation is much slower, but it is safe to use even for
             # singular inputs, so it will always produce a valid answer.
-            logger.info('Nominal condition is %s (min, max = %s, %s)', cond,
-                        np.min(abs_Rdiag), np.max(abs_Rdiag))
-            logger.info('Switching to QRP solution')
+            logger.verbose('Nominal condition is %s (min, max = %s, %s)', cond,
+                           np.min(abs_Rdiag), np.max(abs_Rdiag))
+            logger.verbose('Switching to QRP solution')
             QR, P, tau, work, info = scipy.linalg.lapack.dgeqp3(A, overwrite_a=True)
             P[:] -= 1  # Switch to python 0-based indexing.
             abs_Rdiag = np.abs(np.diag(QR))
             cond = np.min(abs_Rdiag) / np.max(abs_Rdiag)
-            logger.info('Condition for QRP is %s (min, max = %s, %s)', cond,
-                        np.min(abs_Rdiag), np.max(abs_Rdiag))
+            logger.verbose('Condition for QRP is %s (min, max = %s, %s)', cond,
+                           np.min(abs_Rdiag), np.max(abs_Rdiag))
             # Skip any rows of R that have essentially 0 on the diagonal.
             k = np.sum(abs_Rdiag > 1.e-15 * np.max(abs_Rdiag))
             logger.debug('k = %d, m = %d',k,m)
@@ -363,7 +364,7 @@ class BasisInterp(Interp):
                     ATb += A1.T.dot(s.fit.b)
                     ATA += A1.T.dot(A1)
 
-        logger.info('Beginning solution of matrix size %s',ATA.shape)
+        logger.verbose('Beginning solution of matrix size %s',ATA.shape)
         try:
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
@@ -383,25 +384,25 @@ class BasisInterp(Interp):
                 # size rediduals.  We don't have a unit test that would catch this, so be careful
                 # about changing the behavior of this part of the code!  For now, we just go to
                 # the svd solution when ATA is fully singular.
-                logger.info(w[0].message)
+                logger.verbose(w[0].message)
                 logger.debug('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
                 logger.debug('norm(dq) = %s',scipy.linalg.norm(dq))
 
         except (np.linalg.LinAlgError, scipy.linalg.LinAlgError) as e:
-            logger.info('Caught %s',str(e))
-            logger.info('Switching to svd solution')
+            logger.verbose('Caught %s',str(e))
+            logger.verbose('Switching to svd solution')
             Sd,U = scipy.linalg.eigh(ATA)
             nsvd = np.sum(np.abs(Sd) > 1.e-15 * np.abs(Sd[-1]))
-            logger.info('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
-            logger.info('nsvd = %d of %d',nsvd,len(Sd))
+            logger.verbose('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
+            logger.verbose('nsvd = %d of %d',nsvd,len(Sd))
             # Note: unlike scipy.linalg.svd, the Sd here is in *ascending* order, not descending.
             Sd[-nsvd:] = 1./Sd[-nsvd:]
             Sd[:-nsvd] = 0.
             S = np.diag(Sd)
             dq = U.dot(S.dot(U.T.dot(ATb)))
-            logger.info('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
-            logger.info('norm(dq) = %s',scipy.linalg.norm(dq))
-            logger.info('norm(q) = %s',scipy.linalg.norm(self.q))
+            logger.verbose('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
+            logger.verbose('norm(dq) = %s',scipy.linalg.norm(dq))
+            logger.verbose('norm(q) = %s',scipy.linalg.norm(self.q))
 
         logger.debug('...finished solution')
         # Reshape dq back into a 2d array and add it to the current solution.
@@ -483,7 +484,7 @@ class BasisPolynomial(BasisInterp):
         ):
         super(BasisPolynomial, self).__init__()
 
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
 
         self._keys = keys
         if hasattr(order,'__len__'):
@@ -515,7 +516,7 @@ class BasisPolynomial(BasisInterp):
             self.solver = "qr"
 
         if not CAN_USE_JAX and self.solver == "jax":
-            logger.warning("JAX not installed. Reverting to numpy/scipy.")
+            logger.info("JAX not installed. Reverting to numpy/scipy.")
             self.solver = "scipy"
 
         if self._max_order<0 or np.any(np.array(self._orders) < 0):

@@ -33,7 +33,7 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_funcs, dr
     wcs_chip = { chipnum : wcs[chipnum] }
 
     # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-    logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
+    logger.info("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
     psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger, convert_funcs=convert_funcs,
                  draw_method=draw_method)
 
@@ -110,7 +110,8 @@ class SingleChipPSF(PSF):
         :param draw_method:     The method to use with the GalSim drawImage command. If not given,
                                 use the default method for the PSF model being fit. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         self.wcs = wcs
         self.pointing = pointing
         self.psf_by_chip = {}

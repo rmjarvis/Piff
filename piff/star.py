@@ -560,13 +560,14 @@ class Star(object):
         :returns: a new list of Stars with the images information loaded.
         """
         from .input import InputFiles
+        from .config import LoggerWrapper
 
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
 
         logger.error("WARNING: The Star.load_images function is deprecated."
                      "Use InputFiles.load_images instead.")
 
-        logger.info("Loading image information from file %s",file_name)
+        logger.verbose("Loading image information from file %s",file_name)
         config = {
             'image_file_name': file_name,
             'cat_file_name': None,  # We don't need this, but it needs to be present.

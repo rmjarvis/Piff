@@ -371,6 +371,7 @@ class GPInterpDepr(GPInterp):
     _type_name = 'GPInterp'
 
     def __init__(self, *args, logger=None, **kwargs):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.error("WARNING: The name GPInterp is deprecated. Use GP or GaussianProcess instead.")
         super().__init__(*args, logger=logger, **kwargs)

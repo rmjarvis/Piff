@@ -19,6 +19,30 @@
 import yaml
 import os
 import galsim
+import logging
+
+
+# Add a logging level between INFO and DEBUG
+VERBOSE = (logging.INFO + logging.DEBUG) // 2
+logging.addLevelName(VERBOSE, "VERBOSE")
+
+class PiffLogger(logging.Logger):
+
+    def verbose(self, fmt, *args, **kwargs):
+        """Issue a VERBOSE level log message.
+
+        Arguments are as for `logging.info`.
+        ``VERBOSE`` is between ``DEBUG`` and ``INFO``.
+        """
+        # Based on the LSST logger at
+        # https://github.com/lsst/utils/blob/main/python/lsst/utils/logging.py
+        self.log(VERBOSE, fmt, *args, **kwargs)
+
+class LoggerWrapper(galsim.config.LoggerWrapper):
+    # Extend GalSim's wrapper to include the verbose level
+    def verbose(self, *args, **kwargs):
+        if self.logger and self.isEnabledFor(VERBOSE):
+            self.logger.verbose(*args, **kwargs)
 
 def setup_logger(verbose=1, log_file=None):
     """Build a logger object to use for logging progress
@@ -32,16 +56,17 @@ def setup_logger(verbose=1, log_file=None):
 
     :returns: a logging.Logger instance
     """
-    import logging
+    # Verbose logging is midway between INFO and DEBUG.
+
     # Parse the integer verbosity level from the command line args into a logging_level string
-    logging_levels = { 0: logging.CRITICAL,
-                       1: logging.WARNING,
-                       2: logging.INFO,
+    logging_levels = { 0: logging.WARNING,
+                       1: logging.INFO,
+                       2: VERBOSE,
                        3: logging.DEBUG }
     logging_level = logging_levels[verbose]
 
     # Setup logging to go to sys.stdout or (if requested) to an output file
-    logger = logging.getLogger('piff')
+    logger = PiffLogger(logging.getLogger('piff'))
     logger.handlers = []  # Remove any existing handlers
     if log_file is None:
         handle = logging.StreamHandler()
@@ -53,7 +78,6 @@ def setup_logger(verbose=1, log_file=None):
     logger.setLevel(logging_level)
 
     return logger
-
 
 def parse_variables(config, variables, logger):
     """Parse configuration variables and add them to the config dict
@@ -78,8 +102,8 @@ def parse_variables(config, variables, logger):
             # Use YAML parser to evaluate the string in case it is a list for instance.
             value = yaml.safe_load(value)
         except yaml.YAMLError as e:  # pragma: no cover
-            logger.warning('Caught %r',e)
-            logger.warning('Unable to parse %s.  Treating it as a string.',value)
+            logger.info('Caught %r',e)
+            logger.info('Unable to parse %s.  Treating it as a string.',value)
         new_params[key] = value
     galsim.config.UpdateConfig(config, new_params)
 
@@ -201,7 +225,7 @@ def plotify(config, logger=None):
     file_name = config['output']['file_name']
     if 'dir' in config['output']:
         file_name = os.path.join(config['output']['dir'], file_name)
-    logger.info("Looking for PSF at %s", file_name)
+    logger.verbose("Looking for PSF at %s", file_name)
     psf = PSF.read(file_name, logger=logger)
 
     # The stars we care about for plotify are psf.stars, not what would be made from scratch by
@@ -296,7 +320,7 @@ def meanify(config, logger=None):
     config['output']['file_name'] = psf_list
 
     file_name_in = config['output']['file_name']
-    logger.info("Looking for PSF at %s", file_name_in)
+    logger.verbose("Looking for PSF at %s", file_name_in)
 
     file_name_out = config['hyper']['file_name']
     if 'dir' in config['hyper']:
@@ -316,7 +340,7 @@ def meanify(config, logger=None):
 
     params = np.concatenate(params, axis=0)
     coords = np.concatenate(coords, axis=0)
-    logger.info('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
+    logger.verbose('Computing average for {0} params with {1} stars'.format(len(params[0]), len(coords)))
 
     if params_fitted is None:
         params_fitted = range(len(params[0]))
@@ -361,6 +385,6 @@ def meanify(config, logger=None):
     data['COORDS0'] = coords0
     data['PARAMS0'] = params0
 
-    logger.info('Writing average solution to {0}'.format(file_name_out))
+    logger.verbose('Writing average solution to {0}'.format(file_name_out))
     with fitsio.FITS(file_name_out,'rw',clobber=True) as f:
         f.write_table(data, extname='average_solution')

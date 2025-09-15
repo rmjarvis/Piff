@@ -41,10 +41,11 @@ class SizeMagStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         # measure everything with hsm
-        logger.info("Measuring Star and Model Shapes")
+        logger.verbose("Measuring Star and Model Shapes")
         _, star_shapes, psf_shapes = self.measureShapes(psf, stars, logger=logger)
 
         if hasattr(psf, 'initial_stars'):
@@ -94,7 +95,8 @@ class SizeMagStats(Stats):
         :returns: fig, ax
         """
         from matplotlib.figure import Figure
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         fig = Figure(figsize=(8,6))
         ax = fig.add_subplot(1,1,1)
 
@@ -203,9 +205,10 @@ class SmallBrightSelect(Select):
 
         :returns: a list of Star instances
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
-        logger.warning("Selecting small/bright objects as stars")
+        logger.info("Selecting small/bright objects as stars")
 
         logger.debug("Initial count = %s", len(objects))
 
@@ -273,7 +276,7 @@ class SmallBrightSelect(Select):
         imin = np.argmin(delta_T)
         logger.debug("imin = %s", imin)
         star_logT = bright_small_logT[imin:imin+half_len+1]
-        logger.info("Initial bright/small selection includes %d objects",half_len+1)
+        logger.verbose("Initial bright/small selection includes %d objects",half_len+1)
 
         # Expand this to include all stars that are within twice the interquarile range of
         # these candidate stars.  Keep doing so until we converge on a good set of stars.
@@ -286,7 +289,7 @@ class SmallBrightSelect(Select):
             logger.debug("Iteration %d",it)
             logger.debug("Sizes of candidate stars = %s", np.exp(star_logT))
             med = np.median(star_logT)
-            logger.info("Median size = %s", np.exp(med))
+            logger.verbose("Median size = %s", np.exp(med))
             q25, q75 = np.percentile(star_logT, [25,75])
             iqr = q75 - q25
             logger.debug("Range of star logT size = %s, %s", np.min(star_logT), np.max(star_logT))
@@ -300,10 +303,10 @@ class SmallBrightSelect(Select):
             if np.array_equal(select, old_select):
                 break
             old_select = select
-            logger.info("Expand this to include %d selected stars",new_count)
+            logger.verbose("Expand this to include %d selected stars",new_count)
             star_logT = logT[select]
         else:
-            logger.info("Max iter = 10 reached.  Stop updating based on median/IQR.")
+            logger.verbose("Max iter = 10 reached.  Stop updating based on median/IQR.")
 
         # Get the initial indexes of these objects
         select_index = orig_index[select]
@@ -311,7 +314,7 @@ class SmallBrightSelect(Select):
         stars = [objects[i] for i in select_index]
         logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
         logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
-        logger.warning("Bright/small selection found %d likely stars",len(stars))
+        logger.info("Bright/small selection found %d likely stars",len(stars))
 
         return stars
 
@@ -371,6 +374,8 @@ class SizeMagSelect(Select):
     _type_name = 'SizeMag'
 
     def __init__(self, config, logger=None):
+        from .config import LoggerWrapper
+
         super(SizeMagSelect, self).__init__(config, logger)
 
         opt = {
@@ -382,7 +387,7 @@ class SizeMagSelect(Select):
 
         # This used to be (badly) named purity.
         # For backwards compatibility, switch it if someone is using the old name.
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         if 'purity' in config:
             logger.error("WARNING: The parameter name 'purity' should now be called 'impurity'.")
             config['impurity'] = config.pop('purity')
@@ -405,9 +410,10 @@ class SizeMagSelect(Select):
 
         :returns: a list of Star instances
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
-        logger.warning("Selecting stars according to locus in size-magnitude diagram")
+        logger.info("Selecting stars according to locus in size-magnitude diagram")
 
         stars = Select.process(self.initial_select, objects, logger=logger, select_only=True)
 
@@ -542,15 +548,15 @@ class SizeMagSelect(Select):
             logT_star = logT_obj[select]
             u_star = u_obj[select]
             v_star = v_obj[select]
-            logger.info("SizeMag iteration %d => N stars = %d", i_iter, len(logf_star))
-            logger.info("Mean logT of stars = %.3f, std = %.3f", np.mean(logT_star), np.std(logT_star))
+            logger.verbose("SizeMag iteration %d => N stars = %d", i_iter, len(logf_star))
+            logger.verbose("Mean logT of stars = %.3f, std = %.3f", np.mean(logT_star), np.std(logT_star))
 
         select_index = orig_index[select]
         logger.debug("select_index = %s",select_index)
         stars = [objects[i] for i in select_index]
         logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
         logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
-        logger.warning("SizeMag selection found %d likely stars",len(stars))
+        logger.info("SizeMag selection found %d likely stars",len(stars))
 
         return stars
 

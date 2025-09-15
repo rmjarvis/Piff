@@ -173,7 +173,7 @@ class ConvolvePSF(PSF):
 
         # Fit each component in order
         for k, comp in enumerate(self.components):
-            logger.info("Starting work on component %d (%s)", k, comp._type_name)
+            logger.verbose("Starting work on component %d (%s)", k, comp._type_name)
 
             # Update the convert_funcs to add a convolution by the other components.
             new_convert_funcs = []
@@ -276,7 +276,8 @@ class ConvolvePSF(PSF):
         :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         chisq_dict = {
             'chisq' : self.chisq,
             'last_delta_chisq' : self.last_delta_chisq,

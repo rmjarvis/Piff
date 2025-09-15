@@ -143,9 +143,10 @@ class Stats(object):
         # cf. http://www.dalkescientific.com/writings/diary/archive/2005/04/23/matplotlib_without_gui.html
         import matplotlib
         from matplotlib.backends.backend_agg import FigureCanvasAgg
+        from .config import LoggerWrapper
 
-        logger = galsim.config.LoggerWrapper(logger)
-        logger.info("Creating plot for %s", self._type_name)
+        logger = LoggerWrapper(logger)
+        logger.verbose("Creating plot for %s", self._type_name)
         fig, ax = self.plot(logger=logger, **kwargs)
 
         if file_name is None:
@@ -153,7 +154,7 @@ class Stats(object):
         if file_name is None:
             raise ValueError("No file_name specified for %s"%self._type_name)
 
-        logger.warning("Writing %s plot to file %s",self._type_name, file_name)
+        logger.info("Writing %s plot to file %s",self._type_name, file_name)
 
         canvas = FigureCanvasAgg(fig)
         # Do this after we've set the canvas to use Agg to avoid warning.
@@ -183,7 +184,9 @@ class Stats(object):
                             models of stars (T, g1, g2)
         """
         from .util import calculate_moments
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+
+        logger = LoggerWrapper(logger)
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
 
@@ -348,9 +351,10 @@ class ShapeHistStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         # get the shapes
-        logger.warning("Calculating shape histograms for %d stars",len(stars))
+        logger.info("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
@@ -383,7 +387,8 @@ class ShapeHistStats(Stats):
 
         :returns: fig, ax
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         from matplotlib.figure import Figure
         fig = Figure(figsize = (15,10))
         # In matplotlib 2.0, this will be
@@ -415,7 +420,7 @@ class ShapeHistStats(Stats):
         nbins = self.nbins
         if nbins is None:
             nbins = int(np.sqrt(len(self.T))+1)
-            logger.info("nstars = %d, using %d bins for Shape Histograms",len(self.T),nbins)
+            logger.verbose("nstars = %d, using %d bins for Shape Histograms",len(self.T),nbins)
 
         lower = dict(method='lower')
         higher = dict(method='higher')
@@ -423,21 +428,21 @@ class ShapeHistStats(Stats):
         # axs[0,0] = size distributions
         ax = axs[0, 0]
         all_T = np.concatenate([self.T_model, self.T])
-        logger.info("nbins = %s",nbins)
-        logger.info("cut_frac = %s",self.cut_frac)
+        logger.verbose("nbins = %s",nbins)
+        logger.verbose("cut_frac = %s",self.cut_frac)
         rng = (np.quantile(all_T, self.cut_frac, **lower),
                np.quantile(all_T, 1-self.cut_frac, **higher))
-        logger.info("T_d: Full range = (%f, %f)",np.min(self.T),np.max(self.T))
-        logger.info("T_m: Full range = (%f, %f)",np.min(self.T_model),np.max(self.T_model))
-        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        logger.verbose("T_d: Full range = (%f, %f)",np.min(self.T),np.max(self.T))
+        logger.verbose("T_m: Full range = (%f, %f)",np.min(self.T_model),np.max(self.T_model))
+        logger.verbose("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist([self.T, self.T_model], bins=nbins, range=rng, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         # axs[0,1] = size difference
         ax = axs[1, 0]
         rng = (np.quantile(self.dT, self.cut_frac, **lower),
                np.quantile(self.dT, 1-self.cut_frac, **higher))
-        logger.info("dT: Full range = (%f, %f)",np.min(self.dT),np.max(self.dT))
-        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        logger.verbose("dT: Full range = (%f, %f)",np.min(self.dT),np.max(self.dT))
+        logger.verbose("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist(self.dT, bins=nbins, range=rng, **kwargs)
 
         # axs[1,0] = g1 distribution
@@ -445,17 +450,17 @@ class ShapeHistStats(Stats):
         all_g1 = np.concatenate([self.g1_model, self.g1])
         rng = (np.quantile(all_g1, self.cut_frac, **lower),
                np.quantile(all_g1, 1-self.cut_frac, **higher))
-        logger.info("g1_d: Full range = (%f, %f)",np.min(self.g1),np.max(self.g1))
-        logger.info("g1_m: Full range = (%f, %f)",np.min(self.g1_model),np.max(self.g1_model))
-        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        logger.verbose("g1_d: Full range = (%f, %f)",np.min(self.g1),np.max(self.g1))
+        logger.verbose("g1_m: Full range = (%f, %f)",np.min(self.g1_model),np.max(self.g1_model))
+        logger.verbose("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist([self.g1, self.g1_model], bins=nbins, range=rng, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         # axs[1,0] = g1 difference
         ax = axs[1, 1]
         rng = (np.quantile(self.dg1, self.cut_frac, **lower),
                np.quantile(self.dg1, 1-self.cut_frac, **higher))
-        logger.info("dg1: Full range = (%f, %f)",np.min(self.dg1),np.max(self.dg1))
-        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        logger.verbose("dg1: Full range = (%f, %f)",np.min(self.dg1),np.max(self.dg1))
+        logger.verbose("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist(self.dg1, bins=nbins, range=rng, **kwargs)
 
         # axs[2,0] = g2 distribution
@@ -463,17 +468,17 @@ class ShapeHistStats(Stats):
         all_g2 = np.concatenate([self.g2_model, self.g2])
         rng = (np.quantile(all_g2, self.cut_frac, **lower),
                np.quantile(all_g2, 1-self.cut_frac, **higher))
-        logger.info("g2_d: Full range = (%f, %f)",np.min(self.g2),np.max(self.g2))
-        logger.info("g2_m: Full range = (%f, %f)",np.min(self.g2_model),np.max(self.g2_model))
-        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        logger.verbose("g2_d: Full range = (%f, %f)",np.min(self.g2),np.max(self.g2))
+        logger.verbose("g2_m: Full range = (%f, %f)",np.min(self.g2_model),np.max(self.g2_model))
+        logger.verbose("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist([self.g2, self.g2_model], bins=nbins, range=rng, label=['data', 'model'], **kwargs)
         ax.legend(loc='upper right')
         # axs[2,0] = g2 difference
         ax = axs[1, 2]
         rng = (np.quantile(self.dg2, self.cut_frac, **lower),
                np.quantile(self.dg2, 1-self.cut_frac, **higher))
-        logger.info("dg2: Full range = (%f, %f)",np.min(self.dg2),np.max(self.dg2))
-        logger.info("Display range = (%f, %f)",rng[0],rng[1])
+        logger.verbose("dg2: Full range = (%f, %f)",np.min(self.dg2),np.max(self.dg2))
+        logger.verbose("Display range = (%f, %f)",rng[0],rng[1])
         ax.hist(self.dg2, bins=nbins, range=rng, **kwargs)
 
         return fig, ax
@@ -539,12 +544,14 @@ class RhoStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        from .config import LoggerWrapper
         import treecorr
+
         treecorr.set_max_omp_threads(1)
 
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         # get the shapes
-        logger.warning("Calculating rho statistics for %d stars",len(stars))
+        logger.info("Calculating rho statistics for %d stars",len(stars))
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
@@ -568,7 +575,7 @@ class RhoStats(Stats):
         dg2 = g2 - shapes_model[mask, 5]
 
         # make the treecorr catalogs
-        logger.info("Creating Treecorr Catalogs")
+        logger.verbose("Creating Treecorr Catalogs")
 
         cat_g = treecorr.Catalog(x=u, y=v, x_units='arcsec', y_units='arcsec',
                                  g1=g1, g2=g2)
@@ -578,7 +585,7 @@ class RhoStats(Stats):
                                     g1=g1 * dT / T, g2=g2 * dT / T)
 
         # setup and run the correlations
-        logger.info("Processing rho PSF statistics")
+        logger.verbose("Processing rho PSF statistics")
 
         # save the rho objects
         self.rho1 = treecorr.GGCorrelation(self.tckwargs)
@@ -814,9 +821,10 @@ class HSMCatalogStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         # get the shapes
-        logger.warning("Calculating shape histograms for %d stars",len(stars))
+        logger.info("Calculating shape histograms for %d stars",len(stars))
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties,
                 fourth_order=self.fourth_order, raw_moments=self.raw_moments,
@@ -911,8 +919,10 @@ class HSMCatalogStats(Stats):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         from . import __version__ as piff_version
-        logger = galsim.config.LoggerWrapper(logger)
         import fitsio
+        from .config import LoggerWrapper
+
+        logger = LoggerWrapper(logger)
         if file_name is None:
             file_name = self.file_name
         if file_name is None:
@@ -920,7 +930,7 @@ class HSMCatalogStats(Stats):
         if not hasattr(self, 'cols'):
             raise RuntimeError("Must call compute before calling write")
 
-        logger.warning("Writing HSM catalog to file %s",file_name)
+        logger.info("Writing HSM catalog to file %s",file_name)
 
         data = np.array(list(zip(*self.cols)), dtype=self.dtypes)
         header = {'piff_version': piff_version}

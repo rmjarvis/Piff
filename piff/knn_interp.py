@@ -77,7 +77,8 @@ class KNNInterp(Interp):
         :param targets:     The target values. (n_samples, n_targets).
                             (In sklearn parlance, this is 'y'.)
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         self.knn.fit(locations, targets)
         self.locations = locations
         logger.debug('locations updated to shape: %s', self.locations.shape)
@@ -92,7 +93,8 @@ class KNNInterp(Interp):
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         regression = self.knn.predict(locations)
         logger.debug('Regression shape: %s', regression.shape)
         return regression
@@ -147,7 +149,8 @@ class KNNInterp(Interp):
 
         :returns: a list of new Star instances with interpolated parameters
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         locations = np.array([self.getProperties(star) for star in stars])
         targets = self._predict(locations)
         stars_fitted = []
@@ -192,7 +195,8 @@ class kNNInterp(KNNInterp):
     _type_name = 'kNNInterp'
 
     def __init__(self, *args, logger=None, **kwargs):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.error("WARNING: The name kNNInterp is deprecated. "
                      "Use KNN or KNearestNeighbors instead.")
         super().__init__(*args, logger=logger, **kwargs)

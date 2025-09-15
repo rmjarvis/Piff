@@ -22,6 +22,8 @@ import sys
 import traceback
 import galsim
 
+from .config import PiffLogger
+
 def ensure_dir(target):
     """Ensure that the directory for a target output file exists.
 
@@ -142,7 +144,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
 
     # In multiprocessing, we cannot pass in the logger, so log to a string and then
     # return that back at the end to be logged by the parent process.
-    logger = logging.getLogger('logtostring_%d'%i)
+    logger = PiffLogger(logging.getLogger('logtostring_%d'%i))
     buf = StringIO()
     handler = logging.StreamHandler(buf)
     logger.addHandler(handler)
@@ -155,7 +157,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
         # is to catch it and return it.  We can deal with it somehow on the other end.
         # Also add more details here with verbose>=2 to help with debugging.
         tr = traceback.format_exc()
-        logger.info("Caught exception:\n%s",tr)
+        logger.verbose("Caught exception:\n%s",tr)
         out = e
 
     handler.flush()
@@ -192,7 +194,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
 
     def log_output(result): # pragma: no cover (It is covered, but in an async process.)
         i, out, log = result
-        logger.info(log)
+        logger.verbose(log)
         if isinstance(out, Exception):
             logger.warning("Caught exception in multiprocessing job: %r",out)
             err_list[i] = out

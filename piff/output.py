@@ -160,7 +160,8 @@ class OutputFile(Output):
         :param psf:         A PSF instance
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         ensure_dir(self.file_name)
         psf.write(self.file_name, logger=logger)
 

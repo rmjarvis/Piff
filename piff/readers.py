@@ -134,8 +134,8 @@ class FitsReader:
             # If this doesn't work, then the file was probably written by py2, not py3
             repr(wcs)
         except Exception:
-            logger.info('Failed to decode wcs with bytes encoding.')
-            logger.info('Retry with encoding="latin1" in case file written with python 2.')
+            logger.verbose('Failed to decode wcs with bytes encoding.')
+            logger.verbose('Retry with encoding="latin1" in case file written with python 2.')
             wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
             wcs = dict(zip(chipnums, wcs_list))
             repr(wcs)

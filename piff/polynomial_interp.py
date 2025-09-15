@@ -260,8 +260,9 @@ class Polynomial(Interp):
         :param stars:       A list of Star instances to use for the interpolation.
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        from .config import LoggerWrapper
         import scipy.optimize
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
 
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
@@ -275,9 +276,9 @@ class Polynomial(Interp):
         npos = len(positions)
         self._setup_indices(nparam)
 
-        logger.info("Fitting %d parameter vectors using "\
-                    "polynomial type %s with %d positions",
-                    nparam,self.poly_type,npos)
+        logger.verbose("Fitting %d parameter vectors using "\
+                       "polynomial type %s with %d positions",
+                       nparam,self.poly_type,npos)
 
         # This model function adapts our _interpolationModel method
         # into the form that the scipy curve_fit function is expecting.

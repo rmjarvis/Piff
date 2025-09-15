@@ -14,6 +14,7 @@
 
 
 import logging
+from piff.config import VERBOSE, PiffLogger
 
 # Some helper functions that mutliple test files might want to use
 
@@ -98,11 +99,11 @@ class CaptureLog(object):
 
     """
     def __init__(self, level=3):
-        logging_levels = { 0: logging.CRITICAL,
+        logging_levels = { 0: logging.ERROR,
                            1: logging.WARNING,
-                           2: logging.INFO,
+                           2: VERBOSE,
                            3: logging.DEBUG }
-        self.logger = logging.getLogger('CaptureLog')
+        self.logger = PiffLogger(logging.getLogger('CaptureLog'))
         self.logger.setLevel(logging_levels[level])
         try:
             from StringIO import StringIO
