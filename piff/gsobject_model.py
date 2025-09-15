@@ -260,6 +260,7 @@ class GSObjectModel(Model):
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
+        import warnings
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         logger.debug("Start least_squares")
@@ -271,9 +272,11 @@ class GSObjectModel(Model):
         if params[3]**2 < star.data.local_wcs.pixelArea():
             params[3] = star.data.local_wcs.pixelArea()**0.5
 
-        results = scipy.optimize.least_squares(self._resid, params,
-                                               args=(star,convert_func,draw_method),
-                                               **self._scipy_kwargs)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            results = scipy.optimize.least_squares(self._resid, params,
+                                                   args=(star,convert_func,draw_method),
+                                                   **self._scipy_kwargs)
         #logger.debug(results)
         logger.debug("results = %s",results.x)
         if not results.success:
