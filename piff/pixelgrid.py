@@ -70,8 +70,8 @@ class PixelGrid(Model):
 
     def __init__(self, scale, size, interp=None, centered=True, init=None, fit_flux=False,
                  logger=None):
-
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
         logger.debug("size = %s",size)
@@ -124,7 +124,8 @@ class PixelGrid(Model):
 
         :returns: a star instance with the appropriate initial fit values
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         init = self._init if self._init is not None else default_init
         if init is None: init = 'hsm'
         logger.debug("initializing PixelGrid with method %s",init)
@@ -161,7 +162,7 @@ class PixelGrid(Model):
 
                 # Also, make sure fit_flux=True.  Otherwise, this won't work properly.
                 if not self._fit_flux:
-                    logger.info('Setting fit_flux=True, since init=zero')
+                    logger.verbose('Setting fit_flux=True, since init=zero')
                     self._fit_flux = True
                     self.kwargs['fit_flux'] = True
 
@@ -192,8 +193,9 @@ class PixelGrid(Model):
 
         :returns: a new Star instance with updated fit information
         """
+        from .config import LoggerWrapper
         assert draw_method in (None, 'no_pixel')
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         # Get chisq Taylor expansion for linearized model
         star1 = self.chisq(star, logger=logger, convert_func=convert_func)
 
@@ -229,7 +231,7 @@ class PixelGrid(Model):
             params_var = np.diagonal(scipy.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
         except np.linalg.LinAlgError as e:
             # If we get an error, set the variance to "infinity".
-            logger.info("Caught error %s making params_var.  Setting all to 1.e100",e)
+            logger.verbose("Caught error %s making params_var.  Setting all to 1.e100",e)
             params_var = np.ones_like(dparam) * 1.e100
 
         params = star.fit.get_params(self._num)
@@ -258,8 +260,9 @@ class PixelGrid(Model):
 
         :returns: a new Star instance with updated fit parameters. (esp. A,b)
         """
+        from .config import LoggerWrapper
         assert draw_method in (None, 'no_pixel')
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         logger.debug('Start chisq function')
         logger.debug('initial params = %s',star.fit.get_params(self._num))
 

@@ -141,7 +141,7 @@ class SimplePSF(PSF):
         if nremoved == 0:
             logger.debug("No stars removed in initialize step")
         else:
-            logger.info("Removed %d stars in initialize", nremoved)
+            logger.verbose("Removed %d stars in initialize", nremoved)
 
         logger.debug("Initializing interpolator")
         stars = self.interp.initialize(new_stars, logger=logger)
@@ -247,7 +247,8 @@ class SimplePSF(PSF):
         :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         chisq_dict = {
             'chisq' : self.chisq,
             'last_delta_chisq' : self.last_delta_chisq,

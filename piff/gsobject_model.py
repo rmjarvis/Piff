@@ -260,7 +260,8 @@ class GSObjectModel(Model):
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Start least_squares")
         params = self._get_params(star)
 
@@ -306,7 +307,8 @@ class GSObjectModel(Model):
 
         :returns: a new Star with the fitted parameters in star.fit
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         if fastfit is None:
             fastfit = self._fastfit
         if convert_func is not None:
@@ -370,7 +372,8 @@ class GSObjectModel(Model):
 
         :returns: a new initialized Star.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         init = self._init if self._init is not None else default_init
         if init is None: init = 'hsm'
         logger.debug("initializing GSObject with method %s",init)
@@ -385,7 +388,7 @@ class GSObjectModel(Model):
             flux_scaling = 1.e-6
             # Also, make sure fit_flux=True.  Otherwise, this won't work properly.
             if not self._fit_flux:
-                logger.info('Setting fit_flux=True, since init=zero')
+                logger.verbose('Setting fit_flux=True, since init=zero')
                 self._fit_flux = True
                 self.kwargs['fit_flux'] = True
         elif init == 'delta':
@@ -394,7 +397,7 @@ class GSObjectModel(Model):
             flux_scaling, size_scaling = init
             size *= size_scaling
             if not self._fit_flux:
-                logger.info(f'Setting fit_flux=True, since init={init}')
+                logger.verbose(f'Setting fit_flux=True, since init={init}')
                 self._fit_flux = True
                 self.kwargs['fit_flux'] = True
         elif init.startswith('(') and init.endswith(')'):
@@ -520,6 +523,7 @@ class GSObjectModelDepr(GSObjectModel):
     _type_name = 'GSObjectModel'
 
     def __init__(self, *args, logger=None, **kwargs):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.error("WARNING: The name GSObjectModel is deprecated. Use GSObject instead.")
         super().__init__(*args, logger=logger, **kwargs)

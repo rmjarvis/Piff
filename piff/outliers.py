@@ -22,7 +22,6 @@ import math
 import galsim
 from scipy.stats import chi2
 
-
 class Outliers(object):
     """The base class for handling outliers.
 
@@ -247,6 +246,8 @@ class ChisqOutliers(Outliers):
 
     def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
                  include_reserve=None, logger=None):
+        from .config import LoggerWrapper
+
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
             raise TypeError("One of thresh, ndof, prob, or nsigma is required.")
         if thresh is not None and any( (ndof is not None, prob is not None, nsigma is not None) ):
@@ -256,7 +257,7 @@ class ChisqOutliers(Outliers):
         if prob is not None and nsigma is not None:
             raise TypeError("Only one of thresh, ndof, prob, or nsigma may be given.")
         if include_reserve is not None:
-            logger = galsim.config.LoggerWrapper(logger)
+            logger = LoggerWrapper(logger)
             logger.error("WARNING: include_reserve is no longer used.")
 
         # The only one of these we can convert now is nsigma, which we can convert into prob.
@@ -293,7 +294,8 @@ class ChisqOutliers(Outliers):
         :returns: stars, nremoved   A new list of stars with outliers flagged, and how many outliers
                                     were flagged.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         # First figure out the threshold we actually want to use given max_remove.
 
@@ -301,7 +303,7 @@ class ChisqOutliers(Outliers):
         # But note that we apply the threshold to everything eventually.
         use_stars = [star for star in stars if not star.is_flagged and not star.is_reserve]
         nstars = len(use_stars)
-        logger.info("Checking %d stars for outliers", nstars)
+        logger.verbose("Checking %d stars for outliers", nstars)
 
         chisq = np.array([s.fit.chisq for s in use_stars])
         dof = np.array([s.fit.dof for s in use_stars])
@@ -313,17 +315,17 @@ class ChisqOutliers(Outliers):
         thresh = np.array([self._get_thresh(d) for d in dof]) * factor
 
         if np.all(dof == dof[0]):
-            logger.info("dof = %f, thresh = %f * %f = %f",
+            logger.verbose("dof = %f, thresh = %f * %f = %f",
                          dof[0], self._get_thresh(dof[0]), factor, thresh[0])
         else:
             min_dof = np.min(dof)
             max_dof = np.max(dof)
             min_thresh = self._get_thresh(min_dof)
             max_thresh = self._get_thresh(max_dof)
-            logger.info("Minimum dof = %d with thresh = %f * %f = %f",
-                         min_dof, min_thresh, factor, min_thresh*factor)
-            logger.info("Maximum dof = %d with thresh = %f * %f = %f",
-                         max_dof, max_thresh, factor, max_thresh*factor)
+            logger.verbose("Minimum dof = %d with thresh = %f * %f = %f",
+                           min_dof, min_thresh, factor, min_thresh*factor)
+            logger.verbose("Maximum dof = %d with thresh = %f * %f = %f",
+                           max_dof, max_thresh, factor, max_thresh*factor)
 
         nremoved = np.sum(~(chisq <= thresh))  # Write it as not chisq <= thresh in case of nans.
 
@@ -335,7 +337,7 @@ class ChisqOutliers(Outliers):
                      for s in stars]
             return stars, 0
 
-        logger.info("Found %d stars with chisq > thresh", nremoved)
+        logger.verbose("Found %d stars with chisq > thresh", nremoved)
 
         # Update max_remove if necessary
         max_remove = self.max_remove

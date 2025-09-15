@@ -67,11 +67,12 @@ class TwoDHistStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         self.twodhists = {}
 
         # get the shapes
-        logger.info("Measuring Star and Model Shapes")
+        logger.verbose("Measuring Star and Model Shapes")
         positions, shapes_truth, shapes_model = self.measureShapes(
             psf, stars, model_properties=self.model_properties, logger=logger)
 
@@ -79,7 +80,7 @@ class TwoDHistStats(Stats):
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
-        logger.info("%d/%d measurements were successful",np.sum(mask),len(mask))
+        logger.verbose("%d/%d measurements were successful",np.sum(mask),len(mask))
         if np.sum(mask) == 0:
             logger.warning("All stars had hsm errors.  TwoDHist plot will be empty.")
             self.skip = True
@@ -99,7 +100,7 @@ class TwoDHistStats(Stats):
         dg2 = g2 - g2_model
 
         # compute the indices
-        logger.info("Computing TwoDHist indices")
+        logger.verbose("Computing TwoDHist indices")
 
         self.bins_u = np.linspace(np.min(u), np.max(u), num=self.nbins_u + 1)
         self.bins_v = np.linspace(np.min(v), np.max(v), num=self.nbins_v + 1)
@@ -116,7 +117,7 @@ class TwoDHistStats(Stats):
         unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
 
         # compute the arrays
-        logger.info("Computing TwoDHist arrays")
+        logger.verbose("Computing TwoDHist arrays")
 
         # throw in coordinates for good measure
         self.twodhists['u'] = self._array_to_2dhist(u, indx_u, indx_v, unique_indx)
@@ -158,7 +159,9 @@ class TwoDHistStats(Stats):
         :returns: fig, ax
         """
         from matplotlib.figure import Figure
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+
+        logger = LoggerWrapper(logger)
         fig = Figure(figsize=(12,9))
         # In matplotlib 2.0, this will be
         # axs = fig.subplots(ncols=3, nrows=3)
@@ -199,7 +202,7 @@ class TwoDHistStats(Stats):
             raise RuntimeError("Must call compute before calling plot or write")
 
         # make the colormaps
-        logger.info("Creating TwoDHist colormaps")
+        logger.verbose("Creating TwoDHist colormaps")
         # T and T_model share colorbar
         vmin__T = np.min([self.twodhists['T'], self.twodhists['T_model']])
         vmax__T = np.max([self.twodhists['T'], self.twodhists['T_model']])
@@ -221,7 +224,7 @@ class TwoDHistStats(Stats):
         cmap__dg = self._shift_cmap(vmin__dg, vmax__dg)
 
         # make the plots
-        logger.info("Creating TwoDHist plots")
+        logger.verbose("Creating TwoDHist plots")
         ax = axs[0, 0]
         IM = ax.pcolormesh(self.bins_u, self.bins_v, self.twodhists['T'], cmap=cmap__T,
                        vmin=vmin__T, vmax=vmax__T)
@@ -442,11 +445,12 @@ class WhiskerStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         self.twodhists = {}
 
         # get the shapes
-        logger.info("Measuring Star and Model Shapes")
+        logger.verbose("Measuring Star and Model Shapes")
         positions, shapes_truth, shapes_model = self.measureShapes(
             psf, stars, model_properties=self.model_properties, logger=logger)
 
@@ -454,7 +458,7 @@ class WhiskerStats(Stats):
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
-        logger.info("%d/%d measurements were successful",np.sum(mask),len(mask))
+        logger.verbose("%d/%d measurements were successful",np.sum(mask),len(mask))
         if np.sum(mask) == 0:
             logger.warning("All stars had hsm errors.  Whisker plot will be empty.")
             self.skip = True
@@ -487,7 +491,7 @@ class WhiskerStats(Stats):
         dw2 = dmag_w * np.sin(dphi)
 
         # compute the indices
-        logger.info("Computing Whisker indices")
+        logger.verbose("Computing Whisker indices")
 
         self.bins_u = np.linspace(np.min(u), np.max(u), num=self.nbins_u + 1)
         self.bins_v = np.linspace(np.min(v), np.max(v), num=self.nbins_v + 1)
@@ -504,7 +508,7 @@ class WhiskerStats(Stats):
         unique_indx = np.vstack([tuple(row) for row in np.vstack((indx_u, indx_v)).T])
 
         # compute the arrays
-        logger.info("Computing Whisker arrays")
+        logger.verbose("Computing Whisker arrays")
 
         self.twodhists['u'] = self._array_to_2dhist(u, indx_u, indx_v, unique_indx)
         self.twodhists['v'] = self._array_to_2dhist(v, indx_u, indx_v, unique_indx)
@@ -537,7 +541,9 @@ class WhiskerStats(Stats):
         :returns: fig, ax
         """
         from matplotlib.figure import Figure
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+
+        logger = LoggerWrapper(logger)
         fig = Figure(figsize=(7.5,4))
         ax0, ax1 = fig.subplots(1, 2, sharey=True, subplot_kw={'aspect' : 'equal'})
 
@@ -556,7 +562,7 @@ class WhiskerStats(Stats):
             raise RuntimeError("Must call compute before calling plot or write")
 
         # make the plots
-        logger.info("Creating Whisker plots")
+        logger.verbose("Creating Whisker plots")
 
         # configure to taste
         # bigger scale = smaller whiskers

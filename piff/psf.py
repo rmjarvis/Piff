@@ -64,7 +64,8 @@ class PSF(object):
 
         :returns: a PSF instance of the appropriate type.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Parsing PSF based on config dict:")
 
         # Get the class to use for the PSF
@@ -80,7 +81,7 @@ class PSF(object):
         kwargs = psf_cls.parseKwargs(config_psf, logger)
 
         # Build PSF object
-        logger.info("Building %s",psf_type)
+        logger.verbose("Building %s",psf_type)
         psf = psf_cls(**kwargs)
         logger.debug("Done building PSF")
 
@@ -221,7 +222,8 @@ class PSF(object):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Reflux for star:")
         logger.debug("    flux = %s",star.fit.flux)
         logger.debug("    center = %s",star.fit.center)
@@ -337,7 +339,7 @@ class PSF(object):
                 if not star.is_flagged:
                     logger.warning("Failed trying to reflux star at %s.  Excluding it.",
                                    star.image_pos)
-                    logger.warning("  -- Caught exception: %s", e)
+                    logger.info("  -- Caught exception: %s", e)
                     nremoved += 1
                     star = star.flag_if(True)
             new_stars.append(star)
@@ -359,7 +361,7 @@ class PSF(object):
             if nremoved == 0:
                 logger.debug("             No outliers found")
             else:
-                logger.info("             Removed %d outliers", nremoved)
+                logger.verbose("             Removed %d outliers", nremoved)
         else:
             nremoved = 0
         return stars, nremoved
@@ -379,7 +381,8 @@ class PSF(object):
         :param draw_method:     The method to use with the GalSim drawImage command. If not given,
                                 use the default method for the PSF model being fit. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         self.wcs = wcs
         self.pointing = pointing
@@ -393,9 +396,9 @@ class PSF(object):
         for iteration in range(self.max_iter):
 
             nstars = np.sum([not star.is_reserve and not star.is_flagged for star in stars])
-            logger.warning("Iteration %d: Fitting %d stars", iteration+1, nstars)
+            logger.info("Iteration %d: Fitting %d stars", iteration+1, nstars)
             if nreserve != 0:
-                logger.warning("             (%d stars are reserved)", nreserve)
+                logger.info("             (%d stars are reserved)", nreserve)
 
             # Run a single iteration of the fitter.
             # Different PSF types do different things here.
@@ -416,7 +419,7 @@ class PSF(object):
 
             chisq = np.sum([s.fit.chisq for s in stars if not s.is_reserve and not s.is_flagged])
             dof   = np.sum([s.fit.dof for s in stars if not s.is_reserve and not s.is_flagged])
-            logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
+            logger.info("             Total chisq = %.2f / %d dof", chisq, dof)
 
             # Save these so we can write them to the output file.
             self.chisq = chisq
@@ -506,7 +509,8 @@ class PSF(object):
 
         :returns:           A GalSim Image of the PSF
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         chipnum = self._check_chipnum(chipnum)
 
@@ -580,7 +584,8 @@ class PSF(object):
                             method = either 'no_pixel' or 'auto' indicating which method to use
                             when drawing the profile on an image.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         chipnum = self._check_chipnum(chipnum)
 
@@ -721,9 +726,10 @@ class PSF(object):
         :param logger:      A logger object for logging debug info. [default: None]
         """
         from .writers import FitsWriter
+        from .config import LoggerWrapper
 
-        logger = galsim.config.LoggerWrapper(logger)
-        logger.warning("Writing PSF to file %s",file_name)
+        logger = LoggerWrapper(logger)
+        logger.info("Writing PSF to file %s",file_name)
 
         with FitsWriter.open(file_name) as w:
             self._write(w, 'psf', logger=logger)
@@ -739,14 +745,14 @@ class PSF(object):
         from . import __version__ as piff_version
         psf_type = self._type_name
         writer.write_struct(name, dict(self.kwargs, type=psf_type, piff_version=piff_version))
-        logger.info("Wrote the basic PSF information to name %s", writer.get_full_name(name))
+        logger.verbose("Wrote the basic PSF information to name %s", writer.get_full_name(name))
         with writer.nested(name) as w:
             if hasattr(self, 'stars'):
                 Star.write(self.stars, w, 'stars')
-                logger.info("Wrote the PSF stars to name %s", w.get_full_name('stars'))
+                logger.verbose("Wrote the PSF stars to name %s", w.get_full_name('stars'))
             if hasattr(self, 'wcs'):
                 w.write_wcs_map('wcs', self.wcs, self.pointing)
-                logger.info("Wrote the PSF WCS to name %s", w.get_full_name('wcs'))
+                logger.verbose("Wrote the PSF WCS to name %s", w.get_full_name('wcs'))
             self._finish_write(w, logger=logger)
 
     @classmethod
@@ -759,9 +765,10 @@ class PSF(object):
         :returns: a PSF instance
         """
         from .readers import FitsReader
+        from .config import LoggerWrapper
 
-        logger = galsim.config.LoggerWrapper(logger)
-        logger.warning("Reading PSF from file %s",file_name)
+        logger = LoggerWrapper(logger)
+        logger.info("Reading PSF from file %s",file_name)
 
         with FitsReader.open(file_name) as r:
             logger.debug('opened FITS file')

@@ -67,7 +67,8 @@ class StarStats(Stats):
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         # Determine which stars to plot
         possible_indices = []
         if self.include_reserve:
@@ -91,7 +92,7 @@ class StarStats(Stats):
         else:
             calculate_indices = self.indices
 
-        logger.info("Making {0} model stars".format(len(calculate_indices)))
+        logger.verbose("Making {0} model stars".format(len(calculate_indices)))
         calculated_stars = []
         calculated_models = []
         for i, star in enumerate(stars):
@@ -107,7 +108,7 @@ class StarStats(Stats):
                 calculated_models.append(None)
 
         # if including the average image, put that first.
-        logger.info("Making average star and model")
+        logger.verbose("Making average star and model")
         if self.include_ave:
             ave_star_image = np.mean([s.image.array for s in calculated_stars if s is not None],
                                      axis=0)
@@ -136,10 +137,12 @@ class StarStats(Stats):
         :returns: fig, ax
         """
         from matplotlib.figure import Figure
+        from .config import LoggerWrapper
+
         if not hasattr(self, 'indices'):
             raise RuntimeError("Must call compute before calling plot or write")
 
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
 
         # 6 x nplot/2 images, with each image (3.5 x 3)
         nplot = len(self.indices)
@@ -147,7 +150,7 @@ class StarStats(Stats):
         fig = Figure(figsize = (21,3*nrows))
         axs = fig.subplots(ncols=6, nrows=nrows, squeeze=False)
 
-        logger.info("Creating %d Star plots", self.nplot)
+        logger.verbose("Creating %d Star plots", self.nplot)
 
         for i in range(nplot):
             star = self.stars[i]
@@ -194,6 +197,7 @@ class StarStatsDepr(StarStats):
     _type_name = 'Star'
 
     def __init__(self, *args, logger=None, **kwargs):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.error("WARNING: The name Star is deprecated. Use StarImages instead.")
         super().__init__(*args, logger=logger, **kwargs)
