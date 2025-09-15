@@ -59,7 +59,8 @@ def setup_logger(verbose=1, log_file=None):
     # Verbose logging is midway between INFO and DEBUG.
 
     # Parse the integer verbosity level from the command line args into a logging_level string
-    logging_levels = { 0: logging.WARNING,
+    logging_levels = { 0: logging.ERROR,
+                       0.5: logging.WARNING,
                        1: logging.INFO,
                        2: VERBOSE,
                        3: logging.DEBUG }

@@ -100,7 +100,7 @@ class CaptureLog(object):
     """
     def __init__(self, level=3):
         logging_levels = { 0: logging.ERROR,
-                           1: logging.WARNING,
+                           1: logging.INFO,
                            2: VERBOSE,
                            3: logging.DEBUG }
         self.logger = PiffLogger(logging.getLogger('CaptureLog'))
