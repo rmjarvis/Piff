@@ -20,6 +20,7 @@ import piff
 import os
 import fitsio
 import glob
+import pytest
 
 from piff_test_helper import get_script_name, timer
 
@@ -123,6 +124,7 @@ def make_average(coord=None, gp=True):
 
     return params
 
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     np.random.seed(42)
     if __name__ == '__main__':
@@ -133,7 +135,8 @@ def setup():
         stars_per_image = 50
 
     # Delete any existing image files
-    for image_file in glob.glob(os.path.join('output','test_mean_image_*.fits')):
+    dir = os.path.dirname(os.path.realpath(__file__))
+    for image_file in glob.glob(os.path.join(dir, 'output', 'test_mean_image_*.fits')):
         os.remove(image_file)
 
     for k in range(nimages):
@@ -163,19 +166,19 @@ def setup():
             offset = galsim.PositionD( x-int(x)-0.5 , y-int(y)-0.5 )
             psf.drawImage(image=image[bounds], method='no_pixel', offset=offset)
 
-        image_file = os.path.join('output','test_mean_image_%02i.fits'%k)
+        image_file = os.path.join(dir, 'output', 'test_mean_image_%02i.fits'%k)
         image.write(image_file)
 
         dtype = [ ('x','f8'), ('y','f8') ]
         data = np.empty(len(x_list), dtype=dtype)
         data['x'] = x_list
         data['y'] = y_list
-        cat_file = os.path.join('output','test_mean_cat_%02i.fits'%k)
+        cat_file = os.path.join(dir, 'output', 'test_mean_cat_%02i.fits'%k)
         fitsio.write(cat_file, data, clobber=True)
 
-        image_file = os.path.join('output','test_mean_image_%02i.fits'%k)
-        cat_file = os.path.join('output','test_mean_cat_%02i.fits'%k)
-        psf_file = os.path.join('output','test_mean_%02i.piff'%k)
+        image_file = os.path.join(dir, 'output', 'test_mean_image_%02i.fits'%k)
+        cat_file = os.path.join(dir, 'output', 'test_mean_cat_%02i.fits'%k)
+        psf_file = os.path.join(dir, 'output', 'test_mean_%02i.piff'%k)
 
         config = {
             'input' : {

@@ -20,6 +20,7 @@ import galsim
 import fitsio
 import yaml
 import subprocess
+import pytest
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -222,7 +223,7 @@ def generate_starlist(n_samples=500):
 
     return star_list, model
 
-@timer
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     """Build an input image and catalog used by a few tests below.
     """
@@ -254,7 +255,8 @@ def setup():
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
     # Write out the image to a file
-    image_file = os.path.join('output','test_stats_image.fits')
+    dir = os.path.dirname(os.path.realpath(__file__))
+    image_file = os.path.join(dir, 'output', 'test_stats_image.fits')
     image.write(image_file)
 
     # Write out the catalog to a file
@@ -262,7 +264,7 @@ def setup():
     data = np.empty(len(x_list), dtype=dtype)
     data['x'] = x_list
     data['y'] = y_list
-    cat_file = os.path.join('output','test_stats_cat.fits')
+    cat_file = os.path.join(dir, 'output', 'test_stats_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
 
 @timer
