@@ -209,6 +209,10 @@ class InputFiles(Input):
                         weight == 0. [default: None]
         :noise:         Rather than a weight image, provide the noise variance in the image.
                         (Useful for simulations where this is a known value.) [default: None]
+        :weight_file_name: If the weight image is in a different file than the main image,
+                        this gives the name of the file to use. [default: None]
+        :badpix_file_name: If the badpix image is in a different file than the main image,
+                        this gives the name of the file to use. [default: None]
 
         :cat_hdu:       The hdu to use in the catalog files. [default: 1]
         :x_col:         The name of the X column in the input catalogs. [default: 'x']
@@ -293,6 +297,8 @@ class InputFiles(Input):
                 'image_hdu' : int,
                 'weight_hdu' : int,
                 'badpix_hdu' : int,
+                'weight_file_name' : str,
+                'badpix_file_name' : str,
                 'sky_file_name' : str,
                 'sky_hdu': int,
                 'cat_hdu' : int,
@@ -452,7 +458,9 @@ class InputFiles(Input):
             # Read the image
             image_file_name = params['image_file_name']
             image_hdu = params.get('image_hdu', None)
+            weight_file_name = params.get('weight_file_name', None)
             weight_hdu = params.get('weight_hdu', None)
+            badpix_file_name = params.get('badpix_file_name', None)
             badpix_hdu = params.get('badpix_hdu', None)
             sky_file_name = params.get('sky_file_name', None)
             sky_hdu = params.get('sky_hdu', None)
@@ -462,7 +470,9 @@ class InputFiles(Input):
             self.image_kwargs.append({
                     'image_file_name' : image_file_name,
                     'image_hdu' : image_hdu,
+                    'weight_file_name' : weight_file_name,
                     'weight_hdu' : weight_hdu,
+                    'badpix_file_name' : badpix_file_name,
                     'badpix_hdu' : badpix_hdu,
                     'sky_file_name' : sky_file_name,
                     'sky_hdu' : sky_hdu,
@@ -734,13 +744,15 @@ class InputFiles(Input):
         return newweight, gain
 
     @staticmethod
-    def readImage(image_file_name, image_hdu, weight_hdu, badpix_hdu,
-                  sky_file_name, sky_hdu, noise, logger):
+    def readImage(image_file_name, image_hdu, weight_file_name, weight_hdu,
+                  badpix_file_name, badpix_hdu, sky_file_name, sky_hdu, noise, logger):
         """Read in the image and weight map (or make one if no weight information is given
 
         :param image_file_name: The name of the file to read.
         :param image_hdu:       The hdu of the main image.
+        :param weight_file_name: The name if the file with the weight image (if any).
         :param weight_hdu:      The hdu of the weight image (if any).
+        :param badpix_file_name: The name of the file with the bad pixel mask (if any).
         :param badpix_hdu:      The hdu of the bad pixel mask (if any).
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
@@ -762,9 +774,11 @@ class InputFiles(Input):
             image -= sky
 
         # Either read in the weight image, or build a dummy one
-        if weight_hdu is not None:
-            logger.verbose("Reading weight image from hdu %d.", weight_hdu)
-            weight = galsim.fits.read(image_file_name, hdu=weight_hdu)
+        if weight_file_name is not None or weight_hdu is not None:
+            weight_file_name = weight_file_name or image_file_name
+            weight_hdu = weight_hdu or (1 if weight_file_name.endswith('.fz') else 0)
+            logger.verbose("Reading weight image from %s, hdu %d.", weight_file_name, weight_hdu)
+            weight = galsim.fits.read(weight_file_name, hdu=weight_hdu)
             if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
@@ -780,9 +794,11 @@ class InputFiles(Input):
             weight = galsim.ImageF(image.bounds, init_value=1)
 
         # If requested, set wt=0 for any bad pixels
-        if badpix_hdu is not None:
-            logger.verbose("Reading badpix image from hdu %d.", badpix_hdu)
-            badpix = galsim.fits.read(image_file_name, hdu=badpix_hdu)
+        if badpix_file_name is not None or badpix_hdu is not None:
+            badpix_file_name = badpix_file_name or image_file_name
+            badpix_hdu = badpix_hdu or (1 if badpix_file_name.endswith('.fz') else 0)
+            logger.verbose("Reading badpix image from %s, hdu %d.", badpix_file_name, badpix_hdu)
+            badpix = galsim.fits.read(badpix_file_name, hdu=badpix_hdu)
             # The badpix image may be offset by 32768 from the true value.
             # If so, subtract it off.
             if np.any(badpix.array > 32767):  # pragma: no cover
