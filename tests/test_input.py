@@ -18,14 +18,18 @@ import galsim
 import numpy as np
 import fitsio
 import piff
+import pytest
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
-@timer
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     """Make sure the images and catalogs that we'll use throughout this module are done first.
     """
-    gs_config = galsim.config.ReadConfig(os.path.join('input','make_input.yaml'))[0]
+    dir = os.path.dirname(os.path.realpath(__file__))
+    config_file_name = os.path.join(dir, 'input', 'make_input.yaml')
+    gs_config = galsim.config.ReadConfig(config_file_name)[0]
+    gs_config['output']['dir'] = os.path.join(dir, 'input')
     galsim.config.BuildFiles(2, galsim.config.CopyConfig(gs_config))
 
     # For the third file, add in a real wcs and ra, dec to the output catalog.
@@ -42,7 +46,7 @@ def setup():
     gs_config['output']['truth']['columns']['dec'] = '$wcs.toWorld(image_pos).dec / galsim.degrees'
     galsim.config.BuildFiles(1, galsim.config.CopyConfig(gs_config), file_num=2)
 
-    cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
+    cat_file_name = os.path.join(dir, 'input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
     sky = np.mean(data['sky'])
     gain = np.mean(data['gain'])
@@ -51,7 +55,7 @@ def setup():
 
     # Write a sky image file
     sky_im = galsim.Image(1024,1024, init_value=sky)
-    sky_im.write(os.path.join('input', 'test_input_sky_00.fits.fz'))
+    sky_im.write(os.path.join(dir, 'input', 'test_input_sky_00.fits.fz'))
 
     # Add two color columns to first catalog file
     rng1 = np.random.default_rng(123)
@@ -65,7 +69,7 @@ def setup():
 
     # Add some header values to the first one.
     # Also add some alternate weight and badpix maps to enable some edge-case tests
-    image_file = os.path.join('input','test_input_image_00.fits')
+    image_file = os.path.join(dir, 'input', 'test_input_image_00.fits')
     with fitsio.FITS(image_file, 'rw') as f:
         f[0].write_key('SKYLEVEL', sky, 'sky level')
         f[0].write_key('GAIN_A', gain, 'gain')

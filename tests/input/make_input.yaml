@@ -50,7 +50,6 @@ output:
         hdu: 2
 
     truth:
-        dir: 'input'
         file_name:
             type: FormattedStr
             format: 'test_input_cat_%02d.fits'
