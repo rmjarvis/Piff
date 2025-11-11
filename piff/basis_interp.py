@@ -590,14 +590,21 @@ class BasisPolynomial(BasisInterp):
         """
         # Get the interpolation key values
         vals = self.getProperties(star)
+
         # Make 1d arrays of all needed powers of keys
         pows1d = []
         for i,o in enumerate(self._orders):
             p = np.ones(o+1,dtype=float)
             p[1:] = vals[i]
             pows1d.append(np.cumprod(p))
-        # Use trick to produce outer product of all these powers
-        pows2d = np.prod(np.meshgrid(*pows1d, indexing='ij'), axis=0)
+
+        # Make outer product of all these powers
+        if len(pows1d) == 2:
+            # This is faster than the line below.
+            pows2d = np.outer(*pows1d)
+        else:
+            pows2d = np.prod(np.meshgrid(*pows1d, indexing='ij'), axis=0)
+
         # Return linear array of terms making total power constraint
         return pows2d[self._mask]
 
