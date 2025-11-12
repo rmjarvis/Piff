@@ -316,7 +316,10 @@ class Star(object):
             # Make the center of the image (close to) the image_pos
             xcen = int(np.ceil(x - (0.5 if image.array.shape[1] % 2 == 1 else 0)))
             ycen = int(np.ceil(y - (0.5 if image.array.shape[0] % 2 == 1 else 0)))
-            image.setCenter(xcen, ycen)
+
+            #image.setCenter(xcen, ycen)
+            # This next line is equivalent, but more efficient.
+            image._shift(galsim.PositionI(xcen,ycen) - image.center)
         if image.wcs is None:
             image.wcs = wcs
         if weight is not None:
