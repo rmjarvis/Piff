@@ -271,9 +271,10 @@ class Star(object):
         :returns:   A Star instance
         """
         # Check that input parameters are valid
-        for param in ['x', 'y', 'u', 'v']:
-            if eval(param) is not None and param in properties:
-                raise TypeError("%s may not be given both as a kwarg and in properties"%param)
+        for param, name in [(x,'x'), (y,'y'), (u,'u'), (v,'v')]:
+            if param is not None and name in properties:
+                raise TypeError("%s may not be given both as a kwarg and in properties"%name)
+
         properties = properties.copy()  # So we can modify it and not mess up the caller.
         x = properties.pop('x', x)
         y = properties.pop('y', y)
