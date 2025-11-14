@@ -114,6 +114,22 @@ class PixelGrid(Model):
         self._nparams = size*size
         logger.debug("nparams = %d",self._nparams)
 
+        # Save these to use when making InterpolatedImage.
+        # For the first star in an iteration, we let GalSim figure out good values, but then
+        # for later usage, we use force_maxk and force_stepk to save time.
+        self._maxk = 0.
+        self._stepk = 0.
+
+    def initialize_iteration(self):
+        """Do any required initialization at the start of an iteration of fitting.
+
+        Usually a no op, but in PixelGrid, it resets the cached stepk/maxk, so they can
+        potentially adapt to a new size for this iteration.
+        """
+        self._maxk = 0.
+        self._stepk = 0.
+
+
     def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model.
 
@@ -498,8 +514,13 @@ class PixelGrid(Model):
         """
         im = galsim.Image(params.reshape(self.size,self.size), scale=self.scale)
         flux = None if self._fit_flux else 1.
-        return galsim.InterpolatedImage(im, x_interpolant=self.interp,
-                                        use_true_center=False, flux=flux)
+        ii = galsim.InterpolatedImage(im, x_interpolant=self.interp,
+                                      use_true_center=False, flux=flux,
+                                      _force_maxk=self._maxk,
+                                      _force_stepk=self._stepk)
+        self._maxk = ii.maxk
+        self._stepk = ii.stepk
+        return ii
 
     def _getBasisProfile(self):
         if not hasattr(self, '_basis_profile'):

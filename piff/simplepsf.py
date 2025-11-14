@@ -167,6 +167,8 @@ class SimplePSF(PSF):
         # Perform the fit or compute design matrix as appropriate using just non-reserve stars
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
 
+        self.model.initialize_iteration()
+
         nremoved = 0  # For this iteration
         use_stars = []  # Just the stars we want to use for fitting.
         all_stars = []  # All the stars (with appropriate flags as necessary)
