@@ -115,6 +115,13 @@ class Model(object):
         # parameter values in star.fit.
         pass
 
+    def initialize_iteration(self):
+        """Do any required initialization at the start of an iteration of fitting.
+
+        Usually a no op.
+        """
+        pass
+
     def fit(self, star, convert_func=None):
         """Fit the Model to the star's data to yield iterative improvement on
         its PSF parameters, their uncertainties, and flux (and center, if free).
