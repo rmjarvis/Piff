@@ -1031,6 +1031,23 @@ class StarFit(object):
 
         return self.withNew(**kwargs)
 
+    def updateParams(self, params, params_var=None, num=None, **kwargs):
+        """Update the parameters to the given params in place, rather than make a new star.
+
+        Note: the new params must be the same size/shape as the old params.
+
+        Equivalent to star = star.newParams(params, ...) but when it is safe to do so,
+        setting the parameters in place is a bit more efficient than making a new object.
+        """
+        if num is not None:
+            self.params[num] = np.asarray(params)
+            if params_var is not None:
+                self.params_var[num] = np.asarray(params_var)
+        else:
+            self.params = np.asarray(params)
+            if params_var is not None:
+                self.params_var = np.asarray(params_var)
+
     def get_params(self, num):
         if num is not None and self.params is not None:
             return self.params[num]

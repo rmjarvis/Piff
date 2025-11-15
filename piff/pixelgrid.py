@@ -581,9 +581,10 @@ class PixelGrid(Model):
                                     # doesn't complain about the size changing.
 
         # Normally this is all that is required.
+        # Note: this is done in place for efficiency.
         if not self._fit_flux:
             params /= np.sum(params)
-            star.fit = star.fit.newParams(params, num=self._num)
+            star.fit.updateParams(params, num=self._num)
 
     @classmethod
     def _fix_kwargs(cls, kwargs):
