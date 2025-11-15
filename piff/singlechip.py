@@ -152,18 +152,20 @@ class SingleChipPSF(PSF):
         """
         return self.single_psf.include_model_centroid
 
-    def interpolateStar(self, star):
+    def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param star:        Star instance to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
         :returns:           Star instance with its fit parameters updated.
         """
         if 'chipnum' not in star.data.properties:
             raise ValueError("SingleChip requires the star to have a chipnum property")
         chipnum = star['chipnum']
-        return self.psf_by_chip[chipnum].interpolateStar(star)
+        return self.psf_by_chip[chipnum].interpolateStar(star, inplace=inplace)
 
     def _drawStar(self, star):
         if 'chipnum' not in star.data.properties:

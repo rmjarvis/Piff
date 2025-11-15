@@ -396,15 +396,20 @@ class Polynomial(Interp):
             self.coeffs.append(self._unpack_coefficients(p,col))
 
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
         pos = self.getProperties(star)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
-        fit = star.fit.newParams(p, num=self._num)
-        return Star(star.data, fit)
+        if inplace:
+            star.fit.updateParams(p, num=self._num)
+        else:
+            star = Star(star.data, star.fit.newParams(p, num=self._num))
+        return star

@@ -215,28 +215,32 @@ class SimplePSF(PSF):
         """
         return self.model._centered and self.model._model_can_be_offset
 
-    def interpolateStarList(self, stars):
+    def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param stars:       List of Star instances to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
         :returns:           List of Star instances with their fit parameters updated.
         """
-        stars = self.interp.interpolateList(stars)
+        stars = self.interp.interpolateList(stars, inplace=inplace)
         for star in stars:
             self.model.normalize(star)
         return stars
 
-    def interpolateStar(self, star):
+    def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param star:        Star instance to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
         :returns:           Star instance with its fit parameters updated.
         """
-        star = self.interp.interpolate(star)
+        star = self.interp.interpolate(star, inplace=inplace)
         self.model.normalize(star)
         return star
 

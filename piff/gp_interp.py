@@ -260,23 +260,27 @@ class GPInterp(Interp):
         self._fit(X, y, y_err=y_err, logger=logger)
         self.kernels = [gp.kernel for gp in self.gps]
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a Star instance with its StarFit member holding the interpolated parameters
         """
-        return self.interpolateList([star], logger=logger)[0]
+        return self.interpolateList([star], logger=logger, inplace=inplace)[0]
 
-    def interpolateList(self, stars, logger=None):
+    def interpolateList(self, stars, logger=None, inplace=False):
         """Perform the interpolation for a list of stars.
 
         :param star_list:   A list of Star instances to which to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
-        :returns: a list of new Star instances with interpolated parameters
+        :returns: a list of Star instances with interpolated parameters
         """
         Xstar = np.array([self.getProperties(star) for star in stars])
         gp_y = self._predict(Xstar)
@@ -288,8 +292,11 @@ class GPInterp(Interp):
                 y0_updated = star.fit.get_params(self._num)
             for j in range(self.nparams):
                 y0_updated[self.rows[j]] = y0[j]
-            fit = star.fit.newParams(y0_updated, num=self._num)
-            fitted_stars.append(Star(star.data, fit))
+            if inplace:
+                star.fit.updateParams(y0_updated, num=self._num)
+            else:
+                star = Star(star.data, star.fit.newParams(y0_updated, num=self._num))
+            fitted_stars.append(star)
         return fitted_stars
 
     def _finish_write(self, writer):
