@@ -130,24 +130,28 @@ class KNNInterp(Interp):
         targets = np.array([star.fit.get_params(self._num) for star in stars])
         self._fit(locations, targets)
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a Star instance with its StarFit member holding the interpolated parameters
         """
         # Just call interpolateList because sklearn prefers list input anyways
-        return self.interpolateList([star], logger=logger)[0]
+        return self.interpolateList([star], logger=logger, inplace=inplace)[0]
 
-    def interpolateList(self, stars, logger=None):
+    def interpolateList(self, stars, logger=None, inplace=False):
         """Perform the interpolation for a list of stars.
 
         :param stars:       A list of Star instances to which to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
-        :returns: a list of new Star instances with interpolated parameters
+        :returns: a list of Star instances with interpolated parameters
         """
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
@@ -155,8 +159,11 @@ class KNNInterp(Interp):
         targets = self._predict(locations)
         stars_fitted = []
         for yi, star in zip(targets, stars):
-            fit = star.fit.newParams(yi, num=self._num)
-            stars_fitted.append(Star(star.data, fit))
+            if inplace:
+                star.fit.updateParams(yi, num=self._num)
+            else:
+                star = Star(star.data, star.fit.newParams(yi, num=self._num))
+            stars_fitted.append(star)
         return stars_fitted
 
     def _finish_write(self, writer):

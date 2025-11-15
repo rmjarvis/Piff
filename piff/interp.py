@@ -149,17 +149,19 @@ class Interp(object):
         """
         raise NotImplementedError("Derived classes must define the solve method.")
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
         raise NotImplementedError("Derived classes must define the interpolate method.")
 
-    def interpolateList(self, stars, logger=None):
+    def interpolateList(self, stars, logger=None, inplace=False):
         """Perform the interpolation for a list of stars.
 
         The base class just calls interpolate(star) for each star in the list, but in many
@@ -168,10 +170,12 @@ class Interp(object):
 
         :param stars:       A list of Star instances to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
-        :returns: a list of new Star instances with interpolated parameters
+        :returns: a list of Star instances with interpolated parameters
         """
-        return [ self.interpolate(star) for star in stars ]
+        return [ self.interpolate(star, inplace=inplace) for star in stars ]
 
     def write(self, writer, name):
         """Write an Interp via a writer object.

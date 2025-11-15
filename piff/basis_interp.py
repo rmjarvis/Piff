@@ -408,21 +408,26 @@ class BasisInterp(Interp):
         # Reshape dq back into a 2d array and add it to the current solution.
         self.q += dq.reshape(self.q.shape)
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
         if self.q is None:
             raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterp")
 
         K = self.basis(star)
         p = np.dot(self.q,K)
-        fit = star.fit.newParams(p, num=self._num)
-        return Star(star.data, fit)
+        if inplace:
+            star.fit.updateParams(p, num=self._num)
+        else:
+            star = Star(star.data, star.fit.newParams(p, num=self._num))
+        return star
 
 
 class BasisPolynomial(BasisInterp):

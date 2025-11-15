@@ -137,15 +137,19 @@ class ConvolvePSF(PSF):
 
         return kwargs
 
-    def setup_params(self, stars):
+    def setup_params(self, stars, inplace=False):
         """Make sure the stars have the right shape params object
         """
         new_stars = []
         for star in stars:
             if star.fit.params is None:
-                fit = star.fit.withNew(params=[None] * self.num_components,
-                                       params_var=[None] * self.num_components)
-                star = Star(star.data, fit)
+                if inplace:
+                    star.fit.params = [None] * self.num_components
+                    star.fit.params_var = [None] * self.num_components
+                else:
+                    fit = star.fit.withNew(params=[None] * self.num_components,
+                                           params_var=[None] * self.num_components)
+                    star = Star(star.data, fit)
             else:
                 assert len(star.fit.params) > self._nums[-1]
             new_stars.append(star)
@@ -215,30 +219,36 @@ class ConvolvePSF(PSF):
         """
         return any([comp.include_model_centroid for comp in self.components])
 
-    def interpolateStarList(self, stars):
+    def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param stars:       List of Star instances to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
         :returns:           List of Star instances with their fit parameters updated.
         """
-        stars = self.setup_params(stars)
+        stars = self.setup_params(stars, inplace=inplace)
         for comp in self.components:
-            stars = comp.interpolateStarList(stars)
+            stars = comp.interpolateStarList(stars, inplace=inplace)
+            inplace = True  # For later components, it is safe to modify in place.
         return stars
 
-    def interpolateStar(self, star):
+    def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param star:        Star instance to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
         :returns:           Star instance with its fit parameters updated.
         """
-        star, = self.setup_params([star])
+        star, = self.setup_params([star], inplace=inplace)
         for comp in self.components:
-            star = comp.interpolateStar(star)
+            star = comp.interpolateStar(star, inplace=inplace)
+            inplace = True  # For later components, it is safe to modify in place.
         return star
 
     def _drawStar(self, star):

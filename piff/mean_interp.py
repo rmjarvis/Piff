@@ -46,19 +46,22 @@ class Mean(Interp):
         """
         self.mean = np.mean([star.fit.get_params(self._num) for star in stars], axis=0)
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
-        if self.mean is None:
-            return star
-        else:
-            fit = star.fit.newParams(self.mean, num=self._num)
-        return Star(star.data, fit)
+        if self.mean is not None:
+            if inplace:
+                star.fit.updateParams(self.mean, num=self._num)
+            else:
+                star = Star(star.data, star.fit.newParams(self.mean, num=self._num))
+        return star
 
     def _finish_write(self, writer):
         """Write the solution.
