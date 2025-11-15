@@ -1013,21 +1013,21 @@ class StarFit(object):
         """
         old_params = self.get_params(num)
         old_params_var = self.get_params_var(num)
-        if old_params is not None and np.array(params).shape != old_params.shape:
+        if old_params is not None and np.asarray(params).shape != old_params.shape:
             raise ValueError('new StarFit parameters do not match dimensions of old ones')
 
         if num is not None:
             new_params = self.params.copy()
-            new_params[num] = np.array(params)
+            new_params[num] = np.asarray(params)
             kwargs['params'] = new_params
             if params_var is not None:
                 new_params_var = self.params_var.copy()
-                new_params_var[num] = np.array(params_var)
+                new_params_var[num] = np.asarray(params_var)
                 kwargs['params_var'] = new_params_var
         else:
-            kwargs['params'] = np.array(params)
+            kwargs['params'] = np.asarray(params)
             if params_var is not None:
-                kwargs['params_var'] = np.array(params_var)
+                kwargs['params_var'] = np.asarray(params_var)
 
         return self.withNew(**kwargs)
 
