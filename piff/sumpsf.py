@@ -206,7 +206,7 @@ class SumPSF(PSF):
             nremoved += nremoved1
 
             # Update the current models for later components
-            stars = comp.interpolateStarList(stars)
+            comp.interpolateStarList(stars, inplace=True)
             current_models[k] = comp.drawStarList(stars)
 
         return stars, nremoved

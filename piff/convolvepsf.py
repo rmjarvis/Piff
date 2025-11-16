@@ -199,7 +199,7 @@ class ConvolvePSF(PSF):
             nremoved += nremoved1
 
             # Update the current models for later components
-            stars = comp.interpolateStarList(stars)
+            comp.interpolateStarList(stars, inplace=True)
 
         return stars, nremoved
 
