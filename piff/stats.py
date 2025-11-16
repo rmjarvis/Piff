@@ -265,7 +265,7 @@ class Stats(object):
             logger.debug("Generating and Measuring Model Stars")
             if model_properties is not None:
                 stars = [star.withProperties(**model_properties) for star in stars]
-                stars = psf.interpolateStarList(stars)
+                psf.interpolateStarList(stars, inplace=True)
             model_stars = psf.drawStarList(stars)
             shapes_model = [list(star.hsm) for star in model_stars]
 

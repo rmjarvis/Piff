@@ -612,7 +612,8 @@ class PSF(object):
         logger.debug("Getting PSF profile at (%s,%s) on chip %s", x, y, chipnum)
 
         # Interpolate and adjust the flux of the star.
-        star = self.interpolateStar(star).withFlux(flux)
+        self.interpolateStar(star, inplace=True)
+        star.fit.flux = flux  # Modify in place, rather than use withFlux for efficiency.
 
         # The last step is implementd in the derived classes.
         prof, method = self._getProfile(star)
