@@ -87,6 +87,11 @@ def test_interp():
     for attr in keys:
         np.testing.assert_equal(star_predicted.data[attr], star_predict.data[attr])
 
+    # inplace = True updates the given star
+    star2 = knn.interpolate(star_predict, inplace=True)
+    assert star2 is star_predict
+    np.testing.assert_array_equal(star_predict.fit.params, star_predicted.fit.params)
+
 
 @timer
 def test_config():

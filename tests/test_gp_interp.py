@@ -233,6 +233,13 @@ def check_gp(stars_training, stars_validation, kernel, optimizer,
     y_test = np.array([star.fit.params for star in stars_test])
     np.testing.assert_allclose(y_test, y_validation, atol=atol)
 
+    # inplace = True updates the given stars
+    stars2 = interp2.interpolateList(stars_validation, inplace=True)
+    for s1, s2, s3 in zip(stars_test, stars_validation, stars2):
+        assert s1 is not s2
+        assert s2 is s3
+        np.testing.assert_array_equal(s1.fit.params, s2.fit.params)
+
     if plotting:
         import matplotlib.pyplot as plt
         title = ["size", "$g_1$", "$g_2$"]
