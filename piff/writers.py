@@ -55,8 +55,7 @@ class FitsWriter:
 
         header = {"piff_version": piff_version}
         with fitsio.FITS(file_name, "rw", clobber=True) as f:
-            if len(f) == 1:
-                f.write(data=None, header=header)
+            f.write(data=None, header=header)
             yield cls(f, base_name=None, header=header.copy())
 
     def write_struct(self, name, struct):
