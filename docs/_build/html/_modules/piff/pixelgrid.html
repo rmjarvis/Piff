@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.pixelgrid &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=72d88caf"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -109,7 +111,9 @@
 <span class="kn">from</span> <span class="nn">.model</span> <span class="kn">import</span> <span class="n">Model</span>
 <span class="kn">from</span> <span class="nn">.star</span> <span class="kn">import</span> <span class="n">Star</span>
 
-<div class="viewcode-block" id="PixelGrid"><a class="viewcode-back" href="../../model.html#piff.PixelGrid">[docs]</a><span class="k">class</span> <span class="nc">PixelGrid</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+<div class="viewcode-block" id="PixelGrid">
+<a class="viewcode-back" href="../../model.html#piff.PixelGrid">[docs]</a>
+<span class="k">class</span> <span class="nc">PixelGrid</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF modeled as interpolation between a grid of points.</span>
 
 <span class="sd">    The parameters of the model are the values at the grid points, although the sum of the</span>
@@ -204,7 +208,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_maxk</span> <span class="o">=</span> <span class="mf">0.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stepk</span> <span class="o">=</span> <span class="mf">0.</span>
 
-<div class="viewcode-block" id="PixelGrid.initialize_iteration"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.initialize_iteration">[docs]</a>    <span class="k">def</span> <span class="nf">initialize_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="PixelGrid.initialize_iteration">
+<a class="viewcode-back" href="../../model.html#piff.PixelGrid.initialize_iteration">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Do any required initialization at the start of an iteration of fitting.</span>
 
 <span class="sd">        Usually a no op, but in PixelGrid, it resets the cached stepk/maxk, so they can</span>
@@ -214,7 +220,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_stepk</span> <span class="o">=</span> <span class="mf">0.</span></div>
 
 
-<div class="viewcode-block" id="PixelGrid.initialize"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PixelGrid.initialize">
+<a class="viewcode-back" href="../../model.html#piff.PixelGrid.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a star to work with the current model.</span>
 
 <span class="sd">        :param star:            The Star to initialize.</span>
@@ -277,7 +286,10 @@
         <span class="n">fit</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="PixelGrid.fit"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PixelGrid.fit">
+<a class="viewcode-back" href="../../model.html#piff.PixelGrid.fit">[docs]</a>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Model to the star&#39;s data to yield iterative improvement on its PSF parameters</span>
 <span class="sd">        and uncertainties.</span>
 
@@ -341,7 +353,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">star</span></div>
 
-<div class="viewcode-block" id="PixelGrid.chisq"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.chisq">[docs]</a>    <span class="k">def</span> <span class="nf">chisq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PixelGrid.chisq">
+<a class="viewcode-back" href="../../model.html#piff.PixelGrid.chisq">[docs]</a>
+    <span class="k">def</span> <span class="nf">chisq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.</span>
 <span class="sd">        as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,</span>
 <span class="sd">        where dp is the *shift* from current parameter values.  Returned Star</span>
@@ -589,7 +604,10 @@
 
         <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">withNew</span><span class="p">(</span><span class="n">chisq</span><span class="o">=</span><span class="n">chisq</span><span class="p">,</span> <span class="n">dof</span><span class="o">=</span><span class="n">dof</span><span class="p">,</span> <span class="n">A</span><span class="o">=</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">))</span></div>
 
-<div class="viewcode-block" id="PixelGrid.getProfile"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.getProfile">[docs]</a>    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PixelGrid.getProfile">
+<a class="viewcode-back" href="../../model.html#piff.PixelGrid.getProfile">[docs]</a>
+    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a version of the model as a GalSim GSObject</span>
 
 <span class="sd">        :param params:      The fit parameters for a given star.</span>
@@ -606,6 +624,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_stepk</span> <span class="o">=</span> <span class="n">ii</span><span class="o">.</span><span class="n">stepk</span>
         <span class="k">return</span> <span class="n">ii</span></div>
 
+
     <span class="k">def</span> <span class="nf">_getBasisProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_basis_profile&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_basis_profile</span> <span class="o">=</span> <span class="p">[]</span>
@@ -620,7 +639,9 @@
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basis_profile</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basis_shifts</span>
 
-<div class="viewcode-block" id="PixelGrid.normalize"><a class="viewcode-back" href="../../model.html#piff.PixelGrid.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+<div class="viewcode-block" id="PixelGrid.normalize">
+<a class="viewcode-back" href="../../model.html#piff.PixelGrid.normalize">[docs]</a>
+    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Make sure star.fit.params are normalized properly.</span>
 
 <span class="sd">        Note: This modifies the input star in place.</span>
@@ -670,6 +691,7 @@
             <span class="n">params</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
             <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">updateParams</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span></div>
 
+
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">_fix_kwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># Old (v1.0 and earlier) versions included two parameters that are now obsoloete.</span>
@@ -681,6 +703,7 @@
         <span class="c1"># was Lanczos(3), so if it&#39;s not present, set it to that.</span>
         <span class="k">if</span> <span class="s1">&#39;interp&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;interp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">Lanczos</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span></div>
+
 </pre></div>
 
            </div>

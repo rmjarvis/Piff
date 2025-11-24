@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Utility Functions &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=72d88caf"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
         <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
@@ -94,10 +96,10 @@
            <div itemprop="articleBody">
              
   <section id="module-piff.util">
-<span id="utility-functions"></span><h1>Utility Functions<a class="headerlink" href="#module-piff.util" title="Permalink to this heading"></a></h1>
-<span class="target" id="module-util"></span><dl class="py function">
+<span id="utility-functions"></span><h1>Utility Functions<a class="headerlink" href="#module-piff.util" title="Link to this heading"></a></h1>
+<dl class="py function" id="module-util">
 <dt class="sig sig-object py" id="piff.util.adjust_value">
-<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">adjust_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#adjust_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.adjust_value" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">adjust_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#adjust_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.adjust_value" title="Link to this definition"></a></dt>
 <dd><p>Possibly adjust a value to match the type expected for the given dtype.</p>
 <p>e.g. change np.int16 -&gt; int if dtype expects int.  Or vice versa.</p>
 <dl class="field-list simple">
@@ -112,7 +114,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.util.calculateSNR">
-<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">calculateSNR</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#calculateSNR"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.calculateSNR" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">calculateSNR</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#calculateSNR"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.calculateSNR" title="Link to this definition"></a></dt>
 <dd><p>Calculate the signal-to-noise of a given image.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -130,7 +132,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.util.calculate_moments">
-<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">calculate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fourth_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#calculate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.calculate_moments" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">calculate_moments</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">third_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fourth_order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radial</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#calculate_moments"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.calculate_moments" title="Link to this definition"></a></dt>
 <dd><p>Calculate a bunch of moments using HSM for the weight function.</p>
 <p>The flux, 1st, and 2nd order moments are always calculated:</p>
 <div class="math notranslate nohighlight">
@@ -193,7 +195,7 @@ M_{44n} &amp;= M_{44}/M_{11}^4\end{split}\]</div>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.util.ensure_dir">
-<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">ensure_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#ensure_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.ensure_dir" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">ensure_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#ensure_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.ensure_dir" title="Link to this definition"></a></dt>
 <dd><p>Ensure that the directory for a target output file exists.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -204,7 +206,7 @@ M_{44n} &amp;= M_{44}/M_{11}^4\end{split}\]</div>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.util.estimate_cov_from_jac">
-<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">estimate_cov_from_jac</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">jac</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#estimate_cov_from_jac"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.estimate_cov_from_jac" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">estimate_cov_from_jac</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">jac</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#estimate_cov_from_jac"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.estimate_cov_from_jac" title="Link to this definition"></a></dt>
 <dd><p>Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
 .. math:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">C</span> <span class="o">=</span> <span class="p">(</span><span class="n">J</span><span class="o">^</span><span class="n">T</span> <span class="n">J</span><span class="p">)</span><span class="o">^</span><span class="p">{</span><span class="o">-</span><span class="mi">1</span><span class="p">}</span>
@@ -223,7 +225,7 @@ M_{44n} &amp;= M_{44}/M_{11}^4\end{split}\]</div>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.util.make_dtype">
-<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">make_dtype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#make_dtype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.make_dtype" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">make_dtype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#make_dtype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.make_dtype" title="Link to this definition"></a></dt>
 <dd><p>A helper function that makes a dtype appropriate for a given value</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -240,7 +242,7 @@ M_{44n} &amp;= M_{44}/M_{11}^4\end{split}\]</div>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.util.run_multi">
-<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">run_multi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_except</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#run_multi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.run_multi" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.util.</span></span><span class="sig-name descname"><span class="pre">run_multi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raise_except</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/util.html#run_multi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.util.run_multi" title="Link to this definition"></a></dt>
 <dd><p>Run a function possibly in multiprocessing mode.</p>
 <p>This is basically just doing a Pool.map, but it handles the logger properly (which cannot
 be pickled, so it cannot be passed to the function being run by the workers).</p>

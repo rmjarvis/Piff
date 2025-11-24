@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.util &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=72d88caf"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -108,7 +110,9 @@
 
 <span class="kn">from</span> <span class="nn">.config</span> <span class="kn">import</span> <span class="n">PiffLogger</span>
 
-<div class="viewcode-block" id="ensure_dir"><a class="viewcode-back" href="../../util.html#piff.util.ensure_dir">[docs]</a><span class="k">def</span> <span class="nf">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
+<div class="viewcode-block" id="ensure_dir">
+<a class="viewcode-back" href="../../util.html#piff.util.ensure_dir">[docs]</a>
+<span class="k">def</span> <span class="nf">ensure_dir</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Ensure that the directory for a target output file exists.</span>
 
 <span class="sd">    :param target:      The file that you want to write to.</span>
@@ -117,7 +121,10 @@
     <span class="k">if</span> <span class="n">d</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span> <span class="ow">and</span>  <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="make_dtype"><a class="viewcode-back" href="../../util.html#piff.util.make_dtype">[docs]</a><span class="k">def</span> <span class="nf">make_dtype</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+
+<div class="viewcode-block" id="make_dtype">
+<a class="viewcode-back" href="../../util.html#piff.util.make_dtype">[docs]</a>
+<span class="k">def</span> <span class="nf">make_dtype</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A helper function that makes a dtype appropriate for a given value</span>
 
 <span class="sd">    :param key:     The key to use for the column name in the dtype.</span>
@@ -162,7 +169,10 @@
 
     <span class="k">return</span> <span class="n">dt</span></div>
 
-<div class="viewcode-block" id="adjust_value"><a class="viewcode-back" href="../../util.html#piff.util.adjust_value">[docs]</a><span class="k">def</span> <span class="nf">adjust_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+
+<div class="viewcode-block" id="adjust_value">
+<a class="viewcode-back" href="../../util.html#piff.util.adjust_value">[docs]</a>
+<span class="k">def</span> <span class="nf">adjust_value</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Possibly adjust a value to match the type expected for the given dtype.</span>
 
 <span class="sd">    e.g. change np.int16 -&gt; int if dtype expects int.  Or vice versa.</span>
@@ -187,7 +197,10 @@
             <span class="c1"># For other numpy arrays, we can use astype instead.</span>
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">t</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="estimate_cov_from_jac"><a class="viewcode-back" href="../../util.html#piff.util.estimate_cov_from_jac">[docs]</a><span class="k">def</span> <span class="nf">estimate_cov_from_jac</span><span class="p">(</span><span class="n">jac</span><span class="p">):</span>
+
+<div class="viewcode-block" id="estimate_cov_from_jac">
+<a class="viewcode-back" href="../../util.html#piff.util.estimate_cov_from_jac">[docs]</a>
+<span class="k">def</span> <span class="nf">estimate_cov_from_jac</span><span class="p">(</span><span class="n">jac</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares</span>
 <span class="sd">    .. math::</span>
 
@@ -217,6 +230,7 @@
         <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">jac</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">1.e100</span>
         <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">cov</span></div>
+
 
 <span class="k">def</span> <span class="nf">_run_multi_helper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">log_level</span><span class="p">):</span> <span class="c1"># pragma: no cover</span>
     <span class="c1"># Note: This is covered by test_wcs.py:test_parallel, but for some reason it&#39;s not</span>
@@ -249,7 +263,9 @@
     <span class="k">return</span> <span class="n">i</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
 
 
-<div class="viewcode-block" id="run_multi"><a class="viewcode-back" href="../../util.html#piff.util.run_multi">[docs]</a><span class="k">def</span> <span class="nf">run_multi</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="run_multi">
+<a class="viewcode-back" href="../../util.html#piff.util.run_multi">[docs]</a>
+<span class="k">def</span> <span class="nf">run_multi</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">nproc</span><span class="p">,</span> <span class="n">raise_except</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Run a function possibly in multiprocessing mode.</span>
 
 <span class="sd">    This is basically just doing a Pool.map, but it handles the logger properly (which cannot</span>
@@ -336,7 +352,10 @@
     <span class="k">return</span> <span class="n">output_list</span></div>
 
 
-<div class="viewcode-block" id="calculateSNR"><a class="viewcode-back" href="../../util.html#piff.util.calculateSNR">[docs]</a><span class="k">def</span> <span class="nf">calculateSNR</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">):</span>
+
+<div class="viewcode-block" id="calculateSNR">
+<a class="viewcode-back" href="../../util.html#piff.util.calculateSNR">[docs]</a>
+<span class="k">def</span> <span class="nf">calculateSNR</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">weight</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the signal-to-noise of a given image.</span>
 
 <span class="sd">    :param image:       The stamp image for a star</span>
@@ -379,7 +398,10 @@
         <span class="k">return</span> <span class="p">(</span><span class="n">F</span> <span class="o">-</span> <span class="n">Npix</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">F</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="calculate_moments"><a class="viewcode-back" href="../../util.html#piff.util.calculate_moments">[docs]</a><span class="k">def</span> <span class="nf">calculate_moments</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">third_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fourth_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">radial</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="calculate_moments">
+<a class="viewcode-back" href="../../util.html#piff.util.calculate_moments">[docs]</a>
+<span class="k">def</span> <span class="nf">calculate_moments</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">third_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fourth_order</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">radial</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Calculate a bunch of moments using HSM for the weight function.</span>
 
 <span class="sd">    The flux, 1st, and 2nd order moments are always calculated:</span>
@@ -899,6 +921,7 @@
 
     <span class="k">else</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">ret</span></div>
+
 </pre></div>
 
            </div>

@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.outliers &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=72d88caf"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -106,7 +108,9 @@
 <span class="kn">import</span> <span class="nn">galsim</span>
 <span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">chi2</span>
 
-<div class="viewcode-block" id="Outliers"><a class="viewcode-back" href="../../outliers.html#piff.Outliers">[docs]</a><span class="k">class</span> <span class="nc">Outliers</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Outliers">
+<a class="viewcode-back" href="../../outliers.html#piff.Outliers">[docs]</a>
+<span class="k">class</span> <span class="nc">Outliers</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The base class for handling outliers.</span>
 
 <span class="sd">    This is essentially an abstract base class intended to define the methods that should be</span>
@@ -118,7 +122,9 @@
     <span class="c1"># The values in this dict will be the Outliers sub-classes.</span>
     <span class="n">valid_outliers_types</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="Outliers.process"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.process">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Outliers.process">
+<a class="viewcode-back" href="../../outliers.html#piff.Outliers.process">[docs]</a>
+    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_outliers</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the outliers field of the config dict.</span>
 
@@ -146,6 +152,7 @@
 
         <span class="k">return</span> <span class="n">outliers</span></div>
 
+
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">__init_subclass__</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_type_name&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_type_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -154,7 +161,9 @@
                                  <span class="s1">&#39;Maybe you subclassed and forgot to set _type_name?&#39;</span><span class="p">)</span>
             <span class="n">Outliers</span><span class="o">.</span><span class="n">valid_outliers_types</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">_type_name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span>
 
-<div class="viewcode-block" id="Outliers.parseKwargs"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.parseKwargs">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Outliers.parseKwargs">
+<a class="viewcode-back" href="../../outliers.html#piff.Outliers.parseKwargs">[docs]</a>
+    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_outliers</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse the outliers field of a configuration dict and return the kwargs to use for</span>
 <span class="sd">        initializing an instance of the class.</span>
@@ -173,7 +182,10 @@
         <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;logger&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">logger</span>
         <span class="k">return</span> <span class="n">kwargs</span></div>
 
-<div class="viewcode-block" id="Outliers.write"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Outliers.write">
+<a class="viewcode-back" href="../../outliers.html#piff.Outliers.write">[docs]</a>
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Write an Outers via a writer object.</span>
 
 <span class="sd">        :param writer:      A writer object that encapsulates the serialization format.</span>
@@ -187,7 +199,10 @@
         <span class="k">with</span> <span class="n">writer</span><span class="o">.</span><span class="n">nested</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_finish_write</span><span class="p">(</span><span class="n">w</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Outliers._finish_write"><a class="viewcode-back" href="../../outliers.html#piff.Outliers._finish_write">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Outliers._finish_write">
+<a class="viewcode-back" href="../../outliers.html#piff.Outliers._finish_write">[docs]</a>
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the writing process with any class-specific steps.</span>
 
 <span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
@@ -199,7 +214,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 
-<div class="viewcode-block" id="Outliers.read"><a class="viewcode-back" href="../../outliers.html#piff.Outliers.read">[docs]</a>    <span class="nd">@classmethod</span>
+
+<div class="viewcode-block" id="Outliers.read">
+<a class="viewcode-back" href="../../outliers.html#piff.Outliers.read">[docs]</a>
+    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">reader</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Read a Outliers from a FITS file.</span>
 
@@ -229,7 +247,10 @@
             <span class="n">outliers</span><span class="o">.</span><span class="n">_finish_read</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">outliers</span></div>
 
-<div class="viewcode-block" id="Outliers._finish_read"><a class="viewcode-back" href="../../outliers.html#piff.Outliers._finish_read">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reader</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Outliers._finish_read">
+<a class="viewcode-back" href="../../outliers.html#piff.Outliers._finish_read">[docs]</a>
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reader</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Finish the reading process with any class-specific steps.</span>
 
 <span class="sd">        The base class implementation doesn&#39;t do anything, which is often appropriate, but</span>
@@ -238,7 +259,9 @@
 
 <span class="sd">        :param reader:      A reader object that encapsulates the serialization format.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">pass</span></div></div>
+        <span class="k">pass</span></div>
+</div>
+
 
 <span class="k">class</span> <span class="nc">MADOutliers</span><span class="p">(</span><span class="n">Outliers</span><span class="p">):</span>  <span class="c1"># pragma: no cover  (This isn&#39;t functional yet.)</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An Outliers handler using mean absolute deviation (MAD) for defining outliers.</span>
@@ -290,7 +313,9 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;MAD algorithm not implemented&quot;</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="ChisqOutliers"><a class="viewcode-back" href="../../outliers.html#piff.ChisqOutliers">[docs]</a><span class="k">class</span> <span class="nc">ChisqOutliers</span><span class="p">(</span><span class="n">Outliers</span><span class="p">):</span>
+<div class="viewcode-block" id="ChisqOutliers">
+<a class="viewcode-back" href="../../outliers.html#piff.ChisqOutliers">[docs]</a>
+<span class="k">class</span> <span class="nc">ChisqOutliers</span><span class="p">(</span><span class="n">Outliers</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;An Outliers handler using the chisq of the residual of the interpolated star with the</span>
 <span class="sd">    original.</span>
 
@@ -369,7 +394,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">chi2</span><span class="o">.</span><span class="n">isf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prob</span><span class="p">,</span> <span class="n">dof</span><span class="p">)</span>
 
-<div class="viewcode-block" id="ChisqOutliers.removeOutliers"><a class="viewcode-back" href="../../outliers.html#piff.ChisqOutliers.removeOutliers">[docs]</a>    <span class="k">def</span> <span class="nf">removeOutliers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="ChisqOutliers.removeOutliers">
+<a class="viewcode-back" href="../../outliers.html#piff.ChisqOutliers.removeOutliers">[docs]</a>
+    <span class="k">def</span> <span class="nf">removeOutliers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove outliers from a list of stars based on their chisq values.</span>
 
 <span class="sd">        :param stars:       A list of Star instances</span>
@@ -457,7 +484,9 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;thresh = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">all_thresh</span><span class="p">[</span><span class="o">~</span><span class="n">good</span><span class="p">])</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;flux = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,[</span><span class="n">s</span><span class="o">.</span><span class="n">flux</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span><span class="n">g</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span><span class="n">good</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">g</span><span class="p">])</span>
 
-        <span class="k">return</span> <span class="n">stars</span><span class="p">,</span> <span class="n">nremoved</span></div></div>
+        <span class="k">return</span> <span class="n">stars</span><span class="p">,</span> <span class="n">nremoved</span></div>
+</div>
+
 </pre></div>
 
            </div>

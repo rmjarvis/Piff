@@ -4,7 +4,7 @@ Piff Documentation
 ==================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
    overview
    piffify

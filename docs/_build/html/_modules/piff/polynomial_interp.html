@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.polynomial_interp &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=72d88caf"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -121,7 +123,9 @@
 <span class="p">}</span>
 
 
-<div class="viewcode-block" id="Polynomial"><a class="viewcode-back" href="../../interp.html#piff.Polynomial">[docs]</a><span class="k">class</span> <span class="nc">Polynomial</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
+<div class="viewcode-block" id="Polynomial">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial">[docs]</a>
+<span class="k">class</span> <span class="nc">Polynomial</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An interpolator that uses  scipy curve_fit command to fit a polynomial</span>
 <span class="sd">    surface to each parameter passed in independently.</span>
@@ -162,7 +166,9 @@
         <span class="p">}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Polynomial._setup_indices"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._setup_indices">[docs]</a>    <span class="k">def</span> <span class="nf">_setup_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nparam</span><span class="p">):</span>
+<div class="viewcode-block" id="Polynomial._setup_indices">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._setup_indices">[docs]</a>
+    <span class="k">def</span> <span class="nf">_setup_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nparam</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;An internal function that sets up the indices, given the number of parameters</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">orders</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -175,7 +181,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">nvariables</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="k">for</span> <span class="n">indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nparam</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_orders</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Polynomial._set_function"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._set_function">[docs]</a>    <span class="k">def</span> <span class="nf">_set_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poly_type</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._set_function">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._set_function">[docs]</a>
+    <span class="k">def</span> <span class="nf">_set_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poly_type</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;An internal function that sets the type of the polynomial</span>
 <span class="sd">        interpolation used. The options are the keys in polynomial_types.</span>
 
@@ -195,7 +204,10 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">current_parameter</span><span class="o">=</span><span class="kc">None</span></div>
 
-<div class="viewcode-block" id="Polynomial._generate_indices"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._generate_indices">[docs]</a>    <span class="k">def</span> <span class="nf">_generate_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._generate_indices">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._generate_indices">[docs]</a>
+    <span class="k">def</span> <span class="nf">_generate_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate, for internal use, the exponents i,j used in the polynomial model</span>
 <span class="sd">        p(u,v) = sum c_{ij} u^i v^j</span>
 
@@ -213,7 +225,10 @@
                 <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">indices</span></div>
 
-<div class="viewcode-block" id="Polynomial._pack_coefficients"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._pack_coefficients">[docs]</a>    <span class="k">def</span> <span class="nf">_pack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._pack_coefficients">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._pack_coefficients">[docs]</a>
+    <span class="k">def</span> <span class="nf">_pack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Pack the 2D matrix of coefficients used as the model fit parameters</span>
 <span class="sd">        into a vector of coefficients, either so this can be passed as a starting</span>
 <span class="sd">        point into the curve_fit routine or for serialization to file.</span>
@@ -238,7 +253,10 @@
             <span class="n">coeffs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">coeffs</span></div>
 
-<div class="viewcode-block" id="Polynomial._unpack_coefficients"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._unpack_coefficients">[docs]</a>    <span class="k">def</span> <span class="nf">_unpack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">coeffs</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._unpack_coefficients">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._unpack_coefficients">[docs]</a>
+    <span class="k">def</span> <span class="nf">_unpack_coefficients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">,</span> <span class="n">coeffs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Unpack a sequence of parameters into the 2D matrix for the</span>
 <span class="sd">        given parameter_index (which determines the order of the matrix)</span>
 
@@ -259,7 +277,10 @@
             <span class="n">k</span><span class="o">+=</span><span class="mi">1</span>
         <span class="k">return</span> <span class="n">C</span></div>
 
-<div class="viewcode-block" id="Polynomial._interpolationModel"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._interpolationModel">[docs]</a>    <span class="k">def</span> <span class="nf">_interpolationModel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._interpolationModel">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._interpolationModel">[docs]</a>
+    <span class="k">def</span> <span class="nf">_interpolationModel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">C</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the polynomial variation of some quantity at x and y</span>
 <span class="sd">        coordinates for a given coefficient matrix.</span>
 
@@ -290,7 +311,10 @@
         <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">C</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">f</span></div>
 
-<div class="viewcode-block" id="Polynomial._initialGuess"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._initialGuess">[docs]</a>    <span class="k">def</span> <span class="nf">_initialGuess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">positions</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._initialGuess">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._initialGuess">[docs]</a>
+    <span class="k">def</span> <span class="nf">_initialGuess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">positions</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">parameter_index</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Make an initial guess for a set of parameters</span>
 <span class="sd">        to use in the fit for your model. This is passed</span>
 <span class="sd">        to curve_fit as a starting point.</span>
@@ -314,7 +338,10 @@
         <span class="n">C</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="k">if</span> <span class="n">parameter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">1.0</span>
         <span class="k">return</span> <span class="n">C</span></div>
 
-<div class="viewcode-block" id="Polynomial.initialize"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial.initialize">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialization is just solving the interpolator with current stars.</span>
 <span class="sd">        This then calls interpolateList, which will set the stars to have the</span>
 <span class="sd">        right type of object in its star.fit.params attribute.</span>
@@ -334,7 +361,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_coefficients</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">p0</span><span class="p">))</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Polynomial.solve"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.solve">[docs]</a>    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial.solve">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial.solve">[docs]</a>
+    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve for the interpolation coefficients given some data,</span>
 <span class="sd">        using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt</span>
 <span class="sd">        to find the least-squares solution.</span>
@@ -405,7 +435,10 @@
         <span class="c1"># self._unpack_coefficients</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span> <span class="o">=</span> <span class="n">coeffs</span></div>
 
-<div class="viewcode-block" id="Polynomial._finish_write"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._finish_write">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._finish_write">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._finish_write">[docs]</a>
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Write the solution.</span>
 
 <span class="sd">        :param writer:      A writer object that encapsulates the serialization format.</span>
@@ -455,7 +488,10 @@
         <span class="n">writer</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="s1">&#39;solution&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">header</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Polynomial._finish_read"><a class="viewcode-back" href="../../interp.html#piff.Polynomial._finish_read">[docs]</a>    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reader</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial._finish_read">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial._finish_read">[docs]</a>
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reader</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Read the solution.</span>
 
 <span class="sd">        :param reader:      A reader object that encapsulates the serialization format.</span>
@@ -480,7 +516,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">coeffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unpack_coefficients</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="n">col</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="Polynomial.interpolate"><a class="viewcode-back" href="../../interp.html#piff.Polynomial.interpolate">[docs]</a>    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Polynomial.interpolate">
+<a class="viewcode-back" href="../../interp.html#piff.Polynomial.interpolate">[docs]</a>
+    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform the interpolation to find the interpolated parameter vector at some position.</span>
 
 <span class="sd">        :param star:        A Star instance to which one wants to interpolate</span>
@@ -496,7 +535,9 @@
             <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">updateParams</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">star</span> <span class="o">=</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">star</span></div></div>
+        <span class="k">return</span> <span class="n">star</span></div>
+</div>
+
 </pre></div>
 
            </div>

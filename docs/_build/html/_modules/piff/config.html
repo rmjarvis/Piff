@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.config &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=72d88caf"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -128,7 +130,9 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">isEnabledFor</span><span class="p">(</span><span class="n">VERBOSE</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-<div class="viewcode-block" id="setup_logger"><a class="viewcode-back" href="../../piffify.html#piff.setup_logger">[docs]</a><span class="k">def</span> <span class="nf">setup_logger</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="setup_logger">
+<a class="viewcode-back" href="../../piffify.html#piff.setup_logger">[docs]</a>
+<span class="k">def</span> <span class="nf">setup_logger</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">log_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a logger object to use for logging progress</span>
 
 <span class="sd">    Note: This will update the verbosity if a previous call to setup_logger used a different</span>
@@ -164,7 +168,10 @@
 
     <span class="k">return</span> <span class="n">logger</span></div>
 
-<div class="viewcode-block" id="parse_variables"><a class="viewcode-back" href="../../piffify.html#piff.parse_variables">[docs]</a><span class="k">def</span> <span class="nf">parse_variables</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">variables</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+
+<div class="viewcode-block" id="parse_variables">
+<a class="viewcode-back" href="../../piffify.html#piff.parse_variables">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_variables</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">variables</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse configuration variables and add them to the config dict</span>
 
 <span class="sd">    The command line variables should be specified as key=value.</span>
@@ -192,7 +199,10 @@
         <span class="n">new_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
     <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">UpdateConfig</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">new_params</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="read_config"><a class="viewcode-back" href="../../piffify.html#piff.read_config">[docs]</a><span class="k">def</span> <span class="nf">read_config</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+
+<div class="viewcode-block" id="read_config">
+<a class="viewcode-back" href="../../piffify.html#piff.read_config">[docs]</a>
+<span class="k">def</span> <span class="nf">read_config</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Read a configuration dict from a file.</span>
 
 <span class="sd">    :param file_name:   The file name from which the configuration dict should be read.</span>
@@ -200,6 +210,7 @@
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
         <span class="n">config</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">fin</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
     <span class="k">return</span> <span class="n">config</span></div>
+
 
 
 <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -255,7 +266,9 @@
 
     <span class="k">return</span> <span class="n">psf</span>
 
-<div class="viewcode-block" id="piffify"><a class="viewcode-back" href="../../piffify.html#piff.piffify">[docs]</a><span class="k">def</span> <span class="nf">piffify</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="piffify">
+<a class="viewcode-back" href="../../piffify.html#piff.piffify">[docs]</a>
+<span class="k">def</span> <span class="nf">piffify</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a Piff model according to the specifications in a config dict.</span>
 
 <span class="sd">    This includes writing the model to disk according to the output field.</span>
@@ -279,6 +292,7 @@
     <span class="c1"># write it out to a file</span>
     <span class="n">output</span> <span class="o">=</span> <span class="n">Output</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
     <span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span></div>
+
 
 <span class="k">def</span> <span class="nf">plotify</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Take a Piff model, load in images, and execute output.</span>

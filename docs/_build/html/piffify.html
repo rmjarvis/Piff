@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The piffify executable &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=72d88caf"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -91,7 +93,7 @@
            <div itemprop="articleBody">
              
   <section id="the-piffify-executable">
-<h1>The piffify executable<a class="headerlink" href="#the-piffify-executable" title="Permalink to this heading"></a></h1>
+<h1>The piffify executable<a class="headerlink" href="#the-piffify-executable" title="Link to this heading"></a></h1>
 <p>The normal way to construct a Piff PSF model is using the piffify executable program with
 a YAML configuration file:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">piffify</span> <span class="n">config_file</span>
@@ -147,7 +149,7 @@ the PSF.:</p>
 <code class="xref py py-func docutils literal notranslate"><span class="pre">piffify()</span></code> and related functions.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.piffify">
-<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">piffify</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#piffify"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.piffify" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">piffify</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#piffify"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.piffify" title="Link to this definition"></a></dt>
 <dd><p>Build a Piff model according to the specifications in a config dict.</p>
 <p>This includes writing the model to disk according to the output field.
 If you would rather get the psf object in return, see the process function.</p>
@@ -163,7 +165,7 @@ If you would rather get the psf object in return, see the process function.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.read_config">
-<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">read_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#read_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.read_config" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">read_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#read_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.read_config" title="Link to this definition"></a></dt>
 <dd><p>Read a configuration dict from a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -174,7 +176,7 @@ If you would rather get the psf object in return, see the process function.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.setup_logger">
-<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">setup_logger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#setup_logger"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.setup_logger" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">setup_logger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#setup_logger"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.setup_logger" title="Link to this definition"></a></dt>
 <dd><p>Build a logger object to use for logging progress</p>
 <p>Note: This will update the verbosity if a previous call to setup_logger used a different
 value for verbose.  However, it will not update the handler to use a different log_file
@@ -194,7 +196,7 @@ or switch between using a log_file and stdout.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="piff.parse_variables">
-<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">parse_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#parse_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.parse_variables" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">parse_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/config.html#parse_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.parse_variables" title="Link to this definition"></a></dt>
 <dd><p>Parse configuration variables and add them to the config dict</p>
 <p>The command line variables should be specified as key=value.
 The key string can include dots, such as interp.order=2, which means to set:</p>

@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Removing Outliers &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=72d88caf"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -100,20 +102,20 @@
            <div itemprop="articleBody">
              
   <section id="removing-outliers">
-<h1>Removing Outliers<a class="headerlink" href="#removing-outliers" title="Permalink to this heading"></a></h1>
+<h1>Removing Outliers<a class="headerlink" href="#removing-outliers" title="Link to this heading"></a></h1>
 <p>Piff can remove stars that it deems to be outliers from the set of stars used to
 build the PSF model.  This option is specified via an <code class="docutils literal notranslate"><span class="pre">outliers</span></code> section of the
 <code class="docutils literal notranslate"><span class="pre">psf</span></code> field in the configuration file.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.Outliers">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Outliers</span></span><a class="reference internal" href="_modules/piff/outliers.html#Outliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">Outliers</span></span><a class="reference internal" href="_modules/piff/outliers.html#Outliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers" title="Link to this definition"></a></dt>
 <dd><p>The base class for handling outliers.</p>
 <p>This is essentially an abstract base class intended to define the methods that should be
 implemented by any derived class.</p>
 <blockquote>
 <div><dl class="py method">
 <dt class="sig sig-object py" id="piff.Outliers._finish_write">
-<span class="sig-name descname"><span class="pre">_finish_write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">writer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers._finish_write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers._finish_write" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_finish_write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">writer</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers._finish_write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers._finish_write" title="Link to this definition"></a></dt>
 <dd><p>Finish the writing process with any class-specific steps.</p>
 <p>The base class implementation doesn’t do anything, which is often appropriate, but
 this hook exists in case any Outliers classes need to write extra information to the
@@ -130,7 +132,7 @@ fits file.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Outliers._finish_read">
-<span class="sig-name descname"><span class="pre">_finish_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reader</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers._finish_read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers._finish_read" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_finish_read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reader</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers._finish_read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers._finish_read" title="Link to this definition"></a></dt>
 <dd><p>Finish the reading process with any class-specific steps.</p>
 <p>The base class implementation doesn’t do anything, which is often appropriate, but
 this hook exists in case any Outliers classes need to read extra information from the
@@ -145,7 +147,7 @@ fits file.</p>
 </div></blockquote>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Outliers.parseKwargs">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_outliers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.parseKwargs" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_outliers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.parseKwargs" title="Link to this definition"></a></dt>
 <dd><p>Parse the outliers field of a configuration dict and return the kwargs to use for
 initializing an instance of the class.</p>
 <p>The base class implementation just returns the kwargs as they are, but derived classes
@@ -165,7 +167,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Outliers.process">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_outliers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.process" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_outliers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.process" title="Link to this definition"></a></dt>
 <dd><p>Parse the outliers field of the config dict.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -182,7 +184,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Outliers.read">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reader</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.read" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reader</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.read"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.read" title="Link to this definition"></a></dt>
 <dd><p>Read a Outliers from a FITS file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -199,7 +201,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.Outliers.write">
-<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">writer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.write" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">writer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#Outliers.write"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.Outliers.write" title="Link to this definition"></a></dt>
 <dd><p>Write an Outers via a writer object.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -215,7 +217,7 @@ might want to override this if they need to do something more sophisticated with
 
 <dl class="py class">
 <dt class="sig sig-object py" id="piff.ChisqOutliers">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">ChisqOutliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ndof</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prob</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_remove</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_reserve</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#ChisqOutliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ChisqOutliers" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.</span></span><span class="sig-name descname"><span class="pre">ChisqOutliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ndof</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prob</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_remove</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_reserve</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#ChisqOutliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ChisqOutliers" title="Link to this definition"></a></dt>
 <dd><p>An Outliers handler using the chisq of the residual of the interpolated star with the
 original.</p>
 <p>The user can specify the threshold in one of four ways:</p>
@@ -258,7 +260,7 @@ stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="piff.ChisqOutliers.removeOutliers">
-<span class="sig-name descname"><span class="pre">removeOutliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#ChisqOutliers.removeOutliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ChisqOutliers.removeOutliers" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">removeOutliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/outliers.html#ChisqOutliers.removeOutliers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.ChisqOutliers.removeOutliers" title="Link to this definition"></a></dt>
 <dd><p>Remove outliers from a list of stars based on their chisq values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>

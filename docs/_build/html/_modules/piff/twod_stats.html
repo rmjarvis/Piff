@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>piff.twod_stats &mdash; Piff 1.6.0 documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=72d88caf"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -107,7 +109,9 @@
 
 <span class="kn">from</span> <span class="nn">.stats</span> <span class="kn">import</span> <span class="n">Stats</span>
 
-<div class="viewcode-block" id="TwoDHistStats"><a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats">[docs]</a><span class="k">class</span> <span class="nc">TwoDHistStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
+<div class="viewcode-block" id="TwoDHistStats">
+<a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats">[docs]</a>
+<span class="k">class</span> <span class="nc">TwoDHistStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics class that can make pretty colormaps where each bin has some</span>
 <span class="sd">    arbitrary function applied to it.</span>
 
@@ -145,7 +149,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span> <span class="o">=</span> <span class="n">model_properties</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
 
-<div class="viewcode-block" id="TwoDHistStats.compute"><a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="TwoDHistStats.compute">
+<a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param psf:         A PSF Object</span>
 <span class="sd">        :param stars:       A list of Star instances.</span>
@@ -233,7 +239,10 @@
         <span class="c1"># dg2</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;dg2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_to_2dhist</span><span class="p">(</span><span class="n">dg2</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="TwoDHistStats.plot"><a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TwoDHistStats.plot">
+<a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats.plot">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -374,6 +383,7 @@
 
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span></div>
 
+
     <span class="k">def</span> <span class="nf">_array_to_2dhist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">):</span>
         <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
         <span class="n">C</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
@@ -407,7 +417,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shiftedColorMap</span><span class="p">(</span><span class="n">cm</span><span class="o">.</span><span class="n">RdBu_r</span><span class="p">,</span> <span class="n">midpoint</span><span class="o">=</span><span class="n">midpoint</span><span class="p">)</span>
 
-<div class="viewcode-block" id="TwoDHistStats._shiftedColorMap"><a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats._shiftedColorMap">[docs]</a>    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TwoDHistStats._shiftedColorMap">
+<a class="viewcode-back" href="../../stats.html#piff.TwoDHistStats._shiftedColorMap">[docs]</a>
+    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">_shiftedColorMap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmap</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">midpoint</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
                          <span class="n">name</span><span class="o">=</span><span class="s1">&#39;shiftedcmap&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
@@ -468,9 +480,13 @@
         <span class="n">newcmap</span><span class="o">.</span><span class="n">set_over</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;m&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.75</span><span class="p">)</span>
         <span class="n">newcmap</span><span class="o">.</span><span class="n">set_under</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.75</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">newcmap</span></div></div>
+        <span class="k">return</span> <span class="n">newcmap</span></div>
+</div>
 
-<div class="viewcode-block" id="WhiskerStats"><a class="viewcode-back" href="../../stats.html#piff.WhiskerStats">[docs]</a><span class="k">class</span> <span class="nc">WhiskerStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
+
+<div class="viewcode-block" id="WhiskerStats">
+<a class="viewcode-back" href="../../stats.html#piff.WhiskerStats">[docs]</a>
+<span class="k">class</span> <span class="nc">WhiskerStats</span><span class="p">(</span><span class="n">Stats</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics class that can make whiskerplots.</span>
 
 <span class="sd">    By default this will make a whisker plot based on u and v coordinates of</span>
@@ -523,7 +539,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">model_properties</span> <span class="o">=</span> <span class="n">model_properties</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="kc">False</span>
 
-<div class="viewcode-block" id="WhiskerStats.compute"><a class="viewcode-back" href="../../stats.html#piff.WhiskerStats.compute">[docs]</a>    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="WhiskerStats.compute">
+<a class="viewcode-back" href="../../stats.html#piff.WhiskerStats.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psf</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        :param psf:         A PSF Object</span>
 <span class="sd">        :param stars:       A list of Star instances.</span>
@@ -615,7 +633,10 @@
         <span class="c1"># dw2</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">twodhists</span><span class="p">[</span><span class="s1">&#39;dw2&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_array_to_2dhist</span><span class="p">(</span><span class="n">dw2</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="WhiskerStats.plot"><a class="viewcode-back" href="../../stats.html#piff.WhiskerStats.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+<div class="viewcode-block" id="WhiskerStats.plot">
+<a class="viewcode-back" href="../../stats.html#piff.WhiskerStats.plot">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Make the plots.</span>
 
 <span class="sd">        :param logger:      A logger object for logging debug info. [default: None]</span>
@@ -691,6 +712,7 @@
 
         <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="p">[</span><span class="n">ax0</span><span class="p">,</span> <span class="n">ax1</span><span class="p">]</span></div>
 
+
     <span class="k">def</span> <span class="nf">_array_to_2dhist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">indx_u</span><span class="p">,</span> <span class="n">indx_v</span><span class="p">,</span> <span class="n">unique_indx</span><span class="p">):</span>
         <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
         <span class="n">C</span><span class="o">.</span><span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nbins_v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nbins_u</span><span class="p">))</span>
@@ -705,6 +727,7 @@
             <span class="n">C</span><span class="o">.</span><span class="n">mask</span><span class="p">[</span><span class="n">vi</span><span class="p">,</span> <span class="n">ui</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="k">return</span> <span class="n">C</span></div>
+
 </pre></div>
 
            </div>
