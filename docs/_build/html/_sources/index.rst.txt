@@ -19,6 +19,8 @@ Piff Documentation
    star
    util
 
+   history
+
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
