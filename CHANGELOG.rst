@@ -16,7 +16,7 @@ Changes from version 1.2.1 to 1.2.2
 -----------------------------------
 
 - Fixed bug in making SizeMag stats plot when some flux values from hsm end up
-  negative or if there are no stars found. (#1156)
+  negative or if there are no stars found. (#135)
 
 Changes from version 1.2.2 to 1.2.3
 -----------------------------------
