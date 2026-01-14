@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 class ResidualBlockConv(nn.Module):
     """
     Residual Block with Convolutional layers.
