@@ -37,14 +37,18 @@ class AIPSF(Model):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'AIPSF'
+    _method = 'no_pixel'
 
-    def __init__(self, model_file, device='cpu', logger=None):
+    def __init__(self, model_file=None, device='cpu', logger=None):
         self.model_file = model_file
         self.device = device
         self.kwargs = {
             'model_file': model_file,
             'device': device,
         }
+
+        # trust position from input star
+        self._centered = False
 
         self.logger = logger
         
@@ -59,8 +63,8 @@ class AIPSF(Model):
         # map_location ensures we can load a cuda model on cpu if needed
         checkpoint = torch.load(model_file, map_location=torch.device(device))
         
-        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-            self.net.load_state_dict(checkpoint['state_dict'])
+        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+            self.net.load_state_dict(checkpoint['model_state_dict'])
         elif isinstance(checkpoint, dict):
             self.net.load_state_dict(checkpoint)
         else:
@@ -119,7 +123,7 @@ class AIPSF(Model):
 
         return Star(star.data, fit)
 
-    def fit(self, star, convert_func=None):
+    def fit(self, star, logger, convert_func=None, draw_method=None):
         """Fit the Model to the star's data.
         
         For the AutoEncoder model, 'fitting' is just running the encoder again
@@ -128,10 +132,11 @@ class AIPSF(Model):
         
         :param star:            A Star instance
         :param convert_func:    (Ignored for this simple model)
-
+        :param draw_method:     (Ignored for this simple model)
         :returns:      New Star instance with updated fit information
         """
-        return self.initialize(star)
+        assert draw_method in (None, 'no_pixel')
+        return self.initialize(star, logger=logger)
 
     def getProfile(self, params):
         """Get the GalSim GSObject for the given parameters.
