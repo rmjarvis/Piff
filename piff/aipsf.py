@@ -24,7 +24,7 @@ import os
 
 from .model import Model
 from .star import Star
-from .aimodels.aimodels import Conv2dAutoEncoder
+from .aimodels.models import Conv2dAutoEncoder
 
 class AIPSF(Model):
     """A PSF model that uses a pre-trained Convolutional AutoEncoder.
