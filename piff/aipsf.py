@@ -39,11 +39,13 @@ class AIPSF(Model):
     _type_name = 'AIPSF'
     _method = 'no_pixel'
 
-    def __init__(self, model_file=None, device='cpu', logger=None):
+    def __init__(self, scale, model_file=None, device='cpu', logger=None):
+        self.scale = scale
         self.model_file = model_file
         self.device = device
         self.kwargs = {
             'model_file': model_file,
+            'scale': scale,
             'device': device,
         }
 
@@ -155,7 +157,7 @@ class AIPSF(Model):
         output_image = output_tensor.squeeze().cpu().numpy()
         
         # Create GalSim InterpolatedImage
-        gs_image = galsim.Image(output_image, scale=1.0)
+        gs_image = galsim.Image(output_image, scale=self.scale)
         
         # The output of the decoder is normalized (SpatialSoftmax), so flux=1.
         prof = galsim.InterpolatedImage(gs_image, normalization='flux', flux=1.0)
