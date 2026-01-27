@@ -1150,7 +1150,9 @@ def test_fail():
     gsp = galsim.GSParams(maximum_fft_size=2048)
     model4 = piff.GSObjectModel(galsim.Moffat(beta=1.5, gsparams=gsp, half_light_radius=1))
     star2 = model4.initialize(star2)
-    # This one doesn't fail.  But it does hit the except GalSimError line in the fit function.
+    # This one doesn't fail.  But it does hit the except GalSimError line in the fit function
+    # (so long as we make it raise the GalSimFFTSizeError).
+    galsim.errors.raise_fft_size_error = True
     star3 = model4.fit(star2)
     assert star3.fit.chisq < 1.2 * star3.fit.dof
     print(star3.fit.chisq, star3.fit.dof)
@@ -1159,6 +1161,7 @@ def test_fail():
     star3 = model4.fit(star3)
     print(star3.fit.chisq, star3.fit.dof)
     assert star3.fit.chisq == 1.e300
+    galsim.errors.raise_fft_size_error = False
     print('9')
 
 
