@@ -31,13 +31,11 @@ jobs:
                     # A couple in MacOS
                     # I've been getting random seg faults in macos runs lately.
                     # Note sure what the problem is, but for now just disable macos CI.
-                    #- os: macos-latest
-                    #- os: macos-13
-                      #py: "3.10"
-                      #CC: cc
-                      #CXX: c++
-                      #FFTW_DIR: "/opt/homebrew/lib/"
-                      #FFTW_DIR: "/usr/local/lib"
+                    - os: macos-latest
+                      py: "3.10"
+                      CC: cc
+                      CXX: c++
+                      FFTW_DIR: "/opt/homebrew/lib/"
 
                     # Check one with clang compiler
                     - os: ubuntu-latest
