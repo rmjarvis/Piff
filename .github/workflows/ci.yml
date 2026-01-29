@@ -81,7 +81,7 @@ jobs:
                 ls $FFTW_DIR
 
             - name: Install libfftw, etc. on MacOS
-              if: matrix.os == 'macos-13'
+              if: matrix.os == 'macos-latest'
               run: |
                 echo ${{ matrix.os }}
                 brew update || true
