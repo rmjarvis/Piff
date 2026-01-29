@@ -228,7 +228,7 @@ def test_center():
     du = 0.7
     s = make_gaussian_data(2.0, x0, y0, influx, du=du)
 
-    mod = piff.PixelGrid(0.8, 29, centered=True)
+    mod = piff.PixelGrid(0.8, 27, centered=True)
     star = mod.initialize(s)
     psf = piff.SimplePSF(mod, None)
     print('Flux, ctr after reflux:',star.fit.flux,star.fit.center)
@@ -340,7 +340,7 @@ def test_basis_interp():
     # Users shouldn't ever make a BasisInterp base class directly.
     # But it's not actually an error until they try to do something non-trivial.
     basis = piff.BasisInterp()
-    assert not basis.use_qr
+    assert not basis.solver == "qr"
     assert basis.q == None
 
     np.testing.assert_raises(NotImplementedError, basis.basis, None)
@@ -348,7 +348,14 @@ def test_basis_interp():
 
     # The BaisPolynomial class is the real thing that gets made in practice
     basis = piff.BasisPolynomial(order=0)
-    assert not basis.use_qr
+    assert not basis.solver == "qr"
+
+    # Test exeption of API:
+    with np.testing.assert_raises(ValueError):
+        basis = piff.BasisPolynomial(order=2, solver="42")
+
+    with np.testing.assert_raises(NotImplementedError):
+        basis = piff.BasisPolynomial(order=2, solver="cpp", use_qr=True)
 
     star = make_gaussian_data(2.0, 0., 0., flux=100, du=0.2, fpu=2, fpv=3)
     assert star.u == 2
@@ -359,9 +366,9 @@ def test_basis_interp():
     np.testing.assert_raises(RuntimeError, basis.solve, [star])
     np.testing.assert_raises(RuntimeError, basis.interpolate, star)
     file_name = os.path.join('output','test_basis_interp.fits')
-    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
+    with piff.writers.FitsWriter.open(file_name) as w:
         with np.testing.assert_raises(RuntimeError):
-            basis.write(fout, extname='basis')
+            basis.write(w, 'basis')
 
     # Other options for order
     basis = piff.BasisPolynomial(order=2)
@@ -382,7 +389,6 @@ def test_basis_interp():
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[-1,0])
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[-4,-1])
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=-2)
-    np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[3,3], max_order=-1)
 
 
 @timer
@@ -608,7 +614,10 @@ def test_undersamp():
     chisq1 = np.sum((s0.image[b].array - s1.image[b].array)**2*s0.weight[b].array)
     print('chisq after initialize = ',chisq1)
     print('nominal chisq = ',s1.fit.chisq)
-    assert chisq1 > 5.e5  # Pretty large at the start before fitting.
+    if __name__ == '__main__':
+        assert chisq1 > 1.e3
+    else:
+        assert chisq1 > 5.e5  # Pretty large at the start before fitting.
 
     s2 = mod.fit(s0)
     image = mod.draw(s2).image
@@ -1025,53 +1034,67 @@ def test_single_image():
             },
             'interp' : {
                 'type' : 'BasisPolynomial',
-                'order' : order
+                'order' : order,
             },
         },
     }
+
     if __name__ == '__main__':
         config['verbose'] = 2
     else:
         config['verbose'] = 0
 
-    print("Running piffify function")
-    piff.piffify(config)
-    psf = piff.read(psf_file)
-    test_star = psf.drawStar(target_star)
-    print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
-    np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
+    test_star_solver = []
 
-    # Test using the piffify executable
-    with open('pixel_moffat.yaml','w') as f:
-        f.write(yaml.dump(config, default_flow_style=False))
-    if __name__ == '__main__':
-        print("Running piffify executable")
-        if os.path.exists(psf_file):
-            os.remove(psf_file)
-        piffify_exe = get_script_name('piffify')
-        p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
-        p.communicate()
+    solvers = ["scipy", "qr", "jax", "cpp"]
+
+    for solver in solvers:
+        print("Running piffify function")
+        config['psf']['interp']['solver'] = solver
+        piff.piffify(config)
         psf = piff.read(psf_file)
         test_star = psf.drawStar(target_star)
+        test_star_solver.append(test_star)
+        print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
         np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
-    # test copy_image property of draw
-    target_star_copy = psf.interp.interpolate(target_star)
-    test_star_copy = psf.model.draw(target_star_copy, copy_image=True)
-    test_star_nocopy = psf.model.draw(target_star_copy, copy_image=False)
-    # if we modify target_star_copy, then test_star_nocopy should be modified, but not test_star_copy
-    target_star_copy.image.array[0,0] = 23456
-    assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
-    assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
-    # however the other pixels SHOULD still be all the same value
-    assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
-    assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
+        # Test using the piffify executable
+        with open('pixel_moffat.yaml','w') as f:
+            f.write(yaml.dump(config, default_flow_style=False))
+        if __name__ == '__main__':
+            print("Running piffify executable")
+            if os.path.exists(psf_file):
+                os.remove(psf_file)
+            piffify_exe = get_script_name('piffify')
+            p = subprocess.Popen( [piffify_exe, 'pixel_moffat.yaml'] )
+            p.communicate()
+            psf = piff.read(psf_file)
+            test_star = psf.drawStar(target_star)
+            np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
 
-    # check that drawing onto an image does not return a copy
-    image = psf.draw(x=x0, y=y0)
-    image_reference = psf.draw(x=x0, y=y0, image=image)
-    image_reference.array[0,0] = 123456
-    assert image.array[0,0] == image_reference.array[0,0]
+        # test copy_image property of draw
+        target_star_copy = psf.interp.interpolate(target_star)
+        test_star_copy = psf.model.draw(target_star_copy, copy_image=True)
+        test_star_nocopy = psf.model.draw(target_star_copy, copy_image=False)
+        # if we modify target_star_copy, then test_star_nocopy should be modified, but not test_star_copy
+        target_star_copy.image.array[0,0] = 23456
+        assert test_star_nocopy.image.array[0,0] == target_star_copy.image.array[0,0]
+        assert test_star_copy.image.array[0,0] != target_star_copy.image.array[0,0]
+        # however the other pixels SHOULD still be all the same value
+        assert test_star_nocopy.image.array[1,1] == target_star_copy.image.array[1,1]
+        assert test_star_copy.image.array[1,1] == target_star_copy.image.array[1,1]
+
+        # check that drawing onto an image does not return a copy
+        image = psf.draw(x=x0, y=y0)
+        image_reference = psf.draw(x=x0, y=y0, image=image)
+        image_reference.array[0,0] = 123456
+        assert image.array[0,0] == image_reference.array[0,0]
+
+    # check that the solver versions (qr/jax/cpp vs numpy/scipy) of the test star are the same
+    for i in range(len(solvers)-1):
+        np.testing.assert_allclose(test_star_solver[0].image.array,
+                                   test_star_solver[i+1].image.array,
+                                   rtol=1.e-7)
 
 @timer
 def test_des_image():
@@ -1430,9 +1453,24 @@ def test_des2():
     config['psf']['interp']['order'] = order_qr
     config['input']['nstars'] = nstars_qr
     t2 = time.time()
-    piff.piffify(config)
+    with CaptureLog(1) as cl:
+        piff.piffify(config, logger=cl.logger)
     t3 = time.time()
     print('Time for QR solution = ',t3-t2)
+    assert "WARNING: use_qr=True is deprecated" in cl.output
+    psf = piff.read(psf_file)
+    test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
+    np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol, atol=tol)
+
+    # Repeat with the new solver usage, rather than the deprecated use_qr=True
+    del config['psf']['interp']['use_qr']
+    config['psf']['interp']['solver'] = 'qr'
+    t2 = time.time()
+    with CaptureLog(1) as cl:
+        piff.piffify(config, logger=cl.logger)
+    t3 = time.time()
+    print('Time for QR solution = ',t3-t2)
+    assert "WARNING" not in cl.output
     psf = piff.read(psf_file)
     test_stamp = psf.draw(x=test_x, y=test_y, stamp_size=25)
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol, atol=tol)
@@ -1460,7 +1498,7 @@ def test_des2():
     np.testing.assert_allclose(test_stamp.array, check_stamp.array, rtol=tol_qrp, atol=tol_qrp)
 
     # Also exercise the SVD fallback to the non-QR method.
-    config['psf']['interp']['use_qr'] = False
+    config['psf']['interp']['solver'] = 'scipy'
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
@@ -1689,6 +1727,15 @@ def test_color():
     piff.piffify(config)
     psf = piff.read(psf_file)
 
+    # Show that the basis includes cross terms:
+    np.testing.assert_equal(psf.interp._orders, [2,2,1])
+    assert psf.interp._max_order == 2
+    s = psf.stars[0]
+    np.testing.assert_allclose(
+        psf.interp.basis(s),
+        [ 1, s['color'], s['v'], s['v']*s['color'], s['v']**2,
+            s['u'], s['u']*s['color'], s['u']*s['v'], s['u']**2 ])
+
     for s in psf.stars:
         orig_stamp = s.image
         weight = s.weight
@@ -1702,6 +1749,35 @@ def test_color():
         assert chisq < dof * 1.5  # These chisq are even (a lot) smaller.  Not sure why...
                                   # Anyway, I think the fit is working, just this test doesn't
                                   # seem quite the right thing.
+
+    # Repeat without the cross-terms between color and u/v.
+    config['psf']['interp']['max_order'] = { ('u','v') : 2 }
+    piff.piffify(config)
+    psf = piff.read(psf_file)
+
+    # Show that the basis now doesn't include cross terms:
+    np.testing.assert_equal(psf.interp._orders, [2,2,1])
+    assert psf.interp._max_order ==  { ('u','v') : 2 }
+    s = psf.stars[0]
+    print(s['u'], s['v'], s['color'])
+    print('basis = ',psf.interp.basis(s))
+    np.testing.assert_allclose(
+        psf.interp.basis(s),
+        [ 1, s['color'], s['v'], s['v']**2, s['u'], s['u']*s['v'], s['u']**2 ])
+
+    # Still works just as well without the cross terms.
+    for s in psf.stars:
+        orig_stamp = s.image
+        weight = s.weight
+        offset = s.center_to_offset(s.fit.center)
+        image = psf.draw(x=s['x'], y=s['y'], color=s['color'],
+                         stamp_size=32, flux=s.fit.flux, offset=offset)
+        resid = image - orig_stamp
+        chisq = np.sum(resid.array**2 * weight.array)
+        dof = np.sum(weight.array != 0)
+        print('color = ',s['color'],'chisq = ',chisq,'dof = ',dof)
+        assert chisq < dof * 1.5
+
 
 @timer
 def test_convert_func():
@@ -1750,6 +1826,135 @@ def test_convert_func():
         print('fitted params = ',star1.fit.params)
         np.testing.assert_allclose(star1.fit.params, model_im.array.ravel(), rtol=2.e-3)
 
+@timer
+def test_convergence_centering_failed():
+
+    # Before https://rubinobs.atlassian.net/browse/DM-49152, it was
+    # running an infinite number of time. Reason is because fitting center
+    # looks to fail in some cases. So now it should converge if center fail.
+    # It should converged now and exclude properly stars that were not
+    # able to be get a good center fit and then being reflux. If centering,
+    # is fixed, this test might need to be removed.
+
+    piffConfig = {
+        'type': 'Simple',
+        'model': {
+            'type': 'PixelGrid',
+            'scale': 0.2,
+            'size': 25,
+            'interp': 'Lanczos(11)'
+        },
+        'interp': {
+            'type': 'BasisPolynomial',
+            'order': 1,
+            'solver': 'scipy'
+        },
+        'outliers': {
+            'type': 'Chisq',
+            'nsigma': 4.0,
+            'max_remove': 0.05
+        },
+        'max_iter': 30
+    }
+
+    starData = fitsio.read('input/testStarsRubin.fits')
+    image = starData["IMAGE"][0]
+    weight = starData["WEIGHT"][0]
+    x = starData["X"][0]
+    y = starData["Y"][0]
+    xmin = starData["XMIN"][0]
+    xmax = starData["XMAX"][0]
+    ymin = starData["YMIN"][0]
+    ymax = starData["YMAX"][0]
+
+    nstars = len(x)
+    stars = []
+
+    gswcs = galsim.PixelScale(0.20038369063248057)
+    wcs = {0: gswcs}
+    pointing = None
+
+    stars = []
+
+    for i in range(nstars):
+
+        bds = galsim.BoundsI(
+                    galsim.PositionI(xmin[i], ymin[i]),
+                    galsim.PositionI(xmax[i], ymax[i])
+                )
+        gsImage = galsim.Image(bds, wcs=gswcs, dtype=float)
+        gsImage.array[:] = image[i]
+
+        gsWeight = galsim.Image(bds, wcs=gswcs, dtype=float)
+        gsWeight.array[:] = weight[i]
+
+        image_pos = galsim.PositionD(x[i], y[i])
+        data = piff.StarData(
+            gsImage,
+            image_pos,
+            weight=gsWeight,
+            pointing=pointing
+        )
+        stars.append(piff.Star(data, None))
+
+
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.fit(stars, wcs, pointing)
+
+    assert piffResult.niter == 6, 'Maximum number of iterations in this example must be 6.'
+    assert np.shape(piffResult.stars[28].fit.A) == (0, 625), 'Centroid failed for this star, expected shape of A is (0,625)'
+
+
+@timer
+def test_too_small():
+    """Test that PixelGrid fails gracefully if the data images are too small to constrain
+    the full extent of the pixel grid."""
+
+    # This test comes directly from the bug report in issue #131
+    import pickle
+    stars = pickle.load(open("input/stars_131.pickle", "rb"))
+
+    piffConfig = {
+        'type': "Simple",
+        'model': {
+            'type': 'PixelGrid',
+            'scale': 1.0,
+            # The input data images are 21x21.
+            # NOTE: size <= 23 worked here in Piff 1.5.
+            #       But now requires size <= 21 to avoid exatrapolation around the edges.
+            'size': 25
+        },
+        'interp': {
+            'type': 'BasisPolynomial',
+            'order': 1
+        },
+        'outliers': {
+            'type': 'Chisq',
+            'nsigma': 4,
+            'max_remove': 0.05
+        }
+    }
+
+    piffResult = piff.PSF.process(piffConfig)
+    # Run on a single CCD, and in image coords rather than sky coords.
+    wcs = {0: galsim.PixelScale(1.0)}
+    pointing = None
+
+    # The original behavior was to complete successfully, but the model had crazy values
+    # off the edge of the constrained region.
+    with CaptureLog(2) as cl:
+        with np.testing.assert_raises(RuntimeError):
+            piffResult.fit(stars, wcs, pointing, logger=cl.logger)
+    assert "Image size (21,21) is too small to constrain this PixelGrid." in cl.output
+    assert "Removed 12 stars in initialize" in cl.output
+
+    # This configuration works.
+    piffConfig['model']['size'] = 21
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.fit(stars, wcs, pointing)
+    im = piffResult.draw(10, 10)
+    assert im(10,10) > 0
+
 
 if __name__ == '__main__':
     #import cProfile, pstats
@@ -1771,6 +1976,7 @@ if __name__ == '__main__':
     test_var()
     test_color()
     test_convert_func()
+    test_too_small()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)

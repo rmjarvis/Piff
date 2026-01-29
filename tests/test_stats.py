@@ -20,6 +20,7 @@ import galsim
 import fitsio
 import yaml
 import subprocess
+import pytest
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -222,7 +223,7 @@ def generate_starlist(n_samples=500):
 
     return star_list, model
 
-@timer
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     """Build an input image and catalog used by a few tests below.
     """
@@ -254,7 +255,8 @@ def setup():
     image.addNoise(galsim.GaussianNoise(rng=galsim.BaseDeviate(1234), sigma=1e-6))
 
     # Write out the image to a file
-    image_file = os.path.join('output','test_stats_image.fits')
+    dir = os.path.dirname(os.path.realpath(__file__))
+    image_file = os.path.join(dir, 'output', 'test_stats_image.fits')
     image.write(image_file)
 
     # Write out the catalog to a file
@@ -262,7 +264,7 @@ def setup():
     data = np.empty(len(x_list), dtype=dtype)
     data['x'] = x_list
     data['y'] = y_list
-    cat_file = os.path.join('output','test_stats_cat.fits')
+    cat_file = os.path.join(dir, 'output', 'test_stats_cat.fits')
     fitsio.write(cat_file, data, clobber=True)
 
 @timer
@@ -527,6 +529,7 @@ def test_starstats_config():
                     'file_name': star_file,
                     'nplot': 5,
                     'adjust_stars': True,
+                    'include_ave': False,
                 }
             ]
         }
@@ -550,7 +553,7 @@ def test_starstats_config():
 
     # check default nplot
     psf = piff.read(psf_file)
-    starStats = piff.StarStats()
+    starStats = piff.StarStats(include_ave=False)
     orig_stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
     orig_stars = piff.Select.process(config['select'], orig_stars, logger=logger)
     with np.testing.assert_raises(RuntimeError):
@@ -563,12 +566,20 @@ def test_starstats_config():
                                   orig_stars[starStats.indices[2]].image.array)
 
     # check nplot = 6
-    starStats = piff.StarStats(nplot=6)
+    starStats = piff.StarStats(nplot=6, include_ave=False)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == 6
 
+    starStats = piff.StarStats(nplot=6, include_ave=True)
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == 7
+
+    starStats = piff.StarStats(nplot=6) # include_ave=True is the default
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == 7
+
     # check nplot >> len(stars)
-    starStats = piff.StarStats(nplot=1000000)
+    starStats = piff.StarStats(nplot=1000000, include_ave=False)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == len(orig_stars)
     # if use all stars, no randomness
@@ -577,7 +588,7 @@ def test_starstats_config():
     starStats.plot()  # Make sure this runs without error and in finite time.
 
     # check nplot = 0
-    starStats = piff.StarStats(nplot=0)
+    starStats = piff.StarStats(nplot=0, include_ave=False)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == len(orig_stars)
     # if use all stars, no randomness
@@ -588,20 +599,25 @@ def test_starstats_config():
     # With include_reserve=False, only 8 stars
     print('All stars: n=',len(starStats.stars))  # 10 stars total
     assert len(starStats.stars) == 10
-    starStats = piff.StarStats(nplot=0, include_reserve=False)
+    starStats = piff.StarStats(nplot=0, include_reserve=False, include_ave=False)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == 8
     starStats.plot()  # Make sure this runs without error.
 
     # With only_reserve=True, only 2 stars
-    starStats = piff.StarStats(nplot=0, only_reserve=True)
+    starStats = piff.StarStats(nplot=0, only_reserve=True, include_ave=False)
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == 2
     starStats.plot()  # Make sure this runs without error.
 
+    starStats = piff.StarStats(nplot=0, only_reserve=True)
+    starStats.compute(psf, orig_stars)
+    assert len(starStats.stars) == 3
+    starStats.plot()  # Make sure this runs without error.
+
     # rerun with adjust stars and see if it did the right thing
     # first with adjust_stars == False
-    starStats = piff.StarStats(nplot=0, adjust_stars=False)
+    starStats = piff.StarStats(nplot=0, adjust_stars=False, include_ave=False)
     starStats.compute(psf, orig_stars, logger=logger)
     fluxs_noadjust = np.array([s.fit.flux for s in starStats.stars])
     ds_noadjust = np.array([s.fit.center for s in starStats.stars])
@@ -611,7 +627,7 @@ def test_starstats_config():
     np.testing.assert_array_equal(ds_noadjust, 0)
 
     # now with adjust_stars == True
-    starStats = piff.StarStats(nplot=0, adjust_stars=True)
+    starStats = piff.StarStats(nplot=0, adjust_stars=True, include_ave=False)
     starStats.compute(psf, orig_stars, logger=logger)
     fluxs_adjust = np.array([s.fit.flux for s in starStats.stars])
     ds_adjust = np.array([s.fit.center for s in starStats.stars])

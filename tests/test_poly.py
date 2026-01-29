@@ -339,10 +339,10 @@ def poly_load_save_sub(type1, type2, fname):
     extname = "interp"
     dirname = 'output'
     filename=os.path.join(dirname, fname)
-    with fitsio.FITS(filename,'rw',clobber=True) as f:
-        interp.write(f, extname=extname)
-    with fitsio.FITS(filename, "r") as f2:
-        interp2 = piff.Polynomial.read(f2, extname=extname)
+    with piff.writers.FitsWriter.open(filename) as w:
+        interp.write(w, extname)
+    with piff.readers.FitsReader.open(filename) as r:
+        interp2 = piff.Polynomial.read(r, extname)
 
     # The type and other parameters should now have been overwritten and updated
     assert interp2.poly_type == interp.poly_type
@@ -396,9 +396,9 @@ def test_poly_raise():
 
     # Cannot write before running fit.
     filename = 'output/test_invalid.fits'
-    with fitsio.FITS(filename,'rw',clobber=True) as f:
+    with piff.writers.FitsWriter.open(filename) as w:
         with np.testing.assert_raises(RuntimeError):
-            interp.write(f, extname='junk')
+            interp.write(w, 'junk')
 
 
 @timer

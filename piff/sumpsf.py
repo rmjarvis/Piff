@@ -20,7 +20,6 @@ import numpy as np
 import galsim
 
 from .psf import PSF
-from .util import write_kwargs, read_kwargs
 from .star import Star, StarFit
 from .outliers import Outliers
 
@@ -46,14 +45,16 @@ class SumPSF(PSF):
                         [default: None]
     :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
                         [default: 0.1]
+    :param min_iter:    Minimum number of iterations to try. [default: 2]
     :param max_iter:    Maximum number of iterations to try. [default: 30]
     """
     _type_name = 'Sum'
 
-    def __init__(self, components, outliers=None, chisq_thresh=0.1, max_iter=30):
+    def __init__(self, components, outliers=None, chisq_thresh=0.1, min_iter=2, max_iter=30):
         self.components = components
         self.outliers = outliers
         self.chisq_thresh = chisq_thresh
+        self.min_iter = min_iter
         self.max_iter = max_iter
         self.kwargs = {
             # If components is a list, mark the number of components here for I/O purposes.
@@ -61,6 +62,7 @@ class SumPSF(PSF):
             'components': len(components) if isinstance(components, list) else components,
             'outliers': 0,
             'chisq_thresh': self.chisq_thresh,
+            'min_iter': self.min_iter,
             'max_iter': self.max_iter,
         }
         self.chisq = 0.
@@ -135,15 +137,19 @@ class SumPSF(PSF):
 
         return kwargs
 
-    def setup_params(self, stars):
+    def setup_params(self, stars, inplace=False):
         """Make sure the stars have the right shape params object
         """
         new_stars = []
         for star in stars:
             if star.fit.params is None:
-                fit = star.fit.withNew(params=[None] * self.num_components,
-                                       params_var=[None] * self.num_components)
-                star = Star(star.data, fit)
+                if inplace:
+                    star.fit.params = [None] * self.num_components
+                    star.fit.params_var = [None] * self.num_components
+                else:
+                    fit = star.fit.withNew(params=[None] * self.num_components,
+                                           params_var=[None] * self.num_components)
+                    star = Star(star.data, fit)
             else:
                 assert len(star.fit.params) > self._nums[-1]
             new_stars.append(star)
@@ -177,7 +183,7 @@ class SumPSF(PSF):
 
         # Fit each component in order
         for k, comp in enumerate(self.components):
-            logger.info("Starting work on component %d (%s)", k, comp._type_name)
+            logger.verbose("Starting work on component %d (%s)", k, comp._type_name)
             # Update stars to subtract current fit from other components.
             modified_stars = []
             for i, star in enumerate(stars):
@@ -200,7 +206,7 @@ class SumPSF(PSF):
             nremoved += nremoved1
 
             # Update the current models for later components
-            stars = comp.interpolateStarList(stars)
+            comp.interpolateStarList(stars, inplace=True)
             current_models[k] = comp.drawStarList(stars)
 
         return stars, nremoved
@@ -221,30 +227,36 @@ class SumPSF(PSF):
         """
         return any([comp.include_model_centroid for comp in self.components])
 
-    def interpolateStarList(self, stars):
+    def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param stars:       List of Star instances to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
         :returns:           List of Star instances with their fit parameters updated.
         """
-        stars = self.setup_params(stars)
+        stars = self.setup_params(stars, inplace=inplace)
         for comp in self.components:
-            stars = comp.interpolateStarList(stars)
+            stars = comp.interpolateStarList(stars, inplace=inplace)
+            inplace = True  # For later components, it is safe to modify in place.
         return stars
 
-    def interpolateStar(self, star):
+    def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param star:        Star instance to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
         :returns:           Star instance with its fit parameters updated.
         """
-        star, = self.setup_params([star])
+        star, = self.setup_params([star], inplace=inplace)
         for comp in self.components:
-            star = comp.interpolateStar(star)
+            star = comp.interpolateStar(star, inplace=inplace)
+            inplace = True  # For later components, it is safe to modify in place.
         return star
 
     def _drawStar(self, star):
@@ -288,46 +300,42 @@ class SumPSF(PSF):
         # Add them up.
         return galsim.Sum(profiles), method
 
-    def _finish_write(self, fits, extname, logger):
+    def _finish_write(self, writer, logger):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         chisq_dict = {
             'chisq' : self.chisq,
             'last_delta_chisq' : self.last_delta_chisq,
             'dof' : self.dof,
             'nremoved' : self.nremoved,
         }
-        write_kwargs(fits, extname + '_chisq', chisq_dict)
-        logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
+        writer.write_struct('chisq', chisq_dict)
+        logger.debug("Wrote the chisq info to %s", writer.get_full_name('chisq'))
         for k, comp in enumerate(self.components):
-            comp._write(fits, extname + '_' + str(k), logger=logger)
+            comp._write(writer, str(k), logger=logger)
         if self.outliers:
-            self.outliers.write(fits, extname + '_outliers')
-            logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
+            self.outliers.write(writer, 'outliers')
+            logger.debug("Wrote the PSF outliers to %s", writer.get_full_name('outliers'))
 
-    def _finish_read(self, fits, extname, logger):
+    def _finish_read(self, reader, logger):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param reader:      A reader object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        chisq_dict = read_kwargs(fits, extname + '_chisq')
+        chisq_dict = reader.read_struct('chisq')
         for key in chisq_dict:
             setattr(self, key, chisq_dict[key])
 
         ncomponents = self.components
         self.components = []
         for k in range(ncomponents):
-            self.components.append(PSF._read(fits, extname + '_' + str(k), logger=logger))
-        if extname + '_outliers' in fits:
-            self.outliers = Outliers.read(fits, extname + '_outliers')
-        else:
-            self.outliers = None
+            self.components.append(PSF._read(reader, str(k), logger=logger))
+        self.outliers = Outliers.read(reader, 'outliers')
         # Set up all the num's properly now that everything is constructed.
         self.set_num(None)

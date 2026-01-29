@@ -51,7 +51,8 @@ class GSObjectModel(Model):
     :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
                         class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
-                        this model is an element of a Sum composite PSF. [default: False]
+                        this model is an element of a Sum composite PSF. [default: False,
+                        unless init=='zero', in which case it is automatically True.]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
@@ -259,7 +260,9 @@ class GSObjectModel(Model):
 
         :returns: (flux, dx, dy, scale, g1, g2, flag)
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        import warnings
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Start least_squares")
         params = self._get_params(star)
 
@@ -269,9 +272,11 @@ class GSObjectModel(Model):
         if params[3]**2 < star.data.local_wcs.pixelArea():
             params[3] = star.data.local_wcs.pixelArea()**0.5
 
-        results = scipy.optimize.least_squares(self._resid, params,
-                                               args=(star,convert_func,draw_method),
-                                               **self._scipy_kwargs)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            results = scipy.optimize.least_squares(self._resid, params,
+                                                   args=(star,convert_func,draw_method),
+                                                   **self._scipy_kwargs)
         #logger.debug(results)
         logger.debug("results = %s",results.x)
         if not results.success:
@@ -305,7 +310,8 @@ class GSObjectModel(Model):
 
         :returns: a new Star with the fitted parameters in star.fit
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         if fastfit is None:
             fastfit = self._fastfit
         if convert_func is not None:
@@ -369,7 +375,8 @@ class GSObjectModel(Model):
 
         :returns: a new initialized Star.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         init = self._init if self._init is not None else default_init
         if init is None: init = 'hsm'
         logger.debug("initializing GSObject with method %s",init)
@@ -382,11 +389,20 @@ class GSObjectModel(Model):
         flux_scaling = None
         if init == 'zero':
             flux_scaling = 1.e-6
+            # Also, make sure fit_flux=True.  Otherwise, this won't work properly.
+            if not self._fit_flux:
+                logger.verbose('Setting fit_flux=True, since init=zero')
+                self._fit_flux = True
+                self.kwargs['fit_flux'] = True
         elif init == 'delta':
             size *= 1.e-6
         elif isinstance(init, tuple):
             flux_scaling, size_scaling = init
             size *= size_scaling
+            if not self._fit_flux:
+                logger.verbose(f'Setting fit_flux=True, since init={init}')
+                self._fit_flux = True
+                self.kwargs['fit_flux'] = True
         elif init.startswith('(') and init.endswith(')'):
             flux_scaling, size_scaling = eval(init)
             size *= size_scaling
@@ -405,8 +421,8 @@ class GSObjectModel(Model):
             params = [flux_scaling] + params
             params_var = [0.] + params_var
         else:
-            if flux_scaling is not None:
-                raise ValueError("{} initialization requires fit_flux=True".format(init))
+            # This should have been guaranteed above.
+            assert flux_scaling is None
         params = np.array(params)
         params_var = np.array(params_var)
 
@@ -510,6 +526,7 @@ class GSObjectModelDepr(GSObjectModel):
     _type_name = 'GSObjectModel'
 
     def __init__(self, *args, logger=None, **kwargs):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.error("WARNING: The name GSObjectModel is deprecated. Use GSObject instead.")
         super().__init__(*args, logger=logger, **kwargs)

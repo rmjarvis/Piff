@@ -21,7 +21,7 @@ import copy
 import galsim
 
 from .psf import PSF
-from .util import write_kwargs, read_kwargs, make_dtype, adjust_value, run_multi
+from .util import make_dtype, adjust_value, run_multi
 
 # Used by SingleChipPSF.fit
 def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_funcs, draw_method, logger):
@@ -33,7 +33,7 @@ def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_funcs, dr
     wcs_chip = { chipnum : wcs[chipnum] }
 
     # Run the psf_chip fit function using this stars and wcs (and the same pointing)
-    logger.warning("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
+    logger.info("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
     psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger, convert_funcs=convert_funcs,
                  draw_method=draw_method)
 
@@ -110,7 +110,8 @@ class SingleChipPSF(PSF):
         :param draw_method:     The method to use with the GalSim drawImage command. If not given,
                                 use the default method for the PSF model being fit. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         self.wcs = wcs
         self.pointing = pointing
         self.psf_by_chip = {}
@@ -151,18 +152,20 @@ class SingleChipPSF(PSF):
         """
         return self.single_psf.include_model_centroid
 
-    def interpolateStar(self, star):
+    def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param star:        Star instance to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
         :returns:           Star instance with its fit parameters updated.
         """
         if 'chipnum' not in star.data.properties:
             raise ValueError("SingleChip requires the star to have a chipnum property")
         chipnum = star['chipnum']
-        return self.psf_by_chip[chipnum].interpolateStar(star)
+        return self.psf_by_chip[chipnum].interpolateStar(star, inplace=inplace)
 
     def _drawStar(self, star):
         if 'chipnum' not in star.data.properties:
@@ -178,14 +181,13 @@ class SingleChipPSF(PSF):
         chipnum = star['chipnum']
         return self.psf_by_chip[chipnum]._getRawProfile(star)
 
-    def _finish_write(self, fits, extname, logger):
+    def _finish_write(self, writer, logger):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        # Write the colnums to an extension.
+        # Write the colnums to a table.
         chipnums = list(self.psf_by_chip.keys())
         chipnums = [c for c in chipnums if self.psf_by_chip[c] is not None]
         dt = make_dtype('chipnums', chipnums[0])
@@ -193,21 +195,22 @@ class SingleChipPSF(PSF):
         cols = [ chipnums ]
         dtypes = [ dt ]
         data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname + '_chipnums')
+        writer.write_table('chipnums', data)
 
-        # Add _1, _2, etc. to the extname for the psf model of each chip.
+        # Append 1, 2, etc. to the name for the psf model of each chip.
         for chipnum in chipnums:
-            self.psf_by_chip[chipnum]._write(fits, extname + '_%s'%chipnum, logger)
+            self.psf_by_chip[chipnum]._write(writer, str(chipnum), logger)
 
-    def _finish_read(self, fits, extname, logger):
+    def _finish_read(self, reader, logger):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param reader:      A reader object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        chipnums = fits[extname + '_chipnums'].read()['chipnums']
+        table = reader.read_table('chipnums')
+        assert table is not None
+        chipnums = table['chipnums']
         self.psf_by_chip = {}
         for chipnum in chipnums:
-            self.psf_by_chip[chipnum] = PSF._read(fits, extname + '_%s'%chipnum, logger)
+            self.psf_by_chip[chipnum] = PSF._read(reader, str(chipnum), logger)
         self.single_psf = self.psf_by_chip[chipnums[0]]

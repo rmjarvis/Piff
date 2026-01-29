@@ -260,23 +260,27 @@ class GPInterp(Interp):
         self._fit(X, y, y_err=y_err, logger=logger)
         self.kernels = [gp.kernel for gp in self.gps]
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a Star instance with its StarFit member holding the interpolated parameters
         """
-        return self.interpolateList([star], logger=logger)[0]
+        return self.interpolateList([star], logger=logger, inplace=inplace)[0]
 
-    def interpolateList(self, stars, logger=None):
+    def interpolateList(self, stars, logger=None, inplace=False):
         """Perform the interpolation for a list of stars.
 
         :param star_list:   A list of Star instances to which to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
-        :returns: a list of new Star instances with interpolated parameters
+        :returns: a list of Star instances with interpolated parameters
         """
         Xstar = np.array([self.getProperties(star) for star in stars])
         gp_y = self._predict(Xstar)
@@ -288,15 +292,17 @@ class GPInterp(Interp):
                 y0_updated = star.fit.get_params(self._num)
             for j in range(self.nparams):
                 y0_updated[self.rows[j]] = y0[j]
-            fit = star.fit.newParams(y0_updated, num=self._num)
-            fitted_stars.append(Star(star.data, fit))
+            if inplace:
+                star.fit.updateParams(y0_updated, num=self._num)
+            else:
+                star = Star(star.data, star.fit.newParams(y0_updated, num=self._num))
+            fitted_stars.append(star)
         return fitted_stars
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         # Note, we're only storing the training data and hyperparameters here, which means the
         # Cholesky decomposition will have to be re-computed when this object is read back from
@@ -320,15 +326,15 @@ class GPInterp(Interp):
         data['ROWS'] = self.rows
         data['OPTIMIZER'] = self.optimizer
 
-        fits.write_table(data, extname=extname+'_kernel')
+        writer.write_table('kernel', data)
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
-        data = fits[extname+'_kernel'].read()
+        data = reader.read_table('kernel')
+        assert data is not None
         # Run fit to set up GP, but don't actually do any hyperparameter optimization. Just
         # set the GP up using the current hyperparameters.
         # Need to give back average fits files if needed.
@@ -372,6 +378,7 @@ class GPInterpDepr(GPInterp):
     _type_name = 'GPInterp'
 
     def __init__(self, *args, logger=None, **kwargs):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.error("WARNING: The name GPInterp is deprecated. Use GP or GaussianProcess instead.")
         super().__init__(*args, logger=logger, **kwargs)

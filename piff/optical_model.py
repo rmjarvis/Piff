@@ -169,7 +169,8 @@ class Optical(Model):
     _model_can_be_offset = False
 
     def __init__(self, template=None, gsparams=None, atmo_type='VonKarman', logger=None, **kwargs):
-        self.logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        self.logger = LoggerWrapper(logger)
         self.set_num(None)
 
         # If pupil_angle and strut angle are provided as strings, eval them.

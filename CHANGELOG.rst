@@ -1,4 +1,4 @@
-Changes from version 1.4 to 1.5
+Changes from version 1.6 to 1.7
 ===============================
 
 Output file changes

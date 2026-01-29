@@ -1,7 +1,22 @@
+# Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+# https://github.com/rmjarvis/Piff  All rights reserved.
+#
+# Piff is free software: Redistribution and use in source and binary forms
+# with or without modification, are permitted provided that the following
+# conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the disclaimer given in the accompanying LICENSE
+#    file.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the disclaimer given in the documentation
+#    and/or other materials provided with the distribution.
+
 import numpy as np
 import galsim
-from .star import Star
 from galsim import LookupTable2D
+
+from .star import Star
 
 def convert_zernikes_des(a_fp):
     """ This method converts an array of Noll Zernike coefficients from
@@ -76,7 +91,8 @@ class Wavefront(object):
     :param logger:             A logger object for logging debug info. [default: None]
     """
     def __init__(self,wavefront_kwargs,logger=None):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         self.maxnZ = 37            # hardcoded maximum Zernike index, Noll parameterization
         zformatstr = "z%d"         # hardcoded format string for Zernike coefficients
         self.interp_objects = {}   # store all interpolation objects
@@ -177,8 +193,8 @@ class Wavefront(object):
         :param addtostars:      A boolean flag to return stars with wavefront added to star.data or
                                 return array of wavefronts. [default: True]
         """
-
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         nstars = len(star_list)
         wf_arr = np.zeros((nstars,self.maxnZ+1))
@@ -196,7 +212,7 @@ class Wavefront(object):
         # loop over wavefront sources
         for isource in range(self.nsources):
 
-            logger.info("Filling Zernike coefficients for source %d" % (isource))
+            logger.verbose("Filling Zernike coefficients for source %d" % (isource))
             xkey,ykey = self.starxykeys[isource]
 
             # get x,y from Star.data, or use x_fp,y_fp above
@@ -231,7 +247,7 @@ class Wavefront(object):
 
         # convert Zernike coeff for DES
         if self.survey == 'des':
-            logger.info("Converting Zernike coefficients for Survey %s" % (self.survey))
+            logger.verbose("Converting Zernike coefficients for Survey %s" % (self.survey))
             wf_arr_final = np.zeros_like(wf_arr)
             for i in range(wf_arr_final.shape[0]):
                 wf_arr_final[i,:] = convert_zernikes_des(wf_arr[i,:])

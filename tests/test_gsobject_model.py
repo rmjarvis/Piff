@@ -163,10 +163,10 @@ def test_simple():
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_test.fits')
-        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
-            model.write(f, 'psf_model')
-        with fitsio.FITS(outfile, 'r') as f:
-            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        with piff.writers.FitsWriter.open(outfile) as w:
+            model.write(w, 'psf_model')
+        with piff.readers.FitsReader.open(outfile) as r:
+            roundtrip_model = piff.GSObjectModel.read(r, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
         # Check the deprecated name in config
@@ -284,12 +284,13 @@ def test_simple():
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
 
-        # init=zero required fit_flux
+        # init=zero forces fit_flux=True
         config['model']['fit_flux'] = False
         model = piff.Model.process(config['model'], logger)
         psf1 = piff.SimplePSF(model, None)
-        with np.testing.assert_raises(ValueError):
-            model.initialize(fiducial_star)
+        with CaptureLog() as cl:
+            model.initialize(fiducial_star, logger=cl.logger)
+        assert "Setting fit_flux=True" in cl.output
 
         print('Initializing with delta')
         config['model']['init'] = 'delta'
@@ -377,11 +378,13 @@ def test_simple():
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-2)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=1e-2)
 
+        # tuple init also forces fit_flux=True.
         config['model']['fit_flux'] = False
         model = piff.Model.process(config['model'], logger)
         psf1 = piff.SimplePSF(model, None)
-        with np.testing.assert_raises(ValueError):
-            model.initialize(fiducial_star)
+        with CaptureLog() as cl:
+            model.initialize(fiducial_star, logger=cl.logger)
+        assert "Setting fit_flux=True" in cl.output
 
         # Invalid init method raises an error
         config['model']['init'] = 'invalid'
@@ -903,10 +906,10 @@ def test_direct():
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_direct_test.fits')
-        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
-            model.write(f, 'psf_model')
-        with fitsio.FITS(outfile, 'r') as f:
-            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        with piff.writers.FitsWriter.open(outfile) as w:
+            model.write(w, 'psf_model')
+        with piff.readers.FitsReader.open(outfile) as r:
+            roundtrip_model = piff.GSObjectModel.read(r, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
     # repeat with fastfit=False
@@ -958,10 +961,10 @@ def test_direct():
 
         # Also need to test ability to serialize
         outfile = os.path.join('output', 'gsobject_direct_test.fits')
-        with fitsio.FITS(outfile, 'rw', clobber=True) as f:
-            model.write(f, 'psf_model')
-        with fitsio.FITS(outfile, 'r') as f:
-            roundtrip_model = piff.GSObjectModel.read(f, 'psf_model')
+        with piff.writers.FitsWriter.open(outfile) as w:
+            model.write(w, 'psf_model')
+        with piff.readers.FitsReader.open(outfile) as r:
+            roundtrip_model = piff.GSObjectModel.read(r, 'psf_model')
         assert model.__dict__ == roundtrip_model.__dict__
 
 @timer
@@ -1132,6 +1135,15 @@ def test_fail():
     assert nremoved == 1
     assert stars[0].is_flagged
     print('8')
+
+    # If we repeat reflux with those objects, don't count the same object as failing again.
+    # cf. PR #178 where this used to be done wrongly.
+    with mock.patch('numpy.linalg.solve', side_effect=np.linalg.LinAlgError) as raising_solve:
+        with CaptureLog(3) as cl:
+            stars, nremoved = psf.reflux_stars(stars, logger=cl.logger)
+    assert "Failed trying to reflux star" not in cl.output
+    assert nremoved == 0
+    assert stars[0].is_flagged  # Still flagged from before.
 
     # There is a check for GalSim errors.  The easiest way to make that hit is to
     # use a gsobj with very low maximum_fft_size.

@@ -57,7 +57,8 @@ class PixelGrid(Model):
     :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
                         class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
-                        this model is an element of a Sum composite PSF. [default: False]
+                        this model is an element of a Sum composite PSF. [default: False,
+                        unless init=='zero', in which case it is automatically True.]
     :param logger:      A logger object for logging debug info. [default: None]
     """
 
@@ -69,8 +70,8 @@ class PixelGrid(Model):
 
     def __init__(self, scale, size, interp=None, centered=True, init=None, fit_flux=False,
                  logger=None):
-
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
         logger.debug("size = %s",size)
@@ -113,6 +114,22 @@ class PixelGrid(Model):
         self._nparams = size*size
         logger.debug("nparams = %d",self._nparams)
 
+        # Save these to use when making InterpolatedImage.
+        # For the first star in an iteration, we let GalSim figure out good values, but then
+        # for later usage, we use force_maxk and force_stepk to save time.
+        self._maxk = 0.
+        self._stepk = 0.
+
+    def initialize_iteration(self):
+        """Do any required initialization at the start of an iteration of fitting.
+
+        Usually a no op, but in PixelGrid, it resets the cached stepk/maxk, so they can
+        potentially adapt to a new size for this iteration.
+        """
+        self._maxk = 0.
+        self._stepk = 0.
+
+
     def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model.
 
@@ -123,10 +140,20 @@ class PixelGrid(Model):
 
         :returns: a star instance with the appropriate initial fit values
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         init = self._init if self._init is not None else default_init
         if init is None: init = 'hsm'
         logger.debug("initializing PixelGrid with method %s",init)
+
+        # Check if the star's image data is large enough to adequately fit the PixelGrid.
+        ny, nx = star.image.array.shape
+        pixel_scale = star.image.wcs.maxLinearScale(star.image.center)
+        min_xy_size = self.size * self.scale / pixel_scale
+        if max(nx,ny) < min_xy_size:
+            logger.warning(f"Image size ({nx},{ny}) is too small to constrain this PixelGrid. "
+                           f"Minimum size required for this grid is {min_xy_size} pixels.")
+            raise RuntimeError("Star's image is too small.")
 
         if init == 'hsm' or init == 'zero':
             # Calculate the second moment to initialize an initial Gaussian profile.
@@ -148,6 +175,12 @@ class PixelGrid(Model):
                 # valid flux.  But 1.e-10 x smaller than the image should be a good starting
                 # point for most uses of the zero initialization.
                 params *= 1.e-10
+
+                # Also, make sure fit_flux=True.  Otherwise, this won't work properly.
+                if not self._fit_flux:
+                    logger.verbose('Setting fit_flux=True, since init=zero')
+                    self._fit_flux = True
+                    self.kwargs['fit_flux'] = True
 
         elif init == 'delta':
             params = np.zeros(self.size**2)
@@ -176,8 +209,9 @@ class PixelGrid(Model):
 
         :returns: a new Star instance with updated fit information
         """
+        from .config import LoggerWrapper
         assert draw_method in (None, 'no_pixel')
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         # Get chisq Taylor expansion for linearized model
         star1 = self.chisq(star, logger=logger, convert_func=convert_func)
 
@@ -213,7 +247,7 @@ class PixelGrid(Model):
             params_var = np.diagonal(scipy.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
         except np.linalg.LinAlgError as e:
             # If we get an error, set the variance to "infinity".
-            logger.info("Caught error %s making params_var.  Setting all to 1.e100",e)
+            logger.verbose("Caught error %s making params_var.  Setting all to 1.e100",e)
             params_var = np.ones_like(dparam) * 1.e100
 
         params = star.fit.get_params(self._num)
@@ -242,8 +276,9 @@ class PixelGrid(Model):
 
         :returns: a new Star instance with updated fit parameters. (esp. A,b)
         """
+        from .config import LoggerWrapper
         assert draw_method in (None, 'no_pixel')
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         logger.debug('Start chisq function')
         logger.debug('initial params = %s',star.fit.get_params(self._num))
 
@@ -479,8 +514,13 @@ class PixelGrid(Model):
         """
         im = galsim.Image(params.reshape(self.size,self.size), scale=self.scale)
         flux = None if self._fit_flux else 1.
-        return galsim.InterpolatedImage(im, x_interpolant=self.interp,
-                                        use_true_center=False, flux=flux)
+        ii = galsim.InterpolatedImage(im, x_interpolant=self.interp,
+                                      use_true_center=False, flux=flux,
+                                      _force_maxk=self._maxk,
+                                      _force_stepk=self._stepk)
+        self._maxk = ii.maxk
+        self._stepk = ii.stepk
+        return ii
 
     def _getBasisProfile(self):
         if not hasattr(self, '_basis_profile'):
@@ -541,9 +581,10 @@ class PixelGrid(Model):
                                     # doesn't complain about the size changing.
 
         # Normally this is all that is required.
+        # Note: this is done in place for efficiency.
         if not self._fit_flux:
             params /= np.sum(params)
-            star.fit = star.fit.newParams(params, num=self._num)
+            star.fit.updateParams(params, num=self._num)
 
     @classmethod
     def _fix_kwargs(cls, kwargs):

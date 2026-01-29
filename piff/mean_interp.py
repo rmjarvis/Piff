@@ -46,36 +46,38 @@ class Mean(Interp):
         """
         self.mean = np.mean([star.fit.get_params(self._num) for star in stars], axis=0)
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
-        if self.mean is None:
-            return star
-        else:
-            fit = star.fit.newParams(self.mean, num=self._num)
-        return Star(star.data, fit)
+        if self.mean is not None:
+            if inplace:
+                star.fit.updateParams(self.mean, num=self._num)
+            else:
+                star = Star(star.data, star.fit.newParams(self.mean, num=self._num))
+        return star
 
-    def _finish_write(self, fits, extname):
-        """Write the solution to a FITS binary table.
+    def _finish_write(self, writer):
+        """Write the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         cols = [ self.mean ]
         dtypes = [ ('mean', float) ]
         data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname + '_solution')
+        writer.write_table('solution', data)
 
-    def _finish_read(self, fits, extname):
-        """Read the solution from a FITS binary table.
+    def _finish_read(self, reader):
+        """Read the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension
+        :param reader:      A reader object that encapsulates the serialization format.
         """
-        data = fits[extname + '_solution'].read()
+        data = reader.read_table('solution')
+        assert data is not None
         self.mean = data['mean']

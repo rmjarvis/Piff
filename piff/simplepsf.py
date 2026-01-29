@@ -23,7 +23,6 @@ from .model import Model
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
-from .util import write_kwargs, read_kwargs
 
 class SimplePSF(PSF):
     """A PSF class that uses a single model and interpolator.
@@ -41,15 +40,17 @@ class SimplePSF(PSF):
                         [default: None]
     :param chisq_thresh: Change in reduced chisq at which iteration will terminate.
                         [default: 0.1]
+    :param min_iter:    Minimum number of iterations to try. [default: 2]
     :param max_iter:    Maximum number of iterations to try. [default: 30]
     """
     _type_name = 'Simple'
 
-    def __init__(self, model, interp, outliers=None, chisq_thresh=0.1, max_iter=30):
+    def __init__(self, model, interp, outliers=None, chisq_thresh=0.1, min_iter=2, max_iter=30):
         self.model = model
         self.interp = interp
         self.outliers = outliers
         self.chisq_thresh = chisq_thresh
+        self.min_iter = min_iter
         self.max_iter = max_iter
         self.kwargs = {
             # Use 0 here for things that will get overwritten in _finish_read.
@@ -57,6 +58,7 @@ class SimplePSF(PSF):
             'interp': 0,
             'outliers': 0,
             'chisq_thresh': self.chisq_thresh,
+            'min_iter': self.min_iter,
             'max_iter': self.max_iter,
         }
         self.chisq = 0.
@@ -142,7 +144,7 @@ class SimplePSF(PSF):
         if nremoved == 0:
             logger.debug("No stars removed in initialize step")
         else:
-            logger.info("Removed %d stars in initialize", nremoved)
+            logger.verbose("Removed %d stars in initialize", nremoved)
 
         logger.debug("Initializing interpolator")
         stars = self.interp.initialize(new_stars, logger=logger)
@@ -164,6 +166,8 @@ class SimplePSF(PSF):
 
         # Perform the fit or compute design matrix as appropriate using just non-reserve stars
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
+
+        self.model.initialize_iteration()
 
         nremoved = 0  # For this iteration
         use_stars = []  # Just the stars we want to use for fitting.
@@ -211,28 +215,32 @@ class SimplePSF(PSF):
         """
         return self.model._centered and self.model._model_can_be_offset
 
-    def interpolateStarList(self, stars):
+    def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param stars:       List of Star instances to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
         :returns:           List of Star instances with their fit parameters updated.
         """
-        stars = self.interp.interpolateList(stars)
+        stars = self.interp.interpolateList(stars, inplace=inplace)
         for star in stars:
             self.model.normalize(star)
         return stars
 
-    def interpolateStar(self, star):
+    def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param star:        Star instance to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
         :returns:           Star instance with its fit parameters updated.
         """
-        star = self.interp.interpolate(star)
+        star = self.interp.interpolate(star, inplace=inplace)
         self.model.normalize(star)
         return star
 
@@ -242,14 +250,14 @@ class SimplePSF(PSF):
     def _getRawProfile(self, star):
         return self.model.getProfile(star.fit.get_params(self._num)), self.model._method
 
-    def _finish_write(self, fits, extname, logger):
+    def _finish_write(self, writer, logger):
         """Finish the writing process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param writer:      A writer object that encapsulates the serialization format.
         :param logger:      A logger object for logging debug info.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         chisq_dict = {
             'chisq' : self.chisq,
             'last_delta_chisq' : self.last_delta_chisq,
@@ -257,29 +265,26 @@ class SimplePSF(PSF):
             'nremoved' : self.nremoved,
             'niter' : self.niter,
         }
-        write_kwargs(fits, extname + '_chisq', chisq_dict)
-        logger.debug("Wrote the chisq info to extension %s",extname + '_chisq')
-        self.model.write(fits, extname + '_model')
-        logger.debug("Wrote the PSF model to extension %s",extname + '_model')
-        self.interp.write(fits, extname + '_interp')
-        logger.debug("Wrote the PSF interp to extension %s",extname + '_interp')
+        writer.write_struct('chisq', chisq_dict)
+        logger.debug("Wrote the chisq info to %s", writer.get_full_name('chisq'))
+        self.model.write(writer, 'model')
+        logger.debug("Wrote the PSF model to %s", writer.get_full_name('model'))
+        self.interp.write(writer, 'interp')
+        logger.debug("Wrote the PSF interp to %s", writer.get_full_name('interp'))
         if self.outliers:
-            self.outliers.write(fits, extname + '_outliers')
-            logger.debug("Wrote the PSF outliers to extension %s",extname + '_outliers')
+            self.outliers.write(writer, 'outliers')
+            logger.debug("Wrote the PSF outliers to %s", writer.get_full_name('outliers'))
 
-    def _finish_read(self, fits, extname, logger):
+    def _finish_read(self, reader, logger):
         """Finish the reading process with any class-specific steps.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension to write to.
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this PSF in the serialized output.
         :param logger:      A logger object for logging debug info.
         """
-        chisq_dict = read_kwargs(fits, extname + '_chisq')
+        chisq_dict = reader.read_struct('chisq')
         for key in chisq_dict:
             setattr(self, key, chisq_dict[key])
-        self.model = Model.read(fits, extname + '_model')
-        self.interp = Interp.read(fits, extname + '_interp')
-        if extname + '_outliers' in fits:
-            self.outliers = Outliers.read(fits, extname + '_outliers')
-        else:
-            self.outliers = None
+        self.model = Model.read(reader, 'model')
+        self.interp = Interp.read(reader, 'interp')
+        self.outliers = Outliers.read(reader, 'outliers')

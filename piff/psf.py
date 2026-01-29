@@ -17,12 +17,9 @@
 """
 
 import numpy as np
-import fitsio
 import galsim
-import sys
 
 from .star import Star, StarData
-from .util import write_kwargs, read_kwargs
 
 class PSF(object):
     """The base class for describing a PSF model across a field of view.
@@ -67,7 +64,8 @@ class PSF(object):
 
         :returns: a PSF instance of the appropriate type.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Parsing PSF based on config dict:")
 
         # Get the class to use for the PSF
@@ -83,7 +81,7 @@ class PSF(object):
         kwargs = psf_cls.parseKwargs(config_psf, logger)
 
         # Build PSF object
-        logger.info("Building %s",psf_type)
+        logger.verbose("Building %s",psf_type)
         psf = psf_cls(**kwargs)
         logger.debug("Done building PSF")
 
@@ -224,7 +222,8 @@ class PSF(object):
 
         :returns:           New Star instance, with updated flux, center, chisq, dof
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.debug("Reflux for star:")
         logger.debug("    flux = %s",star.fit.flux)
         logger.debug("    center = %s",star.fit.center)
@@ -337,11 +336,12 @@ class PSF(object):
             try:
                 star = self.reflux(star, logger=logger)
             except Exception as e:
-                logger.warning("Failed trying to reflux star at %s.  Excluding it.",
-                                star.image_pos)
-                logger.warning("  -- Caught exception: %s", e)
-                nremoved += 1
-                star = star.flag_if(True)
+                if not star.is_flagged:
+                    logger.warning("Failed trying to reflux star at %s.  Excluding it.",
+                                   star.image_pos)
+                    logger.info("  -- Caught exception: %s", e)
+                    nremoved += 1
+                    star = star.flag_if(True)
             new_stars.append(star)
         return new_stars, nremoved
 
@@ -361,7 +361,7 @@ class PSF(object):
             if nremoved == 0:
                 logger.debug("             No outliers found")
             else:
-                logger.info("             Removed %d outliers", nremoved)
+                logger.verbose("             Removed %d outliers", nremoved)
         else:
             nremoved = 0
         return stars, nremoved
@@ -381,7 +381,8 @@ class PSF(object):
         :param draw_method:     The method to use with the GalSim drawImage command. If not given,
                                 use the default method for the PSF model being fit. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         self.wcs = wcs
         self.pointing = pointing
@@ -395,9 +396,9 @@ class PSF(object):
         for iteration in range(self.max_iter):
 
             nstars = np.sum([not star.is_reserve and not star.is_flagged for star in stars])
-            logger.warning("Iteration %d: Fitting %d stars", iteration+1, nstars)
+            logger.info("Iteration %d: Fitting %d stars", iteration+1, nstars)
             if nreserve != 0:
-                logger.warning("             (%d stars are reserved)", nreserve)
+                logger.info("             (%d stars are reserved)", nreserve)
 
             # Run a single iteration of the fitter.
             # Different PSF types do different things here.
@@ -418,7 +419,7 @@ class PSF(object):
 
             chisq = np.sum([s.fit.chisq for s in stars if not s.is_reserve and not s.is_flagged])
             dof   = np.sum([s.fit.dof for s in stars if not s.is_reserve and not s.is_flagged])
-            logger.warning("             Total chisq = %.2f / %d dof", chisq, dof)
+            logger.info("             Total chisq = %.2f / %d dof", chisq, dof)
 
             # Save these so we can write them to the output file.
             self.chisq = chisq
@@ -435,7 +436,11 @@ class PSF(object):
             # Very simple convergence test here:
             # Note, the lack of abs here means if chisq increases, we also stop.
             # Also, don't quit if we removed any outliers.
-            if (iter_nremoved == 0) and (oldchisq > 0) and (oldchisq-chisq < self.chisq_thresh*dof):
+            if (iter_nremoved == 0 and
+                oldchisq > 0 and
+                oldchisq - chisq < self.chisq_thresh * dof and
+                iteration+1 >= self.min_iter
+                ):
                 return
             oldchisq = chisq
 
@@ -508,7 +513,8 @@ class PSF(object):
 
         :returns:           A GalSim Image of the PSF
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         chipnum = self._check_chipnum(chipnum)
 
@@ -582,7 +588,8 @@ class PSF(object):
                             method = either 'no_pixel' or 'auto' indicating which method to use
                             when drawing the profile on an image.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         chipnum = self._check_chipnum(chipnum)
 
@@ -605,7 +612,8 @@ class PSF(object):
         logger.debug("Getting PSF profile at (%s,%s) on chip %s", x, y, chipnum)
 
         # Interpolate and adjust the flux of the star.
-        star = self.interpolateStar(star).withFlux(flux)
+        self.interpolateStar(star, inplace=True)
+        star.fit.flux = flux  # Modify in place, rather than use withFlux for efficiency.
 
         # The last step is implementd in the derived classes.
         prof, method = self._getProfile(star)
@@ -622,21 +630,25 @@ class PSF(object):
             raise ValueError("Invalid chipnum.  Must be one of %s", str(chipnums))
         return chipnum
 
-    def interpolateStarList(self, stars):
+    def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param stars:       List of Star instances to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
         :returns:           List of Star instances with their fit parameters updated.
         """
-        return [self.interpolateStar(star) for star in stars]
+        return [self.interpolateStar(star, inplace=inplace) for star in stars]
 
-    def interpolateStar(self, star):
+    def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.
 
         :param star:        Star instance to update.
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
         :returns:           Star instance with its fit parameters updated.
         """
@@ -722,34 +734,35 @@ class PSF(object):
         :param file_name:   The name of the file to write to.
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
-        logger.warning("Writing PSF to file %s",file_name)
+        from .writers import FitsWriter
+        from .config import LoggerWrapper
 
-        with fitsio.FITS(file_name,'rw',clobber=True) as f:
-            self._write(f, 'psf', logger)
+        logger = LoggerWrapper(logger)
+        logger.info("Writing PSF to file %s",file_name)
 
-    def _write(self, fits, extname, logger=None):
+        with FitsWriter.open(file_name) as w:
+            self._write(w, 'psf', logger=logger)
+
+    def _write(self, writer, name, logger):
         """This is the function that actually does the work for the write function.
         Composite PSF classes that need to iterate can call this multiple times as needed.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the psf information.
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with this PSF in the serialized output.
         :param logger:      A logger object for logging debug info.
         """
         from . import __version__ as piff_version
-        if len(fits) == 1:
-            header = {'piff_version': piff_version}
-            fits.write(data=None, header=header)
         psf_type = self._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=psf_type, piff_version=piff_version))
-        logger.info("Wrote the basic PSF information to extname %s", extname)
-        if hasattr(self, 'stars'):
-            Star.write(self.stars, fits, extname=extname + '_stars')
-            logger.info("Wrote the PSF stars to extname %s", extname + '_stars')
-        if hasattr(self, 'wcs'):
-            self.writeWCS(fits, extname=extname + '_wcs', logger=logger)
-            logger.info("Wrote the PSF WCS to extname %s", extname + '_wcs')
-        self._finish_write(fits, extname=extname, logger=logger)
+        writer.write_struct(name, dict(self.kwargs, type=psf_type, piff_version=piff_version))
+        logger.verbose("Wrote the basic PSF information to name %s", writer.get_full_name(name))
+        with writer.nested(name) as w:
+            if hasattr(self, 'stars'):
+                Star.write(self.stars, w, 'stars')
+                logger.verbose("Wrote the PSF stars to name %s", w.get_full_name('stars'))
+            if hasattr(self, 'wcs'):
+                w.write_wcs_map('wcs', self.wcs, self.pointing)
+                logger.verbose("Wrote the PSF WCS to name %s", w.get_full_name('wcs'))
+            self._finish_write(w, logger=logger)
 
     @classmethod
     def read(cls, file_name, logger=None):
@@ -760,26 +773,28 @@ class PSF(object):
 
         :returns: a PSF instance
         """
-        logger = galsim.config.LoggerWrapper(logger)
-        logger.warning("Reading PSF from file %s",file_name)
+        from .readers import FitsReader
+        from .config import LoggerWrapper
 
-        with fitsio.FITS(file_name,'r') as f:
+        logger = LoggerWrapper(logger)
+        logger.info("Reading PSF from file %s",file_name)
+
+        with FitsReader.open(file_name) as r:
             logger.debug('opened FITS file')
-            return cls._read(f, 'psf', logger)
+            return cls._read(r, 'psf', logger)
 
     @classmethod
-    def _read(cls, fits, extname, logger):
+    def _read(cls, reader, name, logger):
         """This is the function that actually does the work for the read function.
         Composite PSF classes that need to iterate can call this multiple times as needed.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the psf information.
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this PSF in the serialized output.
         :param logger:      A logger object for logging debug info.
         """
         # Read the type and kwargs from the base extension
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        kwargs = read_kwargs(fits, extname)
+        kwargs = reader.read_struct(name)
+        assert kwargs is not None
         psf_type = kwargs.pop('type')
 
         # Old output files had the full class name.  Fix it if necessary.
@@ -798,144 +813,26 @@ class PSF(object):
         # Make the PSF instance
         psf = psf_cls(**kwargs)
 
-        # Read the stars, wcs, pointing values
-        if extname + '_stars' in fits:
-            stars = Star.read(fits, extname + '_stars')
-            logger.debug("stars = %s",stars)
-            psf.stars = stars
-        if extname + '_wcs' in fits:
-            wcs, pointing = cls.readWCS(fits, extname + '_wcs', logger=logger)
-            logger.debug("wcs = %s, pointing = %s",wcs,pointing)
-            psf.wcs = wcs
-            psf.pointing = pointing
+        with reader.nested(name) as r:
+            # Read the stars, wcs, pointing values
+            stars = Star.read(r, 'stars')
+            if stars is not None:
+                logger.debug("stars = %s", stars)
+                psf.stars = stars
+            wcs, pointing = r.read_wcs_map('wcs', logger=logger)
+            if wcs is not None:
+                logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+                psf.wcs = wcs
+                psf.pointing = pointing
 
-        # Just in case the class needs to do something else at the end.
-        psf._finish_read(fits, extname, logger)
+            # Just in case the class needs to do something else at the end.
+            psf._finish_read(r, logger)
 
-        # Save the piff version as an attibute.
+        # Save the piff version as an attribute.
         psf.piff_version = piff_version
 
         return psf
 
-    def writeWCS(self, fits, extname, logger):
-        """Write the WCS information to a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write to
-        :param logger:      A logger object for logging debug info.
-        """
-        import base64
-        try:
-            import cPickle as pickle
-        except ImportError:
-            import pickle
-        logger = galsim.config.LoggerWrapper(logger)
-
-        # Start with the chipnums
-        chipnums = list(self.wcs.keys())
-        cols = [ chipnums ]
-        dtypes = [ ('chipnums', int) ]
-
-        # GalSim WCS objects can be serialized via pickle
-        wcs_str = [ base64.b64encode(pickle.dumps(w)) for w in self.wcs.values() ]
-        max_len = np.max([ len(s) for s in wcs_str ])
-        # Some GalSim WCS serializations are rather long.  In particular, the Pixmappy one
-        # is longer than the maximum length allowed for a column in a fits table (28799).
-        # So split it into chunks of size 2**14 (mildly less than this maximum).
-        chunk_size = 2**14
-        nchunks = max_len // chunk_size + 1
-        cols.append( [nchunks]*len(chipnums) )
-        dtypes.append( ('nchunks', int) )
-
-        # Update to size of chunk we actually need.
-        chunk_size = (max_len + nchunks - 1) // nchunks
-
-        chunks = [ [ s[i:i+chunk_size] for i in range(0, max_len, chunk_size) ] for s in wcs_str ]
-        cols.extend(zip(*chunks))
-        dtypes.extend( ('wcs_str_%04d'%i, bytes, chunk_size) for i in range(nchunks) )
-
-        if self.pointing is not None:
-            # Currently, there is only one pointing for all the chips, but write it out
-            # for each row anyway.
-            dtypes.extend( (('ra', float), ('dec', float)) )
-            ra = [self.pointing.ra / galsim.hours] * len(chipnums)
-            dec = [self.pointing.dec / galsim.degrees] * len(chipnums)
-            cols.extend( (ra, dec) )
-
-        data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname)
-
-    @classmethod
-    def readWCS(cls, fits, extname, logger):
-        """Read the WCS information from a FITS file.
-
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to read from
-        :param logger:      A logger object for logging debug info.
-
-        :returns: wcs, pointing where wcs is a dict of galsim.BaseWCS instances and
-                                      pointing is a galsim.CelestialCoord instance
-        """
-        import base64
-        try:
-            import cPickle as pickle
-        except ImportError:
-            import pickle
-
-        assert extname in fits
-        assert 'chipnums' in fits[extname].get_colnames()
-        assert 'nchunks' in fits[extname].get_colnames()
-
-        data = fits[extname].read()
-
-        chipnums = data['chipnums']
-        nchunks = data['nchunks']
-        nchunks = nchunks[0]  # These are all equal, so just take first one.
-
-        wcs_keys = [ 'wcs_str_%04d'%i for i in range(nchunks) ]
-        wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
-        try:
-            wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-        except TypeError:  # pragma: no cover
-            # fitsio 1.0 returns strings
-            wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-
-        wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
-        # Convert back into wcs objects
-        try:
-            wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
-        except Exception:
-            # If the file was written by py2, the bytes encoding might raise here,
-            # or it might not until we try to use it.
-            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
-
-        wcs = dict(zip(chipnums, wcs_list))
-
-        try:
-            # If this doesn't work, then the file was probably written by py2, not py3
-            repr(wcs)
-        except Exception:
-            logger.info('Failed to decode wcs with bytes encoding.')
-            logger.info('Retry with encoding="latin1" in case file written with python 2.')
-            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
-            wcs = dict(zip(chipnums, wcs_list))
-            repr(wcs)
-
-        # Work-around for a change in the GalSim API with 2.0
-        # If the piff file was written with pre-2.0 GalSim, this fixes it.
-        for key in wcs:
-            w = wcs[key]
-            if hasattr(w, '_origin') and  isinstance(w._origin, galsim._galsim.PositionD):
-                w._origin = galsim.PositionD(w._origin)
-
-        if 'ra' in fits[extname].get_colnames():
-            ra = data['ra']
-            dec = data['dec']
-            pointing = galsim.CelestialCoord(ra[0] * galsim.hours, dec[0] * galsim.degrees)
-        else:
-            pointing = None
-
-        return wcs, pointing
 
 # Make a global function, piff.read, as an alias for piff.PSF.read, since that's the main thing
 # users will want to do as their starting point for using a piff file.

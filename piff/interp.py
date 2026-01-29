@@ -17,7 +17,6 @@
 """
 
 import numpy as np
-from .util import write_kwargs, read_kwargs
 
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
@@ -150,17 +149,19 @@ class Interp(object):
         """
         raise NotImplementedError("Derived classes must define the solve method.")
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
         raise NotImplementedError("Derived classes must define the interpolate method.")
 
-    def interpolateList(self, stars, logger=None):
+    def interpolateList(self, stars, logger=None, inplace=False):
         """Perform the interpolation for a list of stars.
 
         The base class just calls interpolate(star) for each star in the list, but in many
@@ -169,82 +170,75 @@ class Interp(object):
 
         :param stars:       A list of Star instances to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
-        :returns: a list of new Star instances with interpolated parameters
+        :returns: a list of Star instances with interpolated parameters
         """
-        return [ self.interpolate(star) for star in stars ]
+        return [ self.interpolate(star, inplace=inplace) for star in stars ]
 
-    def write(self, fits, extname):
-        """Write an Interp to a FITS file.
+    def write(self, writer, name):
+        """Write an Interp via a writer object.
 
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
 
-        The base class implemenation works if the class has a self.kwargs attribute and these
+        The base class implementation works if the class has a self.kwargs attribute and these
         are all simple values (str, float, or int).
 
         However, the derived class will need to implement _finish_write to write the solution
         parameters to a binary table.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the interpolator information.
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with this interpolator in the serialized output.
         """
         # First write the basic kwargs that works for all Interp classes
         interp_type = self.__class__._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=interp_type))
+        writer.write_struct(name, dict(self.kwargs, type=interp_type))
 
         # Now do the class-specific steps.  Typically, this will write out the solution parameters.
-        self._finish_write(fits, extname)
+        with writer.nested(name) as w:
+            self._finish_write(w)
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
         The base class implementation doesn't do anything, but this will probably always be
         overridden by the derived class.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         raise NotImplementedError("Derived classes must define the _finish_write method.")
 
     @classmethod
-    def read(cls, fits, extname):
-        """Read an Interp from a FITS file.
+    def read(cls, reader, name):
+        """Read an Interp via a reader object.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the interpolator information.
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this interpolator in the serialized output.
 
-        :returns: an interpolator built with a information in the FITS file.
+        :returns: an interpolator built from serialized information.
         """
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        assert 'type' in fits[extname].read().dtype.names
-        # interp_type = fits[extname].read_column('type')
-        interp_type = fits[extname].read()['type']
-        assert len(interp_type) == 1
-        try:
-            interp_type = str(interp_type[0].decode())
-        except AttributeError:
-            # fitsio 1.0 returns strings
-            interp_type = interp_type[0]
+        kwargs = reader.read_struct(name)
+        assert kwargs is not None
+        assert 'type' in kwargs
+        interp_type = kwargs.pop('type')
 
         # Check that interp_type is a valid Interp type.
         if interp_type not in Interp.valid_interp_types:
             raise ValueError("interp type %s is not a valid Piff Interpolation"%interp_type)
         interp_cls = Interp.valid_interp_types[interp_type]
 
-        kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type',None)
         interp = interp_cls(**kwargs)
-        interp._finish_read(fits, extname)
+        with reader.nested(name) as r:
+            interp._finish_read(r)
         return interp
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
         The base class implementation doesn't do anything, but this will probably always be
         overridden by the derived class.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         raise NotImplementedError("Derived classes must define the _finish_read method.")

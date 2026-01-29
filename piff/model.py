@@ -16,10 +16,6 @@
 .. module:: model
 """
 
-import numpy as np
-import galsim
-
-from .util import write_kwargs, read_kwargs
 from .star import Star
 
 
@@ -119,6 +115,13 @@ class Model(object):
         # parameter values in star.fit.
         pass
 
+    def initialize_iteration(self):
+        """Do any required initialization at the start of an iteration of fitting.
+
+        Usually a no op.
+        """
+        pass
+
     def fit(self, star, convert_func=None):
         """Fit the Model to the star's data to yield iterative improvement on
         its PSF parameters, their uncertainties, and flux (and center, if free).
@@ -154,71 +157,63 @@ class Model(object):
         prof.drawImage(image, method=self._method, center=star.image_pos)
         return Star(star.data.withNew(image=image), star.fit)
 
-    def write(self, fits, extname):
-        """Write a Model to a FITS file.
+    def write(self, writer, name):
+        """Write a Model via a Writer object.
 
         Note: this only writes the initialization kwargs to the fits extension, not the parameters.
 
         The base class implemenation works if the class has a self.kwargs attribute and these
         are all simple values (str, float, or int)
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the model information.
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with this model in the serialized output.
         """
         # First write the basic kwargs that works for all Model classes
         model_type = self._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=model_type))
-
+        writer.write_struct(name, dict(self.kwargs, type=model_type))
         # Now do any class-specific steps.
-        self._finish_write(fits, extname)
+        with writer.nested(name) as w:
+            self._finish_write(w)
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Model classes need to write extra information to the
         fits file.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         pass
 
     @classmethod
-    def read(cls, fits, extname):
+    def read(cls, reader, name):
         """Read a Model from a FITS file.
 
         Note: the returned Model will not have its parameters set.  This just initializes a fresh
         model that can be used to interpret interpolated vectors.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the model information.
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with this model in the serialized output.
 
-        :returns: a model built with a information in the FITS file.
+        :returns: a model built with a information in the FITS file
         """
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        model_type = fits[extname].read()['type']
-        assert len(model_type) == 1
-        try:
-            model_type = str(model_type[0].decode())
-        except AttributeError:
-            # fitsio 1.0 returns strings
-            model_type = model_type[0]
+        kwargs = reader.read_struct(name)
+        assert kwargs is not None
+        assert 'type' in kwargs
+        model_type = kwargs.pop('type')
 
         # Check that model_type is a valid Model type.
         if model_type not in Model.valid_model_types:
             raise ValueError("model type %s is not a valid Piff Model"%model_type)
         model_cls = Model.valid_model_types[model_type]
 
-        kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type',None)
         if 'force_model_center' in kwargs: # pragma: no cover
             # old version of this parameter name.
             kwargs['centered'] = kwargs.pop('force_model_center')
         model_cls._fix_kwargs(kwargs)
         model = model_cls(**kwargs)
-        model._finish_read(fits, extname)
+        model._finish_read(reader)
         return model
 
     @classmethod
@@ -235,14 +230,13 @@ class Model(object):
         """
         pass
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Model classes need to read extra information from the
         fits file.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         pass

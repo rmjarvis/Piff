@@ -478,12 +478,12 @@ def test_io():
 
         file_name = os.path.join('output','star_io.fits')
         print('Writing stars to ',file_name)
-        with fitsio.FITS(file_name,'rw',clobber=True) as fout:
-            piff.Star.write(stars, fout, extname='stars')
+        with piff.writers.FitsWriter.open(file_name) as w:
+            piff.Star.write(stars, w, 'stars')
 
         print('Reading from ',file_name)
-        with fitsio.FITS(file_name,'r') as fin:
-            stars2 = piff.Star.read(fin, extname='stars')
+        with piff.readers.FitsReader.open(file_name) as r:
+            stars2 = piff.Star.read(r, 'stars')
 
         for s1, s2 in zip(stars,stars2):
             assert s1.data['x'] == s2.data['x']
@@ -560,12 +560,12 @@ def test_multifit_io():
 
     file_name = os.path.join('output','star_multifit_io.fits')
     print('Writing stars to ',file_name)
-    with fitsio.FITS(file_name,'rw',clobber=True) as fout:
-        piff.Star.write(stars, fout, extname='stars')
+    with piff.writers.FitsWriter.open(file_name) as w:
+        piff.Star.write(stars, w, 'stars')
 
     print('Reading from ',file_name)
-    with fitsio.FITS(file_name,'r') as fin:
-        stars2 = piff.Star.read(fin, extname='stars')
+    with piff.readers.FitsReader.open(file_name) as r:
+        stars2 = piff.Star.read(r, 'stars')
 
     for s1, s2 in zip(stars,stars2):
         assert s1.data['x'] == s2.data['x']

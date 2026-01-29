@@ -271,9 +271,10 @@ class Star(object):
         :returns:   A Star instance
         """
         # Check that input parameters are valid
-        for param in ['x', 'y', 'u', 'v']:
-            if eval(param) is not None and param in properties:
-                raise TypeError("%s may not be given both as a kwarg and in properties"%param)
+        for param, name in [(x,'x'), (y,'y'), (u,'u'), (v,'v')]:
+            if param is not None and name in properties:
+                raise TypeError("%s may not be given both as a kwarg and in properties"%name)
+
         properties = properties.copy()  # So we can modify it and not mess up the caller.
         x = properties.pop('x', x)
         y = properties.pop('y', y)
@@ -315,7 +316,10 @@ class Star(object):
             # Make the center of the image (close to) the image_pos
             xcen = int(np.ceil(x - (0.5 if image.array.shape[1] % 2 == 1 else 0)))
             ycen = int(np.ceil(y - (0.5 if image.array.shape[0] % 2 == 1 else 0)))
-            image.setCenter(xcen, ycen)
+
+            #image.setCenter(xcen, ycen)
+            # This next line is equivalent, but more efficient.
+            image._shift(galsim.PositionI(xcen,ycen) - image.center)
         if image.wcs is None:
             image.wcs = wcs
         if weight is not None:
@@ -328,12 +332,12 @@ class Star(object):
         return cls(data, fit)
 
     @classmethod
-    def write(self, stars, fits, extname):
-        """Write a list of stars to a FITS file.
+    def write(cls, stars, writer, name):
+        """Write a list of stars to a writer object.
 
         :param stars:       A list of stars to write
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write to
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with these stars in the serialized output.
         """
         # TODO This doesn't write everything out.  Probably want image as an optional I/O.
 
@@ -406,7 +410,7 @@ class Star(object):
             cols.append( [s.data.pointing.dec / galsim.degrees for s in stars ] )
 
         data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname, header=header)
+        writer.write_table(name, data, metadata=header)
 
     @classmethod
     def read_coords_params(cls, fits, extname):
@@ -432,19 +436,21 @@ class Star(object):
         return coords, params
 
     @classmethod
-    def read(cls, fits, extname):
-        """Read stars from a FITS file.
+    def read(cls, reader, name):
+        """Read a list of stars via an open reader object.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to read from
-
-        :returns: a list of Star instances
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:         Name associated with the stars in the serialized output.
+        :returns: a list of Star instances, or None if there aren't any
         """
-        assert extname in fits
-        colnames = fits[extname].get_colnames()
-        header = fits[extname].read_header()
-        if 'PARAMS_LENS' in header:
-            params_lens = np.atleast_1d(eval(header['PARAMS_LENS']))
+        metadata = {}
+        data = reader.read_table(name, metadata)
+        if data is None:
+            return None
+
+        colnames = list(data.dtype.names)
+        if 'PARAMS_LENS' in metadata:
+            params_lens = np.atleast_1d(eval(metadata['PARAMS_LENS']))
         else:
             params_lens = None
 
@@ -457,7 +463,6 @@ class Star(object):
         # These two might not be there, but if they are, remove them.
         colnames = [key for key in colnames if key not in ['reserve', 'flag_psf']]
 
-        data = fits[extname].read()
         x_list = data['x']
         y_list = data['y']
         u_list = data['u']
@@ -559,13 +564,14 @@ class Star(object):
         :returns: a new list of Stars with the images information loaded.
         """
         from .input import InputFiles
+        from .config import LoggerWrapper
 
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
 
         logger.error("WARNING: The Star.load_images function is deprecated."
                      "Use InputFiles.load_images instead.")
 
-        logger.info("Loading image information from file %s",file_name)
+        logger.verbose("Loading image information from file %s",file_name)
         config = {
             'image_file_name': file_name,
             'cat_file_name': None,  # We don't need this, but it needs to be present.
@@ -1007,23 +1013,36 @@ class StarFit(object):
         """
         old_params = self.get_params(num)
         old_params_var = self.get_params_var(num)
-        if old_params is not None and np.array(params).shape != old_params.shape:
+        if old_params is not None and np.asarray(params).shape != old_params.shape:
             raise ValueError('new StarFit parameters do not match dimensions of old ones')
 
         if num is not None:
             new_params = self.params.copy()
-            new_params[num] = np.array(params)
+            new_params[num] = np.asarray(params)
             kwargs['params'] = new_params
             if params_var is not None:
                 new_params_var = self.params_var.copy()
-                new_params_var[num] = np.array(params_var)
+                new_params_var[num] = np.asarray(params_var)
                 kwargs['params_var'] = new_params_var
         else:
-            kwargs['params'] = np.array(params)
+            kwargs['params'] = np.asarray(params)
             if params_var is not None:
-                kwargs['params_var'] = np.array(params_var)
+                kwargs['params_var'] = np.asarray(params_var)
 
         return self.withNew(**kwargs)
+
+    def updateParams(self, params, num=None, **kwargs):
+        """Update the parameters to the given params in place, rather than make a new star.
+
+        Note: the new params must be the same size/shape as the old params.
+
+        Equivalent to star = star.newParams(params, ...) but when it is safe to do so,
+        setting the parameters in place is a bit more efficient than making a new object.
+        """
+        if num is not None:
+            self.params[num] = np.asarray(params)
+        else:
+            self.params = np.asarray(params)
 
     def get_params(self, num):
         if num is not None and self.params is not None:

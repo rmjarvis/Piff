@@ -23,6 +23,56 @@ import warnings
 
 from .interp import Interp
 from .star import Star
+from . import _piff
+from .config import LoggerWrapper
+
+try: 
+    import jax
+    from jax import jit
+    from jax import numpy as jnp
+    from jax import vmap
+
+except ImportError:
+    CAN_USE_JAX = False
+    # define dummy functions for jax
+    def jit(f):
+        return f
+else:
+    CAN_USE_JAX = True
+    jax.config.update("jax_enable_x64", True)
+
+# Bellow are implementations of _solve_direct using JAX.
+# if jax.config.update("jax_enable_x64", True) it will give the
+# same results as the original code in double precision, but will run
+# slower, but still faster than the numpy/scipy version.
+
+@jit
+def jax_solve(ATA, ATb):
+    # Original code:
+    # dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+    # New code:
+    (factor, lower) = (jax.scipy.linalg.cholesky(ATA, overwrite_a=True, lower=False), False)
+    dq = jax.scipy.linalg.cho_solve((factor, lower), ATb, overwrite_b=False)
+    return dq
+
+@jit
+def build_ATA_ATb(alpha, beta, K):
+    ATb = (beta[:, jnp.newaxis] * K).flatten()
+    tmp1 = alpha[:, :, jnp.newaxis] * K
+    ATA = K[jnp.newaxis, :, jnp.newaxis, jnp.newaxis] * tmp1[:, jnp.newaxis, :, :]
+    return ATA, ATb
+
+@jit
+def vmap_build_ATA_ATb(Ks, alphas, betas):
+    # Use vmap to vectorize build_ATA_ATb across the first dimension of Ks, alphas, and betas
+    vmapped_build_ATA_ATb = vmap(build_ATA_ATb, in_axes=(0, 0, 0))
+    # Get the vectorized results
+    ATAs, ATbs = vmapped_build_ATA_ATb(alphas, betas, Ks)
+    # Sum the results along the first axis
+    ATb = jnp.sum(ATbs, axis=0)
+    ATA = jnp.sum(ATAs, axis=0)
+    return ATA, ATb
+
 
 class BasisInterp(Interp):
     r"""An Interp class that works whenever the interpolating functions are
@@ -52,7 +102,7 @@ class BasisInterp(Interp):
 
     def __init__(self):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
-        self.use_qr = False  # The default.  May be overridden by subclasses.
+        self.solver = "scipy"  # The default.  May be overridden by subclasses.
         self.q = None
         self.set_num(None)
 
@@ -68,7 +118,10 @@ class BasisInterp(Interp):
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
-        c = np.mean([s.fit.get_params(self._num) for s in stars], axis=0)
+        params = [s.fit.get_params(self._num) for s in stars if not s.is_flagged]
+        if len(params) == 0:
+            raise RuntimeError("All stars are flagged.  Cannot initialize BasisPolynomial.")
+        c = np.mean(params, axis=0)
         self.q = c[:,np.newaxis] * self.constant(1.)[np.newaxis,:]
         stars = self.interpolateList(stars)
         return stars
@@ -102,7 +155,7 @@ class BasisInterp(Interp):
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
         if self.q is None:
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
 
@@ -158,8 +211,8 @@ class BasisInterp(Interp):
         # QR method often has fewer numerical problems than the direct method for large matrices.
         # It just requires a lot of memory.
 
-        logger = galsim.config.LoggerWrapper(logger)
-        if self.use_qr:
+        logger = LoggerWrapper(logger)
+        if self.solver == "qr":
             self._solve_qr(stars, logger)
         else:
             self._solve_direct(stars, logger)
@@ -208,15 +261,15 @@ class BasisInterp(Interp):
         if cond < 1.e-12:
             # Note: this calculation is much slower, but it is safe to use even for
             # singular inputs, so it will always produce a valid answer.
-            logger.info('Nominal condition is %s (min, max = %s, %s)', cond,
-                        np.min(abs_Rdiag), np.max(abs_Rdiag))
-            logger.info('Switching to QRP solution')
+            logger.verbose('Nominal condition is %s (min, max = %s, %s)', cond,
+                           np.min(abs_Rdiag), np.max(abs_Rdiag))
+            logger.verbose('Switching to QRP solution')
             QR, P, tau, work, info = scipy.linalg.lapack.dgeqp3(A, overwrite_a=True)
             P[:] -= 1  # Switch to python 0-based indexing.
             abs_Rdiag = np.abs(np.diag(QR))
             cond = np.min(abs_Rdiag) / np.max(abs_Rdiag)
-            logger.info('Condition for QRP is %s (min, max = %s, %s)', cond,
-                        np.min(abs_Rdiag), np.max(abs_Rdiag))
+            logger.verbose('Condition for QRP is %s (min, max = %s, %s)', cond,
+                           np.min(abs_Rdiag), np.max(abs_Rdiag))
             # Skip any rows of R that have essentially 0 on the diagonal.
             k = np.sum(abs_Rdiag > 1.e-15 * np.max(abs_Rdiag))
             logger.debug('k = %d, m = %d',k,m)
@@ -244,7 +297,29 @@ class BasisInterp(Interp):
         self.q += dq.reshape(self.q.shape)
 
     def _solve_direct(self, stars, logger):
-        """The implementation of solve() when use_qr = False.
+        if self.solver == "cpp":
+            self._solve_direct_cpp(stars, logger)
+        else:
+            self._solve_direct_python(stars, logger)
+
+    def _solve_direct_cpp(self, stars, logger):
+        """The implementation in C++ of solve() when use_qr = False.
+        """
+
+        Ks = []
+        As = []
+        bs = []
+        for s in stars:
+            # Get the basis function values at this star
+            K = self.basis(s)
+            Ks.append(K)
+            As.append(s.fit.A)
+            bs.append(s.fit.b)
+        dq = _piff._solve_direct_cpp(bs, As, Ks)
+        self.q += dq.reshape(self.q.shape)
+
+    def _solve_direct_python(self, stars, logger):
+        """The implementation in python of solve() when use_qr = False.
         """
 
         # Build ATA and ATb by accumulating the chunks for each star as we go.
@@ -252,25 +327,44 @@ class BasisInterp(Interp):
         ATA = np.zeros((nq, nq), dtype=float)
         ATb = np.zeros(nq, dtype=float)
 
-        for s in stars:
-            # Get the basis function values at this star
-            K = self.basis(s)
-            # Sum contributions into ATA, ATb
-            if True:
-                ATb += (s.fit.beta[:,np.newaxis] * K).flatten()
-                tmp1 = s.fit.alpha[:,:,np.newaxis] * K
-                tmp2 = K[np.newaxis,:,np.newaxis,np.newaxis] * tmp1[:,np.newaxis,:,:]
-                ATA += tmp2.reshape(nq,nq)
-            else:  # pragma: no cover
-                # This is equivalent, but slower.
-                # It is here to make more explicit the connection between this calculation
-                # and the corresponding part of the QR code above.
-                A1 = (s.fit.A[:,:,np.newaxis] * K[np.newaxis,:]).reshape(
-                        s.fit.A.shape[0], s.fit.A.shape[1] * len(K))
-                ATb += A1.T.dot(s.fit.b)
-                ATA += A1.T.dot(A1)
+        if self.solver == "jax":
+            Ks = []
+            alphas = []
+            betas = []
+            for s in stars:
+                # Get the basis function values at this star
+                K = self.basis(s)
+                Ks.append(K)
+                alphas.append(s.fit.alpha)
+                betas.append(s.fit.beta)
+            alphas = np.array(alphas).reshape((len(alphas), alphas[0].shape[0], alphas[0].shape[1]))
+            betas = np.array(betas).reshape((len(betas), betas[0].shape[0]))
+            Ks = np.array(Ks).reshape((len(Ks), Ks[0].shape[0]))
+            ATA, ATb = vmap_build_ATA_ATb(Ks, alphas, betas)
+            ATA = ATA.reshape(nq,nq)
+        else:
+            for s in stars:
+                # Get the basis function values at this star
+                K = self.basis(s)
+                # Sum contributions into ATA, ATb
 
-        logger.info('Beginning solution of matrix size %s',ATA.shape)
+                if True:
+                    alpha = s.fit.alpha
+                    beta = s.fit.beta
+                    ATb += (beta[:,np.newaxis] * K).flatten()
+                    tmp1 = alpha[:,:,np.newaxis] * K
+                    tmp2 = K[np.newaxis,:,np.newaxis,np.newaxis] * tmp1[:,np.newaxis,:,:]
+                    ATA += tmp2.reshape(nq,nq)
+                else:  # pragma: no cover
+                    # This is equivalent, but slower.
+                    # It is here to make more explicit the connection between this calculation
+                    # and the corresponding part of the QR code above.
+                    A1 = (s.fit.A[:,:,np.newaxis] * K[np.newaxis,:]).reshape(
+                            s.fit.A.shape[0], s.fit.A.shape[1] * len(K))
+                    ATb += A1.T.dot(s.fit.b)
+                    ATA += A1.T.dot(A1)
+
+        logger.verbose('Beginning solution of matrix size %s',ATA.shape)
         try:
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
@@ -278,7 +372,10 @@ class BasisInterp(Interp):
                 # assuming just 'sym' instead (which does an LDL decomposition rather than
                 # Cholesky) would help.  If this fails, the matrix is usually high enough
                 # condition that it is functionally singular, and switching to SVD is warranted.
-                dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
+                if self.solver == "jax":
+                    dq = jax_solve(ATA, ATb)
+                else:
+                    dq = scipy.linalg.solve(ATA, ATb, assume_a='pos', check_finite=False)
 
             if len(w) > 0:
                 # scipy likes to warn about high condition.  They aren't actually a problem
@@ -287,45 +384,50 @@ class BasisInterp(Interp):
                 # size rediduals.  We don't have a unit test that would catch this, so be careful
                 # about changing the behavior of this part of the code!  For now, we just go to
                 # the svd solution when ATA is fully singular.
-                logger.info(w[0].message)
+                logger.verbose(w[0].message)
                 logger.debug('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
                 logger.debug('norm(dq) = %s',scipy.linalg.norm(dq))
 
         except (np.linalg.LinAlgError, scipy.linalg.LinAlgError) as e:
-            logger.info('Caught %s',str(e))
-            logger.info('Switching to svd solution')
+            logger.verbose('Caught %s',str(e))
+            logger.verbose('Switching to svd solution')
             Sd,U = scipy.linalg.eigh(ATA)
             nsvd = np.sum(np.abs(Sd) > 1.e-15 * np.abs(Sd[-1]))
-            logger.info('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
-            logger.info('nsvd = %d of %d',nsvd,len(Sd))
+            logger.verbose('2-condition is %e',np.abs(Sd[-1]/Sd[0]))
+            logger.verbose('nsvd = %d of %d',nsvd,len(Sd))
             # Note: unlike scipy.linalg.svd, the Sd here is in *ascending* order, not descending.
             Sd[-nsvd:] = 1./Sd[-nsvd:]
             Sd[:-nsvd] = 0.
             S = np.diag(Sd)
             dq = U.dot(S.dot(U.T.dot(ATb)))
-            logger.info('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
-            logger.info('norm(dq) = %s',scipy.linalg.norm(dq))
-            logger.info('norm(q) = %s',scipy.linalg.norm(self.q))
+            logger.verbose('norm(ATA dq - ATb) = %s',scipy.linalg.norm(ATA.dot(dq) - ATb))
+            logger.verbose('norm(dq) = %s',scipy.linalg.norm(dq))
+            logger.verbose('norm(q) = %s',scipy.linalg.norm(self.q))
 
         logger.debug('...finished solution')
         # Reshape dq back into a 2d array and add it to the current solution.
         self.q += dq.reshape(self.q.shape)
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
         if self.q is None:
             raise RuntimeError("Attempt to interpolate() before initialize() of BasisInterp")
 
         K = self.basis(star)
         p = np.dot(self.q,K)
-        fit = star.fit.newParams(p, num=self._num)
-        return Star(star.data, fit)
+        if inplace:
+            star.fit.updateParams(p, num=self._num)
+        else:
+            star = Star(star.data, star.fit.newParams(p, num=self._num))
+        return star
 
 
 class BasisPolynomial(BasisInterp):
@@ -341,6 +443,27 @@ class BasisPolynomial(BasisInterp):
     The maximum order is normally the maximum order of any given key's order, but you may
     specify a larger value.  (e.g. to use 1, x, y, xy, you would specify order=1, max_order=2.)
 
+    There are several options for what code to use for doing the linear algebra, controlled
+    by the ``solver`` parameter, which can take one of the following values:
+
+    1. "scipy" uses regular numpy array functionality to build the matrices, and then uses
+       ``scipy.linalg.solve`` to find the solution.  It starts by assuming the matrix
+       is positive definite, and it falls back to an SVD solution when that is not the case.
+    2. "qr" will also use numpy to build the matrices, but then it uses QR decomposition
+       for the solution rather than the more direct least squares solution.
+       QR decomposition requires more memory than the default and is somewhat slower
+       (nearly a factor of 2); however, it is significantly less susceptible to
+       numerical errors from high condition matrices.
+    3. "jax" uses the JAX module for building and solving the linear algebra equations
+       rather than numpy/scipy. It should be equivalent in its results to the "scipy" option,
+       but it may be faster if a multi-core cpu or gpu is available.
+    4. "cpp" uses the Eigen linear algebra package in C++ to build and solve the linear
+       algebra equations rather than numpy/scipy.  On a single core cpu (and more), it
+       will be faster than default "scipy" solver if the number of training stars is more
+       than ~30. With a Piff config using `PixelGrid` with ``size=25`` and ``interp="Lanczos(11)"``
+       and a second order polynomial for interpolation, and running on ~O(100) PSFs reserved
+       stars on a 4GB single core CPU, "cpp" solver is 60% faster than "scipy" solver.
+
     Use type name "BasisPolynomial" in a config field to use this interpolant.
 
     :param order:       The order to use for each key.  Can be a single value (applied to all
@@ -349,17 +472,29 @@ class BasisPolynomial(BasisInterp):
                         [default: ('u','v')]
     :param max_order:   The maximum total order to use for cross terms between keys.
                         [default: None, which uses the maximum value of any individual key's order]
-    :param use_qr:      Use QR decomposition for the solution rather than the more direct least
-                        squares solution.  QR decomposition requires more memory than the default
-                        and is somewhat slower (nearly a factor of 2); however, it is significantly
-                        less susceptible to numerical errors from high condition matrices.
-                        Therefore, it may be preferred for some use cases. [default: False]
+                        If this is an integer, it applies to all pairs, but you may also specify
+                        a dict mapping pairs of keys to an integer.  E.g. {('u','v'):3,
+                        ('u','z'):0, ('v','z'):0}.  This sets the maximum order for cross terms
+                        between these pairs.  Furthermore, any pairs for which you want to skip
+                        cross terms (max=0) may be omitted from the dict.
+    :param solver:      Which solver to use.  Solvers available are "scipy", "qr", "jax",
+                        "cpp". See above for details. [default: 'scipy']
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
 
-    def __init__(self, order, keys=('u','v'), max_order=None, use_qr=False, logger=None):
+    def __init__(
+            self,
+            order,
+            keys=('u','v'),
+            max_order=None,
+            solver="scipy",
+            use_qr=False,
+            logger=None
+        ):
         super(BasisPolynomial, self).__init__()
+
+        logger = LoggerWrapper(logger)
 
         self._keys = keys
         if hasattr(order,'__len__'):
@@ -373,25 +508,74 @@ class BasisPolynomial(BasisInterp):
             self._max_order = np.max(self._orders)
         else:
             self._max_order = max_order
-        self.use_qr = use_qr
 
-        if self._max_order<0 or np.any(np.array(self._orders) < 0):
+        self.solver = solver
+
+        valid_solver = ["scipy", "qr", "jax", "cpp"]
+
+        if solver not in valid_solver:
+            raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
+
+        # To match old API when jax and cpp were not part of solving
+        # basis interp.
+        if use_qr and solver not in ["scipy", "qr"]:
+            raise NotImplementedError(f"use_qr and {solver} are not compatible")
+        if use_qr:
+            logger.error("WARNING: use_qr=True is deprecated. "
+                         "Use solver='qr' instead.")
+            self.solver = "qr"
+
+        if not CAN_USE_JAX and self.solver == "jax":
+            logger.info("JAX not installed. Reverting to numpy/scipy.")
+            self.solver = "scipy"
+
+        if np.any(np.array(self._orders) < 0):
             # Exception if we have any requests for negative orders
             raise ValueError('Negative polynomial order specified')
 
         self.kwargs = {
             'order' : order,
+            'max_order' : max_order,
             'keys' : keys,
-            'use_qr' : use_qr
+            'solver': solver,
         }
 
         # Now build a mask that picks the desired polynomial products
         # Start with 1d arrays giving orders in all dimensions
         ord_ranges = [np.arange(order+1,dtype=int) for order in self._orders]
         # Nifty trick to produce n-dim array holding total order
-        #sumorder = np.sum(np.ix_(*ord_ranges))  # This version doesn't work in numpy 1.19
         sumorder = np.sum(np.meshgrid(*ord_ranges, indexing='ij'), axis=0)
-        self._mask = sumorder <= self._max_order
+
+        if isinstance(self._max_order, dict):
+            # This code is not particularly efficient.  Hopefully it doesn't matter.
+            # Basically set a maxorder for each element in sumorder based on whether it is
+            # a) a power of a single key.  Use the order for that key.
+            # b) a cross-product of multiple keys.  Use it only if it is in the max_order dict.
+            max_orders = np.zeros_like(sumorder)
+
+            def get_indices(arr, pre=()):
+                # Get the index tuples of the given multi-dimensional array.
+                if not isinstance(arr, np.ndarray):
+                    yield pre
+                else:
+                    for i in range(len(arr)):
+                        yield from get_indices(arr[i], pre + (i,))
+            for index in get_indices(sumorder):
+                for k, order in enumerate(self._orders):
+                    if index[k] > 0 and all(index[j] == 0 for j in range(len(index)) if j != k):
+                        max_orders[index] = order
+                for keys, order in self._max_order.items():
+                    kk = [keys.index(key) for key in keys]
+                    ok = True
+                    for k in range(len(self._orders)):
+                        if index[k] > 0 and k not in kk: ok = False
+                        if index[k] == 0 and k in kk: ok = False
+                    if ok:
+                        max_orders[index] = order
+        else:
+            max_orders = self._max_order
+
+        self._mask = sumorder <= max_orders
 
     def getProperties(self, star):
         return np.array([star.data[k] for k in self._keys], dtype=float)
@@ -411,15 +595,21 @@ class BasisPolynomial(BasisInterp):
         """
         # Get the interpolation key values
         vals = self.getProperties(star)
+
         # Make 1d arrays of all needed powers of keys
         pows1d = []
         for i,o in enumerate(self._orders):
             p = np.ones(o+1,dtype=float)
             p[1:] = vals[i]
             pows1d.append(np.cumprod(p))
-        # Use trick to produce outer product of all these powers
-        #pows2d = np.prod(np.ix_(*pows1d))
-        pows2d = np.prod(np.meshgrid(*pows1d, indexing='ij'), axis=0)
+
+        # Make outer product of all these powers
+        if len(pows1d) == 2:
+            # This is faster than the line below.
+            pows2d = np.outer(*pows1d)
+        else:
+            pows2d = np.prod(np.meshgrid(*pows1d, indexing='ij'), axis=0)
+
         # Return linear array of terms making total power constraint
         return pows2d[self._mask]
 
@@ -434,11 +624,10 @@ class BasisPolynomial(BasisInterp):
         out[0] = value  # The constant term is always first.
         return out
 
-    def _finish_write(self, fits, extname):
-        """Write the solution to a FITS binary table.
+    def _finish_write(self, writer):
+        """Write the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         if self.q is None:
             raise RuntimeError("Solution not set yet.  Cannot write this BasisPolynomial.")
@@ -446,14 +635,13 @@ class BasisPolynomial(BasisInterp):
         dtypes = [ ('q', float, self.q.shape) ]
         data = np.zeros(1, dtype=dtypes)
         data['q'] = self.q
-        fits.write_table(data, extname=extname + '_solution')
+        writer.write_table('solution', data)
 
-    def _finish_read(self, fits, extname):
-        """Read the solution from a FITS binary table.
+    def _finish_read(self, reader):
+        """Read the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The name of the extension with the interpolator information.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
-        data = fits[extname + '_solution'].read()
+        data = reader.read_table('solution')
+        assert data is not None
         self.q = data['q'][0]
-

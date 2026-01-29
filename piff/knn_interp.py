@@ -77,7 +77,8 @@ class KNNInterp(Interp):
         :param targets:     The target values. (n_samples, n_targets).
                             (In sklearn parlance, this is 'y'.)
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         self.knn.fit(locations, targets)
         self.locations = locations
         logger.debug('locations updated to shape: %s', self.locations.shape)
@@ -92,7 +93,8 @@ class KNNInterp(Interp):
 
         :returns:   Regressed parameters y (n_samples, n_targets)
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         regression = self.knn.predict(locations)
         logger.debug('Regression shape: %s', regression.shape)
         return regression
@@ -128,41 +130,48 @@ class KNNInterp(Interp):
         targets = np.array([star.fit.get_params(self._num) for star in stars])
         self._fit(locations, targets)
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance with its StarFit member holding the interpolated parameters
+        :returns: a Star instance with its StarFit member holding the interpolated parameters
         """
         # Just call interpolateList because sklearn prefers list input anyways
-        return self.interpolateList([star], logger=logger)[0]
+        return self.interpolateList([star], logger=logger, inplace=inplace)[0]
 
-    def interpolateList(self, stars, logger=None):
+    def interpolateList(self, stars, logger=None, inplace=False):
         """Perform the interpolation for a list of stars.
 
         :param stars:       A list of Star instances to which to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned stars are the same objects as the input stars. [default: False]
 
-        :returns: a list of new Star instances with interpolated parameters
+        :returns: a list of Star instances with interpolated parameters
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         locations = np.array([self.getProperties(star) for star in stars])
         targets = self._predict(locations)
         stars_fitted = []
         for yi, star in zip(targets, stars):
-            fit = star.fit.newParams(yi, num=self._num)
-            stars_fitted.append(Star(star.data, fit))
+            if inplace:
+                star.fit.updateParams(yi, num=self._num)
+            else:
+                star = Star(star.data, star.fit.newParams(yi, num=self._num))
+            stars_fitted.append(star)
         return stars_fitted
 
-    def _finish_write(self, fits, extname):
-        """Write the solution to a FITS binary table.
+    def _finish_write(self, writer):
+        """Write the solution.
 
         Save the knn params and the locations and targets arrays
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension with the interp information.
+        :param writer:      A writer object that encapsulates the serialization format.
         """
 
         dtypes = [('LOCATIONS', self.locations.dtype, self.locations.shape),
@@ -173,16 +182,14 @@ class KNNInterp(Interp):
         data['LOCATIONS'] = self.locations
         data['TARGETS'] = self.targets
 
-        # write to fits
-        fits.write_table(data, extname=extname + '_solution')
+        writer.write_table('solution', data)
 
-    def _finish_read(self, fits, extname):
-        """Read the solution from a FITS binary table.
+    def _finish_read(self, reader):
+        """Read the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension with the interp information.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
-        data = fits[extname + '_solution'].read()
+        data = reader.read_table('solution')
 
         # self.locations and self.targets assigned in _fit
         self._fit(data['LOCATIONS'][0], data['TARGETS'][0])
@@ -195,7 +202,8 @@ class kNNInterp(KNNInterp):
     _type_name = 'kNNInterp'
 
     def __init__(self, *args, logger=None, **kwargs):
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         logger.error("WARNING: The name kNNInterp is deprecated. "
                      "Use KNN or KNearestNeighbors instead.")
         super().__init__(*args, logger=logger, **kwargs)

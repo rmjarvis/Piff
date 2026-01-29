@@ -22,8 +22,6 @@ import math
 import galsim
 from scipy.stats import chi2
 
-from .util import write_kwargs, read_kwargs
-
 class Outliers(object):
     """The base class for handling outliers.
 
@@ -91,49 +89,46 @@ class Outliers(object):
         kwargs['logger'] = logger
         return kwargs
 
-    def write(self, fits, extname):
-        """Write an Outliers to a FITS file.
+    def write(self, writer, name):
+        """Write an Outers via a writer object.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension to write the outliers information.
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with the Ootliers in the serialized output.
         """
         # First write the basic kwargs that works for all Outliers classes
         outliers_type = self._type_name
-        write_kwargs(fits, extname, dict(self.kwargs, type=outliers_type))
+        writer.write_struct(name, dict(self.kwargs, type=outliers_type))
 
         # Now do any class-specific steps.
-        self._finish_write(fits, extname)
+        with writer.nested(name) as w:
+            self._finish_write(w)
 
-    def _finish_write(self, fits, extname):
+    def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Outliers classes need to write extra information to the
         fits file.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with the outliers in the serialized output.
         """
         pass
 
     @classmethod
-    def read(cls, fits, extname):
+    def read(cls, reader, name):
         """Read a Outliers from a FITS file.
 
-        :param fits:        An open fitsio.FITS object
-        :param extname:     The name of the extension with the outliers information.
+        :param reader:      A reader object that encapsulates the serialization format.
+        :param name:        Name associated with the outliers in the serialized output.
 
-        :returns: an Outliers handler
+        :returns: an Outliers handler, or None if there isn't one.
         """
-        assert extname in fits
-        assert 'type' in fits[extname].get_colnames()
-        outliers_type = fits[extname].read()['type']
-        assert len(outliers_type) == 1
-        try:
-            outliers_type = str(outliers_type[0].decode())
-        except AttributeError:
-            # fitsio 1.0 returns strings
-            outliers_type = outliers_type[0]
+        kwargs = reader.read_struct(name)
+        if kwargs is None:
+            return None
+        assert 'type' in kwargs
+        outliers_type = kwargs.pop('type')
 
         # Old output files had the full name.  Fix it if necessary.
         if (outliers_type.endswith('Outliers')
@@ -145,21 +140,19 @@ class Outliers(object):
             raise ValueError("outliers type %s is not a valid Piff Outliers"%outliers_type)
         outliers_cls = Outliers.valid_outliers_types[outliers_type]
 
-        kwargs = read_kwargs(fits, extname)
-        kwargs.pop('type',None)
         outliers = outliers_cls(**kwargs)
-        outliers._finish_read(fits, extname)
+        with reader.nested(name) as r:
+            outliers._finish_read(r)
         return outliers
 
-    def _finish_read(self, fits, extname):
+    def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.
 
         The base class implementation doesn't do anything, which is often appropriate, but
         this hook exists in case any Outliers classes need to read extra information from the
         fits file.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension.
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         pass
 
@@ -253,6 +246,8 @@ class ChisqOutliers(Outliers):
 
     def __init__(self, thresh=None, ndof=None, prob=None, nsigma=None, max_remove=None,
                  include_reserve=None, logger=None):
+        from .config import LoggerWrapper
+
         if all( (thresh is None, ndof is None, prob is None, nsigma is None) ):
             raise TypeError("One of thresh, ndof, prob, or nsigma is required.")
         if thresh is not None and any( (ndof is not None, prob is not None, nsigma is not None) ):
@@ -262,7 +257,7 @@ class ChisqOutliers(Outliers):
         if prob is not None and nsigma is not None:
             raise TypeError("Only one of thresh, ndof, prob, or nsigma may be given.")
         if include_reserve is not None:
-            logger = galsim.config.LoggerWrapper(logger)
+            logger = LoggerWrapper(logger)
             logger.error("WARNING: include_reserve is no longer used.")
 
         # The only one of these we can convert now is nsigma, which we can convert into prob.
@@ -299,7 +294,8 @@ class ChisqOutliers(Outliers):
         :returns: stars, nremoved   A new list of stars with outliers flagged, and how many outliers
                                     were flagged.
         """
-        logger = galsim.config.LoggerWrapper(logger)
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
 
         # First figure out the threshold we actually want to use given max_remove.
 
@@ -307,7 +303,7 @@ class ChisqOutliers(Outliers):
         # But note that we apply the threshold to everything eventually.
         use_stars = [star for star in stars if not star.is_flagged and not star.is_reserve]
         nstars = len(use_stars)
-        logger.info("Checking %d stars for outliers", nstars)
+        logger.verbose("Checking %d stars for outliers", nstars)
 
         chisq = np.array([s.fit.chisq for s in use_stars])
         dof = np.array([s.fit.dof for s in use_stars])
@@ -319,17 +315,17 @@ class ChisqOutliers(Outliers):
         thresh = np.array([self._get_thresh(d) for d in dof]) * factor
 
         if np.all(dof == dof[0]):
-            logger.info("dof = %f, thresh = %f * %f = %f",
+            logger.verbose("dof = %f, thresh = %f * %f = %f",
                          dof[0], self._get_thresh(dof[0]), factor, thresh[0])
         else:
             min_dof = np.min(dof)
             max_dof = np.max(dof)
             min_thresh = self._get_thresh(min_dof)
             max_thresh = self._get_thresh(max_dof)
-            logger.info("Minimum dof = %d with thresh = %f * %f = %f",
-                         min_dof, min_thresh, factor, min_thresh*factor)
-            logger.info("Maximum dof = %d with thresh = %f * %f = %f",
-                         max_dof, max_thresh, factor, max_thresh*factor)
+            logger.verbose("Minimum dof = %d with thresh = %f * %f = %f",
+                           min_dof, min_thresh, factor, min_thresh*factor)
+            logger.verbose("Maximum dof = %d with thresh = %f * %f = %f",
+                           max_dof, max_thresh, factor, max_thresh*factor)
 
         nremoved = np.sum(~(chisq <= thresh))  # Write it as not chisq <= thresh in case of nans.
 
@@ -341,7 +337,7 @@ class ChisqOutliers(Outliers):
                      for s in stars]
             return stars, 0
 
-        logger.info("Found %d stars with chisq > thresh", nremoved)
+        logger.verbose("Found %d stars with chisq > thresh", nremoved)
 
         # Update max_remove if necessary
         max_remove = self.max_remove

@@ -18,14 +18,18 @@ import galsim
 import numpy as np
 import fitsio
 import piff
+import pytest
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
-@timer
+@pytest.fixture(scope="module", autouse=True)
 def setup():
     """Make sure the images and catalogs that we'll use throughout this module are done first.
     """
-    gs_config = galsim.config.ReadConfig(os.path.join('input','make_input.yaml'))[0]
+    dir = os.path.dirname(os.path.realpath(__file__))
+    config_file_name = os.path.join(dir, 'input', 'make_input.yaml')
+    gs_config = galsim.config.ReadConfig(config_file_name)[0]
+    gs_config['output']['dir'] = os.path.join(dir, 'input')
     galsim.config.BuildFiles(2, galsim.config.CopyConfig(gs_config))
 
     # For the third file, add in a real wcs and ra, dec to the output catalog.
@@ -42,7 +46,7 @@ def setup():
     gs_config['output']['truth']['columns']['dec'] = '$wcs.toWorld(image_pos).dec / galsim.degrees'
     galsim.config.BuildFiles(1, galsim.config.CopyConfig(gs_config), file_num=2)
 
-    cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
+    cat_file_name = os.path.join(dir, 'input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
     sky = np.mean(data['sky'])
     gain = np.mean(data['gain'])
@@ -51,7 +55,7 @@ def setup():
 
     # Write a sky image file
     sky_im = galsim.Image(1024,1024, init_value=sky)
-    sky_im.write(os.path.join('input', 'test_input_sky_00.fits.fz'))
+    sky_im.write(os.path.join(dir, 'input', 'test_input_sky_00.fits.fz'))
 
     # Add two color columns to first catalog file
     rng1 = np.random.default_rng(123)
@@ -65,7 +69,7 @@ def setup():
 
     # Add some header values to the first one.
     # Also add some alternate weight and badpix maps to enable some edge-case tests
-    image_file = os.path.join('input','test_input_image_00.fits')
+    image_file = os.path.join(dir, 'input', 'test_input_image_00.fits')
     with fitsio.FITS(image_file, 'rw') as f:
         f[0].write_key('SKYLEVEL', sky, 'sky level')
         f[0].write_key('GAIN_A', gain, 'gain')
@@ -91,10 +95,21 @@ def setup():
         bp[:,:] = 0
         bp[1::2,:] = 16 # Odd cols
         f.write(bp) # hdu = 9
-        wt = f[1].read().copy()
-        var = 1/wt + (f[0].read() - sky) / gain
+        wtx = f[1].read().copy()
+        var = 1/wtx + (f[0].read() - sky) / gain
         f.write(var) # hdu = 10
 
+    weight_file = os.path.join(dir, 'input', 'test_input_weight_00.fits')
+    with fitsio.FITS(weight_file, 'rw', clobber=True) as f:
+        # hdu 0 here is equivalent to hdu 10 above.
+        f.write(var)
+        # hdu 1 here is equivalent to hdu 8 above.
+        f.write(wt)
+
+    badpix_file = os.path.join(dir, 'input', 'test_input_badpix_00.fits')
+    with fitsio.FITS(badpix_file, 'rw', clobber=True) as f:
+        # hdu 0 here is equivalent to hdu 9 above.
+        f.write(bp)
 
 @timer
 def test_basic():
@@ -1047,7 +1062,20 @@ def test_weight():
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
+    # Use a different file for badpix and weight.  These are hdu 2,1 in this file.
+    config['weight_file_name'] = 'input/test_input_weight_00.fits'
+    config['weight_hdu'] = 1
+    config['badpix_file_name'] = 'input/test_input_badpix_00.fits'
+    config['badpix_hdu'] = 0
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 1
+    _, weight, _, _ = input.getRawImageData(0)
+    assert weight.array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(weight.array, 0.)
+
     # Negative valued weights are invalid
+    del config['weight_file_name']
+    del config['badpix_file_name']
     config['weight_hdu'] = 4
     input = piff.InputFiles(config)
     with CaptureLog() as cl:
@@ -1126,6 +1154,29 @@ def test_lsst_weight():
     print('expected noise = ',expected_noise)
     print('var = ',1./weight.array)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-5)
+
+    # Finally, check using a different file for the weight image.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'weight_file_name' : 'input/test_input_weight_00.fits',
+                'gain' : 'GAIN_A',
+                'invert_weight' : True,
+                'remove_signal_from_weight' : True,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 1
+    image, weight1, image_pos, props = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    assert image.array.shape == (1024, 1024)
+    assert weight.array.shape == (1024, 1024)
+    np.testing.assert_array_equal(weight1, weight)  # From previous test using hdu 10
+    read_noise = 10
+    expected_noise = read_noise**2 / gain**2
+    print('expected noise = ',expected_noise)
+    print('var = ',1./weight.array)
+    np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-5)
+
 
 
 @timer

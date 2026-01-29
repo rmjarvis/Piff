@@ -22,6 +22,8 @@ import sys
 import traceback
 import galsim
 
+from .config import PiffLogger
+
 def ensure_dir(target):
     """Ensure that the directory for a target output file exists.
 
@@ -101,44 +103,6 @@ def adjust_value(value, dtype):
             # For other numpy arrays, we can use astype instead.
             return np.array(value).astype(t)
 
-def write_kwargs(fits, extname, kwargs):
-    """A helper function for writing a single row table into a fits file with the values
-    and column names given by a kwargs dict.
-
-    :param fits:        An open fitsio.FITS instance
-    :param extname:     The extension to write to
-    :param kwargs:      A kwargs dict to be written as a FITS binary table.
-    """
-    from . import __version__ as piff_version
-    cols = []
-    dtypes = []
-    for key, value in kwargs.items():
-        # Don't add values that are None to the table.
-        if value is None:
-            continue
-        dt = make_dtype(key, value)
-        value = adjust_value(value,dt)
-        cols.append([value])
-        dtypes.append(dt)
-    data = np.array(list(zip(*cols)), dtype=dtypes)
-    header = {'piff_version': piff_version}
-    fits.write_table(data, extname=extname, header=header)
-
-def read_kwargs(fits, extname):
-    """A helper function for reading a single row table from a fits file returning the values
-    and column names as a kwargs dict.
-
-    :param fits:        An open fitsio.FITS instance
-    :param extname:     The extension to read.
-
-    :returns: A dict of the kwargs that were read from the file.
-    """
-    cols = fits[extname].get_colnames()
-    data = fits[extname].read()
-    assert len(data) == 1
-    kwargs = dict([ (col, data[col][0]) for col in cols ])
-    return kwargs
-
 def estimate_cov_from_jac(jac):
     """Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
     .. math::
@@ -180,7 +144,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
 
     # In multiprocessing, we cannot pass in the logger, so log to a string and then
     # return that back at the end to be logged by the parent process.
-    logger = logging.getLogger('logtostring_%d'%i)
+    logger = PiffLogger(logging.getLogger('logtostring_%d'%i))
     buf = StringIO()
     handler = logging.StreamHandler(buf)
     logger.addHandler(handler)
@@ -193,7 +157,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
         # is to catch it and return it.  We can deal with it somehow on the other end.
         # Also add more details here with verbose>=2 to help with debugging.
         tr = traceback.format_exc()
-        logger.info("Caught exception:\n%s",tr)
+        logger.verbose("Caught exception:\n%s",tr)
         out = e
 
     handler.flush()
@@ -220,10 +184,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     :returns: The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
-    if galsim.__version_info__ >= (2,4):
-        from galsim.utilities import single_threaded
-    else:  # pragma: no cover
-        from contextlib import nullcontext as single_threaded
+    from galsim.utilities import single_threaded
 
     njobs = len(args)
     nproc = galsim.config.util.UpdateNProc(nproc, len(args), {}, logger)
@@ -233,7 +194,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
 
     def log_output(result): # pragma: no cover (It is covered, but in an async process.)
         i, out, log = result
-        logger.info(log)
+        logger.verbose(log)
         if isinstance(out, Exception):
             logger.warning("Caught exception in multiprocessing job: %r",out)
             err_list[i] = out

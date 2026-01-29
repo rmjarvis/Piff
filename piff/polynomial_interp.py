@@ -260,8 +260,9 @@ class Polynomial(Interp):
         :param stars:       A list of Star instances to use for the interpolation.
         :param logger:      A logger object for logging debug info. [default: None]
         """
+        from .config import LoggerWrapper
         import scipy.optimize
-        logger = galsim.config.LoggerWrapper(logger)
+        logger = LoggerWrapper(logger)
 
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
@@ -275,9 +276,9 @@ class Polynomial(Interp):
         npos = len(positions)
         self._setup_indices(nparam)
 
-        logger.info("Fitting %d parameter vectors using "\
-                    "polynomial type %s with %d positions",
-                    nparam,self.poly_type,npos)
+        logger.verbose("Fitting %d parameter vectors using "\
+                       "polynomial type %s with %d positions",
+                       nparam,self.poly_type,npos)
 
         # This model function adapts our _interpolationModel method
         # into the form that the scipy curve_fit function is expecting.
@@ -320,11 +321,10 @@ class Polynomial(Interp):
         # self._unpack_coefficients
         self.coeffs = coeffs
 
-    def _finish_write(self, fits, extname):
-        """Write the solution to a FITS binary table.
+    def _finish_write(self, writer):
+        """Write the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension
+        :param writer:      A writer object that encapsulates the serialization format.
         """
         if self.coeffs is None:
             raise RuntimeError("Coeffs not set yet.  Cannot write this Polynomial.")
@@ -368,20 +368,19 @@ class Polynomial(Interp):
 
         # Finally, write all of this to a FITS table.
         data = np.array(list(zip(*cols)), dtype=dtypes)
-        fits.write_table(data, extname=extname + '_solution', header=header)
+        writer.write_table('solution', data, metadata=header)
 
 
-    def _finish_read(self, fits, extname):
-        """Read the solution from a fits file.
+    def _finish_read(self, reader):
+        """Read the solution.
 
-        :param fits:        An open fitsio.FITS object.
-        :param extname:     The base name of the extension
+        :param reader:      A reader object that encapsulates the serialization format.
         """
         # Read the solution extension.
-        data = fits[extname + '_solution'].read()
-        header = fits[extname + '_solution'].read_header()
-
-        self.nparam = header['NPARAM']
+        metadata = {}
+        data = reader.read_table('solution', metadata=metadata)
+        assert data is not None
+        self.nparam = metadata['NPARAM']
 
         # Run setup functions to get these values right.
         self._set_function(self.poly_type)
@@ -397,15 +396,20 @@ class Polynomial(Interp):
             self.coeffs.append(self._unpack_coefficients(p,col))
 
 
-    def interpolate(self, star, logger=None):
+    def interpolate(self, star, logger=None, inplace=False):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
+        :param inplace:     Whether to update the parameters in place, in which case the
+                            returned star is the same object as the input star. [default: False]
 
-        :returns: a new Star instance holding the interpolated parameters
+        :returns: a Star instance holding the interpolated parameters
         """
         pos = self.getProperties(star)
         p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
-        fit = star.fit.newParams(p, num=self._num)
-        return Star(star.data, fit)
+        if inplace:
+            star.fit.updateParams(p, num=self._num)
+        else:
+            star = Star(star.data, star.fit.newParams(p, num=self._num))
+        return star
