@@ -28,16 +28,12 @@ jobs:
 
                 # Add some other particular combinations to test
                 include:
-                    # A couple in MacOS
-                    # I've been getting random seg faults in macos runs lately.
-                    # Note sure what the problem is, but for now just disable macos CI.
-                    #- os: macos-latest
-                    #- os: macos-13
-                      #py: "3.10"
-                      #CC: cc
-                      #CXX: c++
-                      #FFTW_DIR: "/opt/homebrew/lib/"
-                      #FFTW_DIR: "/usr/local/lib"
+                    # MacOS
+                    - os: macos-latest
+                      py: "3.10"
+                      CC: cc
+                      CXX: c++
+                      FFTW_DIR: "/opt/homebrew/lib/"
 
                     # Check one with clang compiler
                     - os: ubuntu-latest
@@ -68,7 +64,7 @@ jobs:
                 path: |
                   ~/.cache/pip
                   $HOME/Library/Caches/Homebrew
-                  /usr/local/Cellar
+                  /opt/homebrew/Cellar
                 key: ${{ runner.os }}-${{ matrix.py }}-pip-${{ hashFiles('requirements.txt') }}
                 restore-keys: |
                     ${{ runner.os }}-${{ matrix.py }}-pip-
@@ -90,8 +86,7 @@ jobs:
                 brew install fftw eigen || true
                 brew link --overwrite fftw eigen || true
                 ls -lF /usr/local
-                ls -lF /usr/local/lib
-                ls -lF /usr/local/Cellar
+                ls -lF /opt/homebrew/Cellar
                 ls $FFTW_DIR
 
             - name: Install libbz2, libjpeg
