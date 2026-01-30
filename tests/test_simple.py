@@ -800,7 +800,7 @@ def test_psf():
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.PSF.valid_psf_types', {'SingleChip': piff.SingleChipPSF}):
         with warnings.catch_warnings():
-            if numpy.__version__ > '2':
+            if np.__version__ > '2':
                 warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
             np.testing.assert_raises(ValueError, piff.PSF.read, filename)
 
@@ -812,7 +812,7 @@ def test_psf():
         pass
     else:
         with warnings.catch_warnings():
-            if numpy.__version__ > '2':
+            if np.__version__ > '2':
                 warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
             psf = piff.PSF.read(filename)
         print(psf)
@@ -930,7 +930,7 @@ def test_draw():
     # Use an existing Piff solution to match as closely as possible how users would actually
     # use this function.
     with warnings.catch_warnings():
-        if numpy.__version__ > '2':
+        if np.__version__ > '2':
             warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
         psf = piff.read('input/test_single_py27.piff', logger=logger)
 

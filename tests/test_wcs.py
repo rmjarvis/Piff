@@ -614,7 +614,7 @@ def test_olddes():
     fname = os.path.join('input', 'D00240560_r_c01_r2362p01_piff.fits')
     with warnings.catch_warnings():
         # Numpy 2.4+ has started warning about a deprecation here.
-        if numpy.__version__ > '2':
+        if np.__version__ > '2':
             warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
         psf = piff.PSF.read(fname, logger=logger)
 
@@ -670,7 +670,7 @@ def test_newdes():
         # This file was written with GalSim 2.1, and now raises a deprecation warning for 2.2.
         warnings.simplefilter("ignore", galsim.GalSimDeprecationWarning)
         warnings.simplefilter("ignore", DeprecationWarning)
-        if numpy.__version__ > '2':
+        if np.__version__ > '2':
             warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
         psf = piff.PSF.read(fname, logger=logger)
 
