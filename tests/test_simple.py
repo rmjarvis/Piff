@@ -22,6 +22,8 @@ import subprocess
 import yaml
 import fitsio
 import copy
+import pytest
+import warnings
 from unittest import mock
 
 from piff_test_helper import get_script_name, timer, CaptureLog
@@ -292,10 +294,10 @@ def test_single_image():
     np.testing.assert_equal(test_star.image.array, test_star_list.image.array)
 
     # test deprecated copy_image=False option for drawStar
-    with np.testing.assert_warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):
         test_star2 = psf.drawStar(target, copy_image=False)
     assert test_star.image == test_star2.image
-    with np.testing.assert_warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):
         test_star3 = psf.drawStarList([target], copy_image=False)[0]
     assert test_star.image == test_star3.image
 
@@ -797,7 +799,9 @@ def test_psf():
     # Mock this by pretending that SingleChip is the only subclass of PSF.
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
     with mock.patch('piff.PSF.valid_psf_types', {'SingleChip': piff.SingleChipPSF}):
-        np.testing.assert_raises(ValueError, piff.PSF.read, filename)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
+            np.testing.assert_raises(ValueError, piff.PSF.read, filename)
 
     # But normally this file can be read...
     try:
@@ -806,7 +810,9 @@ def test_psf():
         # Skip this test, since it requires pixmappy.
         pass
     else:
-        psf = piff.PSF.read(filename)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
+            psf = piff.PSF.read(filename)
         print(psf)
 
     # Check that registering new types works correctly
@@ -921,7 +927,9 @@ def test_draw():
 
     # Use an existing Piff solution to match as closely as possible how users would actually
     # use this function.
-    psf = piff.read('input/test_single_py27.piff', logger=logger)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
+        psf = piff.read('input/test_single_py27.piff', logger=logger)
 
     # This file was made prior to us adding the piff_version attribute.
     assert psf.piff_version is None

@@ -18,6 +18,7 @@ import piff
 import numpy as np
 import os
 import fitsio
+import pytest
 from unittest import mock
 
 from piff_test_helper import timer, CaptureLog
@@ -1101,7 +1102,7 @@ def test_fail():
     # This is contrived to hit the fit failure for the reference.
     # I'm not sure what realistic use case would actually hit it, but at least it's
     # theoretically possible to fail there.
-    with np.testing.assert_warns(RuntimeWarning):
+    with pytest.warns(RuntimeWarning):
         model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
     with np.testing.assert_raises(RuntimeError):
         model2.initialize(star1)
