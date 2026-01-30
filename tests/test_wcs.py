@@ -558,7 +558,8 @@ def test_pickle():
     # First, this is the output file written by the above test_single function on python 2.
     # Shoudl be trivially readable by python 2, but make sure it is also readable by python 3.
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
+        if numpy.__version__ > '2':
+            warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
         psf = piff.read('input/test_single_py27.piff', logger=logger)
 
     wcs1 = galsim.TanWCS(
@@ -613,7 +614,8 @@ def test_olddes():
     fname = os.path.join('input', 'D00240560_r_c01_r2362p01_piff.fits')
     with warnings.catch_warnings():
         # Numpy 2.4+ has started warning about a deprecation here.
-        warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
+        if numpy.__version__ > '2':
+            warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
         psf = piff.PSF.read(fname, logger=logger)
 
     print('psf.wcs = ',psf.wcs[0])
@@ -668,7 +670,8 @@ def test_newdes():
         # This file was written with GalSim 2.1, and now raises a deprecation warning for 2.2.
         warnings.simplefilter("ignore", galsim.GalSimDeprecationWarning)
         warnings.simplefilter("ignore", DeprecationWarning)
-        warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
+        if numpy.__version__ > '2':
+            warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
         psf = piff.PSF.read(fname, logger=logger)
 
     print('psf.wcs = ',psf.wcs[0])
