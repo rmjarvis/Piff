@@ -66,7 +66,6 @@ jobs:
                 path: |
                   ~/.cache/pip
                   $HOME/Library/Caches/Homebrew
-                  /usr/local/Cellar
                 key: ${{ runner.os }}-${{ matrix.py }}-pip-${{ hashFiles('requirements.txt') }}
                 restore-keys: |
                     ${{ runner.os }}-${{ matrix.py }}-pip-
@@ -88,8 +87,7 @@ jobs:
                 brew install fftw eigen || true
                 brew link --overwrite fftw eigen || true
                 ls -lF /usr/local
-                #ls -lF /usr/local/lib
-                ls -lF /usr/local/Cellar
+                ls -lF /opt/homebrew/Cellar/
                 ls $FFTW_DIR
 
             - name: Install libbz2, libjpeg
