@@ -558,7 +558,7 @@ def test_pickle():
     # First, this is the output file written by the above test_single function on python 2.
     # Shoudl be trivially readable by python 2, but make sure it is also readable by python 3.
     with warnings.catch_warnings():
-        if numpy.__version__ > '2':
+        if np.__version__ > '2':
             warnings.simplefilter("ignore", np.exceptions.VisibleDeprecationWarning)
         psf = piff.read('input/test_single_py27.piff', logger=logger)
 
