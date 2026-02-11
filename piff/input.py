@@ -313,7 +313,7 @@ class InputFiles(Input):
                 'trust_pos' : bool,
                 'use_partial' : bool,
                 'sky' : str,
-                'noise' : float,
+                'noise' : str,
                 'nstars' : int,
               }
         ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
@@ -530,7 +530,6 @@ class InputFiles(Input):
                     'satur' : satur,
                     'trust_pos' : trust_pos,
                     'nstars' : nstars,
-                    'image_file_name' : image_file_name,
                     'stamp_size' : self.stamp_size})
 
         self.use_partial = config.get('use_partial', False)
@@ -772,7 +771,7 @@ class InputFiles(Input):
         """
         # Read in the image
         logger.info("Reading image file %s",image_file_name)
-        image = galsim.fits.read(image_file_name, hdu=image_hdu)
+        image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
 
         # Either read in the weight image, or build a dummy one
         if weight_file_name is not None or weight_hdu is not None:
@@ -849,7 +848,7 @@ class InputFiles(Input):
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sky_col, gain_col,
-                        sky, gain, satur, trust_pos, nstars, image_file_name, stamp_size, logger):
+                        sky, gain, satur, trust_pos, nstars, stamp_size, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -877,7 +876,6 @@ class InputFiles(Input):
                                 keyword to read a value from the FITS header.
         :param trust_pos:       Optional bool value indicating whether to trust input positions.
         :param nstars:          Optionally a maximum number of stars to use.
-        :param image_file_name: The image file name in case needed for header values.
         :param stamp_size:      The stamp size being used for the star stamps.
         :param logger:          A logger object for logging debug info. [default: None]
 
@@ -1010,12 +1008,9 @@ class InputFiles(Input):
             try:
                 sky = float(sky)
             except ValueError:
-                fits = fitsio.FITS(image_file_name)
-                hdu = 1 if image_file_name.endswith('.fz') else 0
-                header = fits[hdu].read_header()
-                if sky not in header:
+                if sky not in image.header:
                     raise KeyError("Key %s not found in FITS header"%sky)
-                sky = float(header[sky])
+                sky = float(image.header[sky])
             extra_props['sky'] = np.array([sky]*len(cat), dtype=np.float32)
 
         # Make the list of gain values:
@@ -1030,12 +1025,9 @@ class InputFiles(Input):
             try:
                 gain = float(gain)
             except ValueError:
-                fits = fitsio.FITS(image_file_name)
-                hdu = 1 if image_file_name.endswith('.fz') else 0
-                header = fits[hdu].read_header()
-                if gain not in header:
+                if gain not in image.header:
                     raise KeyError("Key %s not found in FITS header"%gain)
-                gain = float(header[gain])
+                gain = float(image.header[gain])
             extra_props['gain'] = np.array([gain]*len(cat), dtype=float)
 
         # Get the saturation level
@@ -1044,12 +1036,9 @@ class InputFiles(Input):
                 satur = float(satur)
                 logger.debug("Using given saturation value: %s",satur)
             except ValueError:
-                fits = fitsio.FITS(image_file_name)
-                hdu = 1 if image_file_name.endswith('.fz') else 0
-                header = fits[hdu].read_header()
-                if satur not in header:
+                if satur not in image.header:
                     raise KeyError("Key %s not found in FITS header"%satur)
-                satur = float(header[satur])
+                satur = float(image.header[satur])
                 logger.debug("Using saturation from header: %s",satur)
             extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
 
