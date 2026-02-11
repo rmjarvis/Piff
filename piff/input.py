@@ -238,6 +238,11 @@ class InputFiles(Input):
         :sky:           The sky level to subtract from the image values. [default: None]
                         Note: It is an error to specify both sky and sky_col. If both are None,
                         no sky level will be subtracted off.
+                        .. note::
+                            The special value sky = 'median' means to compute the median of
+                            the image and use that as a the sky level.  Any other string value
+                            (rather than a float) indicates to get the value from the FITS
+                            header.
         :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
                         None] It is an error for both gain and gain_col to be specified.
                         If both are None, then no additional noise will be added to account
@@ -258,6 +263,13 @@ class InputFiles(Input):
                         However, this parameter allows you to optionally provide a different
                         WCS.  It should be defined using the same style as a wcs object
                         in GalSim config files. [defulat: None]
+
+    .. note::
+
+        Some values that are nominally floats may be given as FITS header key words instead.
+        These include sky, gain, and satur.  If these are strings (other than sky=median, which
+        is special), then they should be a valid key word in the FITS header giving the value
+        to use.
 
     The above values are parsed separately for each input image/catalog.  In addition, there
     are a couple other parameters that are just parsed once:
@@ -468,6 +480,7 @@ class InputFiles(Input):
             badpix_zeros = params.get('badpix_zeros', False)
             sky_file_name = params.get('sky_file_name', None)
             sky_hdu = params.get('sky_hdu', None)
+            sky = params.get('sky', None)
             noise = params.get('noise', None)
 
             self.image_file_name.append(image_file_name)
@@ -481,6 +494,7 @@ class InputFiles(Input):
                     'badpix_zeros' : badpix_zeros,
                     'sky_file_name' : sky_file_name,
                     'sky_hdu' : sky_hdu,
+                    'sky' : sky,
                     'noise' : noise})
 
             # Read the catalog
@@ -498,7 +512,6 @@ class InputFiles(Input):
             property_cols = params.get('property_cols', None)
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
-            sky = params.get('sky', None)
             gain = params.get('gain', None)
             satur = params.get('satur', None)
             trust_pos = params.get('trust_pos', None)
@@ -750,7 +763,7 @@ class InputFiles(Input):
     @staticmethod
     def readImage(image_file_name, image_hdu, weight_file_name, weight_hdu,
                   badpix_file_name, badpix_hdu, badpix_zeros, sky_file_name, sky_hdu,
-                  noise, logger):
+                  sky, noise, logger):
         """Read in the image and weight map (or make one if no weight information is given
 
         :param image_file_name: The name of the file to read.
@@ -766,6 +779,8 @@ class InputFiles(Input):
         :param sky_hdu:         The hdu to use in the sky_file_name (if any).
         :param noise:           Either a float constant noise value to use in lieu of a weight
                                 map or a str keyword to use to read a value from FITS header.
+        :param sky:             If this is 'median', then treat the median as the sky level.
+        :param noise:           A constant noise value to use in lieu of a weight map.
         :param logger:          A logger object for logging debug info.
 
         :returns: image, weight
@@ -779,13 +794,6 @@ class InputFiles(Input):
             header = image.header  # This doesn't get copied by view()
             image = image.view(dtype=np.float32)
             image.header = header
-
-        # If requested, subtract a sky image
-        if sky_file_name is not None:
-            hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
-            logger.verbose("Reading sky image %s.", sky_file_name + hdu_str)
-            sky = galsim.fits.read(sky_file_name, hdu=sky_hdu)
-            image -= sky
 
         # Either read in the weight image, or build a dummy one
         if weight_file_name is not None or weight_hdu is not None:
@@ -846,6 +854,11 @@ class InputFiles(Input):
                 logger.error("According to the bad pixel array in %s, all pixels are masked!",
                              image_file_name)
             weight.array[badpix.array != 0] = 0
+
+        if sky == 'median':
+            ok = weight.array != 0
+            sky = np.median(image.array[ok])
+            image.array[ok] -= sky
 
         return image, weight
 
@@ -1024,7 +1037,7 @@ class InputFiles(Input):
             if sky_col not in cat.dtype.names:
                 raise ValueError("sky_col = %s is not a column in %s"%(sky_col,cat_file_name))
             extra_props['sky'] = np.float32(cat[sky_col])
-        elif sky is not None:
+        elif sky is not None and sky != 'median':
             try:
                 sky = float(sky)
             except ValueError:
