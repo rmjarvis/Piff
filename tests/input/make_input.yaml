@@ -16,6 +16,7 @@ image:
     size: 1024
     nobjects: 100
     pixel_scale: 0.22
+    dtype: np.uint32
 
     noise:
         type: CCD
