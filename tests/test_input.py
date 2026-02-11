@@ -1707,6 +1707,23 @@ def test_sky():
     for i in range(len(stars)):
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky32)
 
+    # Finally, a quick and dirty way to handle the sky is to use the median value in the image.
+    # This is done by setting sky = 'median'
+    config = {
+                'image_file_name' : image_file,
+                'cat_file_name' : cat_file,
+                'use_partial' : True,
+                'sky' : 'median',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, _, _, extra_props = input.getRawImageData(0)
+    stars = input.makeStars(logger=logger)
+    sky_med = np.median(raw_image.array)
+    np.testing.assert_allclose(image.array, raw_image.array - sky_med)
+    assert 'sky' not in extra_props
+    for i in range(len(stars)):
+        np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky_med)
+
     # Error if sky_file doesn't exist
     config['sky_file_name'] = sky_file[-2]
     with np.testing.assert_raises(ValueError):
