@@ -74,6 +74,7 @@ def setup():
         f[0].write_key('SKYLEVEL', sky, 'sky level')
         f[0].write_key('GAIN_A', gain, 'gain')
         f[0].write_key('SATURAT', satur, 'saturation level')
+        f[0].write_key('NOISE', 34, 'noise level')
         f[0].write_key('RA', '06:00:00', 'telescope ra')
         f[0].write_key('DEC', '-30:00:00', 'telescope dec')
         wt = f[1].read().copy()
@@ -1017,6 +1018,18 @@ def test_weight():
     _, weight, _, _ = input.getRawImageData(0)
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 32.**-1)
+
+    # Noise can be a fits header value
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'noise' : 'NOISE',  # Set as 34 in fits file
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 1
+    _, weight, _, _ = input.getRawImageData(0)
+    assert weight.array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(weight.array, 34.**-1)
 
     # Some old versions of fitsio had a bug where the badpix mask could be offset by 32768.
     # We move them back to 0

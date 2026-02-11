@@ -787,6 +787,12 @@ class InputFiles(Input):
                                "Taking them to be 0.0")
                 weight.array[weight.array < 0] = 0.
         elif noise is not None:
+            try:
+                noise = float(noise)
+            except ValueError:
+                if noise not in image.header:
+                    raise KeyError("Key %s not found in FITS header"%noise)
+                noise = float(image.header[noise])
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
             weight = galsim.ImageF(image.bounds, init_value=1./noise)
         else:
