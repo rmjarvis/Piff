@@ -774,6 +774,19 @@ class InputFiles(Input):
         logger.info("Reading image file %s",image_file_name)
         image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
 
+        # Make sure dtype is at least float32
+        if image.dtype not in [np.float32, np.float64]:
+            header = image.header  # This doesn't get copied by view()
+            image = image.view(dtype=np.float32)
+            image.header = header
+
+        # If requested, subtract a sky image
+        if sky_file_name is not None:
+            hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
+            logger.verbose("Reading sky image %s.", sky_file_name + hdu_str)
+            sky = galsim.fits.read(sky_file_name, hdu=sky_hdu)
+            image -= sky
+
         # Either read in the weight image, or build a dummy one
         if weight_file_name is not None or weight_hdu is not None:
             weight_file_name = weight_file_name or image_file_name
