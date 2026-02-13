@@ -167,12 +167,16 @@ class StarStats(Stats):
                 index = self.indices[i]
                 u = star.data.properties['u']
                 v = star.data.properties['v']
+                x = star.data.properties['x']
+                y = star.data.properties['y']
+                chipnum = star.data.properties['chipnum']
 
                 title = f'Star {index}'
                 if star.is_reserve:
                     title = 'Reserve ' + title
                 if star.is_flagged:
                     title = 'Flagged ' + title
+                title += f'\n({chipnum}, {x:.0f}, {y:.0f})'
                 axs[ii][jj+0].set_title(title)
                 axs[ii][jj+1].set_title(f'PSF at (u,v) = \n ({u:+.02e}, {v:+.02e})')
             axs[ii][jj+2].set_title('Star - PSF')
