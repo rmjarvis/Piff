@@ -14,11 +14,14 @@
 
 from __future__ import print_function
 import os
+import shutil
 import galsim
 import numpy as np
 import fitsio
 import piff
 import pytest
+import pyarrow
+import pyarrow.parquet
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -52,6 +55,15 @@ def setup():
     gain = np.mean(data['gain'])
     print('sky, gain = ',sky,gain)
     satur = 1890  # Exactly 1 star has a pixel > 1890, so pretend this is the saturation level.
+
+    # Make a copy of the input catalog with a different suffix.
+    shutil.copy(cat_file_name, cat_file_name.replace('.fits', '.fit'))
+
+    # Also make a version in parquet. (Both with standard and altername suffix.)
+    pqname = cat_file_name.replace('.fits', '.parquet')
+    tab = pyarrow.table({key:data[key].astype(float) for key in data.dtype.names})
+    pyarrow.parquet.write_table(tab, pqname)
+    shutil.copy(pqname, pqname.replace('.parquet', '.pq'))
 
     # Write a sky image file
     sky_im = galsim.Image(1024,1024, init_value=sky)
@@ -138,6 +150,30 @@ def test_basic():
     assert input.nimages == 1
     _, _, image_pos, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
+
+    # Check alternate file suffix for catalog.
+    config['cat_file_name'] = 'test_input_cat_00.fit'
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 1
+    _, _, image_pos2, _ = input.getRawImageData(0)
+    np.testing.assert_array_equal(image_pos, image_pos2)
+
+    # Check parquet files
+    config['cat_file_name'] = 'test_input_cat_00.parquet'
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 1
+    _, _, image_pos2, _ = input.getRawImageData(0)
+    np.testing.assert_array_equal(image_pos, image_pos2)
+
+    config['cat_file_name'] = 'test_input_cat_00.pq'
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 1
+    _, _, image_pos2, _ = input.getRawImageData(0)
+    np.testing.assert_array_equal(image_pos, image_pos2)
+
+    config['cat_file_name'] = 'test_input_cat_00.invalid'
+    with np.testing.assert_raises(ValueError):
+        input = piff.InputFiles(config, logger=logger)
 
     # Can omit the dir and just include it in the file names
     config = {
