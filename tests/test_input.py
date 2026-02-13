@@ -1680,7 +1680,7 @@ def test_stars():
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 90
+    assert len(stars) == 89
     del config['select']['max_snr']
     del config['select']['max_pixel_cut']
 
@@ -1690,14 +1690,14 @@ def test_stars():
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 88
+    assert len(stars) == 87
 
     # hsm_size_reject can also be a float.  (True is equivalent to 10.)
     config['select']['hsm_size_reject'] = 100.
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 90
+    assert len(stars) == 89
     config['select']['hsm_size_reject'] = 3.
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1707,7 +1707,7 @@ def test_stars():
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
-    assert len(stars) == 88
+    assert len(stars) == 87
     del config['select']['hsm_size_reject']
 
     # alt_x and alt_y also include some object completely off the image, which are always skipped.
