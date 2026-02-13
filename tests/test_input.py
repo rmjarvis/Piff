@@ -98,6 +98,9 @@ def setup():
         wtx = f[1].read().copy()
         var = 1/wtx + (f[0].read() - sky) / gain
         f.write(var) # hdu = 10
+        imz = f[0].read().copy()
+        imz[bp != 0] = 0
+        f.write(imz) # hdu = 11
 
     weight_file = os.path.join(dir, 'input', 'test_input_weight_00.fits')
     with fitsio.FITS(weight_file, 'rw', clobber=True) as f:
@@ -1081,6 +1084,18 @@ def test_weight():
     with CaptureLog() as cl:
         _, weight, _, _  = input.getRawImageData(0, logger=cl.logger)
     assert 'Warning: weight map has invalid negative-valued pixels.' in cl.output
+
+    # If some input values are zero, they can be treated as bad pixels with badpix_zeros
+    del config['weight_hdu']
+    config['badpix_hdu'] = 9
+    input = piff.InputFiles(config, logger=logger)
+    _, weight, _, _ = input.getRawImageData(0)
+    del config['badpix_hdu']
+    config['image_hdu'] = 11
+    config['badpix_zeros'] = True
+    input = piff.InputFiles(config, logger=logger)
+    _, weight2, _, _ = input.getRawImageData(0)
+    np.testing.assert_array_equal(weight.array, weight2.array)
 
 
 @timer

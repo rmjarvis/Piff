@@ -213,6 +213,8 @@ class InputFiles(Input):
                         this gives the name of the file to use. [default: None]
         :badpix_file_name: If the badpix image is in a different file than the main image,
                         this gives the name of the file to use. [default: None]
+        :badpix_zeros:  Whether to treat all zeros in the input image as bad pixels.
+                        [default: False]
 
         :cat_hdu:       The hdu to use in the catalog files. [default: 1]
         :x_col:         The name of the X column in the input catalogs. [default: 'x']
@@ -299,6 +301,7 @@ class InputFiles(Input):
                 'badpix_hdu' : int,
                 'weight_file_name' : str,
                 'badpix_file_name' : str,
+                'badpix_zeros' : bool,
                 'sky_file_name' : str,
                 'sky_hdu': int,
                 'cat_hdu' : int,
@@ -462,6 +465,7 @@ class InputFiles(Input):
             weight_hdu = params.get('weight_hdu', None)
             badpix_file_name = params.get('badpix_file_name', None)
             badpix_hdu = params.get('badpix_hdu', None)
+            badpix_zeros = params.get('badpix_zeros', False)
             sky_file_name = params.get('sky_file_name', None)
             sky_hdu = params.get('sky_hdu', None)
             noise = params.get('noise', None)
@@ -474,6 +478,7 @@ class InputFiles(Input):
                     'weight_hdu' : weight_hdu,
                     'badpix_file_name' : badpix_file_name,
                     'badpix_hdu' : badpix_hdu,
+                    'badpix_zeros' : badpix_zeros,
                     'sky_file_name' : sky_file_name,
                     'sky_hdu' : sky_hdu,
                     'noise' : noise})
@@ -745,7 +750,8 @@ class InputFiles(Input):
 
     @staticmethod
     def readImage(image_file_name, image_hdu, weight_file_name, weight_hdu,
-                  badpix_file_name, badpix_hdu, sky_file_name, sky_hdu, noise, logger):
+                  badpix_file_name, badpix_hdu, badpix_zeros, sky_file_name, sky_hdu,
+                  noise, logger):
         """Read in the image and weight map (or make one if no weight information is given
 
         :param image_file_name: The name of the file to read.
@@ -754,6 +760,8 @@ class InputFiles(Input):
         :param weight_hdu:      The hdu of the weight image (if any).
         :param badpix_file_name: The name of the file with the bad pixel mask (if any).
         :param badpix_hdu:      The hdu of the bad pixel mask (if any).
+        :param badpix_zeros:    Whether to treat all zeros in the input image as bad pixels.
+                                [default: False]
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
         :param sky_hdu:         The hdu to use in the sky_file_name (if any).
@@ -765,13 +773,6 @@ class InputFiles(Input):
         # Read in the image
         logger.info("Reading image file %s",image_file_name)
         image = galsim.fits.read(image_file_name, hdu=image_hdu)
-
-        # If requested, subtract a sky image
-        if sky_file_name is not None:
-            hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
-            logger.verbose("Reading sky image %s.", sky_file_name + hdu_str)
-            sky = galsim.fits.read(sky_file_name, hdu=sky_hdu)
-            image -= sky
 
         # Either read in the weight image, or build a dummy one
         if weight_file_name is not None or weight_hdu is not None:
@@ -792,6 +793,17 @@ class InputFiles(Input):
         else:
             logger.debug("Making trivial (wt==1) weight image")
             weight = galsim.ImageF(image.bounds, init_value=1)
+
+        # Make sure to do this before anything that could modify the input image.
+        if badpix_zeros:
+            weight.array[image.array == 0] = 0
+
+        # If requested, subtract a sky image
+        if sky_file_name is not None:
+            hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
+            logger.verbose("Reading sky image %s.", sky_file_name + hdu_str)
+            sky = galsim.fits.read(sky_file_name, hdu=sky_hdu)
+            image -= sky
 
         # If requested, set wt=0 for any bad pixels
         if badpix_file_name is not None or badpix_hdu is not None:
