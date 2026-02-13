@@ -881,6 +881,25 @@ class InputFiles(Input):
             return mask
 
     @staticmethod
+    def _read_cat(cat_file_name, cat_hdu):
+        if cat_file_name.endswith('.fits'):
+            import fitsio
+            return fitsio.read(cat_file_name, cat_hdu)
+        elif cat_file_name.endswith('.parquet'):
+            import pyarrow.parquet as pq
+            tab = pq.read_table(cat_file_name)
+            return tab.to_pandas().to_records(index=False)
+        else:
+            # For other endings, try parquet then fits so error message is for fits.
+            try:
+                import pyarrow.parquet as pq
+                tab = pq.read_table(cat_file_name)
+                return tab.to_pandas().to_records(index=False)
+            except Exception:
+                import fitsio
+                return fitsio.read(cat_file_name, cat_hdu)
+
+    @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sky_col, gain_col,
@@ -926,7 +945,7 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.info("Reading input catalog %s.",cat_file_name)
-        cat = fitsio.read(cat_file_name, cat_hdu)
+        cat = InputFiles._read_cat(cat_file_name, cat_hdu)
 
         if flag_col is not None:
             if flag_col not in cat.dtype.names:
