@@ -315,6 +315,14 @@ class Select(object):
                     logger.debug("star properties = %s",star.data.properties)
                     continue
 
+            # If doing any selections that rely on hsm, reject any that fail hsm measurement.
+            if self.hsm_size_reject != 0 or self.max_pixel_cut is not None:
+                flag = star.hsm[6]
+                if flag != 0:
+                    logger.verbose("Skipping star at position %f,%f because hsm failed",
+                                   star.image_pos.x, star.image_pos.y)
+                    continue
+
             # Add Poisson noise now.  It's not a rejection step, but it's something we want
             # to do to all the stars at the start, so they have the right noise level.
             # We didn't do it earlier for efficiency reasons, in case the full set of objects
