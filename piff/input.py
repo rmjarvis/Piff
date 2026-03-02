@@ -334,11 +334,13 @@ class InputFiles(Input):
         :sky:           The sky level to subtract from the image values. [default: None]
                         Note: It is an error to specify both sky and sky_col. If both are None,
                         no sky level will be subtracted off.
+
                         .. note::
                             The special value sky = 'median' means to compute the median of
                             the image and use that as the sky level.  Any other string value
                             (rather than a float) indicates to get the value from the FITS
                             header.
+
         :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
                         None] It is an error for both gain and gain_col to be specified.
                         If both are None, then no additional noise will be added to account
