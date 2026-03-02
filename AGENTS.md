@@ -1,0 +1,97 @@
+# Piff Repository Notes
+
+## Default Environment
+
+Use the project's preferred conda environment before running commands:
+
+```bash
+source /Users/Mike/lsst/lsstsw/miniconda/etc/profile.d/conda.sh
+conda activate /Users/Mike/miniforge3/envs/py3.12
+```
+
+## Test Workflow
+
+Run the full test suite from the repository root:
+
+```bash
+mkdir -p /tmp/piff-mpl
+export MPLCONFIGDIR=/tmp/piff-mpl
+pytest -q
+```
+
+Notes:
+
+- `MPLCONFIGDIR` is required in this environment because `/Users/Mike/.matplotlib` is not writable.
+- The full suite passed in this checkout with `138 passed` under Python 3.12.
+- `joblib/loky` emits a non-fatal warning about physical core detection on this machine. If desired, set `LOKY_MAX_CPU_COUNT` explicitly to silence it.
+
+## Docs Workflow
+
+Build the Sphinx docs from `docs/`:
+
+```bash
+export LC_ALL=C
+export LANG=C
+mkdir -p /tmp/piff-mpl
+export MPLCONFIGDIR=/tmp/piff-mpl
+make html
+```
+
+Notes:
+
+- The docs currently build successfully.
+- The current docs build is clean with no warnings in this environment.
+- `docs/_build/` is intentionally kept in the working tree for local documentation builds and is only committed on release branches when docs are ready to publish. Do not add it to `.gitignore`; treat it as expected local output during normal development.
+
+## Development Scratch Area
+
+- In `devel/`, disposable generated artifacts should go in `devel/output/`.
+- `devel/.gitignore` ignores `output/`, so scratch outputs there should stay out of `git status`.
+
+## Development Expectations
+
+- Preserve backward compatibility by default, especially for YAML config interfaces and user-facing behavior.
+- Prefer semantic-versioning discipline: deprecate old usage in a minor release before removing it in a later major release.
+- Avoid breaking existing user workflows without a strong reason and an explicit migration path.
+- Maintain very high test coverage; aim for effectively 100% coverage of new behavior.
+- All new lines of code should be exercised by at least one test in the test suite.
+- Use a mix of targeted unit tests and broader integration, accuracy, and regression tests as appropriate.
+- It is acceptable, and often preferred, to cover multiple related edge cases in one test when that
+  keeps runtime down and still makes the coverage intent clear.
+- When practical, tests should validate results using an independent calculation, analytic expectation, or simpler reference algorithm rather than only reusing the implementation under test.
+- Prefer a house style of 100 characters per line or less, except where exceeding that limit is
+  clearly the less awkward choice (for example some long URLs).
+
+## Build Notes
+
+- `setup.py` builds a `pybind11` extension and needs Eigen headers.
+- If Eigen is not found locally, `setup.py` attempts to download Eigen 3.4.0 automatically. On restricted/offline systems, set `EIGEN_DIR` (or `C_INCLUDE_PATH`) to a local installation instead of relying on the fallback download.
+
+## Architecture Summary
+
+Piff is a modular PSF-modeling pipeline configured primarily through YAML. The core workflow is:
+
+1. `Input` reads star candidates and image metadata.
+2. `Select` filters usable stars.
+3. `Model` defines the single-location PSF parameterization.
+4. `Interp` models how fitted parameters vary across the focal plane.
+5. `Outliers` removes bad stars during iterative fitting.
+6. `Output` writes the PSF solution; `Stats` provides diagnostics.
+
+Important scientific/engineering context from the DES paper and current docs:
+
+- A central design goal is modeling the PSF across the full focal plane, not per-chip in isolation, while correctly accounting for WCS transformations.
+- The fitting loop jointly refines per-star model parameters and field interpolation, with reserve/validation stars and residual diagnostics used to assess overfitting and model quality.
+- Correlation-function diagnostics (`rho` statistics) are a first-class validation tool and should be treated as part of model evaluation, not an afterthought.
+- The codebase is intentionally extensible: new development should usually slot into one of the established plugin-style abstractions (`Input`, `Select`, `Model`, `Interp`, `Outliers`, `Stats`, `PSF`) rather than bypassing them.
+
+## Current Capability Snapshot
+
+Compared to the 2020 DES paper, the current code/docs expose a broader set of built-in components:
+
+- Models include `PixelGrid`, `GSObjectModel` variants (`Gaussian`, `Kolmogorov`, `Moffat`), and `Optical`.
+- Composite PSFs are supported through `SumPSF` and `ConvolvePSF`.
+- Interpolators include `Mean`, `Polynomial`, `BasisPolynomial`, `KNNInterp`, and `GPInterp`.
+- Diagnostics include `RhoStats`, `ShapeHistStats`, `HSMCatalogStats`, `TwoDHistStats`, `WhiskerStats`, `StarStats`, and `SizeMagStats`.
+
+When extending functionality, check whether an existing abstraction or diagnostic already covers part of the desired behavior before adding a new top-level concept.
