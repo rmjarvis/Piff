@@ -95,3 +95,13 @@ Compared to the 2020 DES paper, the current code/docs expose a broader set of bu
 - Diagnostics include `RhoStats`, `ShapeHistStats`, `HSMCatalogStats`, `TwoDHistStats`, `WhiskerStats`, `StarStats`, and `SizeMagStats`.
 
 When extending functionality, check whether an existing abstraction or diagnostic already covers part of the desired behavior before adding a new top-level concept.
+
+## Roman Notes
+
+- `RomanOptics` expects an explicit `sca` star property from the input configuration.
+- For multi-SCA Roman FITS inputs, set `input.properties.sca` from `image_num` in the YAML
+  rather than relying on implicit chip numbering or FITS header parsing.
+- `InputFiles` supports a generic `properties` dict for attaching constant per-image star
+  properties; use this instead of adding Roman-specific keys to the generic input code.
+- `RomanOptics` defaults to `chromatic: True`; set `chromatic: False` explicitly when using the
+  achromatic effective-wavelength approximation.
