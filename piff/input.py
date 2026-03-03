@@ -354,6 +354,15 @@ class InputFiles(Input):
             if nimages < 1:
                 raise ValueError('input.nimages must be >= 1')
 
+        if 'image_hdu' in config and isinstance(config['image_hdu'], list):
+            if len(config['image_hdu']) == 0:
+                raise ValueError("image_hdu may not be an empty list")
+            if nimages is None:
+                nimages = len(config['image_hdu'])
+            elif nimages != len(config['image_hdu']):
+                raise ValueError("nimages = %s doesn't match length of image_hdu list (%d)"%(
+                                 nimages, len(config['image_hdu'])))
+
         # Deal with dir here, since sometimes we need to have it already attached for glob
         # to work.
         if 'dir' in config:
@@ -385,15 +394,15 @@ class InputFiles(Input):
 
         if image_list is not None:
             logger.debug('image_list = %s',image_list)
-            if nimages is not None and nimages != len(image_list):
+            if len(image_list) == 1 and nimages is not None and nimages > 1:
+                logger.verbose("Using the same image file for all images")
+                image_list = image_list * nimages
+            elif nimages is not None and nimages != len(image_list):
                 raise ValueError("nimages = %s doesn't match length of image_file_name list (%d)"%(
-                        config['nimages'], len(image_list)))
+                        nimages, len(image_list)))
             nimages = len(image_list)
             logger.debug('nimages = %d',nimages)
-            config['image_file_name'] = {
-                'type' : 'List_str',
-                'items' : image_list
-            }
+            config['image_file_name'] = image_list
         logger.debug('nimages = %d',nimages)
         assert nimages is not None
 
@@ -407,12 +416,53 @@ class InputFiles(Input):
             sky_list = sorted(glob.glob(sky_file_name))
             if len(sky_list) == 0:
                 raise ValueError("No files found corresponding to "+config['sky_file_name'])
-            config['sky_file_name'] = {
-                'type' : 'List_str',
-                'items' : sky_list
-            }
+            if len(sky_list) == 1 and nimages is not None and nimages > 1:
+                logger.verbose("Using the same sky file for all images")
+                sky_list = sky_list * nimages
+            elif nimages is not None and len(sky_list) != nimages:
+                raise ValueError("nimages = %s doesn't match length of sky_file_name list (%d)"%(
+                                 nimages, len(sky_list)))
+            config['sky_file_name'] = sky_list
         elif not isinstance(config['sky_file_name'], dict):
             raise ValueError("sky_file_name should be either a dict or a string")
+
+        if 'weight_file_name' not in config:
+            pass
+        elif isinstance(config['weight_file_name'], str):
+            weight_file_name = config['weight_file_name']
+            if dir is not None:
+                weight_file_name = os.path.join(dir, weight_file_name)
+            weight_list = sorted(glob.glob(weight_file_name))
+            if len(weight_list) == 0:
+                raise ValueError("No files found corresponding to "+config['weight_file_name'])
+            if len(weight_list) == 1 and nimages is not None and nimages > 1:
+                logger.verbose("Using the same weight file for all images")
+                weight_list = weight_list * nimages
+            elif nimages is not None and len(weight_list) != nimages:
+                raise ValueError("nimages = %s doesn't match length of weight_file_name list (%d)"%(
+                                 nimages, len(weight_list)))
+            config['weight_file_name'] = weight_list
+        elif not isinstance(config['weight_file_name'], dict):
+            raise ValueError("weight_file_name should be either a dict or a string")
+
+        if 'badpix_file_name' not in config:
+            pass
+        elif isinstance(config['badpix_file_name'], str):
+            badpix_file_name = config['badpix_file_name']
+            if dir is not None:
+                badpix_file_name = os.path.join(dir, badpix_file_name)
+            badpix_list = sorted(glob.glob(badpix_file_name))
+            if len(badpix_list) == 0:
+                raise ValueError("No files found corresponding to "+config['badpix_file_name'])
+            if len(badpix_list) == 1 and nimages is not None and nimages > 1:
+                logger.verbose("Using the same badpix file for all images")
+                badpix_list = badpix_list * nimages
+            elif nimages is not None and len(badpix_list) != nimages:
+                raise ValueError("nimages = %s doesn't match length of badpix_file_name list (%d)"%(
+                                 nimages, len(badpix_list)))
+            config['badpix_file_name'] = badpix_list
+        elif not isinstance(config['badpix_file_name'], dict):
+            raise ValueError("badpix_file_name should be either a dict or a string")
 
         if 'cat_file_name' not in config:
             raise TypeError('Parameter cat_file_name is required')
@@ -440,10 +490,7 @@ class InputFiles(Input):
             elif nimages != len(cat_list):
                 raise ValueError("nimages = %s doesn't match length of cat_file_name list (%d)"%(
                                  nimages, len(cat_list)))
-            config['cat_file_name'] = {
-                'type' : 'List_str',
-                'items' : cat_list
-            }
+            config['cat_file_name'] = cat_list
 
         self.nimages = nimages
         self.chipnums = list(range(nimages))
