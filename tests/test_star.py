@@ -606,6 +606,17 @@ def test_multifit_io():
         np.testing.assert_array_equal(star.fit.flatten_params(star.fit.params_var),
                                       np.concatenate([params_var1[k], params_var2[k]]))
 
+    # If a composite fit has a missing params_var entry for one component, newParams should
+    # fill just that slot with zeros when updating the component params.
+    fit = piff.StarFit(
+        params=[np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])],
+        params_var=[np.array([0.1, 0.2]), None],
+    )
+    fit = fit.newParams(np.array([6.0, 7.0, 8.0]), num=1)
+    np.testing.assert_array_equal(fit.params[1], [6.0, 7.0, 8.0])
+    np.testing.assert_array_equal(fit.params_var[0], [0.1, 0.2])
+    np.testing.assert_array_equal(fit.params_var[1], [0.0, 0.0, 0.0])
+
 
 if __name__ == '__main__':
     test_init()
