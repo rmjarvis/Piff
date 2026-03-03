@@ -322,6 +322,27 @@ def test_invalid():
     config = { 'nimages' : -1, 'image_file_name' : image_files, 'cat_file_name': cat_files }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
+    # image_hdu can define nimages, but invalid values should raise.
+    config = {
+        'image_file_name' : os.path.join('input', image_file),
+        'image_hdu' : [],
+        'cat_file_name' : os.path.join('input', cat_file),
+    }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config = {
+        'nimages' : 3,
+        'image_file_name' : os.path.join('input', image_file),
+        'image_hdu' : [0, 1],
+        'cat_file_name' : os.path.join('input', cat_file),
+    }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config = {
+        'image_file_name' : 'input/test_input_image_*.fits',
+        'image_hdu' : [0, 1],
+        'cat_file_name' : os.path.join('input', cat_file),
+    }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
     # No images in list
     config = { 'dir' : 'input', 'image_file_name' : [], 'cat_file_name' : cat_file }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
@@ -331,6 +352,41 @@ def test_invalid():
     # Missing nimages (required when using dict)
     config = { 'image_file_name' : image_files_1, 'cat_file_name': cat_files }
     np.testing.assert_raises(TypeError, piff.InputFiles, config)
+
+    # Auxiliary file inputs should validate types and list lengths too.
+    config = {
+        'image_file_name' : os.path.join('input', image_file),
+        'image_hdu' : [0, 1],
+        'cat_file_name' : os.path.join('input', cat_file),
+        'sky_file_name' : 'input/test_input_*_00.fits',
+    }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config['sky_file_name'] = 17
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
+    config = {
+        'image_file_name' : os.path.join('input', image_file),
+        'image_hdu' : [0, 1],
+        'cat_file_name' : os.path.join('input', cat_file),
+        'weight_file_name' : 'input/test_input_*_00.fits',
+    }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config['weight_file_name'] = 'input/x_test_input_weight_00.fits'
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config['weight_file_name'] = 17
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
+    config = {
+        'image_file_name' : os.path.join('input', image_file),
+        'image_hdu' : [0, 1],
+        'cat_file_name' : os.path.join('input', cat_file),
+        'badpix_file_name' : 'input/test_input_*_00.fits',
+    }
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config['badpix_file_name'] = 'input/x_test_input_badpix_00.fits'
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
+    config['badpix_file_name'] = 17
+    np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
     # Invalid input type
     config = { 'type': 'invalid' }
@@ -1151,6 +1207,64 @@ def test_weight():
     _, weight2, _, _ = input.getRawImageData(0)
     np.testing.assert_array_equal(weight.array, weight2.array)
 
+    # One image file with multiple HDUs should be treated as multiple images.
+    config = {
+                'image_file_name' : 'input/test_input_image_00.fits',
+                'image_hdu' : [0, 10],
+                'cat_file_name' : 'input/test_input_cat_00.fits',
+                'sky_file_name' : 'input/test_input_sky_00.fits.fz',
+                'weight_file_name' : 'input/test_input_weight_00.fits',
+                'weight_hdu' : [0, 1],
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 2
+    assert input.image_file_name == ['input/test_input_image_00.fits'] * 2
+    assert input.cat_file_name == ['input/test_input_cat_00.fits'] * 2
+    image, weight, image_pos, _ = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    np.testing.assert_allclose(image.array,
+                               fitsio.read('input/test_input_image_00.fits', ext=0) - sky)
+    np.testing.assert_allclose(weight.array,
+                               fitsio.read('input/test_input_weight_00.fits', ext=0))
+    image, weight, image_pos, _ = input.getRawImageData(1)
+    assert len(image_pos) == 100
+    np.testing.assert_allclose(image.array,
+                               fitsio.read('input/test_input_image_00.fits', ext=10) - sky)
+    np.testing.assert_allclose(weight.array,
+                               fitsio.read('input/test_input_weight_00.fits', ext=1))
+
+    # Also exercise the matching nimages branch and dir-based resolution for weight/badpix
+    # files, including broadcasting a single badpix file across multiple images.
+    config = {
+                'dir' : 'input',
+                'nimages' : 2,
+                'image_file_name' : 'test_input_image_00.fits',
+                'image_hdu' : [0, 10],
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'weight_file_name' : 'test_input_weight_00.fits',
+                'weight_hdu' : [0, 1],
+                'badpix_file_name' : 'test_input_badpix_00.fits',
+                'badpix_hdu' : 0,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 2
+    assert input.image_file_name == ['input/test_input_image_00.fits'] * 2
+    assert input.cat_file_name == ['input/test_input_cat_00.fits'] * 2
+    assert input.image_kwargs[0]['weight_file_name'] == 'input/test_input_weight_00.fits'
+    assert input.image_kwargs[1]['weight_file_name'] == 'input/test_input_weight_00.fits'
+    assert input.image_kwargs[0]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
+    assert input.image_kwargs[1]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
+    expected_weight = fitsio.read('input/test_input_weight_00.fits', ext=0)
+    expected_weight[1::2, :] = 0
+    _, weight, image_pos, _ = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    np.testing.assert_allclose(weight.array, expected_weight)
+    expected_weight = fitsio.read('input/test_input_weight_00.fits', ext=1)
+    expected_weight[1::2, :] = 0
+    _, weight, image_pos, _ = input.getRawImageData(1)
+    assert len(image_pos) == 100
+    np.testing.assert_allclose(weight.array, expected_weight)
+
 
 @timer
 def test_lsst_weight():
@@ -1245,7 +1359,6 @@ def test_lsst_weight():
     print('expected noise = ',expected_noise)
     print('var = ',1./weight.array)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-5)
-
 
 
 @timer
