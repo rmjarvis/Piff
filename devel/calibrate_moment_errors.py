@@ -18,6 +18,8 @@ import galsim
 import piff
 import copy
 
+OUTPUT_DIR = 'output'
+
 # For reference, as of commit 1f4ad4425b80ade590addb2, the output of this script is:
 #
 # M00: mean ratio = 0.996 +- 0.034
@@ -56,8 +58,9 @@ def calculate_moments(star):
     # also get the values for the HSM kernel, which is just the fitted hsm model
     f, u0, v0, sigma, g1, g2, flag = star.hsm
     if flag:
-        star.image.write('failed_image.fits')
-        star.weight.write('failed_weight.fits')
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        star.image.write(os.path.join(OUTPUT_DIR, 'failed_image.fits'))
+        star.weight.write(os.path.join(OUTPUT_DIR, 'failed_weight.fits'))
         raise RuntimeError("flag = %d from hsm"%flag)
 
     profile = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
