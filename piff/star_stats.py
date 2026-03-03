@@ -79,7 +79,7 @@ class StarStats(Stats):
                                  if not s.is_reserve and (self.include_flagged or not s.is_flagged)]
         possible_indices = sorted(possible_indices)
 
-        if self.nplot == 0 or self.nplot >= len(stars):
+        if self.nplot == 0 or self.nplot >= len(possible_indices):
             # select all viable stars
             self.indices = possible_indices
         else:

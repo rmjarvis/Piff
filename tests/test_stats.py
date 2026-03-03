@@ -578,6 +578,17 @@ def test_starstats_config():
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == 7
 
+    # If there are fewer viable stars than nplot, use all viable stars rather than failing.
+    flagged_stars = [
+        star if i < 3 else star.flag_if(True)
+        for i, star in enumerate(orig_stars)
+    ]
+    starStats = piff.StarStats(nplot=6, include_ave=False)
+    starStats.compute(psf, flagged_stars)
+    assert len(starStats.stars) == 3
+    np.testing.assert_array_equal(starStats.indices, [0, 1, 2])
+    starStats.plot()  # Make sure this runs without error.
+
     # check nplot >> len(stars)
     starStats = piff.StarStats(nplot=1000000, include_ave=False)
     starStats.compute(psf, orig_stars)
