@@ -50,6 +50,102 @@ def test_init():
 
 
 @timer
+def test_roman_optics():
+    calls = []
+
+    def fake_get_psf(
+        SCA,
+        bandpass,
+        SCA_pos=None,
+        pupil_bin=4,
+        wcs=None,
+        n_waves=None,
+        extra_aberrations=None,
+        wavelength=None,
+        gsparams=None,
+        logger=None,
+        high_accuracy=None,
+        approximate_struts=None,
+    ):
+        calls.append(
+            {
+                'SCA': SCA,
+                'bandpass': bandpass,
+                'SCA_pos': SCA_pos,
+                'extra_aberrations': np.array(extra_aberrations, copy=True),
+                'wavelength': wavelength,
+            }
+        )
+        return galsim.Gaussian(sigma=0.2)
+
+    with mock.patch('galsim.roman.getPSF', side_effect=fake_get_psf):
+        psf = piff.PSF.process(
+            {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
+        )
+        assert isinstance(psf, piff.RomanOptics)
+        logger = piff.config.setup_logger()
+
+        star = piff.Star.makeTarget(
+            x=123.4,
+            y=456.7,
+            stamp_size=25,
+            scale=0.11,
+            properties={'chipnum': 3, 'sca': 5},
+        )
+        star = star.withFlux(1.0, (0.0, 0.0))
+
+        stars, nremoved = psf.initialize_params([star], logger=logger)
+        assert nremoved == 0
+        model_star = psf.drawStar(stars[0])
+        assert model_star.image.array.shape == (25, 25)
+
+        # If both are present, prefer the explicit sca value.
+        star = piff.Star.makeTarget(
+            x=12.3,
+            y=45.6,
+            stamp_size=25,
+            scale=0.11,
+            properties={'chipnum': 7, 'sca': 4},
+        )
+        star = star.withFlux(1.0, (0.0, 0.0))
+        psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
+
+        # If sca is absent, chipnum acts as an alias.
+        star = piff.Star.makeTarget(
+            x=78.9,
+            y=10.1,
+            stamp_size=25,
+            scale=0.11,
+            properties={'chipnum': 8},
+        )
+        star = star.withFlux(1.0, (0.0, 0.0))
+        psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
+
+        # If neither is present, fail with the preferred sca-centric message.
+        star = piff.Star.makeTarget(
+            x=11.1,
+            y=22.2,
+            stamp_size=25,
+            scale=0.11,
+        )
+        star = star.withFlux(1.0, (0.0, 0.0))
+        try:
+            psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
+            assert False
+        except ValueError as e:
+            assert "explicit 'sca' property" in str(e)
+
+    assert len(calls) == 3
+    assert calls[0]['SCA'] == 5
+    assert calls[0]['bandpass'] == 'H158'
+    assert calls[0]['SCA_pos'] == galsim.PositionD(123.4, 456.7)
+    np.testing.assert_allclose(calls[0]['extra_aberrations'], np.zeros(3))
+    np.testing.assert_allclose(calls[0]['wavelength'], psf.model.bandpass.effective_wavelength)
+    assert calls[1]['SCA'] == 4
+    assert calls[2]['SCA'] == 8
+
+
+@timer
 def test_optical(model=None):
 
     if not model:

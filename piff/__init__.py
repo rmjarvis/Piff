@@ -110,6 +110,7 @@ from .size_mag import SizeMagStats, SmallBrightSelect, SizeMagSelect
 
 # Optics
 from .optical_model import Optical, optical_templates
+from .roman_psf import Roman, RomanOptics
 
 # Composite PSFs
 from .sumpsf import SumPSF
