@@ -1047,6 +1047,10 @@ class StarFit(object):
                 new_params_var = self.params_var.copy()
                 new_params_var[num] = np.asarray(params_var)
                 kwargs['params_var'] = new_params_var
+            elif self.params_var is not None and self.params_var[num] is None:
+                new_params_var = self.params_var.copy()
+                new_params_var[num] = np.zeros_like(params)
+                kwargs['params_var'] = new_params_var
         else:
             kwargs['params'] = np.asarray(params)
             if params_var is not None:
