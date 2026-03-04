@@ -22,7 +22,7 @@ import glob
 import os
 import galsim
 
-from .util import run_multi, calculateSNR
+from .util import run_multi
 from .star import Star, StarData
 
 class Input(object):
@@ -254,8 +254,9 @@ class InputFiles(Input):
                         [default: False]
         :use_partial:   Whether to use stars whose postage stamps are only partially on the
                         full image.  [default: False]
-        :nstars:        Stop reading the input file at this many stars.  (This is applied
-                        separately to each input catalog.)  [default: None]
+        :nstars:        Stop reading each input catalog at this many stars. This legacy option
+                        is deprecated; prefer `select.nstars`, which applies globally after the
+                        selection cuts and keeps the highest-S/N stars. [default: None]
         :nproc:         How many multiprocessing processes to use for reading in data from
                         multiple files at once. [default: 1]
 
@@ -328,7 +329,7 @@ class InputFiles(Input):
                 'noise' : str,
                 'nstars' : int,
               }
-        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]  # These are parsed separately
+        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]
 
         # We're going to change the config dict a bit. Make a copy so we don't mess up the
         # user's original dict (in case they care).
@@ -348,6 +349,10 @@ class InputFiles(Input):
 
         if 'nproc' in config:
             self.nproc = galsim.config.ParseValue(config, 'nproc', base, int)[0]
+
+        if 'nstars' in config:
+            logger.warning("input.nstars is deprecated; use select.nstars for the new global "
+                           "highest-S/N behavior.")
 
         if 'nimages' in config:
             nimages = galsim.config.ParseValue(config, 'nimages', base, int)[0]
@@ -985,7 +990,7 @@ class InputFiles(Input):
         :param satur:           Either a float value for the saturation level to use or a str
                                 keyword to read a value from the FITS header.
         :param trust_pos:       Optional bool value indicating whether to trust input positions.
-        :param nstars:          Optionally a maximum number of stars to use.
+        :param nstars:          Optionally a maximum number of stars to use from this catalog.
         :param stamp_size:      The stamp size being used for the star stamps.
         :param logger:          A logger object for logging debug info. [default: None]
 
@@ -1027,7 +1032,7 @@ class InputFiles(Input):
 
         # Limit to nstars objects
         if nstars is not None and nstars < len(cat):
-            logger.verbose("Limiting to %d objects for %s",nstars,cat_file_name)
+            logger.verbose("Limiting to %d objects for %s", nstars, cat_file_name)
             cat = cat[:nstars]
 
         # Make the list of positions:

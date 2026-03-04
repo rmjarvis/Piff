@@ -41,7 +41,7 @@ class Select(object):
     # Parameters that derived classes should ignore if they appear in the config dict
     # (since they are handled by the base class).
     base_keys= ['min_snr', 'max_snr', 'hsm_size_reject', 'max_pixel_cut', 'reject_where',
-                'max_edge_frac', 'stamp_center_size', 'max_mask_pixels',
+                'max_edge_frac', 'stamp_center_size', 'max_mask_pixels', 'nstars',
                 'reserve_frac', 'seed']
 
     def __init__(self, config, logger=None):
@@ -56,6 +56,12 @@ class Select(object):
         self.reject_where = config.get('reject_where', None)
         self.reserve_frac = config.get('reserve_frac', 0.)
         self.rng = np.random.default_rng(config.get('seed', None))
+        if 'nstars' in config:
+            self.nstars = galsim.config.ParseValue(config, 'nstars', config, int)[0]
+            if self.nstars < 0:
+                raise ValueError("select.nstars must be >= 0")
+        else:
+            self.nstars = None
 
         if self.hsm_size_reject == 1:
             # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
@@ -123,6 +129,9 @@ class Select(object):
                             are properties of each star (usually input using property_cols).
                             It should evaluate to a bool for a single star or an array of bool
                             if the variables are arrays of property values for all the stars.
+                            [default: None]
+            :nstars:        After the rejection cuts, keep at most this many stars total,
+                            choosing the ones with the highest S/N across all images.
                             [default: None]
             :reserve_frac:  Reserve a fraction of the stars from the PSF calculations, so they
                             can serve as fair points for diagnostic testing.  These stars will
@@ -345,6 +354,14 @@ class Select(object):
                                "which implies max_pixel > ~%s",
                                np.sum(flux>=flux_cut), flux_cut, self.max_pixel_cut)
                 good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
+
+        if self.nstars is not None and self.nstars < len(good_stars):
+            snrs = np.array([star.data.properties['snr'] for star in good_stars])
+            keep = np.argsort(snrs)[::-1][:self.nstars]
+            keep.sort()
+            logger.info("Limiting to %d stars with highest S/N out of %d candidates",
+                        self.nstars, len(good_stars))
+            good_stars = [good_stars[k] for k in keep]
 
         logger.info("Rejected a total of %d stars out of %s total candidates",
                     len(stars) - len(good_stars), len(stars))
