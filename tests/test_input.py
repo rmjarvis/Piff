@@ -227,16 +227,21 @@ def test_basic():
         assert len(image_pos) == 100
 
     # Can limit the number of stars
+    # *** The next bit is now deprecated.
+    #     input.nstars still works with the old per-catalog behavior, but is deprecated
+    #     in favor of the new select.nstars with (IMO) better semantics.
     config['nstars'] = 37
-    input = piff.InputFiles(config, logger=logger)
+    with CaptureLog() as cl:
+        input = piff.InputFiles(config, logger=cl.logger)
+    assert "input.nstars is deprecated" in cl.output
     assert input.nimages == 3
     for i in range(3):
         _, _, image_pos, _ = input.getRawImageData(i)
         assert len(image_pos) == 37
 
-    # Can limit stars differently on each chip
+    # input.nstars can still vary by image with the old per-catalog behavior.
     config['nstars'] = '$0 if @image_num == 1 else 20 if @image_num == 2 else 40'
-    input = piff.InputFiles(config, logger=logger)
+    input = piff.InputFiles(config)
     assert input.nimages == 3
     for i in range(3):
         _, _, image_pos, _ = input.getRawImageData(i)
@@ -247,18 +252,16 @@ def test_basic():
         else:
             assert len(image_pos) == 20
 
-    # Semi-gratuitous use of reserve_frac when one image has no stars for coverage
-    # This functionality changed location to the Select class, but keep this test nonetheless.
+    # Legacy behavior: input.nstars acts before later selection/reserve logic.
     select_config = {'reserve_frac': 0.2}
     config['use_partial'] = True
     config['ra'] = 6.0
     config['dec'] = -30.0
-    input = piff.InputFiles(config, logger=logger)
+    input = piff.InputFiles(config)
     assert input.nimages == 3
     stars = input.makeStars(logger=logger)
     select = piff.FlagSelect(select_config, logger=logger)
     select.reserveStars(stars, logger=logger)
-    print('len stars = ',len(stars))
     assert len(stars) == 60
     assert len([s for s in stars if s.chipnum == 0]) == 40
     assert len([s for s in stars if s.chipnum == 1]) == 0
@@ -269,11 +272,43 @@ def test_basic():
     assert len([s for s in reserve_stars if s['chipnum'] == 1]) == 0
     assert len([s for s in reserve_stars if s['chipnum'] == 2]) == 4
 
+    config.pop('nstars')
+    config['ra'] = 6.0
+    config['dec'] = -30.0
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 3
+    objects = input.makeStars(logger=logger)
+    assert len(objects) > 100
+
+    # Now the new select.nstars tests.
+    # select.nstars applies globally after the selection cuts, which is more intuitive than
+    # setting a number for each input file when there are multiple catalogs.
+    # It also selects the N highest-S/N stars after doing all other selection/rejections steps.
+    # These are going to be the best subset to use for PSF estimation.
+    select_config = {'nstars': 37, 'max_snr': 1.e9}
+    stars = piff.Select.process(select_config, objects, logger=logger)
+    assert len(stars) == 37
+    snr_list = np.array([piff.util.calculateSNR(obj.image, obj.weight) for obj in objects])
+    selected_snr = np.array([piff.util.calculateSNR(star.image, star.weight) for star in stars])
+    cutoff = np.min(selected_snr)
+    assert np.count_nonzero(snr_list > cutoff) < len(stars)
+    assert np.count_nonzero(snr_list >= cutoff) >= len(stars)
+
+    # The nstars limit is applied after other selection cuts.
+    select_config = {'min_snr': 35, 'max_snr': 1.e9, 'nstars': 12}
+    stars = piff.Select.process(select_config, objects, logger=logger)
+    assert len(stars) == 12
+    allowed = [obj for obj in objects if piff.util.calculateSNR(obj.image, obj.weight) >= 35]
+    snr_list = np.array([piff.util.calculateSNR(obj.image, obj.weight) for obj in allowed])
+    selected_snr = np.array([piff.util.calculateSNR(star.image, star.weight) for star in stars])
+    cutoff = np.min(selected_snr)
+    assert np.count_nonzero(snr_list > cutoff) < len(stars)
+    assert np.count_nonzero(snr_list >= cutoff) >= len(stars)
+
     # If no stars, raise error
     # (normally because all stars have errors, but easier to just limit to 0 to test this.)
-    config['nstars'] = 0
     with np.testing.assert_raises(RuntimeError):
-        input = piff.Input.process(config, logger=logger)
+        piff.Select.process({'nstars': 0}, objects, logger=logger)
 
 
 @timer
@@ -319,6 +354,9 @@ def test_invalid():
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
     config = { 'nimages' : 0, 'image_file_name' : image_files, 'cat_file_name': cat_files }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
+    # nstars now belongs in the select field, and negative values are invalid there.
+    np.testing.assert_raises(ValueError, piff.FlagSelect, {'nstars': -1})
     config = { 'nimages' : -1, 'image_file_name' : image_files, 'cat_file_name': cat_files }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 

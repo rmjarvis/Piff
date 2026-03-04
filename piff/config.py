@@ -149,7 +149,7 @@ def process(config, logger=None):
     # For the 1.x series, allow the old API, but give a warning.
     select_keys = set(Select.base_keys)
     user_input_keys = set(config['input'].keys())
-    depr_keys = select_keys & user_input_keys
+    depr_keys = (select_keys - {'nstars'}) & user_input_keys
     if len(depr_keys) > 0:
         logger.error("WARNING: Items %r should now be in the 'select' field of the config file.",
                      sorted(depr_keys))
