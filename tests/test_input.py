@@ -305,6 +305,17 @@ def test_basic():
     assert np.count_nonzero(snr_list > cutoff) < len(stars)
     assert np.count_nonzero(snr_list >= cutoff) >= len(stars)
 
+    # nstars ranking should use unclipped S/N even when max_snr clips the fit weighting.
+    objects2 = input.makeStars(logger=logger)
+    snr_list2 = np.array([piff.util.calculateSNR(obj.image, obj.weight) for obj in objects2])
+    select_config = {'nstars': 12, 'max_snr': 20}
+    stars = piff.Select.process(select_config, objects2, logger=logger)
+    assert len(stars) == 12
+    expected = np.sort(np.sort(snr_list2)[::-1][:12])
+    selected_raw = np.sort(np.array([star['raw_snr'] for star in stars]))
+    np.testing.assert_allclose(selected_raw, expected)
+    assert np.allclose([star['snr'] for star in stars], 20)
+
     # If no stars, raise error
     # (normally because all stars have errors, but easier to just limit to 0 to test this.)
     with np.testing.assert_raises(RuntimeError):

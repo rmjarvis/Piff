@@ -263,12 +263,13 @@ class Select(object):
                     continue
 
             # Check the snr and limit it if appropriate
-            snr = calculateSNR(star.image, star.weight)
-            logger.debug("SNR = %f",snr)
-            if self.min_snr is not None and snr < self.min_snr:
+            raw_snr = calculateSNR(star.image, star.weight)
+            logger.debug("SNR = %f", raw_snr)
+            if self.min_snr is not None and raw_snr < self.min_snr:
                 logger.verbose("Skipping star at position %f,%f with snr=%f.",
-                               star.image_pos.x, star.image_pos.y, snr)
+                               star.image_pos.x, star.image_pos.y, raw_snr)
                 continue
+            snr = raw_snr
             if self.max_snr > 0 and snr > self.max_snr:
                 factor = (self.max_snr / snr)**2
                 logger.debug("Scaling noise by factor of %f to achieve snr=%f",
@@ -277,6 +278,7 @@ class Select(object):
                 snr = self.max_snr
                 logger.debug("SNR => %f",snr)
             star.data.properties['snr'] = snr
+            star.data.properties['raw_snr'] = raw_snr
 
             # Reject stars with lots of flux near the edge of the stamp.
             if self.max_edge_frac is not None and self.max_edge_frac < 1:
@@ -356,7 +358,7 @@ class Select(object):
                 good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
 
         if self.nstars is not None and self.nstars < len(good_stars):
-            snrs = np.array([star.data.properties['snr'] for star in good_stars])
+            snrs = np.array([star.data.properties['raw_snr'] for star in good_stars])
             keep = np.argsort(snrs)[::-1][:self.nstars]
             keep.sort()
             logger.info("Limiting to %d stars with highest S/N out of %d candidates",
