@@ -105,3 +105,6 @@ When extending functionality, check whether an existing abstraction or diagnosti
   properties; use this instead of adding Roman-specific keys to the generic input code.
 - `RomanOptics` defaults to `chromatic: True`; set `chromatic: False` explicitly when using the
   achromatic effective-wavelength approximation.
+- Keep Roman fitting path explicit and specialized: `RomanOptics` should always use batched
+  fitting and the four-corner bilinear approximation. Avoid generic `SimplePSF`-style fallback
+  branches for Roman.
