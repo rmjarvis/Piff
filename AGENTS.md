@@ -61,6 +61,8 @@ Notes:
 - When practical, tests should validate results using an independent calculation, analytic expectation, or simpler reference algorithm rather than only reusing the implementation under test.
 - Prefer a house style of 100 characters per line or less, except where exceeding that limit is
   clearly the less awkward choice (for example some long URLs).
+- Prefer explicit `if/else` structure over early `return` style when either form is equivalent.
+  Use early returns only when they materially improve clarity.
 
 ## Build Notes
 

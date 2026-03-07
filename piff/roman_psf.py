@@ -23,7 +23,6 @@ import scipy.linalg
 
 from .interp import Interp
 from .model import Model
-from .mean_interp import Mean
 from .outliers import Outliers
 from .psf import PSF
 from .star import Star
@@ -44,9 +43,10 @@ class RomanSCAInterp(Interp):
     """Interpolate Roman aberration vectors as constants per SCA."""
     _type_name = 'RomanSCA'
 
-    def __init__(self, logger=None):
+    def __init__(self, per_sca=True, logger=None):
+        self.per_sca = per_sca
         self.degenerate_points = False
-        self.kwargs = {}
+        self.kwargs = {'per_sca': self.per_sca}
         self.sca_mean = {}
         self.global_mean = None
         self.set_num(None)
@@ -60,20 +60,26 @@ class RomanSCAInterp(Interp):
         sca = np.array([_get_sca(star) for star in stars], dtype=int)
         self.global_mean = np.mean(params, axis=0)
         self.sca_mean = {}
-        for s in np.unique(sca):
-            self.sca_mean[s] = np.mean(params[sca == s], axis=0)
+        if self.per_sca:
+            for s in np.unique(sca):
+                self.sca_mean[s] = np.mean(params[sca == s], axis=0)
+
+    def set_sca_solution(self, sca_mean):
+        self.global_mean = np.mean(list(sca_mean.values()), axis=0)
+        self.sca_mean = dict(sca_mean) if self.per_sca else {}
 
     def interpolate(self, star, logger=None, inplace=False):
         sca = _get_sca(star)
-        if sca in self.sca_mean:
+        if self.per_sca and sca in self.sca_mean:
+            # The second clause should rarely be false.
+            # But if we need to interpolate onto an SCA that did not have any PSF stars,
+            # this prevents a runtime error.  Using the global mean is probably as good
+            # as anything for that case.
             params = self.sca_mean[sca]
         else:
-            # This should rarely hit.  But if we need to interpolate onto an SCA that did not
-            # have any PSF stars, this prevents a runtime error.  Using the global mean is
-            # probably as good as anything for that case.
             params = self.global_mean
         if params is None:
-            # This can happen during initialization.  global_mean is not set yet.
+            # This can happen during initialization.  sca_mean/global_mean are not set yet.
             return star
 
         if inplace:
@@ -160,7 +166,6 @@ class Roman(Model):
         }
         self.sca_size = float(galsim.roman.n_pix)
         self.clear_cache()
-        self._last_sca_mean = {}
 
     @property
     def param_len(self):
@@ -464,6 +469,8 @@ class RomanOptics(PSF):
 
     def set_num(self, num):
         self._num = num
+        # During read, model and interp might not be real.
+        # Only call set_num if they are actually built.
         if isinstance(self.model, Model):
             self.model.set_num(num)
         if isinstance(self.interp, Interp):
@@ -485,7 +492,7 @@ class RomanOptics(PSF):
         max_iter = kwargs.pop('max_iter', 30)
 
         model = Roman(logger=logger, **kwargs)
-        interp = RomanSCAInterp() if per_sca else Mean()
+        interp = RomanSCAInterp(per_sca=per_sca)
 
         parsed = {
             'model': model,
@@ -552,10 +559,7 @@ class RomanOptics(PSF):
             raise RuntimeError("No stars left to fit.  Cannot find PSF model.")
 
         logger.debug("             Calculating the interpolation")
-        self.interp.sca_mean = dict(self.model._last_sca_mean)
-        self.interp.global_mean = np.mean(
-            [star.fit.get_params(self._num) for star in new_fit_stars], axis=0
-        )
+        self.interp.set_sca_solution(self.model._last_sca_mean)
         all_stars = self.interp.interpolateList(all_stars)
         return all_stars, 0
 
