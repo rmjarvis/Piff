@@ -20,12 +20,14 @@ import galsim
 import galsim.roman
 import numpy as np
 import scipy.linalg
+import copy
 
 from .interp import Interp
 from .model import Model
 from .outliers import Outliers
 from .psf import PSF
 from .star import Star
+from .util import run_multi
 
 # Global control of GalSim Roman pupil-plane resolution in getPSF calls.
 # Kept module-level so tests can override to faster values (e.g. 8 or 16).
@@ -142,12 +144,14 @@ class Roman(Model):
         chromatic=True,
         max_zernike=22,
         aberration_prior_sigma=1.0,
+        nproc=1,
         logger=None,
     ):
         self.logger = logger
         self.filter = filter
         self.chromatic = chromatic
         self.max_zernike = int(max_zernike)
+        self.nproc = int(nproc)
         self.set_num(None)
 
         if self.max_zernike < 4 or self.max_zernike > 22:
@@ -167,9 +171,16 @@ class Roman(Model):
             'chromatic': self.chromatic,
             'max_zernike': self.max_zernike,
             'aberration_prior_sigma': self.prior_sigma if self.prior_sigma is not None else None,
+            'nproc': self.nproc,
         }
         self.sca_size = float(galsim.roman.n_pix)
         self.clear_cache()
+
+    def __getstate__(self):
+        # Do not pickle logger instances for multiprocessing jobs.
+        state = dict(self.__dict__)
+        state['logger'] = None
+        return state
 
     @property
     def param_len(self):
@@ -181,7 +192,6 @@ class Roman(Model):
 
     def clear_cache(self):
         self._corner_cache = {}
-        self._sca_wcs = {}
 
     def _make_extra_aberrations(self, params):
         # GalSim expects extra_aberrations indexed by Zernike number.  Our parameter vector
@@ -251,7 +261,27 @@ class Roman(Model):
             draw_method=draw_method,
         )[0]
 
+    @staticmethod
+    def _fit_sca_group_worker(model, sca, stars, convert_funcs, draw_method, logger):
+        fit_group, mean_params, corner_profiles = model._fit_sca_group(
+            sca,
+            stars,
+            convert_funcs=convert_funcs,
+            logger=logger,
+            draw_method=draw_method,
+        )
+        return sca, fit_group, mean_params, corner_profiles
+
     def fit_many(self, stars, logger=None, convert_funcs=None, draw_method=None):
+        from .config import LoggerWrapper, setup_logger
+        if logger is None:
+            logger = setup_logger(verbose=0)
+        logger = LoggerWrapper(logger)
+
+        if len(stars) == 0:
+            self._last_sca_mean = {}
+            return []
+
         if convert_funcs is None:
             convert_funcs = [None] * len(stars)
         elif len(convert_funcs) != len(stars):
@@ -266,20 +296,37 @@ class Roman(Model):
             grouped[sca]['stars'].append(star)
             grouped[sca]['convert_funcs'].append(convert_func)
 
+        args = []
+        for sca, group in grouped.items():
+            # Keep multiprocessing payload small by only sending the relevant cache entry
+            # for this SCA to each worker.
+            worker_model = copy.copy(self)
+            worker_model._corner_cache = (
+                {sca: self._corner_cache[sca]} if sca in self._corner_cache else {}
+            )
+            args.append(
+                (worker_model, sca, group['stars'], group['convert_funcs'], draw_method)
+            )
+
+        fit_results = run_multi(
+            Roman._fit_sca_group_worker,
+            self.nproc,
+            raise_except=True,
+            args=args,
+            logger=logger,
+        )
+
         out = [None] * len(stars)
         sca_mean = {}
-        for sca, group in grouped.items():
-            fit_group, mean_params = self._fit_sca_group(
-                sca,
-                group['stars'],
-                logger=logger,
-                draw_method=draw_method,
-                convert_funcs=group['convert_funcs'],
-            )
+        for fit_result in fit_results:
+            sca, fit_group, mean_params, corner_profiles = fit_result
+            indices = grouped[sca]['indices']
             sca_mean[sca] = mean_params
+            wcs = stars[indices[0]].image.wcs
+            self._corner_cache[sca] = (mean_params, wcs, corner_profiles)
             # Output the stars in the same order as input, so they stay matched with
             # convert_funcs array if there is one.
-            for i, star in zip(group['indices'], fit_group):
+            for i, star in zip(indices, fit_group):
                 out[i] = star
         self._last_sca_mean = sca_mean
         return out
@@ -337,7 +384,7 @@ class Roman(Model):
 
         # Use one common parameter vector per SCA for the final model/chisq pass.
         sca_params = np.mean(solved_params, axis=0)
-        corner_sca_profiles = self._get_corner_profiles(ref, sca_params, cache=True, sca=sca)
+        corner_sca_profiles = self._get_corner_profiles(ref, sca_params, cache=False, sca=sca)
 
         # Compute the final model and chisq for each star.
         out = []
@@ -355,7 +402,7 @@ class Roman(Model):
                     ),
                 )
             )
-        return out, sca_params
+        return out, sca_params, corner_sca_profiles
 
     def draw(self, star, copy_image=True):
         params = star.fit.get_params(self._num)
@@ -384,14 +431,18 @@ class Roman(Model):
     def _get_corner_profiles(self, star, params, cache=True, sca=None):
         if sca is None:
             sca = _get_sca(star)
+        wcs = star.image.wcs
         if sca in self._corner_cache:
-            cached_params, cached_profiles = self._corner_cache[sca]
-            if np.array_equal(cached_params, params):
+            cached_params, cached_wcs, cached_profiles = self._corner_cache[sca]
+            same_wcs = cached_wcs is wcs
+            if not same_wcs:
+                try:
+                    same_wcs = (cached_wcs == wcs)
+                except Exception:
+                    same_wcs = False
+            if same_wcs and np.array_equal(cached_params, params):
                 return cached_profiles
 
-        if sca not in self._sca_wcs:
-            self._sca_wcs[sca] = star.data.local_wcs
-        wcs = self._sca_wcs[sca]
         wavelength = None if self.chromatic else self.bandpass.effective_wavelength
         corners = (
             galsim.PositionD(0.0, 0.0),
@@ -413,7 +464,7 @@ class Roman(Model):
             for corner in corners
             )
         if cache:
-            self._corner_cache[sca] = (params, profiles)
+            self._corner_cache[sca] = (params, wcs, profiles)
         return profiles
 
     def _interpolate_corners(self, star, corner_profiles):
