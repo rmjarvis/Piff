@@ -18,7 +18,6 @@
 
 import math
 import numpy as np
-import math
 import galsim
 from scipy.stats import chi2
 
@@ -43,24 +42,30 @@ class Outliers(object):
 
         :returns: an Outliers instance
         """
-        # Get the class to use for the outliers
-        if 'type' not in config_outliers:
-            raise ValueError("config['outliers'] has no type field")
+        if not isinstance(config_outliers, list):
+            config_outliers = [config_outliers]
 
-        outliers_type = config_outliers['type']
-        if outliers_type not in Outliers.valid_outliers_types:
-            raise ValueError("type %s is not a valid model type. "%outliers_type +
-                             "Expecting one of %s"%list(Outliers.valid_outliers_types.keys()))
+        all_outliers = []
+        for spec in config_outliers:
+            # Get the class to use for the outliers
+            if 'type' not in spec:
+                raise ValueError("config['outliers'] has no type field")
 
-        outliers_class = Outliers.valid_outliers_types[outliers_type]
+            outliers_type = spec['type']
+            if outliers_type not in Outliers.valid_outliers_types:
+                raise ValueError("type %s is not a valid model type. "%outliers_type +
+                                "Expecting one of %s"%list(Outliers.valid_outliers_types.keys()))
 
-        # Read any other kwargs in the outliers field
-        kwargs = outliers_class.parseKwargs(config_outliers, logger)
+            outliers_class = Outliers.valid_outliers_types[outliers_type]
 
-        # Build outliers object
-        outliers = outliers_class(**kwargs)
+            # Read any other kwargs in the outliers field
+            kwargs = outliers_class.parseKwargs(spec, logger)
 
-        return outliers
+            # Build outliers object
+            outliers = outliers_class(**kwargs)
+            all_outliers.append(outliers)
+
+        return all_outliers
 
     @classmethod
     def __init_subclass__(cls):
@@ -103,6 +108,26 @@ class Outliers(object):
         with writer.nested(name) as w:
             self._finish_write(w)
 
+    @classmethod
+    def write_all(cls, writer, name, outliers):
+        """Write a list of outlier handlers.
+
+        :param writer:      A writer object that encapsulates the serialization format.
+        :param name:        A name to associate with the outliers in the serialized output.
+        :param outliers:    A list of Outliers instances.
+        """
+        if not outliers:
+            return
+        if len(outliers) == 1:
+            # Only 1 outlier.  Write it to this extension.
+            outliers[0].write(writer, name)
+        else:
+            # Multiple outlier methods.  Write each to its own extension.
+            writer.write_struct(name, {'n_outliers': len(outliers)})
+            with writer.nested(name) as w:
+                for i, outlier in enumerate(outliers):
+                    outlier.write(w, f'outlier_{i}')
+
     def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
 
@@ -144,6 +169,31 @@ class Outliers(object):
         with reader.nested(name) as r:
             outliers._finish_read(r)
         return outliers
+
+    @classmethod
+    def read_all(cls, reader, name):
+        """Read one or more outlier handlers from a FITS file.
+
+        This returns either a list of outlier handlers or None.
+        """
+        kwargs = reader.read_struct(name)
+        if kwargs is None:
+            return None
+
+        if 'n_outliers' in kwargs:
+            # Multiple outlier methods.  Read each from its own extension.
+            n_outliers = int(kwargs['n_outliers'])
+            outliers = []
+            with reader.nested(name) as r:
+                for i in range(n_outliers):
+                    outlier = cls.read(r, f'outlier_{i}')
+                    if outlier is None:
+                        raise ValueError("Missing outlier_%d in serialized outliers list" % i)
+                    outliers.append(outlier)
+            return outliers
+        else:
+            # When only 1 outlier method, it's the only thing in the extension.
+            return [cls.read(reader, name)]
 
     def _finish_read(self, reader):
         """Finish the reading process with any class-specific steps.

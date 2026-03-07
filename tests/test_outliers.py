@@ -155,6 +155,22 @@ def test_base():
     with np.testing.assert_raises(ValueError):
         out = piff.Outliers.process(config)
 
+    # A list of outlier handlers should build a list in the same order.
+    config = [
+        {'type': 'Chisq', 'nsigma': 4},
+        {'type': 'Centroid', 'max_offset': 0.2},
+    ]
+    out = piff.Outliers.process(config)
+    assert isinstance(out, list)
+    assert len(out) == 2
+    assert isinstance(out[0], piff.ChisqOutliers)
+    assert isinstance(out[1], piff.CentroidOutliers)
+
+    # A null list is fine.  It means there will be no outlier rejections applied.
+    out0 = piff.Outliers.process([])
+    assert isinstance(out0, list)
+    assert len(out0) == 0
+
     # Invalid to read a type that isn't a piff.Outliers type.
     # Mock this by pretending that MADOutliers is the only subclass of Outliers.
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
@@ -189,8 +205,10 @@ def test_base():
 def test_centroid():
     """Test the Centroid outlier class."""
     out = piff.Outliers.process({'type': 'Centroid', 'max_offset': 0.2})
-    assert type(out) is piff.CentroidOutliers
-    assert out.max_offset == 0.2
+    assert isinstance(out, list)
+    assert len(out) == 1
+    assert type(out[0]) is piff.CentroidOutliers
+    assert out[0].max_offset == 0.2
 
     # max_offset is required and must be positive.
     np.testing.assert_raises(TypeError, piff.CentroidOutliers)
@@ -209,7 +227,7 @@ def test_centroid():
         piff.Star.makeTarget(x=40, y=40, scale=0.2).withFlux(1.0, (0.3, 0.0)).flag_if(True),
     ]
 
-    stars2, nremoved = out.removeOutliers(stars)
+    stars2, nremoved = out[0].removeOutliers(stars)
     assert nremoved == 1
     assert stars2[0].is_flagged is False
     assert stars2[1].is_flagged is True
@@ -222,10 +240,39 @@ def test_centroid():
         piff.Star.makeTarget(x=31, y=31, scale=0.2, properties={'is_reserve': True})
         .withFlux(1.0, (0.0, 0.3)),
     ]
-    stars4, nremoved2 = out.removeOutliers(stars3)
+    stars4, nremoved2 = out[0].removeOutliers(stars3)
     assert nremoved2 == 0
     assert stars4[0].is_flagged is False
     assert stars4[1].is_flagged is True
+
+    # Verify PSF.remove_outliers runs multiple outlier handlers in sequence and
+    # reports the total number of newly flagged non-reserve stars.
+    stars5_input = [
+        # Good star (survives both checks)
+        piff.Star.makeTarget(x=12, y=12, scale=0.2).withFlux(1.0, (0.05, 0.05)),
+        # Bad chisq, good centroid
+        piff.Star.makeTarget(x=22, y=22, scale=0.2).withFlux(1.0, (0.05, 0.05)),
+        # Good chisq, bad centroid
+        piff.Star.makeTarget(x=32, y=32, scale=0.2).withFlux(1.0, (5., 0.00)),
+    ]
+    stars5 = [
+        piff.Star(s.data, s.fit.withNew(chisq=chisq, dof=10))
+        for s, chisq in zip(stars5_input, [0.1, 5.0, 0.1])
+    ]
+    psf = piff.SimplePSF(
+        model=piff.Gaussian(),
+        interp=piff.Mean(),
+        outliers=[
+            piff.ChisqOutliers(thresh=4.0),
+            piff.CentroidOutliers(max_offset=1.0),
+        ],
+    )
+    logger = piff.config.setup_logger(log_file='output/test_single_image.log')
+    stars5, nremoved3 = piff.PSF.remove_outliers(psf, stars5, iteration=0, logger=logger)
+    assert nremoved3 == 2
+    assert stars5[0].is_flagged is False
+    assert stars5[1].is_flagged is True
+    assert stars5[2].is_flagged is True
 
 
 if __name__ == '__main__':
