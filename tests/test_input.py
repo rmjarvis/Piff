@@ -316,6 +316,10 @@ def test_basic():
     np.testing.assert_allclose(selected_raw, expected)
     assert np.allclose([star['snr'] for star in stars], 20)
 
+    # Negative nstars is invalid (checked when the nstars logic is used).
+    with np.testing.assert_raises(ValueError):
+        piff.Select.process({'nstars': -1}, objects, logger=logger)
+
     # If no stars, raise error
     # (normally because all stars have errors, but easier to just limit to 0 to test this.)
     with np.testing.assert_raises(RuntimeError):
@@ -366,8 +370,6 @@ def test_invalid():
     config = { 'nimages' : 0, 'image_file_name' : image_files, 'cat_file_name': cat_files }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
-    # nstars now belongs in the select field, and negative values are invalid there.
-    np.testing.assert_raises(ValueError, piff.FlagSelect, {'nstars': -1})
     config = { 'nimages' : -1, 'image_file_name' : image_files, 'cat_file_name': cat_files }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 

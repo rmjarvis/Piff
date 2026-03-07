@@ -55,13 +55,8 @@ class Select(object):
         self.max_pixel_cut = config.get('max_pixel_cut', None)
         self.reject_where = config.get('reject_where', None)
         self.reserve_frac = config.get('reserve_frac', 0.)
+        self.nstars = config.get('nstars', None)
         self.rng = np.random.default_rng(config.get('seed', None))
-        if 'nstars' in config:
-            self.nstars = galsim.config.ParseValue(config, 'nstars', config, int)[0]
-            if self.nstars < 0:
-                raise ValueError("select.nstars must be >= 0")
-        else:
-            self.nstars = None
 
         if self.hsm_size_reject == 1:
             # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
@@ -358,6 +353,8 @@ class Select(object):
                 good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
 
         if self.nstars is not None and self.nstars < len(good_stars):
+            if self.nstars < 0:
+                raise ValueError("nstars must be non-negative")
             snrs = np.array([star.data.properties['raw_snr'] for star in good_stars])
             keep = np.argsort(snrs)[::-1][:self.nstars]
             keep.sort()
