@@ -501,3 +501,41 @@ def test_roman_sca_interp():
         tstars2 = psf2.interpolateStarList(tstars2)
         np.testing.assert_allclose(tstars2[0].fit.get_params(psf2._num), p1)
         np.testing.assert_allclose(tstars2[1].fit.get_params(psf2._num), p2)
+
+    # When per_sca=False, interpolation should use the global mean for all SCAs.
+    psf_global = piff.PSF.process(
+        {
+            'type': 'RomanOptics',
+            'filter': 'H158',
+            'chromatic': False,
+            'max_zernike': 6,
+            'per_sca': False,
+        }
+    )
+    stars_g, _ = psf_global.initialize_params([s1, s2], logger=logger)
+    stars_g[0] = piff.Star(
+        stars_g[0].data,
+        stars_g[0].fit.newParams(p1, params_var=np.zeros_like(p1), num=psf_global._num),
+    )
+    stars_g[1] = piff.Star(
+        stars_g[1].data,
+        stars_g[1].fit.newParams(p2, params_var=np.zeros_like(p2), num=psf_global._num),
+    )
+    psf_global.interp.solve(stars_g)
+    gmean = 0.5 * (p1 + p2)
+
+    gt1 = piff.Star.makeTarget(x=1.0, y=2.0, stamp_size=25, scale=0.11, properties={'sca': 2})
+    gt2 = piff.Star.makeTarget(x=3.0, y=4.0, stamp_size=25, scale=0.11, properties={'sca': 5})
+    gt1 = gt1.withFlux(1.0, (0.0, 0.0))
+    gt2 = gt2.withFlux(1.0, (0.0, 0.0))
+    gtstars, _ = psf_global.initialize_params([gt1, gt2], logger=logger)
+    gtstars = psf_global.interpolateStarList(gtstars)
+    np.testing.assert_allclose(gtstars[0].fit.get_params(psf_global._num), gmean)
+    np.testing.assert_allclose(gtstars[1].fit.get_params(psf_global._num), gmean)
+
+    # Also allow feeding precomputed per-SCA means directly from model.fit_many.
+    psf_global.interp.set_sca_solution({2: p1, 5: p2})
+    gtstars2, _ = psf_global.initialize_params([gt1, gt2], logger=logger)
+    gtstars2 = psf_global.interpolateStarList(gtstars2)
+    np.testing.assert_allclose(gtstars2[0].fit.get_params(psf_global._num), gmean)
+    np.testing.assert_allclose(gtstars2[1].fit.get_params(psf_global._num), gmean)
