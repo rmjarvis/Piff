@@ -285,7 +285,6 @@ def test_centroid():
     assert psf2.outliers[1]._type_name == 'Centroid'
 
 
-
 if __name__ == '__main__':
     test_chisq()
     test_base()
