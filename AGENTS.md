@@ -76,6 +76,9 @@ Notes:
   a sign of unnecessary/extraneous internal code paths.
 - Prefer a house style of 100 characters per line or less, except where exceeding that limit is
   clearly the less awkward choice (for example some long URLs).
+- For debugging star-level issues from a `.piff` file, prefer using `InputFiles.load_images` to
+  repopulate original star cutouts from the source inputs rather than manually reconstructing
+  stamp bounds.
 - Prefer explicit `if/else` structure over early `return` style when either form is equivalent.
   Use early returns only when they materially improve clarity.
 - For non-functional edits only (comments/docstrings/docs/text), do not rerun tests just to
