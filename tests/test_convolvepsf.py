@@ -136,6 +136,7 @@ def test_trivial_convolve1():
     assert psf.chisq_thresh == 0.2
     assert psf.max_iter == 10
     assert psf.min_iter == 2
+    assert psf.niter > 0
 
     for i, star in enumerate(psf.stars):
         target = targets[i]

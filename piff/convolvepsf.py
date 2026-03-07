@@ -296,6 +296,7 @@ class ConvolvePSF(PSF):
             'last_delta_chisq' : self.last_delta_chisq,
             'dof' : self.dof,
             'nremoved' : self.nremoved,
+            'niter' : self.niter,
         }
         writer.write_struct('chisq', chisq_dict)
         logger.debug("Wrote the chisq info to extension %s", writer.get_full_name('chisq'))
