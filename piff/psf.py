@@ -38,6 +38,10 @@ class PSF(object):
     # The values in this dict will be the PSF sub-classes.
     valid_psf_types = {}
 
+    # Normally overridden by subclasses.  But this gives a reasonable default for
+    # tests that bypass places where it would be potentially set in normal operations.
+    degenerate_points = False
+
     @classmethod
     def process(cls, config_psf, logger=None):
         """Process the config dict and return a PSF instance.
@@ -357,7 +361,10 @@ class PSF(object):
         # Perform outlier rejection, but not on first iteration for degenerate solvers.
         if self.outliers and (iteration > 0 or not self.degenerate_points):
             logger.debug("             Looking for outliers")
-            stars, nremoved = self.outliers.removeOutliers(stars, logger=logger)
+            nremoved = 0
+            for outliers in self.outliers:
+                stars, removed = outliers.removeOutliers(stars, logger=logger)
+                nremoved += removed
             if nremoved == 0:
                 logger.debug("             No outliers found")
             else:
