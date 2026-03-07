@@ -87,7 +87,7 @@ from .knn_interp import KNNInterp, KNearestNeighbors
 from .gp_interp import GPInterp, GaussianProcess
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
-from .outliers import Outliers, ChisqOutliers
+from .outliers import Outliers, ChisqOutliers, CentroidOutliers
 
 # Input handlers are named InputBlah where Blah is what they are called in the config file
 from .input import Input, InputFiles
