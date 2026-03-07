@@ -374,3 +374,68 @@ class ChisqOutliers(Outliers):
         logger.debug("flux = %s",[s.flux for s,g in zip(stars,good) if not g])
 
         return stars, nremoved
+
+
+class CentroidOutliers(Outliers):
+    """An Outliers handler that rejects stars with large fitted centroid offsets.
+
+    Stars with ``sqrt(cen_u^2 + cen_v^2) > max_offset`` are flagged as outliers.
+    The centroid units are the same as ``star.fit.center`` (typically arcsec).
+
+    Reserve stars can also be flagged, but they do not contribute to ``nremoved``,
+    matching the behavior of :class:`ChisqOutliers`.
+
+    :param max_offset:      Required centroid offset threshold.
+    :param logger:          A logger object for logging debug info. [default: None]
+    """
+    _type_name = 'Centroid'
+
+    def __init__(self, max_offset, logger=None):
+        from .config import LoggerWrapper
+
+        if max_offset <= 0:
+            raise ValueError("max_offset must be > 0")
+
+        self.max_offset = float(max_offset)
+        self.kwargs = {
+            'max_offset': self.max_offset,
+        }
+
+    def removeOutliers(self, stars, logger=None):
+        """Remove outliers from a list of stars based on fit-center offset magnitude.
+
+        :param stars:       A list of Star instances.
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: stars, nremoved
+        """
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
+
+        all_offsets = np.array([np.hypot(*s.fit.center) for s in stars])
+        is_flagged = np.array([s.is_flagged for s in stars], dtype=bool)
+        is_reserve = np.array([s.is_reserve for s in stars], dtype=bool)
+        use = ~is_flagged & ~is_reserve
+        bad = all_offsets > self.max_offset
+        logger.verbose("Checking %d stars for centroid outliers", int(np.sum(use)))
+
+        nremoved = int(np.sum(use & bad))
+
+        if nremoved == 0:
+            # Flag any reserve stars that exceed max_offset.
+            new_reserve_outliers = (~is_flagged) & is_reserve & bad
+            stars = [s.flag_if(flag) for s, flag in zip(stars, new_reserve_outliers)]
+            logger.verbose("No centroid outliers found")
+            logger.debug("Flagged %d reserve stars with bad centroids",
+                         int(np.sum(new_reserve_outliers)))
+            return stars, 0
+        else:
+            # Flag only non-reserve stars that exceed max_offset.
+            new_outliers = (~is_flagged) & (~is_reserve) & bad
+            stars = [s.flag_if(flag) for s, flag in zip(stars, new_outliers)]
+            logger.verbose("Found %d centroid outliers with |center| > %s",
+                           nremoved, self.max_offset)
+            logger.debug("centroid offsets = %s", all_offsets[new_outliers])
+            logger.debug("flux = %s", [s.flux for s, flag in zip(stars, new_outliers) if flag])
+
+        return stars, nremoved

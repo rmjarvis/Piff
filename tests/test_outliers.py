@@ -185,6 +185,50 @@ def test_base():
             pass
 
 
+@timer
+def test_centroid():
+    """Test the Centroid outlier class."""
+    out = piff.Outliers.process({'type': 'Centroid', 'max_offset': 0.2})
+    assert type(out) is piff.CentroidOutliers
+    assert out.max_offset == 0.2
+
+    # max_offset is required and must be positive.
+    np.testing.assert_raises(TypeError, piff.CentroidOutliers)
+    np.testing.assert_raises(ValueError, piff.CentroidOutliers, max_offset=0)
+    np.testing.assert_raises(ValueError, piff.CentroidOutliers, max_offset=-0.1)
+
+    stars = [
+        # Good non-reserve star
+        piff.Star.makeTarget(x=10, y=10, scale=0.2).withFlux(1.0, (0.05, 0.05)),
+        # Bad non-reserve star (counts toward nremoved)
+        piff.Star.makeTarget(x=20, y=20, scale=0.2).withFlux(1.0, (0.25, 0.0)),
+        # Bad reserve star (not flagged if usable stars are removed this iteration)
+        piff.Star.makeTarget(x=30, y=30, scale=0.2, properties={'is_reserve': True})
+        .withFlux(1.0, (0.0, 0.25)),
+        # Already-flagged bad star (stays flagged, not counted)
+        piff.Star.makeTarget(x=40, y=40, scale=0.2).withFlux(1.0, (0.3, 0.0)).flag_if(True),
+    ]
+
+    stars2, nremoved = out.removeOutliers(stars)
+    assert nremoved == 1
+    assert stars2[0].is_flagged is False
+    assert stars2[1].is_flagged is True
+    assert stars2[2].is_flagged is False
+    assert stars2[3].is_flagged is True
+
+    # No removals among usable stars should still allow reserve-star flagging.
+    stars3 = [
+        piff.Star.makeTarget(x=11, y=11, scale=0.2).withFlux(1.0, (0.05, 0.05)),
+        piff.Star.makeTarget(x=31, y=31, scale=0.2, properties={'is_reserve': True})
+        .withFlux(1.0, (0.0, 0.3)),
+    ]
+    stars4, nremoved2 = out.removeOutliers(stars3)
+    assert nremoved2 == 0
+    assert stars4[0].is_flagged is False
+    assert stars4[1].is_flagged is True
+
+
 if __name__ == '__main__':
     test_chisq()
     test_base()
+    test_centroid()
