@@ -154,22 +154,28 @@ def test_roman_optics():
             psf.single_iteration([flagged], logger=logger, convert_funcs=None, draw_method=None)
         assert "No stars left to fit" in str(err.value)
 
-        # Check outliers round trip through file.
+        # Check outliers round trip through file
         psf1 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
                 'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
-                'outliers': {'type': 'Chisq', 'nsigma': 5.0},
+                'outliers': [
+                    {'type': 'Chisq', 'nsigma': 5.0},
+                    {'type': 'Centroid', 'max_offset': 0.2},
+                ],
             }
         )
         assert psf1.outliers is not None
+        assert isinstance(psf1.outliers, list)
         fn = os.path.join('output', 'roman_outliers_write_test.piff')
         psf1.write(fn)
         psf2 = piff.read(fn)
-        assert psf2.outliers[0]._type_name == psf1.outliers[0]._type_name
-        assert psf2.outliers[0].thresh == psf1.outliers[0].thresh
+        assert isinstance(psf2.outliers, list)
+        assert len(psf2.outliers) == len(psf1.outliers)
+        assert psf2.outliers[0]._type_name == 'Chisq'
+        assert psf2.outliers[1]._type_name == 'Centroid'
 
     # max_zernike must be >= 4
     with pytest.raises(ValueError) as err:
