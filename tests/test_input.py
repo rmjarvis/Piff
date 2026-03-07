@@ -1758,6 +1758,47 @@ def test_stars():
 
 
 @timer
+def test_select_min_sep():
+    """Test select.min_sep culling of close neighbors in arcsec."""
+    logger = None
+
+    stars = [
+        # Close pair on same chip: 3 pixels at 0.1 arcsec/pixel => 0.3 arcsec separation.
+        piff.Star.makeTarget(x=10, y=10, scale=0.1, properties={'chipnum': 0}).withFlux(
+            1.0, (0.0, 0.0)
+        ),
+        piff.Star.makeTarget(x=13, y=10, scale=0.1, properties={'chipnum': 0}).withFlux(
+            1.0, (0.0, 0.0)
+        ),
+        # Farther star on same chip.
+        piff.Star.makeTarget(x=30, y=10, scale=0.1, properties={'chipnum': 0}).withFlux(
+            1.0, (0.0, 0.0)
+        ),
+        # Same position as first star, but different chip; should not be compared.
+        piff.Star.makeTarget(x=10, y=10, scale=0.1, properties={'chipnum': 1}).withFlux(
+            1.0, (0.0, 0.0)
+        ),
+    ]
+
+    # Disable SNR clipping so this test only exercises min_sep neighbor rejection behavior.
+    select = piff.FlagSelect({'max_snr': 0, 'min_sep': 0.5}, logger=logger)
+    kept = select.rejectStars(stars, logger=logger)
+    assert len(kept) == 2
+    assert sorted(int(s['chipnum']) for s in kept) == [0, 1]
+    assert any(np.isclose(s['x'], 30.0) and np.isclose(s['y'], 10.0) for s in kept)
+
+    # Smaller threshold should keep all stars.
+    select = piff.FlagSelect({'max_snr': 0, 'min_sep': 0.2}, logger=logger)
+    kept = select.rejectStars(stars, logger=logger)
+    assert len(kept) == 4
+
+    # Invalid negative min_sep should raise when min_sep logic is used.
+    with np.testing.assert_raises(ValueError):
+        select = piff.FlagSelect({'max_snr': 0, 'min_sep': -0.1}, logger=logger)
+        select.rejectStars(stars, logger=logger)
+
+
+@timer
 def test_pointing():
     """Test the input.setPointing function
     """

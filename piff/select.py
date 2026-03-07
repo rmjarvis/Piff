@@ -41,7 +41,7 @@ class Select(object):
     # Parameters that derived classes should ignore if they appear in the config dict
     # (since they are handled by the base class).
     base_keys= ['min_snr', 'max_snr', 'hsm_size_reject', 'max_pixel_cut', 'reject_where',
-                'max_edge_frac', 'stamp_center_size', 'max_mask_pixels', 'nstars',
+                'max_edge_frac', 'stamp_center_size', 'max_mask_pixels', 'nstars', 'min_sep',
                 'reserve_frac', 'seed']
 
     def __init__(self, config, logger=None):
@@ -51,6 +51,7 @@ class Select(object):
         self.max_edge_frac = config.get('max_edge_frac', None)
         self.stamp_center_size = config.get('stamp_center_size', 13)
         self.max_mask_pixels = config.get('max_mask_pixels', None)
+        self.min_sep = config.get('min_sep', None)
         self.hsm_size_reject = config.get('hsm_size_reject', 0.)
         self.max_pixel_cut = config.get('max_pixel_cut', None)
         self.reject_where = config.get('reject_where', None)
@@ -108,6 +109,9 @@ class Select(object):
                             [default 13].
             :max_mask_pixels: If given, reject stars with more than this many masked pixels
                             (i.e. those with w=0). [default: None]
+            :min_sep:       If given, reject stars that have any other selected star within
+                            this separation (in arcsec) on the same chip.  Any star in such a
+                            close pair/group is rejected. [default: None]
             :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than
                             the other stars in the input catalog.  (Used to reject objects with
                             neighbors or other junk in the postage stamp.) [default: False]
@@ -351,6 +355,29 @@ class Select(object):
                                "which implies max_pixel > ~%s",
                                np.sum(flux>=flux_cut), flux_cut, self.max_pixel_cut)
                 good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
+
+        if self.min_sep is not None and len(good_stars) > 1:
+            if self.min_sep <= 0.:
+                raise ValueError("min_sep must be positive")
+            # Reject all stars that have a near neighbor within min_sep on the same chip.
+            # Use (u,v), which are in arcsec, so min_sep is in natural angular units.
+            remove = np.zeros(len(good_stars), dtype=bool)
+            chipnums = np.array([int(star['chipnum']) for star in good_stars], dtype=int)
+            for chipnum in np.unique(chipnums):
+                chip_idx = np.where(chipnums == chipnum)[0]
+                if len(chip_idx) < 2:
+                    continue
+                uv = np.array([(good_stars[k]['u'], good_stars[k]['v']) for k in chip_idx])
+                tree = scipy.spatial.cKDTree(uv)
+                pairs = tree.query_pairs(self.min_sep)
+                for i, j in pairs:
+                    remove[chip_idx[i]] = True
+                    remove[chip_idx[j]] = True
+            nremove = int(np.sum(remove))
+            if nremove > 0:
+                logger.verbose("Rejected %d stars for having neighbors within min_sep=%s arcsec",
+                               nremove, self.min_sep)
+                good_stars = [s for s, r in zip(good_stars, remove) if not r]
 
         if self.nstars is not None and self.nstars < len(good_stars):
             if self.nstars < 0:
