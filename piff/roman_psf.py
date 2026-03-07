@@ -27,6 +27,10 @@ from .outliers import Outliers
 from .psf import PSF
 from .star import Star
 
+# Global control of GalSim Roman pupil-plane resolution in getPSF calls.
+# Kept module-level so tests can override to faster values (e.g. 8 or 16).
+pupil_bin = 4
+
 
 def _get_sca(star):
     # We allow the SCA to be specified either as an sca property (preferred) or as the
@@ -179,20 +183,20 @@ class Roman(Model):
         self._corner_cache = {}
         self._sca_wcs = {}
 
+    def _make_extra_aberrations(self, params):
+        # GalSim expects extra_aberrations indexed by Zernike number.  Our parameter vector
+        # corresponds to z4..z_max, so pad indices 0..3.
+        extra_aberrations = np.zeros(self.max_zernike + 1, dtype=float)
+        extra_aberrations[4:] = params
+        return extra_aberrations
+
     def _draw_profile_to_image(self, prof, image, center):
-        if self.chromatic:
-            prof.drawImage(
-                image,
-                bandpass=self.bandpass,
-                method=self._method,
-                center=center,
-            )
-        else:
-            prof.drawImage(
-                image,
-                method=self._method,
-                center=center
-            )
+        prof.drawImage(
+            image,
+            method=self._method,
+            center=center,
+            bandpass=self.bandpass if self.chromatic else None
+        )
 
     def _solve_params(self, aw, bw, params):
         nparam = len(params)
@@ -211,8 +215,6 @@ class Roman(Model):
         if aberration_prior_sigma is None:
             return None
         sigma = np.array(aberration_prior_sigma, dtype=float).ravel()
-        if sigma.size == 0:
-            raise ValueError("aberration_prior_sigma may not be empty")
         if sigma.size == 1:
             sigma = np.full(self.param_len, sigma[0], dtype=float)
         elif sigma.size != self.param_len:
@@ -282,12 +284,9 @@ class Roman(Model):
         self._last_sca_mean = sca_mean
         return out
 
-    def _fit_sca_group(self, sca, stars, logger=None, draw_method=None, convert_funcs=None):
+    def _fit_sca_group(self, sca, stars, convert_funcs, logger=None, draw_method=None):
         ref = stars[0]
         params = ref.fit.get_params(self._num)
-
-        if convert_funcs is None:
-            convert_funcs = [None] * len(stars)
 
         # We're about to change params, so if the corner profiles aren't yet in the cache,
         # there is not reason now to add them.
@@ -373,12 +372,6 @@ class Roman(Model):
         corner_profiles = self._get_corner_profiles(star, params, cache=cache)
         return self._interpolate_corners(star, corner_profiles)
 
-    def _draw_model_image(self, star, params, cache=True, convert_func=None):
-        corner_profiles = self._get_corner_profiles(star, params, cache=cache)
-        return self._draw_model_image_from_corners(
-            star, corner_profiles, convert_func=convert_func
-        )
-
     def _draw_model_image_from_corners(self, star, corner_profiles, convert_func=None):
         prof = self._interpolate_corners(star, corner_profiles)
         prof = prof.shift(star.fit.center) * star.fit.flux
@@ -406,13 +399,15 @@ class Roman(Model):
             galsim.PositionD(0.0, self.sca_size),
             galsim.PositionD(self.sca_size, self.sca_size),
         )
+        extra_aberrations = self._make_extra_aberrations(params)
         profiles = tuple(
             galsim.roman.getPSF(
                 sca,
                 self.filter,
                 SCA_pos=corner,
+                pupil_bin=pupil_bin,
                 wcs=wcs,
-                extra_aberrations=params,
+                extra_aberrations=extra_aberrations,
                 wavelength=wavelength,
             )
             for corner in corners
@@ -512,20 +507,11 @@ class RomanOptics(PSF):
         self.model.clear_cache()
 
         logger.debug("Initializing models")
-        new_stars = []
-        for star in stars:
-            try:
-                star = self.model.initialize(star, logger=logger, default_init=default_init)
-            except Exception as e:
-                logger.warning("Failed initializing star at %s. Excluding it.", star.image_pos)
-                logger.warning("  -- Caught exception: %s", e)
-                nremoved += 1
-                star = star.flag_if(True)
-            new_stars.append(star)
-        if nremoved == 0:
-            logger.debug("No stars removed in initialize step")
-        else:
-            logger.verbose("Removed %d stars in initialize", nremoved)
+        new_stars = [
+            self.model.initialize(star, logger=logger, default_init=default_init)
+            for star in stars
+        ]
+        logger.debug("No stars removed in initialize step")
 
         logger.debug("Initializing interpolator")
         stars = self.interp.initialize(new_stars, logger=logger)

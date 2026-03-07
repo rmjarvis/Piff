@@ -13,138 +13,171 @@
 #    and/or other materials provided with the distribution.
 
 from __future__ import print_function
-import numpy as np
+
+from contextlib import contextmanager
 import os
-import piff
-import galsim
 import tempfile
 from unittest import mock
 
+import numpy as np
+import piff
+import piff.roman_psf as roman_psf
+import galsim
+import pytest
+
+from piff.roman_psf import RomanSCAInterp
 from piff_test_helper import timer
+
+
+@contextmanager
+def fast_pupil_bin(value=16):
+    """Temporarily raise Roman `pupil_bin` to speed up the getPSF calls in unit tests.
+    Using a coarser pupil sampling makes those calls fast enough for routine test runs,
+    so most of the tests below are run entirely in this context.
+    """
+    original = roman_psf.pupil_bin
+    roman_psf.pupil_bin = value
+    try:
+        yield
+    finally:
+        roman_psf.pupil_bin = original
 
 
 @timer
 def test_roman_optics():
-    calls = []
-
-    def fake_get_psf(
-        SCA,
-        bandpass,
-        SCA_pos=None,
-        pupil_bin=4,
-        wcs=None,
-        n_waves=None,
-        extra_aberrations=None,
-        wavelength=None,
-        gsparams=None,
-        logger=None,
-        high_accuracy=None,
-        approximate_struts=None,
-    ):
-        calls.append(
-            {
-                'SCA': SCA,
-                'bandpass': bandpass,
-                'SCA_pos': SCA_pos,
-                'extra_aberrations': np.array(extra_aberrations, copy=True),
-                'wavelength': wavelength,
-            }
-        )
-        return galsim.Gaussian(sigma=0.2)
-
-    with mock.patch('galsim.roman.getPSF', side_effect=fake_get_psf):
+    """Check RomanOptics basic construction, drawing, and SCA/chipnum property handling.
+    """
+    with fast_pupil_bin():
+        # Check basic construction.
         psf = piff.PSF.process(
             {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
         )
         assert isinstance(psf, piff.RomanOptics)
         logger = piff.config.setup_logger()
+        assert psf.interp_property_names == ('sca',)
+        assert psf.fit_center is False
+        assert psf.include_model_centroid is False
 
+        # Check the core RomanOptics flow: initialize, draw, and profile retrieval.
         star = piff.Star.makeTarget(
             x=123.4,
             y=456.7,
             stamp_size=25,
             scale=0.11,
-            properties={'chipnum': 3, 'sca': 5},
-        )
-        star = star.withFlux(1.0, (0.0, 0.0))
+            properties={'sca': 5},
+        ).withFlux(1.0, (0.0, 0.0))
 
         stars, nremoved = psf.initialize_params([star], logger=logger)
         assert nremoved == 0
-        model_star = psf.drawStar(stars[0])
-        assert model_star.image.array.shape == (25, 25)
+        psf.wcs = {5: galsim.PixelScale(0.11)}
+        psf.pointing = None
+        psf.interp.set_sca_solution({5: np.zeros(psf.model.param_len)})
+        prof, method = psf.get_profile(x=123.4, y=456.7, sca=5)
+        assert prof is not None
+        assert method == psf.model._method
+        image = psf.draw(x=123.4, y=456.7, sca=5)
+        assert image.array.shape == (48, 48)
+        assert np.isclose(image.array.sum(), 1.0, rtol=0.05)
 
-        # If both are present, prefer the explicit sca value.
+        # Helper function to use as a side-effect of getPSF to record what sca argument is used.
+        used_sca = [] # Use a list so we can modify in place.
+        real_get_psf = galsim.roman.getPSF  # Save this here to avoid recursion when patched.
+        def traced_get_psf(*args, **kwargs):
+            sca = args[0] if args else kwargs['SCA']
+            # Clear list first, so it always has just a single element.
+            used_sca.clear()
+            used_sca.append(sca)
+            return real_get_psf(*args, **kwargs)
+
+        # If both chipnum and sca are present, sca takes precedence.
         star = piff.Star.makeTarget(
             x=12.3,
             y=45.6,
             stamp_size=25,
             scale=0.11,
             properties={'chipnum': 7, 'sca': 4},
-        )
-        star = star.withFlux(1.0, (0.0, 0.0))
-        psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
+        ).withFlux(1.0, (0.0, 0.0))
+        with mock.patch('galsim.roman.getPSF', side_effect=traced_get_psf):
+            psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
+        assert used_sca[0] == 4
 
-        # If sca is absent, chipnum acts as an alias.
+        # If only chipnum is present, assume that is the sca number.
         star = piff.Star.makeTarget(
             x=78.9,
             y=10.1,
             stamp_size=25,
             scale=0.11,
             properties={'chipnum': 8},
-        )
-        star = star.withFlux(1.0, (0.0, 0.0))
-        psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
-
-        # If neither is present, fail with the preferred sca-centric message.
-        star = piff.Star.makeTarget(
-            x=11.1,
-            y=22.2,
-            stamp_size=25,
-            scale=0.11,
-        )
-        star = star.withFlux(1.0, (0.0, 0.0))
-        try:
+        ).withFlux(1.0, (0.0, 0.0))
+        with mock.patch('galsim.roman.getPSF', side_effect=traced_get_psf):
             psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
-            assert False
-        except ValueError as e:
-            assert "explicit 'sca' property" in str(e)
+        assert used_sca[0] == 8
 
-    assert len(calls) == 12
-    sca_calls = [call['SCA'] for call in calls]
-    assert sca_calls.count(5) == 4
-    assert sca_calls.count(4) == 4
-    assert sca_calls.count(8) == 4
-    assert all(call['bandpass'] == 'H158' for call in calls)
-    assert all(call['SCA_pos'] is not None for call in calls)
-    assert all(np.allclose(call['extra_aberrations'], np.zeros(3)) for call in calls)
-    assert all(
-        np.isclose(call['wavelength'], psf.model.bandpass.effective_wavelength)
-        for call in calls
-    )
+        # If neither is present, raise an exception.
+        star = piff.Star.makeTarget(x=11.1, y=22.2, stamp_size=25, scale=0.11)
+        star = star.withFlux(1.0, (0.0, 0.0))
+        with pytest.raises(ValueError) as err:
+            psf.drawStar(psf.initialize_params([star], logger=logger)[0][0])
+        assert "explicit 'sca' property" in str(err.value)
+
+        # Check some simple interpolation machinery.
+        star = piff.Star.makeTarget(
+            x=30.0,
+            y=40.0,
+            stamp_size=15,
+            scale=0.11,
+            properties={'sca': 2},
+        ).withFlux(1.0, (0.0, 0.0))
+        stars, _ = psf.initialize_params([star], logger=logger)
+        psf.interp.set_sca_solution({2: np.zeros(psf.model.param_len)})
+        interp_star = psf.interpolateStar(stars[0], inplace=False)
+        assert interp_star is not stars[0]
+
+        # Check that it fails gracefully when no stars are left unflagged.
+        flagged = stars[0].flag_if(True)
+        with pytest.raises(RuntimeError) as err:
+            psf.single_iteration([flagged], logger=logger, convert_funcs=None, draw_method=None)
+        assert "No stars left to fit" in str(err.value)
+
+        # Check outliers round trip through file.
+        psf1 = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'filter': 'H158',
+                'chromatic': False,
+                'max_zernike': 6,
+                'outliers': {'type': 'Chisq', 'nsigma': 5.0},
+            }
+        )
+        assert psf1.outliers is not None
+        fn = os.path.join('output', 'roman_outliers_write_test.piff')
+        psf1.write(fn)
+        psf2 = piff.read(fn)
+        assert psf2.outliers._type_name == psf1.outliers._type_name
+        assert psf2.outliers.thresh == psf1.outliers.thresh
+
+    # max_zernike must be >= 4
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=3)
+    assert "range 4..22" in str(err.value)
+
+    # max_zernike must be <= 22
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=23)
+    assert "range 4..22" in str(err.value)
+
+    # Check invalid filter string
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='NotAFilter', chromatic=False, max_zernike=6)
+    assert "not a valid GalSim Roman bandpass" in str(err.value)
+
 
 
 @timer
 def test_roman_corner_cache():
-    calls = []
-
-    def fake_get_psf(
-        SCA,
-        bandpass,
-        SCA_pos=None,
-        pupil_bin=4,
-        wcs=None,
-        n_waves=None,
-        extra_aberrations=None,
-        wavelength=None,
-        gsparams=None,
-        logger=None,
-        high_accuracy=None,
-        approximate_struts=None,
-    ):
-        calls.append((SCA, SCA_pos.x, SCA_pos.y))
-        return galsim.Gaussian(sigma=0.2)
-
-    with mock.patch('galsim.roman.getPSF', side_effect=fake_get_psf):
+    """Verify corner-profile caching reuses one 4-corner set for same SCA and params.
+    """
+    with fast_pupil_bin():
         psf = piff.PSF.process(
             {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
         )
@@ -169,30 +202,20 @@ def test_roman_corner_cache():
         psf.drawStar(stars[0])
         psf.drawStar(stars[1])
 
-    # Same SCA and params should reuse the same four corner PSFs.
-    assert len(calls) == 4
+        params = stars[0].fit.params
+        profiles1 = psf.model._get_corner_profiles(stars[0], params, cache=True)
+        profiles2 = psf.model._get_corner_profiles(stars[1], params, cache=True)
+        assert profiles1 is profiles2
+        assert len(psf.model._corner_cache) == 1
+        assert 5 in psf.model._corner_cache
+        assert len(psf.model._corner_cache[5][1]) == 4
 
 
 @timer
 def test_roman_fit():
-    def fake_get_psf(
-        SCA,
-        bandpass,
-        SCA_pos=None,
-        pupil_bin=4,
-        wcs=None,
-        n_waves=None,
-        extra_aberrations=None,
-        wavelength=None,
-        gsparams=None,
-        logger=None,
-        high_accuracy=None,
-        approximate_struts=None,
-    ):
-        sigma = 0.2 + extra_aberrations[0]
-        return galsim.Gaussian(sigma=sigma)
-
-    with mock.patch('galsim.roman.getPSF', side_effect=fake_get_psf):
+    """Check local convergence of single-star Roman fits.
+    """
+    with fast_pupil_bin():
         model = piff.Roman(
             filter='H158',
             chromatic=False,
@@ -205,132 +228,146 @@ def test_roman_fit():
             stamp_size=25,
             scale=0.11,
             properties={'sca': 5},
-        )
-        star = star.withFlux(1.0, (0.0, 0.0))
+        ).withFlux(1.0, (0.0, 0.0))
 
         init_star = model.initialize(star)
-        truth_params = np.array([0.03, 0.0, 0.0])
+        # Keep injected extra aberrations modest relative to baseline Roman optics.
+        # Typical built-in |z4..z22| values are around 1e-3 to a few e-2, so 4-5e-3 is
+        # realistic while still providing measurable signal in this unit test.
+        truth_params = np.array([0.004, -0.003, 0.005])
         truth_fit = init_star.fit.newParams(
             truth_params,
             params_var=np.zeros_like(truth_params),
-            num=model._num,
         )
         truth_star = model.draw(piff.Star(init_star.data, truth_fit))
 
-        fit_star = piff.Star(truth_star.data, init_star.fit)
+        fit_star = piff.Star(
+            truth_star.data,
+            init_star.fit.newParams(
+                np.zeros_like(truth_params),
+                params_var=np.zeros_like(truth_params)
+            ),
+        )
         fitted = model.fit(fit_star)
-        fitted_params = fitted.fit.get_params(model._num)
-        fitted_var = fitted.fit.get_params_var(model._num)
+        print('fit = ',fitted.fit.params)
+        # 1 pass isn't great, but after 2 passes, the agreement is sub percent.
+        fitted = model.fit(fitted)
+        print('fit => ',fitted.fit.params)
+        # And 3 is within 0.1% agreement.
+        fitted = model.fit(fitted)
+        print('fit => ',fitted.fit.params)
+        fitted_params = fitted.fit.params
+        fitted_var = fitted.fit.params_var
 
-    assert fitted.fit.chisq >= 0
-    assert fitted.fit.dof > 0
-    assert fitted_params[0] > 0
-    np.testing.assert_allclose(fitted_params[0], truth_params[0], atol=5.0e-3)
-    np.testing.assert_allclose(fitted_params[1:], truth_params[1:], atol=5.0e-3)
-    assert np.all(fitted_var >= 0)
+        assert fitted.fit.chisq >= 0
+        assert fitted.fit.dof > 0
+        print('final fit = ',fitted_params)
+        print('    truth = ',truth_params)
+        np.testing.assert_allclose(fitted_params, truth_params, atol=0.0, rtol=1.e-3)
+        assert np.all(fitted_var >= 0)
+
+        # Sanity tests about getting profile and drawing it.
+        prof = model.getProfile(star=fit_star)
+        assert prof is not None
+        drawn_star = model.draw(fit_star)
+        assert drawn_star.image.array.shape == fit_star.image.array.shape
+
+        # Error if no star argument in getProfile.  (Allowed by some other classes.)
+        with pytest.raises(ValueError) as err:
+            model.getProfile(params=np.zeros(model.param_len), star=None)
+        assert "requires the star argument" in str(err.value)
+
+        # Error if convert_funcs is given but has different length than stars.
+        with pytest.raises(ValueError) as err:
+            model.fit_many([fit_star], convert_funcs=[])
+        assert "len(convert_funcs) must match len(stars)" in str(err.value)
 
 
 @timer
 def test_roman_aberration_prior():
-    def fake_get_psf(
-        SCA,
-        bandpass,
-        SCA_pos=None,
-        pupil_bin=4,
-        wcs=None,
-        n_waves=None,
-        extra_aberrations=None,
-        wavelength=None,
-        gsparams=None,
-        logger=None,
-        high_accuracy=None,
-        approximate_struts=None,
-    ):
-        sigma = 0.2 + extra_aberrations[0]
-        return galsim.Gaussian(sigma=sigma)
+    """Validate the use of priors on the aberration values.
+    """
+    # Check that fitted aberrations stay closer to 0 when strong prior is applied.
+    weak_prior = piff.Roman(
+        filter='H158',
+        chromatic=False,
+        max_zernike=6,
+        aberration_prior_sigma=1.0e6,
+    )
+    strong_prior = piff.Roman(
+        filter='H158',
+        chromatic=False,
+        max_zernike=6,
+        aberration_prior_sigma=[0.02],  # List with 1 element treated as scalar.
+    )
+    aw = np.zeros((10, weak_prior.param_len))
+    aw[:, 0] = 12.3
+    aw[:, 1] = 1.7
+    aw[:, 2] = 2.4
+    bw = np.ones(10)
+    p0 = np.zeros(weak_prior.param_len)
+    new_weak, _ = weak_prior._solve_params(aw, bw, p0)
+    new_strong, _ = strong_prior._solve_params(aw, bw, p0)
+    assert abs(new_strong[0]) < abs(new_weak[0])
 
-    with mock.patch('galsim.roman.getPSF', side_effect=fake_get_psf):
-        weak_prior = piff.Roman(
-            filter='H158',
-            chromatic=False,
-            max_zernike=6,
-            aberration_prior_sigma=1.0e6,
-        )
-        strong_prior = piff.Roman(
-            filter='H158',
-            chromatic=False,
-            max_zernike=6,
-            aberration_prior_sigma=0.02,
-        )
-        star = piff.Star.makeTarget(
-            x=64.0,
-            y=64.0,
-            stamp_size=25,
-            scale=0.11,
-            properties={'sca': 5},
-        )
-        star = star.withFlux(1.0, (0.0, 0.0))
+    # None means no prior, which is equivalent to infinite prior.
+    no_prior = piff.Roman(
+        filter='H158',
+        chromatic=False,
+        max_zernike=6,
+        aberration_prior_sigma=None,
+    )
+    ata = np.eye(no_prior.param_len)
+    atb = np.ones(no_prior.param_len)
+    p = np.zeros(no_prior.param_len)
+    # Internally this means that the apply_prior doesn't change the inputs.
+    ata0 = ata.copy()
+    atb0 = atb.copy()
+    no_prior._apply_prior(ata, atb, p)
+    np.testing.assert_allclose(ata, ata0)
+    np.testing.assert_allclose(atb, atb0)
 
-        init_weak = weak_prior.initialize(star)
-        truth_params = np.array([0.08, 0.0, 0.0])
-        truth_fit = init_weak.fit.newParams(
-            truth_params,
-            params_var=np.zeros_like(truth_params),
-            num=weak_prior._num,
-        )
-        truth_star = weak_prior.draw(piff.Star(init_weak.data, truth_fit))
+    # Compare the solve to what you get with an actually infinite prior.
+    inf_prior = piff.Roman(
+        filter='H158',
+        chromatic=False,
+        max_zernike=6,
+        aberration_prior_sigma=np.inf
+    )
+    no_prior_result, _ = no_prior._solve_params(aw, bw, p0)
+    inf_prior_result, _ = inf_prior._solve_params(aw, bw, p0)
+    print('no prior',no_prior_result)
+    print('inf prior',inf_prior_result)
+    np.testing.assert_allclose(no_prior_result, inf_prior_result)
 
-        fit_weak = weak_prior.fit(piff.Star(truth_star.data, init_weak.fit))
-        init_strong = strong_prior.initialize(star)
-        fit_strong = strong_prior.fit(piff.Star(truth_star.data, init_strong.fit))
+    # prior length must match number of zernikes used
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=6,
+                   aberration_prior_sigma=[1.0, 2.0])
+    assert "scalar or length 3" in str(err.value)
 
-        a_weak = fit_weak.fit.get_params(weak_prior._num)[0]
-        a_strong = fit_strong.fit.get_params(strong_prior._num)[0]
-        assert abs(a_strong) < abs(a_weak)
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=6,
+                   aberration_prior_sigma=[])
+    assert "scalar or length 3" in str(err.value)
 
-        try:
-            piff.Roman(
-                filter='H158',
-                chromatic=False,
-                max_zernike=6,
-                aberration_prior_sigma=[1.0, 2.0],
-            )
-            assert False
-        except ValueError as e:
-            assert "scalar or length 3" in str(e)
+    # priors cannot be <= 0
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=6,
+                   aberration_prior_sigma=[1.0, 0.0, 1.0])
+    assert "must all be > 0" in str(err.value)
 
-        try:
-            piff.Roman(
-                filter='H158',
-                chromatic=False,
-                max_zernike=6,
-                aberration_prior_sigma=[1.0, 0.0, 1.0],
-            )
-            assert False
-        except ValueError as e:
-            assert "must all be > 0" in str(e)
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=6,
+                   aberration_prior_sigma=[1.0, -1.0, 1.0])
+    assert "must all be > 0" in str(err.value)
 
 
 @timer
-def test_roman_fit_many_matches_fit():
-    def fake_get_psf(
-        SCA,
-        bandpass,
-        SCA_pos=None,
-        pupil_bin=4,
-        wcs=None,
-        n_waves=None,
-        extra_aberrations=None,
-        wavelength=None,
-        gsparams=None,
-        logger=None,
-        high_accuracy=None,
-        approximate_struts=None,
-    ):
-        sigma = 0.2 + extra_aberrations[0]
-        return galsim.Gaussian(sigma=sigma)
-
-    with mock.patch('galsim.roman.getPSF', side_effect=fake_get_psf):
+def test_roman_fit_many():
+    """Check accuracy of fitting multiple stars using fit_many.
+    """
+    with fast_pupil_bin():
         model = piff.Roman(
             filter='H158',
             chromatic=False,
@@ -354,7 +391,8 @@ def test_roman_fit_many_matches_fit():
             ).withFlux(1.0, (0.0, 0.0)),
         ]
         stars = [model.initialize(s) for s in stars]
-        truth_params = np.array([0.04, 0.0, 0.0])
+        # Use the same realistic small-amplitude extra-aberration vector as test_roman_fit.
+        truth_params = np.array([0.004, -0.003, 0.005])
         truth = [
             model.draw(
                 piff.Star(
@@ -362,46 +400,42 @@ def test_roman_fit_many_matches_fit():
                     s.fit.newParams(
                         truth_params,
                         params_var=np.zeros_like(truth_params),
-                        num=model._num,
                     ),
                 )
             )
             for s in stars
         ]
-        fit_stars = [piff.Star(s.data, stars[i].fit) for i, s in enumerate(truth)]
-
-        fit_many = model.fit_many(fit_stars)
-        fit_one = [model.fit(s) for s in fit_stars]
-
-        for s_many, s_one in zip(fit_many, fit_one):
-            np.testing.assert_allclose(
-                s_many.fit.get_params(model._num),
-                s_one.fit.get_params(model._num),
-                atol=1.0e-6,
-                rtol=1.0e-6,
+        fit_stars = [
+            piff.Star(
+                s.data,
+                stars[i].fit.newParams(
+                    np.zeros_like(truth_params),
+                    params_var=np.zeros_like(truth_params),
+                ),
             )
+            for i, s in enumerate(truth)
+        ]
+
+        # 1 pass isn't great, but after 2 passes, the agreement is sub percent.
+        # And 3 is within 0.1% agreement.
+        for _ in range(3):
+            fit_stars = model.fit_many(fit_stars)
+            print('fit[0] => ',fit_stars[0].fit.params)
+
+        p0 = fit_stars[0].fit.params
+        p1 = fit_stars[1].fit.params
+        print('final p0 = ',p0)
+        print('final p1 = ',p1)
+        print('   truth = ',truth_params)
+        np.testing.assert_allclose(p0, p1, atol=1.0e-12, rtol=0.0)
+        np.testing.assert_allclose(p0, truth_params, atol=0.0, rtol=1.e-3)
 
 
 @timer
-def test_roman_optics_convert_funcs_batch():
-    def fake_get_psf(
-        SCA,
-        bandpass,
-        SCA_pos=None,
-        pupil_bin=4,
-        wcs=None,
-        n_waves=None,
-        extra_aberrations=None,
-        wavelength=None,
-        gsparams=None,
-        logger=None,
-        high_accuracy=None,
-        approximate_struts=None,
-    ):
-        sigma = 0.2 + extra_aberrations[0]
-        return galsim.Gaussian(sigma=sigma)
-
-    with mock.patch('galsim.roman.getPSF', side_effect=fake_get_psf):
+def test_roman_optics_convert_funcs():
+    """Check aberration recovery when fitting with a nontrivial convert_func (profile shear).
+    """
+    with fast_pupil_bin():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
@@ -430,112 +464,145 @@ def test_roman_optics_convert_funcs_batch():
         ]
         stars, _ = psf.initialize_params(stars, logger=logger)
 
-        truth_params = np.array([0.04, 0.0, 0.0])
-        truth_stars = []
+        truth_params = np.array([0.004, -0.003, 0.005])
+
+        def apply_shear(prof):
+            return prof.shear(g1=0.01, g2=-0.005)
+
+        convert_funcs = [apply_shear] * len(stars)
+        fit_stars = []
         for star in stars:
             truth_fit = star.fit.newParams(
                 truth_params,
                 params_var=np.zeros_like(truth_params),
-                num=psf._num,
             )
-            truth_stars.append(psf.model.draw(piff.Star(star.data, truth_fit)))
+            truth_star = piff.Star(star.data, truth_fit)
+            # True profile is sheared version of optical PSF.
+            prof = psf.model.getProfile(truth_params, star=truth_star).shear(g1=0.01, g2=-0.005)
+            image = star.image.copy()
+            psf.model._draw_profile_to_image(prof, image, star.image_pos)
+            fit_stars.append(piff.Star(star.data.withNew(image=image), star.fit))
 
-        convert_funcs = [lambda prof: prof.shear(g1=0.01, g2=-0.005)] * len(truth_stars)
-        fitted, nremoved = psf.single_iteration(
-            truth_stars,
-            logger=logger,
-            convert_funcs=convert_funcs,
-            draw_method=None,
-        )
-        assert nremoved == 0
-        assert len(fitted) == len(truth_stars)
-        for star in fitted:
-            assert star.fit.get_params(psf._num) is not None
+        for _ in range(3):
+            fit_stars, nremoved = psf.single_iteration(
+                fit_stars,
+                logger=logger,
+                convert_funcs=convert_funcs,
+                draw_method=None,
+            )
+            assert nremoved == 0
+            print('params[0] => ',fit_stars[0].fit.params)
+
+        assert len(fit_stars) == len(stars)
+        print('truth = ',truth_params)
+        for i, star in enumerate(fit_stars):
+            print(f'star {i} params = ',star.fit.params)
+            np.testing.assert_allclose(star.fit.params, truth_params, atol=0.0, rtol=1.e-3)
 
 
 @timer
 def test_roman_sca_interp():
-    psf = piff.PSF.process(
-        {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
-    )
-    assert type(psf.interp).__name__ == 'RomanSCAInterp'
+    """Test per-SCA/global interpolation behavior and RomanSCAInterp serialization round-trip.
+    """
+    with fast_pupil_bin():
+        # Start with some basic exercises of interp machinery.
+        psf = piff.PSF.process(
+            {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
+        )
+        assert type(psf.interp).__name__ == 'RomanSCAInterp'
 
-    logger = piff.config.setup_logger()
-    p1 = np.array([0.1, 0.0, -0.1])
-    p2 = np.array([-0.2, 0.3, 0.0])
+        logger = piff.config.setup_logger()
+        p1 = np.array([0.1, 0.0, -0.1])
+        p2 = np.array([-0.2, 0.3, 0.0])
 
-    s1 = piff.Star.makeTarget(x=10.0, y=20.0, stamp_size=25, scale=0.11, properties={'sca': 2})
-    s2 = piff.Star.makeTarget(x=30.0, y=40.0, stamp_size=25, scale=0.11, properties={'sca': 5})
-    s1 = s1.withFlux(1.0, (0.0, 0.0))
-    s2 = s2.withFlux(1.0, (0.0, 0.0))
+        # Solve just computes the mean on each sca as well as a global mean.
+        s1 = piff.Star.makeTarget(
+            x=10.0, y=20.0, stamp_size=25, scale=0.11, properties={'sca': 2}
+        ).withFlux(1.0, (0.0, 0.0))
+        s2 = piff.Star.makeTarget(
+            x=30.0, y=40.0, stamp_size=25, scale=0.11, properties={'sca': 5}
+        ).withFlux(1.0, (0.0, 0.0))
 
-    stars, _ = psf.initialize_params([s1, s2], logger=logger)
-    stars[0] = piff.Star(
-        stars[0].data,
-        stars[0].fit.newParams(p1, params_var=np.zeros_like(p1), num=psf._num),
-    )
-    stars[1] = piff.Star(
-        stars[1].data,
-        stars[1].fit.newParams(p2, params_var=np.zeros_like(p2), num=psf._num),
-    )
-    psf.interp.solve(stars)
+        stars, _ = psf.initialize_params([s1, s2], logger=logger)
+        stars[0] = piff.Star(
+            stars[0].data,
+            stars[0].fit.newParams(p1, params_var=np.zeros_like(p1)),
+        )
+        stars[1] = piff.Star(
+            stars[1].data,
+            stars[1].fit.newParams(p2, params_var=np.zeros_like(p2)),
+        )
+        psf.interp.solve(stars)
+        np.testing.assert_equal(psf.interp.sca_mean[2], p1)
+        np.testing.assert_equal(psf.interp.sca_mean[5], p2)
+        global_mean = np.mean([p1,p2], axis=0)
+        np.testing.assert_equal(psf.interp.global_mean, global_mean)
 
-    t1 = piff.Star.makeTarget(x=1.0, y=2.0, stamp_size=25, scale=0.11, properties={'sca': 2})
-    t2 = piff.Star.makeTarget(
-        x=3.0, y=4.0, stamp_size=25, scale=0.11, properties={'chipnum': 5}
-    )
-    t1 = t1.withFlux(1.0, (0.0, 0.0))
-    t2 = t2.withFlux(1.0, (0.0, 0.0))
-    tstars, _ = psf.initialize_params([t1, t2], logger=logger)
-    tstars = psf.interpolateStarList(tstars)
+        # interpolate assigns the corresponding sca_mean to the params,
+        # or the global mean if the sca wasn't used in the fit (e.g. no stars on an SCA)
+        t1 = piff.Star.makeTarget(x=12.0, y=126.0, stamp_size=25, scale=0.11, properties={'sca': 2})
+        t2 = piff.Star.makeTarget(x=33.0, y=114.0, stamp_size=25, scale=0.11, properties={'sca': 5})
+        t3 = piff.Star.makeTarget(x=98.0, y=453.0, stamp_size=25, scale=0.11, properties={'sca': 7})
+        t1 = t1.withFlux(1.0, (0.0, 0.0))
+        t2 = t2.withFlux(1.0, (0.0, 0.0))
+        t3 = t3.withFlux(1.0, (0.0, 0.0))
+        tstars, _ = psf.initialize_params([t1, t2, t3], logger=logger)
+        tstars = psf.interpolateStarList(tstars)
+        np.testing.assert_allclose(tstars[0].fit.params, p1)
+        np.testing.assert_allclose(tstars[1].fit.params, p2)
+        np.testing.assert_allclose(tstars[2].fit.params, global_mean)
 
-    np.testing.assert_allclose(tstars[0].fit.get_params(psf._num), p1)
-    np.testing.assert_allclose(tstars[1].fit.get_params(psf._num), p2)
-
-    # Check that write/read preserves the per-SCA interpolation solution.
-    with tempfile.TemporaryDirectory() as d:
-        fn = os.path.join(d, 'roman_sca_test.piff')
+        # Check round trip through file.
+        fn = os.path.join('output', 'roman_sca_test.piff')
         psf.write(fn)
         psf2 = piff.read(fn)
-        tstars2, _ = psf2.initialize_params([t1, t2], logger=logger)
+        tstars2, _ = psf2.initialize_params([t1, t2, t3], logger=logger)
         tstars2 = psf2.interpolateStarList(tstars2)
-        np.testing.assert_allclose(tstars2[0].fit.get_params(psf2._num), p1)
-        np.testing.assert_allclose(tstars2[1].fit.get_params(psf2._num), p2)
+        np.testing.assert_allclose(tstars2[0].fit.params, p1)
+        np.testing.assert_allclose(tstars2[1].fit.params, p2)
+        np.testing.assert_allclose(tstars2[2].fit.params, global_mean)
 
-    # When per_sca=False, interpolation should use the global mean for all SCAs.
-    psf_global = piff.PSF.process(
-        {
-            'type': 'RomanOptics',
-            'filter': 'H158',
-            'chromatic': False,
-            'max_zernike': 6,
-            'per_sca': False,
-        }
-    )
-    stars_g, _ = psf_global.initialize_params([s1, s2], logger=logger)
-    stars_g[0] = piff.Star(
-        stars_g[0].data,
-        stars_g[0].fit.newParams(p1, params_var=np.zeros_like(p1), num=psf_global._num),
-    )
-    stars_g[1] = piff.Star(
-        stars_g[1].data,
-        stars_g[1].fit.newParams(p2, params_var=np.zeros_like(p2), num=psf_global._num),
-    )
-    psf_global.interp.solve(stars_g)
-    gmean = 0.5 * (p1 + p2)
+        # If per_sca is False, then always use global_mean.
+        psf_global = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'filter': 'H158',
+                'chromatic': False,
+                'max_zernike': 6,
+                'per_sca': False,
+            }
+        )
+        psf_global.interp.solve(stars)
+        np.testing.assert_equal(psf_global.interp.global_mean, np.mean([p1,p2],axis=0))
+        assert psf_global.interp.sca_mean == {}
 
-    gt1 = piff.Star.makeTarget(x=1.0, y=2.0, stamp_size=25, scale=0.11, properties={'sca': 2})
-    gt2 = piff.Star.makeTarget(x=3.0, y=4.0, stamp_size=25, scale=0.11, properties={'sca': 5})
-    gt1 = gt1.withFlux(1.0, (0.0, 0.0))
-    gt2 = gt2.withFlux(1.0, (0.0, 0.0))
-    gtstars, _ = psf_global.initialize_params([gt1, gt2], logger=logger)
-    gtstars = psf_global.interpolateStarList(gtstars)
-    np.testing.assert_allclose(gtstars[0].fit.get_params(psf_global._num), gmean)
-    np.testing.assert_allclose(gtstars[1].fit.get_params(psf_global._num), gmean)
+        tstars3, _ = psf_global.initialize_params([t1, t2, t3], logger=logger)
+        tstars3 = psf_global.interpolateStarList(tstars)
+        np.testing.assert_allclose(tstars3[0].fit.params, global_mean)
+        np.testing.assert_allclose(tstars3[1].fit.params, global_mean)
+        np.testing.assert_allclose(tstars3[2].fit.params, global_mean)
 
-    # Also allow feeding precomputed per-SCA means directly from model.fit_many.
-    psf_global.interp.set_sca_solution({2: p1, 5: p2})
-    gtstars2, _ = psf_global.initialize_params([gt1, gt2], logger=logger)
-    gtstars2 = psf_global.interpolateStarList(gtstars2)
-    np.testing.assert_allclose(gtstars2[0].fit.get_params(psf_global._num), gmean)
-    np.testing.assert_allclose(gtstars2[1].fit.get_params(psf_global._num), gmean)
+        # Round trip unsolved interp through real I/O path.  This exercises the
+        # _finish_write early-return logic when no solve() has populated means yet.
+        fn = os.path.join('output', 'roman_interp_unsolved.fits')
+        psf = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'filter': 'H158',
+            }
+        )
+        psf.write(fn)
+        psf2 = piff.read(fn)
+        assert isinstance(psf2.interp, RomanSCAInterp)
+        assert psf2.interp.global_mean is None
+        assert psf2.interp.sca_mean == {}
+
+
+if __name__ == '__main__':
+    test_roman_optics()
+    test_roman_corner_cache()
+    test_roman_fit()
+    test_roman_aberration_prior()
+    test_roman_fit_many()
+    test_roman_optics_convert_funcs()
+    test_roman_sca_interp()

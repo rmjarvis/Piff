@@ -59,10 +59,28 @@ Notes:
 - It is acceptable, and often preferred, to cover multiple related edge cases in one test when that
   keeps runtime down and still makes the coverage intent clear.
 - When practical, tests should validate results using an independent calculation, analytic expectation, or simpler reference algorithm rather than only reusing the implementation under test.
+- Prefer using real functions in tests rather than `mock`/`patch` where practical. Use mocking
+  sparingly for hard-to-trigger branches (e.g. forced exception paths).
+- Do not add or keep branches that are only reachable via mocking. If a branch cannot be
+  triggered by plausible real inputs/calls, simplify/remove that branch instead of testing it
+  with synthetic mocks.
+- Keep user-added `print` statements in tests unless explicitly asked to remove them. The user
+  uses these for interactive inspection while iterating on behavior.
+- Do not overwrite unrelated user edits (including comments/annotations/style tweaks) while
+  making targeted changes. If a user change appears problematic, ask before altering it.
+- For scientific analysis code in this repo, tests should usually include explicit accuracy
+  assertions, not merely code-path/smoke checks. Prioritize verifying numerical correctness and
+  recovery of known truth whenever feasible.
+- Prefer tests that exercise user-facing/public workflows. Avoid calling private/internal helper
+  methods directly unless there is a compelling reason; needing direct private-method tests can be
+  a sign of unnecessary/extraneous internal code paths.
 - Prefer a house style of 100 characters per line or less, except where exceeding that limit is
   clearly the less awkward choice (for example some long URLs).
 - Prefer explicit `if/else` structure over early `return` style when either form is equivalent.
   Use early returns only when they materially improve clarity.
+- For non-functional edits only (comments/docstrings/docs/text), do not rerun tests just to
+  reconfirm no behavior change. Run tests for functional/code-path changes; full suite is run
+  before commit anyway.
 
 ## Build Notes
 
@@ -110,3 +128,6 @@ When extending functionality, check whether an existing abstraction or diagnosti
 - Keep Roman fitting path explicit and specialized: `RomanOptics` should always use batched
   fitting and the four-corner bilinear approximation. Avoid generic `SimplePSF`-style fallback
   branches for Roman.
+- `piff/roman_psf.py` exposes a module-level `pupil_bin` control (default 4) used in
+  `galsim.roman.getPSF` calls. Tests can temporarily set `roman_psf.pupil_bin` to 8 or 16 to
+  speed runtime while still exercising real Roman optics code paths.
