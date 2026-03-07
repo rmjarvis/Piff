@@ -516,6 +516,11 @@ def test_parallel():
     assert "Building solution for chip 1" in cl.output
     assert "Building solution for chip 2" in cl.output
 
+    # With verbose=0, there should be no output at all.  (There used to be a single newline.)
+    with CaptureLog(level=0) as cl:
+        piff.piffify(config, logger=cl.logger)
+    assert len(cl.output) == 0
+
     # Check that errors in the solution get properly reported.
     config['input']['nimages'] = 3
     with CaptureLog(level=2) as cl:
