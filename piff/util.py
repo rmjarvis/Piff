@@ -194,7 +194,8 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
 
     def log_output(result): # pragma: no cover (It is covered, but in an async process.)
         i, out, log = result
-        logger.verbose(log)
+        if log.strip():
+            logger.verbose(log)
         if isinstance(out, Exception):
             logger.warning("Caught exception in multiprocessing job: %r",out)
             err_list[i] = out
