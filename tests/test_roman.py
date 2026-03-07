@@ -231,7 +231,7 @@ def test_roman_corner_cache():
         assert profiles1 is profiles2
         assert len(psf.model._corner_cache) == 1
         assert 5 in psf.model._corner_cache
-        assert len(psf.model._corner_cache[5][1]) == 4
+        assert len(psf.model._corner_cache[5][2]) == 4
 
 
 @timer
@@ -457,6 +457,68 @@ def test_roman_fit_many():
         print('   truth = ',truth_params)
         np.testing.assert_allclose(p0, p1, atol=1.0e-12, rtol=0.0)
         np.testing.assert_allclose(p0, truth_params, atol=0.0, rtol=1.e-3)
+
+
+@timer
+def test_roman_fit_many_nproc():
+    """Check `fit_many` multiprocessing path and accuracy with `nproc > 1`.
+    """
+    with fast_pupil_bin():
+        model = piff.roman.RomanOpticalModel(
+            filter='H158',
+            chromatic=False,
+            max_zernike=6,
+            aberration_prior_sigma=1.0e6,
+            nproc=2,
+        )
+        stars = [
+            piff.Star.makeTarget(
+                x=64.2,
+                y=64.1,
+                stamp_size=25,
+                scale=0.11,
+                properties={'sca': 5},
+            ).withFlux(1.0, (0.0, 0.0)),
+            piff.Star.makeTarget(
+                x=171.8,
+                y=162.7,
+                stamp_size=25,
+                scale=0.11,
+                properties={'sca': 5},
+            ).withFlux(1.0, (0.0, 0.0)),
+        ]
+        stars = [model.initialize(s) for s in stars]
+        truth_params = np.array([0.004, -0.003, 0.005])
+        truth = [
+            model.draw(
+                piff.Star(
+                    s.data,
+                    s.fit.newParams(
+                        truth_params,
+                        params_var=np.zeros_like(truth_params),
+                    ),
+                )
+            )
+            for s in stars
+        ]
+        fit_stars = [
+            piff.Star(
+                s.data,
+                stars[i].fit.newParams(
+                    np.zeros_like(truth_params),
+                    params_var=np.zeros_like(truth_params),
+                ),
+            )
+            for i, s in enumerate(truth)
+        ]
+
+        for _ in range(3):
+            fit_stars = model.fit_many(fit_stars)
+
+        assert [int(s['sca']) for s in fit_stars] == [5, 5]
+        for s in fit_stars:
+            np.testing.assert_allclose(s.fit.params, truth_params, atol=0.0, rtol=2.e-3)
+        assert list(model._corner_cache.keys()) == [5]
 
 
 @timer
