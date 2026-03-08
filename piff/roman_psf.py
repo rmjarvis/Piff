@@ -40,9 +40,10 @@ def _get_sca(star):
     # several places we access this information about a star.
     if 'sca' in star.data.properties:
         return int(star.data.properties['sca'])
-    if 'chipnum' in star.data.properties:
+    elif 'chipnum' in star.data.properties:
         return int(star.data.properties['chipnum'])
-    raise ValueError("RomanOptics requires an explicit 'sca' property for each star")
+    else:
+        raise ValueError("RomanOptics requires an explicit 'sca' property for each star")
 
 
 class RomanSCAInterp(Interp):
@@ -143,6 +144,7 @@ class Roman(Model):
         filter,
         chromatic=True,
         max_zernike=22,
+        aberration_interp='constant',
         aberration_prior_sigma=0.05,
         nproc=1,
         logger=None,
@@ -151,11 +153,14 @@ class Roman(Model):
         self.filter = filter
         self.chromatic = chromatic
         self.max_zernike = int(max_zernike)
+        self.aberration_interp = str(aberration_interp)
         self.nproc = int(nproc)
         self.set_num(None)
 
         if self.max_zernike < 4 or self.max_zernike > 22:
             raise ValueError("max_zernike must be in the range 4..22")
+        if self.aberration_interp not in ('global', 'constant', 'linear'):
+            raise ValueError("aberration_interp must be one of 'global', 'constant', 'linear'")
 
         # Notation: filter is the string name of the filter.
         #           bandpass is the galsim.Bandpass object with the transmission function.
@@ -170,6 +175,7 @@ class Roman(Model):
             'filter': self.filter,
             'chromatic': self.chromatic,
             'max_zernike': self.max_zernike,
+            'aberration_interp': self.aberration_interp,
             'aberration_prior_sigma': self.prior_sigma if self.prior_sigma is not None else None,
             'nproc': self.nproc,
         }
@@ -184,6 +190,13 @@ class Roman(Model):
 
     @property
     def param_len(self):
+        if self.aberration_interp == 'linear':
+            return 4 * self._corner_param_len
+        else:
+            return self._corner_param_len
+
+    @property
+    def _corner_param_len(self):
         return self.max_zernike - 3
 
     def initialize_iteration(self):
@@ -209,10 +222,13 @@ class Roman(Model):
         )
 
     def _solve_params(self, aw, bw, params):
-        nparam = len(params)
-        ridge = 1.0e-6  # Mild ridge regression for regularization
         ata = aw.T.dot(aw)
         atb = aw.T.dot(bw)
+        return self._solve_normal_equations(ata, atb, params)
+
+    def _solve_normal_equations(self, ata, atb, params, ridge=1.0e-6):
+        nparam = len(params)
+        # Mild ridge regression for regularization
         ata.flat[::nparam + 1] += ridge
         self._apply_prior(ata, atb, params)
         dparams = scipy.linalg.lstsq(ata, atb)[0]
@@ -225,13 +241,15 @@ class Roman(Model):
         if aberration_prior_sigma is None:
             return None
         sigma = np.array(aberration_prior_sigma, dtype=float).ravel()
+        nprior = self._corner_param_len
         if sigma.size == 1:
-            sigma = np.full(self.param_len, sigma[0], dtype=float)
-        elif sigma.size != self.param_len:
+            sigma = np.full(nprior, sigma[0], dtype=float)
+        elif sigma.size != nprior:
             raise ValueError(
-                "aberration_prior_sigma must be a scalar or length %d"
-                % self.param_len
+                "aberration_prior_sigma must be a scalar or length %d" % nprior
             )
+        if self.aberration_interp == 'linear':
+            sigma = np.tile(sigma, 4)
         if np.any(sigma <= 0):
             raise ValueError("aberration_prior_sigma values must all be > 0")
         return sigma
@@ -373,22 +391,23 @@ class Roman(Model):
                 )
                 jac[:, i] = ((im1 - base_image) * scale).ravel()
 
-        # Finish the fits now that all the Jacobians are calculated.
+        # Build one SCA-level normal equation from all stars.
+        ata_sum = np.zeros((nparam, nparam), dtype=float)
+        atb_sum = np.zeros(nparam, dtype=float)
         solved = []
-        solved_params = []
         for star, convert_func, weight, sw, bw, jac, _ in group_data:
             aw = jac * sw[:, np.newaxis]
-            new_params, var = self._solve_params(aw, bw, params)
-            solved.append((star, convert_func, weight, var))
-            solved_params.append(new_params)
+            ata_sum += aw.T.dot(aw)
+            atb_sum += aw.T.dot(bw)
+            solved.append((star, convert_func, weight))
 
-        # Use one common parameter vector per SCA for the final model/chisq pass.
-        sca_params = np.mean(solved_params, axis=0)
+        # Solve once for a single SCA parameter vector.
+        sca_params, var = self._solve_normal_equations(ata_sum, atb_sum, params)
         corner_sca_profiles = self._get_corner_profiles(ref, sca_params, cache=False, sca=sca)
 
         # Compute the final model and chisq for each star.
         out = []
-        for star, convert_func, weight, var in solved:
+        for star, convert_func, weight in solved:
             model_image = self._draw_model_image_from_corners(
                 star, corner_sca_profiles, convert_func=convert_func
             )
@@ -416,6 +435,12 @@ class Roman(Model):
             raise ValueError("Roman.getProfile requires the star argument")
         if params is None:
             params = np.zeros(self.param_len, dtype=float)
+        else:
+            params = np.asarray(params)
+            if params.size != self.param_len:
+                raise ValueError(
+                    "Roman params must have length %d (got %d)" % (self.param_len, params.size)
+                )
         corner_profiles = self._get_corner_profiles(star, params, cache=cache)
         return self._interpolate_corners(star, corner_profiles)
 
@@ -450,7 +475,10 @@ class Roman(Model):
             galsim.PositionD(0.0, self.sca_size),
             galsim.PositionD(self.sca_size, self.sca_size),
         )
-        extra_aberrations = self._make_extra_aberrations(params)
+        if self.aberration_interp == 'linear':
+            corner_params = params.reshape(4, self._corner_param_len)
+        else:
+            corner_params = np.tile(params, 4).reshape(4, self._corner_param_len)
         profiles = tuple(
             galsim.roman.getPSF(
                 sca,
@@ -458,10 +486,10 @@ class Roman(Model):
                 SCA_pos=corner,
                 pupil_bin=pupil_bin,
                 wcs=wcs,
-                extra_aberrations=extra_aberrations,
+                extra_aberrations=self._make_extra_aberrations(p),
                 wavelength=wavelength,
             )
-            for corner in corners
+            for corner, p in zip(corners, corner_params)
             )
         if cache:
             self._corner_cache[sca] = (params, wcs, profiles)
@@ -486,7 +514,7 @@ class Roman(Model):
 
 
 class RomanOptics(PSF):
-    """A PSF wrapper for Roman optical fits with per-SCA or global aberration interpolation."""
+    """A PSF wrapper for Roman optical fits with configurable aberration interpolation."""
 
     _type_name = 'RomanOptics'
 
@@ -531,14 +559,17 @@ class RomanOptics(PSF):
         kwargs = dict(config_psf)
         kwargs.pop('type', None)
 
-        per_sca = kwargs.pop('per_sca', True)
         outliers = kwargs.pop('outliers', None)
         chisq_thresh = kwargs.pop('chisq_thresh', 0.1)
         min_iter = kwargs.pop('min_iter', 2)
         max_iter = kwargs.pop('max_iter', 30)
+        aberration_interp = kwargs.pop('aberration_interp', 'constant')
 
-        model = Roman(logger=logger, **kwargs)
-        interp = RomanSCAInterp(per_sca=per_sca)
+        model_interp = 'constant' if aberration_interp == 'global' else aberration_interp
+        interp_per_sca = (aberration_interp != 'global')
+
+        model = Roman(aberration_interp=model_interp, logger=logger, **kwargs)
+        interp = RomanSCAInterp(per_sca=interp_per_sca)
 
         parsed = {
             'model': model,

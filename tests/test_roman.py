@@ -57,6 +57,21 @@ def test_roman_optics():
         assert psf.interp_property_names == ('sca',)
         assert psf.fit_center is False
         assert psf.include_model_centroid is False
+        assert psf.model.aberration_interp == 'constant'
+        assert psf.interp.per_sca is True
+
+        # Global mode uses one aberration vector for full focal plane.
+        psf_global = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'filter': 'H158',
+                'chromatic': False,
+                'max_zernike': 6,
+                'aberration_interp': 'global',
+            }
+        )
+        assert psf_global.model.aberration_interp == 'constant'
+        assert psf_global.interp.per_sca is False
 
         # Check the core RomanOptics flow: initialize, draw, and profile retrieval.
         star = piff.Star.makeTarget(
@@ -177,7 +192,9 @@ def test_roman_optics():
         piff.Roman(filter='NotAFilter', chromatic=False, max_zernike=6)
     assert "not a valid GalSim Roman bandpass" in str(err.value)
 
-
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=6, aberration_interp='bad')
+    assert "must be one of" in str(err.value)
 
 @timer
 def test_roman_corner_cache():
@@ -219,7 +236,7 @@ def test_roman_corner_cache():
 
 @timer
 def test_roman_fit():
-    """Check local convergence of single-star Roman fits.
+    """Check local convergence of single-star Roman fits in constant mode.
     """
     with fast_pupil_bin():
         model = piff.Roman(
@@ -356,6 +373,32 @@ def test_roman_aberration_prior():
         piff.Roman(filter='H158', chromatic=False, max_zernike=6,
                    aberration_prior_sigma=[])
     assert "scalar or length 3" in str(err.value)
+
+    # Same for linear mode (in particular the allowed length is 3 here, not 12,
+    # which is the full param_len).
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=6, aberration_interp='linear',
+                   aberration_prior_sigma=[1.0] * 12)
+    assert "scalar or length 3" in str(err.value)
+
+    # In linear mode, scalar and one-corner vectors tile to 4 corner blocks.
+    linear_scalar = piff.Roman(
+        filter='H158',
+        chromatic=False,
+        max_zernike=6,
+        aberration_interp='linear',
+        aberration_prior_sigma=0.05,
+    )
+    np.testing.assert_allclose(linear_scalar.prior_sigma, np.full(12, 0.05))
+
+    linear_vec = piff.Roman(
+        filter='H158',
+        chromatic=False,
+        max_zernike=6,
+        aberration_interp='linear',
+        aberration_prior_sigma=[0.1, 0.2, 0.3],
+    )
+    np.testing.assert_allclose(linear_vec.prior_sigma, np.tile([0.1, 0.2, 0.3], 4))
 
     # priors cannot be <= 0
     with pytest.raises(ValueError) as err:
@@ -500,6 +543,285 @@ def test_roman_fit_many_nproc():
 
 
 @timer
+def test_roman_fit_linear():
+    """Check linear-mode convergence with stars spanning the SCA geometry.
+    """
+    with fast_pupil_bin():
+        model = piff.Roman(
+            filter='H158',
+            chromatic=False,
+            max_zernike=6,
+            aberration_interp='linear',
+            aberration_prior_sigma=1.0e6,
+        )
+        # Use stars spread across the SCA so all four corner aberration blocks are constrained.
+        pos = [
+            (512.0, 512.0),
+            (2044.0, 512.0),
+            (3576.0, 512.0),
+            (512.0, 2044.0),
+            (2044.0, 2044.0),
+            (3576.0, 2044.0),
+            (512.0, 3576.0),
+            (2044.0, 3576.0),
+            (3576.0, 3576.0),
+        ]
+        stars = [
+            piff.Star.makeTarget(
+                x=x,
+                y=y,
+                stamp_size=25,
+                scale=0.11,
+                properties={'sca': 5},
+            ).withFlux(1.0, (0.0, 0.0))
+            for x, y in pos
+        ]
+        init_stars = [model.initialize(star) for star in stars]
+        base_truth = np.array([0.004, -0.003, 0.005])
+        truth_params = np.tile(base_truth, 4)
+        truth_stars = [
+            model.draw(
+                piff.Star(
+                    init_star.data,
+                    init_star.fit.newParams(
+                        truth_params,
+                        params_var=np.zeros_like(truth_params),
+                    ),
+                )
+            )
+            for init_star in init_stars
+        ]
+
+        fit_stars = [
+            piff.Star(
+                truth_star.data,
+                init_star.fit.newParams(
+                    np.zeros_like(truth_params),
+                    params_var=np.zeros_like(truth_params)
+                ),
+            )
+            for truth_star, init_star in zip(truth_stars, init_stars)
+        ]
+
+        for _ in range(4):
+            fit_stars = model.fit_many(fit_stars)
+
+        fitted_params = fit_stars[0].fit.params
+        fitted_var = fit_stars[0].fit.params_var
+
+        for fit_star in fit_stars:
+            assert fit_star.fit.chisq >= 0
+            assert fit_star.fit.dof > 0
+            np.testing.assert_allclose(fit_star.fit.params, fitted_params, atol=1.e-12, rtol=0.0)
+        print('linear fit = ', fitted_params)
+        print('    truth = ', truth_params)
+        np.testing.assert_allclose(fitted_params, truth_params, atol=0.0, rtol=1.e-3)
+        assert np.all(fitted_var >= 0)
+
+        for fit_star, truth_star in zip(fit_stars, truth_stars):
+            model_star = model.draw(fit_star)
+            np.testing.assert_allclose(
+                model_star.image.array, truth_star.image.array, atol=5.e-5, rtol=0.0
+            )
+
+
+@timer
+def test_roman_fit_linear_gradient():
+    """Check linear-mode recovery when corner aberration vectors are genuinely different.
+    """
+    with fast_pupil_bin():
+        model = piff.Roman(
+            filter='H158',
+            chromatic=False,
+            max_zernike=6,
+            aberration_interp='linear',
+            aberration_prior_sigma=1.0e6,
+        )
+        pos = [
+            (512.0, 512.0),
+            (2044.0, 512.0),
+            (3576.0, 512.0),
+            (512.0, 2044.0),
+            (2044.0, 2044.0),
+            (3576.0, 2044.0),
+            (512.0, 3576.0),
+            (2044.0, 3576.0),
+            (3576.0, 3576.0),
+        ]
+        stars = [
+            piff.Star.makeTarget(
+                x=x,
+                y=y,
+                stamp_size=25,
+                scale=0.11,
+                properties={'sca': 5},
+            ).withFlux(1.0, (0.0, 0.0))
+            for x, y in pos
+        ]
+        init_stars = [model.initialize(star) for star in stars]
+
+        # Define each Zernike truth as a + b*(x/4088) + c*(y/4088).
+        # Build corner values and per-star values analytically from this formula.
+        abc = np.array(
+            [
+                [0.004, 2.e-5, -7.e-5],
+                [-0.003, 6.e-5, -2.e-5],
+                [0.005, -3.e-5, -5.e-5],
+            ]
+        )
+
+        def eval_truth(x, y):
+            xh = x / model.sca_size
+            yh = y / model.sca_size
+            return abc[:, 0] + abc[:, 1] * xh + abc[:, 2] * yh
+
+        # Corner order used by Roman is LL, LR, UL, UR.
+        corner_truth = np.array(
+            [
+                eval_truth(0.0, 0.0),
+                eval_truth(model.sca_size, 0.0),
+                eval_truth(0.0, model.sca_size),
+                eval_truth(model.sca_size, model.sca_size),
+            ]
+        )
+        truth_params = corner_truth.ravel()
+        assert not np.any(np.isclose(corner_truth[0], corner_truth[1]))
+        assert not np.any(np.isclose(corner_truth[0], corner_truth[2]))
+        assert not np.any(np.isclose(corner_truth[0], corner_truth[3]))
+
+        # Verify independently that bilinear interpolation of corners reproduces the
+        # per-star truth function (for linear functions without an xy term).
+        ll, lr, ul, ur = corner_truth
+        for x, y in pos:
+            fx = x / model.sca_size
+            fy = y / model.sca_size
+            wll = (1.0 - fx) * (1.0 - fy)
+            wlr = fx * (1.0 - fy)
+            wul = (1.0 - fx) * fy
+            wur = fx * fy
+            local_from_corners = wll * ll + wlr * lr + wul * ul + wur * ur
+            np.testing.assert_allclose(
+                local_from_corners, eval_truth(x, y), atol=1.e-12, rtol=0.0
+            )
+
+        # Draw truth_stars using the class's bilinear interpolation given truth_params
+        truth_stars = [
+            model.draw(
+                piff.Star(
+                    init_star.data,
+                    init_star.fit.newParams(
+                        truth_params,
+                        params_var=np.zeros_like(truth_params),
+                    ),
+                )
+            )
+            for init_star in init_stars
+        ]
+
+        # Draw the stars to use for fitting using the aberration array from eval_truth directly.
+        fit_stars = [
+            piff.Star(
+                truth_star.data,
+                init_star.fit.newParams(
+                    np.zeros_like(truth_params),
+                    params_var=np.zeros_like(truth_params)
+                ),
+            )
+            for truth_star, init_star in zip(truth_stars, init_stars)
+        ]
+        for star in fit_stars:
+            aber = eval_truth(star.image_pos.x, star.image_pos.y)
+            prof = galsim.roman.getPSF(5, 'H158', star.image_pos,
+                                       pupil_bin=piff.roman_psf.pupil_bin,
+                                       wcs=star.image.wcs,
+                                       extra_aberrations=model._make_extra_aberrations(aber),
+                                       wavelength=model.bandpass.effective_wavelength)
+            prof.drawImage(star.image, method='auto', center=star.image_pos)
+
+        for _ in range(5):
+            fit_stars = model.fit_many(fit_stars)
+
+        # Note: these are not expected to match exactly.  The real images include the
+        # natural variation within the SCA from the roman aberration pattern, fully separate
+        # from the extra_aberrations we're fitting for.  This variation is not quite linear,
+        # so the bilinear approximation is a small model mismatch.  However, it's relatively
+        # close in the fitted extra aberrations, and the drawn images are very close.
+        fitted_params = fit_stars[0].fit.params
+        print('linear gradient fit = ', fitted_params)
+        print('           truth = ', truth_params)
+        np.testing.assert_allclose(fitted_params, truth_params, atol=1.e-4, rtol=0.3)
+        for fit_star in fit_stars:
+            np.testing.assert_allclose(fit_star.fit.params, fitted_params, atol=1.e-4, rtol=0.01)
+        for fit_star, truth_star in zip(fit_stars, truth_stars):
+            model_star = model.draw(fit_star)
+            np.testing.assert_allclose(
+                model_star.image.array, truth_star.image.array, atol=1.e-4, rtol=0.01)
+
+
+@timer
+def test_roman_fit_linear_nproc():
+    """Check linear-mode fit_many behavior with multiprocessing enabled.
+    """
+    with fast_pupil_bin():
+        model = piff.Roman(
+            filter='H158',
+            chromatic=False,
+            max_zernike=6,
+            aberration_interp='linear',
+            aberration_prior_sigma=1.0e6,
+            nproc=2,
+        )
+        pos = [
+            (512.0, 512.0),
+            (2044.0, 512.0),
+            (3576.0, 512.0),
+            (512.0, 3576.0),
+            (2044.0, 3576.0),
+            (3576.0, 3576.0),
+        ]
+        stars = [
+            piff.Star.makeTarget(
+                x=x,
+                y=y,
+                stamp_size=25,
+                scale=0.11,
+                properties={'sca': 5},
+            ).withFlux(1.0, (0.0, 0.0))
+            for x, y in pos
+        ]
+        init_stars = [model.initialize(star) for star in stars]
+        truth_params = np.tile([0.004, -0.003, 0.005], 4)
+        truth_stars = [
+            model.draw(
+                piff.Star(
+                    init_star.data,
+                    init_star.fit.newParams(
+                        truth_params,
+                        params_var=np.zeros_like(truth_params),
+                    ),
+                )
+            )
+            for init_star in init_stars
+        ]
+        fit_stars = [
+            piff.Star(
+                truth_star.data,
+                init_star.fit.newParams(
+                    np.zeros_like(truth_params),
+                    params_var=np.zeros_like(truth_params)
+                ),
+            )
+            for truth_star, init_star in zip(truth_stars, init_stars)
+        ]
+
+        for _ in range(4):
+            fit_stars = model.fit_many(fit_stars)
+        for fit_star in fit_stars:
+            np.testing.assert_allclose(fit_star.fit.params, truth_params, atol=0.0, rtol=1.e-3)
+
+
+
+@timer
 def test_roman_optics_convert_funcs():
     """Check aberration recovery when fitting with a nontrivial convert_func (profile shear).
     """
@@ -630,14 +952,14 @@ def test_roman_sca_interp():
         np.testing.assert_allclose(tstars2[1].fit.params, p2)
         np.testing.assert_allclose(tstars2[2].fit.params, global_mean)
 
-        # If per_sca is False, then always use global_mean.
+        # Global mode always uses global_mean.
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
                 'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
-                'per_sca': False,
+                'aberration_interp': 'global',
             }
         )
         psf_global.interp.solve(stars)
@@ -672,5 +994,9 @@ if __name__ == '__main__':
     test_roman_fit()
     test_roman_aberration_prior()
     test_roman_fit_many()
+    test_roman_fit_many_nproc()
+    test_roman_fit_linear()
+    test_roman_fit_linear_gradient()
+    test_roman_fit_linear_nproc()
     test_roman_optics_convert_funcs()
     test_roman_sca_interp()
