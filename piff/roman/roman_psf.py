@@ -161,8 +161,8 @@ class RomanOpticalModel(Model):
 
         if self.max_zernike < 4 or self.max_zernike > 22:
             raise ValueError("max_zernike must be in the range 4..22")
-        if self.aberration_interp not in ('global', 'constant'):
-            raise ValueError("aberration_interp must be one of 'global', 'constant'")
+        if self.aberration_interp not in ('global', 'constant', 'linear'):
+            raise ValueError("aberration_interp must be one of 'global', 'constant', 'linear'")
 
         # Notation: filter is the string name of the filter.
         #           bandpass is the galsim.Bandpass object with the transmission function.
@@ -192,6 +192,13 @@ class RomanOpticalModel(Model):
 
     @property
     def param_len(self):
+        if self.aberration_interp == 'linear':
+            return 4 * self._corner_param_len
+        else:
+            return self._corner_param_len
+
+    @property
+    def _corner_param_len(self):
         return self.max_zernike - 3
 
     def initialize_iteration(self):
@@ -236,13 +243,15 @@ class RomanOpticalModel(Model):
         if aberration_prior_sigma is None:
             return None
         sigma = np.array(aberration_prior_sigma, dtype=float).ravel()
-        nprior = self.param_len
+        nprior = self._corner_param_len
         if sigma.size == 1:
             sigma = np.full(nprior, sigma[0], dtype=float)
         elif sigma.size != nprior:
             raise ValueError(
                 "aberration_prior_sigma must be a scalar or length %d" % nprior
             )
+        if self.aberration_interp == 'linear':
+            sigma = np.tile(sigma, 4)
         if np.any(sigma <= 0):
             raise ValueError("aberration_prior_sigma values must all be > 0")
         return sigma
@@ -462,7 +471,10 @@ class RomanOpticalModel(Model):
             galsim.PositionD(0.0, self.sca_size),
             galsim.PositionD(self.sca_size, self.sca_size),
         )
-        corner_params = np.tile(params, 4).reshape(4, self.param_len)
+        if self.aberration_interp == 'linear':
+            corner_params = params.reshape(4, self._corner_param_len)
+        else:
+            corner_params = np.tile(params, 4).reshape(4, self._corner_param_len)
         profiles = tuple(
             galsim.roman.getPSF(
                 sca,
