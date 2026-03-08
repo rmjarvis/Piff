@@ -136,3 +136,7 @@ When extending functionality, check whether an existing abstraction or diagnosti
 - `piff/roman_psf.py` exposes a module-level `pupil_bin` control (default 4) used in
   `galsim.roman.getPSF` calls. Tests can temporarily set `roman_psf.pupil_bin` to 8 or 16 to
   speed runtime while still exercising real Roman optics code paths.
+- Roman bilinear-approximation diagnostics: use
+  `devel/roman/diagnose_bilinear_vs_direct.py` to compare the corner-bilinear Roman model to
+  direct `galsim.roman.getPSF` over an SCA grid. This is useful for quantifying approximation
+  error before changing interpolation strategy.
