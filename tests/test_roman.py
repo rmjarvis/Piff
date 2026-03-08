@@ -419,6 +419,72 @@ def test_roman_aberration_prior():
 
 
 @timer
+def test_roman_linear_prior_io():
+    """Ensure linear-mode aberration priors serialize compactly and round-trip correctly.
+    """
+    psf = piff.PSF.process(
+        {
+            'type': 'RomanOptics',
+            'filter': 'H158',
+            'chromatic': False,
+            'max_zernike': 6,
+            'aberration_interp': 'linear',
+            'aberration_prior_sigma': [0.11, 0.22, 0.33],
+        }
+    )
+
+    fn = os.path.join('output', 'roman_linear_prior_io.piff')
+    psf.write(fn)
+    psf2 = piff.read(fn)
+
+    model = psf2.model
+    np.testing.assert_allclose(model.orig_prior_sigma,
+                               [0.11, 0.22, 0.33], atol=0.0, rtol=0.0)
+    np.testing.assert_allclose(
+        model.prior_sigma,
+        np.tile([0.11, 0.22, 0.33], 4),
+        atol=0.0,
+        rtol=0.0,
+    )
+    np.testing.assert_allclose(
+        model.kwargs['aberration_prior_sigma'],
+        [0.11, 0.22, 0.33],
+        atol=0.0,
+        rtol=0.0,
+    )
+
+    # Also check scalar prior in input config.
+    psf_scalar = piff.PSF.process(
+        {
+            'type': 'RomanOptics',
+            'filter': 'H158',
+            'chromatic': False,
+            'max_zernike': 6,
+            'aberration_interp': 'linear',
+            'aberration_prior_sigma': 0.05,
+        }
+    )
+    fn_scalar = os.path.join('output', 'roman_linear_prior_io_scalar.piff')
+    psf_scalar.write(fn_scalar)
+    psf_scalar2 = piff.read(fn_scalar)
+    model_scalar = psf_scalar2.model
+    np.testing.assert_allclose(model_scalar.orig_prior_sigma,
+                               [0.05, 0.05, 0.05], atol=0.0, rtol=0.0)
+    np.testing.assert_allclose(
+        model_scalar.prior_sigma,
+        np.full(12, 0.05),
+        atol=0.0,
+        rtol=0.0,
+    )
+    np.testing.assert_allclose(
+        model_scalar.kwargs['aberration_prior_sigma'],
+        [0.05, 0.05, 0.05],
+        atol=0.0,
+        rtol=0.0,
+    )
+
+
+@timer
 def test_roman_fit_many():
     """Check accuracy of fitting multiple stars using fit_many.
     """

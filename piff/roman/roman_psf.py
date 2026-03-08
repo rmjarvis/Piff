@@ -170,7 +170,9 @@ class RomanOpticalModel(Model):
         if self.filter not in bandpasses:
             raise ValueError("Roman filter %r is not a valid GalSim Roman bandpass" % self.filter)
         self.bandpass = bandpasses[self.filter]
-        self.prior_sigma = self._parse_prior_sigma(aberration_prior_sigma)
+        # Save the original for serialization.
+        self.orig_prior_sigma = self._parse_prior_sigma(aberration_prior_sigma)
+        self.prior_sigma = self._expand_prior_sigma(self.orig_prior_sigma)
         self.prior_invsigsq = 1.0/self.prior_sigma**2 if self.prior_sigma is not None else None
 
         self.kwargs = {
@@ -178,7 +180,7 @@ class RomanOpticalModel(Model):
             'chromatic': self.chromatic,
             'max_zernike': self.max_zernike,
             'aberration_interp': self.aberration_interp,
-            'aberration_prior_sigma': self.prior_sigma,
+            'aberration_prior_sigma': self.orig_prior_sigma,
             'nproc': self.nproc,
         }
         self.sca_size = float(galsim.roman.n_pix)
@@ -250,11 +252,16 @@ class RomanOpticalModel(Model):
             raise ValueError(
                 "aberration_prior_sigma must be a scalar or length %d" % nprior
             )
-        if self.aberration_interp == 'linear':
-            sigma = np.tile(sigma, 4)
         if np.any(sigma <= 0):
             raise ValueError("aberration_prior_sigma values must all be > 0")
         return sigma
+
+    def _expand_prior_sigma(self, prior_sigma):
+        # Possibly tile the prior_sigma array 4 times if linear mode.
+        if self.aberration_interp == 'linear' and prior_sigma is not None:
+            return np.tile(prior_sigma, 4)
+        else:
+            return prior_sigma
 
     def _apply_prior(self, ata, atb, params):
         if self.prior_invsigsq is None:
