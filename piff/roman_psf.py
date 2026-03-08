@@ -141,7 +141,7 @@ class Roman(Model):
         filter,
         chromatic=True,
         max_zernike=22,
-        aberration_prior_sigma=1.0,
+        aberration_prior_sigma=0.05,
         logger=None,
     ):
         self.logger = logger
