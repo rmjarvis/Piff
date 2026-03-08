@@ -57,6 +57,21 @@ def test_roman_optics():
         assert psf.interp_property_names == ('sca',)
         assert psf.fit_center is False
         assert psf.include_model_centroid is False
+        assert psf.model.aberration_interp == 'constant'
+        assert psf.interp.per_sca is True
+
+        # Global mode uses one aberration vector for full focal plane.
+        psf_global = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'filter': 'H158',
+                'chromatic': False,
+                'max_zernike': 6,
+                'aberration_interp': 'global',
+            }
+        )
+        assert psf_global.model.aberration_interp == 'constant'
+        assert psf_global.interp.per_sca is False
 
         # Check the core RomanOptics flow: initialize, draw, and profile retrieval.
         star = piff.Star.makeTarget(
@@ -171,7 +186,9 @@ def test_roman_optics():
         piff.Roman(filter='NotAFilter', chromatic=False, max_zernike=6)
     assert "not a valid GalSim Roman bandpass" in str(err.value)
 
-
+    with pytest.raises(ValueError) as err:
+        piff.Roman(filter='H158', chromatic=False, max_zernike=6, aberration_interp='bad')
+    assert "must be one of" in str(err.value)
 
 @timer
 def test_roman_corner_cache():
@@ -213,7 +230,7 @@ def test_roman_corner_cache():
 
 @timer
 def test_roman_fit():
-    """Check local convergence of single-star Roman fits.
+    """Check local convergence of single-star Roman fits in constant mode.
     """
     with fast_pupil_bin():
         model = piff.Roman(
@@ -562,14 +579,14 @@ def test_roman_sca_interp():
         np.testing.assert_allclose(tstars2[1].fit.params, p2)
         np.testing.assert_allclose(tstars2[2].fit.params, global_mean)
 
-        # If per_sca is False, then always use global_mean.
+        # Global mode always uses global_mean.
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
                 'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
-                'per_sca': False,
+                'aberration_interp': 'global',
             }
         )
         psf_global.interp.solve(stars)
