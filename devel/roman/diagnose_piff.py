@@ -28,7 +28,90 @@ def _fmt(v):
     return str(v)
 
 
-def summarize(psf, center_thresh, top):
+def _collect_roman_sca_means(psf):
+    if not (hasattr(psf, "components") and len(psf.components) > 0):
+        return None, None
+    comp0 = psf.components[0]
+    if getattr(comp0, "_type_name", None) != "RomanOptics":
+        return None, None
+
+    model_num = comp0.model._num
+    params_by_sca = defaultdict(list)
+    for star in psf.stars:
+        if star.is_flagged or star.is_reserve:
+            continue
+        params_by_sca[_get_sca(star)].append(star.fit.get_params(model_num))
+
+    if not params_by_sca:
+        return comp0, None
+
+    sca_mean = {sca: np.mean(vals, axis=0) for sca, vals in params_by_sca.items()}
+    return comp0, sca_mean
+
+
+def _print_roman_aberration_diagnostics(sca_mean, focus_sca):
+    if not sca_mean:
+        return
+
+    scas = np.array(sorted(sca_mean), dtype=int)
+    params = np.array([sca_mean[s] for s in scas], dtype=float)
+    nterms = params.shape[1]
+
+    med = np.median(params, axis=0)
+    mad = np.median(np.abs(params - med), axis=0)
+    robust_sigma = 1.4826 * mad
+    robust_sigma_safe = np.where(robust_sigma > 0, robust_sigma, np.nan)
+
+    print("\nRomanOptics per-SCA aberration summary:")
+    print("  (term 0 -> z4, term 1 -> z5, etc.)")
+    for sca, p in zip(scas, params):
+        max_i = int(np.argmax(np.abs(p)))
+        l2 = np.linalg.norm(p)
+        l1 = np.sum(np.abs(p))
+        print(
+            "  SCA {:2d}: ||p||2={:8.4f} ||p||1={:8.4f} max|term|=t{:02d}:{:8.4f}".format(
+                int(sca), float(l2), float(l1), max_i, float(p[max_i])
+            )
+        )
+
+    mean_abs = np.mean(np.abs(params), axis=0)
+    print("\nRomanOptics per-term amplitudes across SCAs:")
+    for j in range(nterms):
+        print(
+            "  term {:2d} (z{:2d}): mean|a|={:8.4f} med={:8.4f} robust_sigma={:8.4f}".format(
+                j, j + 4, float(mean_abs[j]), float(med[j]),
+                float(robust_sigma[j]) if np.isfinite(robust_sigma[j]) else np.nan
+            )
+        )
+
+    if focus_sca is None:
+        return
+    elif focus_sca not in sca_mean:
+        print(f"\nFocused SCA {focus_sca} not present in fitted usable stars.")
+        return
+
+    p = sca_mean[focus_sca]
+    zscore = (p - med) / robust_sigma_safe
+    print(f"\nFocused SCA {focus_sca} term-by-term offsets from focal-plane median:")
+    for j, (val, m, dz, rs) in enumerate(zip(p, med, zscore, robust_sigma)):
+        ztxt = f"{dz:+7.2f}" if np.isfinite(dz) else "   n/a "
+        rstxt = f"{rs:8.4f}" if np.isfinite(rs) else "   n/a "
+        print(
+            "  term {:2d} (z{:2d}): val={:8.4f} med={:8.4f} delta={:+8.4f}"
+            " robust_sigma={} robust_z={}".format(
+                j, j + 4, float(val), float(m), float(val - m), rstxt, ztxt
+            )
+        )
+
+    sca_norm = {int(s): float(np.linalg.norm(v)) for s, v in sca_mean.items()}
+    worst = sorted(sca_norm.items(), key=lambda kv: -kv[1])[:5]
+    print("\nTop 5 SCAs by RomanOptics ||p||2:")
+    for sca, norm in worst:
+        tag = "  <-- focused" if sca == focus_sca else ""
+        print(f"  SCA {sca:2d}: {norm:8.4f}{tag}")
+
+
+def summarize(psf, center_thresh, top, focus_sca):
     stars = psf.stars
     print(f"File summary: nstars={len(stars)}")
     if getattr(psf, "dof", 0):
@@ -139,24 +222,16 @@ def summarize(psf, center_thresh, top):
             )
         )
 
-    if hasattr(psf, "components") and len(psf.components) > 0:
-        comp0 = psf.components[0]
-        if getattr(comp0, "_type_name", None) == "RomanOptics":
-            model_num = comp0.model._num
-            params_by_sca = defaultdict(list)
-            for star in stars:
-                if star.is_flagged or star.is_reserve:
-                    continue
-                params_by_sca[_get_sca(star)].append(star.fit.get_params(model_num))
-            if params_by_sca:
-                print("\nComponent 0 (RomanOptics) mean params by SCA:")
-                for sca in sorted(params_by_sca):
-                    p = np.mean(params_by_sca[sca], axis=0)
-                    pstr = np.array2string(
-                        p,
-                        formatter={"float_kind": lambda x: f"{x:.4f}"},
-                    )
-                    print(f"  SCA {sca:2d}: {pstr}")
+    comp0, sca_mean = _collect_roman_sca_means(psf)
+    if comp0 is not None and sca_mean:
+        print("\nComponent 0 (RomanOptics) mean params by SCA:")
+        for sca in sorted(sca_mean):
+            pstr = np.array2string(
+                sca_mean[sca],
+                formatter={"float_kind": lambda x: f"{x:.4f}"},
+            )
+            print(f"  SCA {sca:2d}: {pstr}")
+        _print_roman_aberration_diagnostics(sca_mean, focus_sca=focus_sca)
 
 
 def main():
@@ -174,10 +249,21 @@ def main():
         default=10,
         help="How many worst stars (by chi2/dof) to print",
     )
+    parser.add_argument(
+        "--focus-sca",
+        type=int,
+        default=None,
+        help="SCA to print detailed aberration diagnostics for",
+    )
     args = parser.parse_args()
 
     psf = piff.read(args.piff_file)
-    summarize(psf, center_thresh=args.center_thresh, top=args.top)
+    summarize(
+        psf,
+        center_thresh=args.center_thresh,
+        top=args.top,
+        focus_sca=args.focus_sca,
+    )
 
 
 if __name__ == "__main__":
