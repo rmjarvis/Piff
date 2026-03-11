@@ -1,0 +1,5 @@
+The XSL_DR3 library of SEDs is taken from here:
+https://xsl.astro.unistra.fr/tarball/XSL_DR3_release.tar
+
+It is about 740 MB total.  We only keep the summary table in the repo.  To use, you will need
+to download the above tarball and untar it into the XSL_DR3_release directory.
