@@ -22,7 +22,7 @@ input:
 select:
 
     min_snr: 50           # reject very faint stars
-    #max_snr: 500          # don't over-weight very bright stars
+    max_snr: 500          # don't over-weight very bright stars
     #max_mask_pixels: 10   # how many pixels in stamp are allowed to be masked.
     hsm_size_reject: 5    # number of inter-quartile ranges from median to reject size estimate.
     max_pixel_cut: 50000  # reject stars with a pixel value higher than this. (sort of)
@@ -30,12 +30,12 @@ select:
     #nstars: 100
 
 output:
-    file_name: 'ffov_13906_1.piff'
+    file_name: 'ffov_13906_11.piff'
 
     stats:
         - 
           type: StarImages
-          file_name: stars.png
+          file_name: 'stars_11.png'
           nplot: 0  # all stars
 
 psf:
@@ -49,7 +49,8 @@ psf:
         filter: H158
         chromatic: False
         max_zernike: 12    # Fit Zernike coefficients 4-12 inclusive.
-        aberration_prior_sigma: 0.05  # Gaussian prior on all Zernike coefficients.
+        aberration_prior_sigma: 3.e-3  # Gaussian prior on all Zernike coefficients.
+        aberration_interp: constant    # linear is possible but doesn't seem to work better.
         nproc: 4
 
       - 
@@ -65,8 +66,8 @@ psf:
     outliers:
       -
         type: Chisq
-        nsigma: 5
-        max_remove: 0.01
+        nsigma: 10
+        max_remove: 0.03
       -
         type: Centroid
         max_offset: 0.2 # arcsec
