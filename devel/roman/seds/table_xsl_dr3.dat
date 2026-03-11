@@ -1,0 +1,830 @@
+HD 224926                 00 01 49.45 -03 01 39.0 X0022 55112.9977     fits/xsl_spectrum_X0022_merged_scl.fits 
+HD 224926                 00 01 49.45 -03 01 39.0 X0224 55410.3318     fits/xsl_spectrum_X0224_merged.fits 
+HD 224926                 00 01 49.45 -03 01 39.0 X0280 55457.2696     fits/xsl_spectrum_X0280_merged.fits 
+HD 358                    00 08 23.26 +29 05 25.5 X0025 55113.0508     fits/xsl_spectrum_X0025_merged_ncl_ncge.fits 
+HD 1638                   00 20 28.31 -30 33 19.8 X0023 55113.0113     fits/xsl_spectrum_X0023_merged.fits 
+HD 1638                   00 20 28.31 -30 33 19.8 X0180 55407.3060     fits/xsl_spectrum_X0180_merged.fits 
+HD 1638                   00 20 28.31 -30 33 19.8 X0258 55439.2991     fits/xsl_spectrum_X0258_merged.fits 
+HD 1638                   00 20 28.31 -30 33 19.8 X0286 55461.3087     fits/xsl_spectrum_X0286_merged.fits 
+CL* NGC 121 T V8          00 26 48.53 -71 32 50.4 X0385 56090.4024     fits/xsl_spectrum_X0385_merged_ncge.fits 
+CL* NGC 121 T V1          00 26 56.45 -71 32 07.6 X0411 56111.3234     fits/xsl_spectrum_X0411_merged.fits 
+HD 2796                   00 31 16.91 -16 47 40.7 X0418 56141.2573     fits/xsl_spectrum_X0418_merged.fits 
+HD 2857                   00 31 53.79 -05 15 42.8 X0024 55113.0314     fits/xsl_spectrum_X0024_merged.fits 
+SV* HV 11223              00 32 01.60 -73 22 34.8 X0420 56143.2740     fits/xsl_spectrum_X0420_merged.fits          S-star signatures confirmed (ZrO, 940 nm; cf. Wood et al. 1983)
+HD 3008                   00 33 14.31 -10 43 42.7 X0744 56485.4122     fits/xsl_spectrum_X0744_merged.fits 
+HD 3883                   00 41 36.04 +24 37 44.4 X0747 56487.4232     fits/xsl_spectrum_X0747_merged.fits 
+HD 4539                   00 47 29.22 +09 58 55.6 X0448 56149.4133     fits/xsl_spectrum_X0448_merged.fits 
+HD 4539                   00 47 29.22 +09 58 55.6 X0463 56156.3695     fits/xsl_spectrum_X0463_merged.fits 
+ISO-MCMS J004900.4-732224 00 49 00.33 -73 22 23.8 X0001 55110.0748     fits/xsl_spectrum_X0001_merged_ncl.fits 
+HD 4893                   00 49 22.58 -73 28 43.1 X0422 56143.3078     fits/xsl_spectrum_X0422_merged.fits 
+ISO-MCMS J004932.4-731753 00 49 32.63 -73 17 52.4 X0002 55110.0901     fits/xsl_spectrum_X0002_merged_ncl.fits 
+ISO-MCMS J004950.3-731116 00 49 50.13 -73 11 16.5 X0003 55110.1119     fits/xsl_spectrum_X0003_merged_scl.fits 
+HD 4813                   00 50 07.59 -10 38 39.5 X0096 55224.0638     fits/xsl_spectrum_X0096_merged_scl.fits 
+ISO-MCMS J005059.4-731914 00 50 59.32 -73 19 13.4 X0009 55110.1855     fits/xsl_spectrum_X0009_merged_ncl.fits 
+HD 4906                   00 51 14.05 +18 47 25.1 X0753 56488.4170     fits/xsl_spectrum_X0753_merged.fits 
+CL* NGC 288 OCH 531       00 52 41.13 -26 33 27.0 X0756 56496.3576     fits/xsl_spectrum_X0756_merged.fits 
+CL* NGC 288 OCH 531       00 52 41.13 -26 33 27.0 X0767 56508.3867     fits/xsl_spectrum_X0767_merged.fits 
+ISO-MCMS J005304.7-730409 00 53 04.89 -73 04 09.5 X0029 55115.3055 UVB fits/xsl_spectrum_X0029_merged_ncl.fits     
+ISO-MCMS J005307.8-730747 00 53 07.67 -73 07 47.7 X0034 55116.1181     fits/xsl_spectrum_X0034_merged_ncl.fits 
+ISO-MCMS J005314.8-730601 00 53 14.67 -73 06 01.0 X0030 55115.3303     fits/xsl_spectrum_X0030_merged_ncl.fits 
+ISO-MCMS J005332.4-730501 00 53 32.76 -73 04 58.2 X0031 55115.3508     fits/xsl_spectrum_X0031_merged_scl.fits 
+ISO-MCMS J005422.8-730105 00 54 22.68 -73 01 05.8 X0038 55119.0749     fits/xsl_spectrum_X0038_merged_ncl.fits 
+ISO-MCMS J005531.0-731018 00 55 30.91 -73 10 19.0 X0039 55119.0915     fits/xsl_spectrum_X0039_merged_ncl.fits 
+CL* NGC 330 ROB A3        00 56 21.70 -72 27 35.8 X0754 56494.4148     fits/xsl_spectrum_X0754_merged_scl.fits 
+CL* NGC 330 ROB A3        00 56 21.70 -72 27 35.8 X0755 56495.4127     fits/xsl_spectrum_X0755_merged.fits 
+CL* NGC 330 ROB B38       00 56 22.58 -72 28 35.8 X0757 56497.4113     fits/xsl_spectrum_X0757_merged.fits 
+ISO-MCMS J005622.2-730334 00 56 22.81 -73 03 33.9 X0026 55114.0974     fits/xsl_spectrum_X0026_merged_scl.fits 
+ISO-MCMS J005644.8-731436 00 56 44.79 -73 14 34.7 X0040 55119.1096     fits/xsl_spectrum_X0040_merged_ncl.fits 
+SV* HV 11366              00 56 54.77 -72 14 08.4 X0765 56507.3936     fits/xsl_spectrum_X0765_merged.fits          S-star signatures confirmed (ZrO, 940 nm; cf. Wood et al. 1983)
+ISO-MCMS J005700.7-730751 00 57 00.71 -73 07 50.6 X0012 55111.0708     fits/xsl_spectrum_X0012_merged_ncl.fits 
+ISO-MCMS J005712.2-730704 00 57 12.15 -73 07 04.7 X0013 55111.0816     fits/xsl_spectrum_X0013_merged_ncl.fits 
+HD 5544                   00 57 13.04 +00 20 32.4 X0453 56154.4097     fits/xsl_spectrum_X0453_merged.fits 
+ISO-MCMS J005714.4-730121 00 57 14.47 -73 01 21.5 X0020 55112.0911 UVB fits/xsl_spectrum_X0020_merged.fits         
+ISO-MCMS J005716.5-731052 00 57 16.50 -73 10 52.8 X0017 55111.1123     fits/xsl_spectrum_X0017_merged_ncl.fits 
+HV 12149                  00 58 50.17 -72 18 35.6 X0759 56504.3474 UVB fits/xsl_spectrum_X0759_merged_ncl.fits     
+[M2002] SMC 46662         00 59 35.01 -72 04 06.4 X0005 55110.1348     fits/xsl_spectrum_X0005_merged.fits 
+HD 5857                   01 00 15.73 +18 11 56.4 X0526 56232.0789     fits/xsl_spectrum_X0526_merged.fits 
+ISO-MCMS J010031.5-730724 01 00 31.51 -73 07 23.7 X0018 55111.1241     fits/xsl_spectrum_X0018_merged_ncl.fits 
+CL* NGC 371 FTW R20       01 00 41.53 -72 10 36.9 X0041 55119.1289     fits/xsl_spectrum_X0041_merged.fits 
+CL* NGC 371 LE 31         01 01 45.39 -72 07 56.7 X0505 56212.2344     fits/xsl_spectrum_X0505_merged_ncl.fits 
+[M2002] SMC 52334         01 01 54.19 -71 52 18.6 X0006 55110.1461     fits/xsl_spectrum_X0006_merged.fits 
+[M2002] SMC 55188         01 03 02.46 -72 01 53.0 X0004 55110.1274     fits/xsl_spectrum_X0004_merged.fits 
+HD 6268                   01 03 18.17 -27 52 49.9 X0733 56463.4046     fits/xsl_spectrum_X0733_merged.fits 
+HD 6229                   01 03 36.46 +23 46 06.3 X0007 55110.1543     fits/xsl_spectrum_X0007_merged.fits 
+SV* HV 1963               01 04 26.63 -72 34 40.2 X0511 56213.1647     fits/xsl_spectrum_X0511_merged.fits 
+SV* HV 12179              01 05 01.77 -72 06 56.3 X0514 56213.2183     fits/xsl_spectrum_X0514_merged.fits 
+CL* NGC 419 LE 35         01 08 17.49 -72 53 01.3 X0513 56213.1976     fits/xsl_spectrum_X0513_merged_ncl.fits      C-star with contamination by nearby hotter star below 450 nm
+CL* NGC 419 LE 27         01 08 20.67 -72 52 52.0 X0512 56213.1825     fits/xsl_spectrum_X0512_merged_ncl.fits 
+BBB SMC 148               01 09 17.88 -72 45 42.0 X0506 56212.2515     fits/xsl_spectrum_X0506_merged.fits 
+BBB SMC 104               01 10 29.46 -72 49 34.5 X0504 56212.2064     fits/xsl_spectrum_X0504_merged.fits 
+HD 7595                   01 15 29.53 -28 15 53.5 X0508 56212.2783     fits/xsl_spectrum_X0508_merged.fits 
+U Psc                     01 22 58.48 +12 52 03.8 X0527 56232.0943     fits/xsl_spectrum_X0527_merged.fits 
+HD 8724                   01 26 17.59 +17 07 35.1 X0077 55176.0501     fits/xsl_spectrum_X0077_merged.fits 
+HD 8724                   01 26 17.59 +17 07 35.1 X0092 55202.0446     fits/xsl_spectrum_X0092_merged.fits 
+HD 9051                   01 28 46.50 -24 20 25.4 X0768 56553.2062     fits/xsl_spectrum_X0768_merged.fits 
+HD 9051                   01 28 46.50 -24 20 25.4 X0769 56553.2129     fits/xsl_spectrum_X0769_merged.fits 
+[M2002] SMC 83593         01 30 33.97 -73 18 41.6 X0021 55112.0988     fits/xsl_spectrum_X0021_merged.fits 
+HD 9356                   01 32 08.17 +01 20 30.2 X0770 56553.2276     fits/xsl_spectrum_X0770_merged.fits 
+HD 9356                   01 32 08.17 +01 20 30.2 X0775 56554.2110     fits/xsl_spectrum_X0775_merged.fits 
+HE 0146-1548              01 48 34.72 -15 33 24.4 X0760 56506.3594     fits/xsl_spectrum_X0760_merged.fits 
+HD 11397                  01 51 40.53 -16 19 03.5 X0778 56554.2258     fits/xsl_spectrum_X0778_merged.fits          Artifacts in K-band (NIR arm)
+HD 13043                  02 07 34.27 -00 37 02.7 X0203 55408.3049     fits/xsl_spectrum_X0203_merged.fits 
+HD 13043                  02 07 34.27 -00 37 02.7 X0281 55457.3902     fits/xsl_spectrum_X0281_merged.fits 
+HD 14625                  02 21 40.43 -00 08 55.0 X0559 56278.0963     fits/xsl_spectrum_X0559_merged.fits 
+HD 14938                  02 24 23.31 -03 06 14.5 X0529 56232.2158     fits/xsl_spectrum_X0529_merged.fits 
+HD 16031                  02 34 11.06 -12 23 03.4 X0065 55162.0429     fits/xsl_spectrum_X0065_merged.fits 
+HD 16160                  02 36 04.90 +06 53 12.4 X0066 55162.0573     fits/xsl_spectrum_X0066_merged_scl.fits 
+HD 16232                  02 36 57.74 +24 38 53.0 X0793 56579.2607     fits/xsl_spectrum_X0793_merged.fits 
+HD 16456                  02 37 05.76 -42 57 48.0 X0782 56555.3017     fits/xsl_spectrum_X0782_merged.fits 
+HD 16673                  02 40 12.42 -09 27 10.3 X0791 56579.2357     fits/xsl_spectrum_X0791_merged.fits 
+HD 17072                  02 40 40.10 -69 13 58.8 X0042 55119.1377     fits/xsl_spectrum_X0042_merged_scl.fits 
+HD 17072                  02 40 40.10 -69 13 58.8 X0089 55201.0247     fits/xsl_spectrum_X0089_merged.fits 
+BD+09 0352                02 41 13.64 +09 46 12.1 X0795 56579.2731     fits/xsl_spectrum_X0795_merged.fits 
+GJ 109                    02 44 15.51 +25 31 24.1 X0792 56579.2481     fits/xsl_spectrum_X0792_merged.fits 
+HD 18907                  03 01 37.63 -28 05 29.3 X0043 55119.1940     fits/xsl_spectrum_X0043_merged_scl.fits 
+HD 18769                  03 01 54.14 +26 27 44.4 X0073 55162.1075     fits/xsl_spectrum_X0073_merged.fits 
+HD 19019                  03 03 50.82 +06 07 59.8 X0071 55162.0896     fits/xsl_spectrum_X0071_merged.fits 
+HD 19304                  03 06 25.58 +03 15 52.2 X0545 56262.1616     fits/xsl_spectrum_X0545_merged.fits 
+HD 19445                  03 08 25.59 +26 19 51.4 X0070 55162.0764     fits/xsl_spectrum_X0070_merged.fits 
+HD 19787                  03 11 37.76 +19 43 36.0 X0084 55180.0732     fits/xsl_spectrum_X0084_merged_scl.fits 
+HD 20619                  03 19 01.89 -02 50 35.4 X0546 56262.1764     fits/xsl_spectrum_X0546_merged.fits 
+HD 21197                  03 24 59.73 -05 21 49.5 X0560 56278.1024     fits/xsl_spectrum_X0560_merged.fits 
+HD 23924                  03 49 40.92 +23 20 29.6 X0794 56579.2661     fits/xsl_spectrum_X0794_merged.fits 
+HD 24616                  03 53 59.46 -23 08 13.4 X0423 56143.3222     fits/xsl_spectrum_X0423_merged.fits 
+HD 25329                  04 03 15.00 +35 16 23.8 X0075 55162.1658     fits/xsl_spectrum_X0075_merged.fits 
+HD 25532                  04 04 11.01 +23 24 27.1 X0547 56262.1824     fits/xsl_spectrum_X0547_merged.fits 
+HD 25673                  04 04 20.30 -04 39 18.5 X0561 56278.1169     fits/xsl_spectrum_X0561_merged.fits 
+HD 26297                  04 09 03.42 -15 53 27.0 X0548 56262.1927     fits/xsl_spectrum_X0548_merged.fits 
+BD+06 0648                04 13 13.11 +06 36 01.7 X0549 56262.2035     fits/xsl_spectrum_X0549_merged.fits 
+HD 284248                 04 14 35.52 +22 21 04.2 X0072 55162.0980     fits/xsl_spectrum_X0072_merged.fits 
+HD 27295                  04 19 26.10 +21 08 32.3 X0081 55178.2016     fits/xsl_spectrum_X0081_merged_scl.fits 
+HD 27295                  04 19 26.10 +21 08 32.3 X0313 55526.0858     fits/xsl_spectrum_X0313_merged.fits 
+HD 27771                  04 23 32.33 +14 40 13.7 X0558 56278.0901     fits/xsl_spectrum_X0558_merged.fits 
+HD 28978                  04 34 08.27 +05 34 07.0 X0074 55162.1154     fits/xsl_spectrum_X0074_merged.fits 
+HD 29391                  04 37 36.13 -02 28 24.7 X0082 55178.2177     fits/xsl_spectrum_X0082_merged_scl.fits 
+HD 29391                  04 37 36.13 -02 28 24.7 X0306 55474.2264     fits/xsl_spectrum_X0306_merged_scl.fits 
+HD 29391                  04 37 36.13 -02 28 24.7 X0311 55508.2472     fits/xsl_spectrum_X0311_merged_scl.fits 
+HD 30328                  04 46 44.91 +02 42 02.1 X0772 56553.3881     fits/xsl_spectrum_X0772_merged.fits 
+T Cae                     04 47 18.92 -36 12 33.5 X0052 55142.1935 NIR fits/xsl_spectrum_X0052_merged_ncl_ncge.fits 
+SHV 0448341-691510        04 48 20.18 -69 10 02.4 X0783 56561.3061     fits/xsl_spectrum_X0783_merged.fits 
+SHV 0448341-691510        04 48 20.18 -69 10 02.4 X0784 56561.3310 NIR fits/xsl_spectrum_X0784_merged_ncl.fits      
+SHV 0448341-691510        04 48 20.18 -69 10 02.4 X0785 56561.3486     fits/xsl_spectrum_X0785_merged_ncl_ncge.fits 
+HD 30743                  04 49 42.24 -13 46 10.8 X0796 56579.2819     fits/xsl_spectrum_X0796_merged.fits 
+SHV 0452361-683928        04 52 26.47 -68 34 37.4 X0045 55119.2283     fits/xsl_spectrum_X0045_merged_ncl.fits 
+SHV 0452361-683928        04 52 26.47 -68 34 37.4 X0181 55407.3863     fits/xsl_spectrum_X0181_merged_ncl.fits 
+SHV 0452361-683928        04 52 26.47 -68 34 37.4 X0259 55439.3062     fits/xsl_spectrum_X0259_merged_ncl.fits 
+EY Eri                    04 52 57.25 -10 01 58.8 X0577 56293.1983     fits/xsl_spectrum_X0577_merged_ncl_ncge.fits 
+HD 31421                  04 56 22.28 +13 30 52.0 X0094 55202.0631     fits/xsl_spectrum_X0094_merged_scl.fits 
+HV 2255                   04 57 43.30 -70 08 50.4 X0044 55119.2037     fits/xsl_spectrum_X0044_merged.fits 
+HV 2255                   04 57 43.30 -70 08 50.4 X0205 55408.3725     fits/xsl_spectrum_X0205_merged.fits 
+HV 2255                   04 57 43.30 -70 08 50.4 X0260 55439.3157     fits/xsl_spectrum_X0260_merged.fits 
+SHV 0500412-684054        05 00 29.74 -68 36 37.3 X0515 56213.2883     fits/xsl_spectrum_X0515_merged.fits 
+SHV 0501215-680112        05 01 15.35 -67 56 58.6 X0046 55119.2367     fits/xsl_spectrum_X0046_merged_ncl.fits 
+SHV 0501215-680112        05 01 15.35 -67 56 58.6 X0182 55407.3917     fits/xsl_spectrum_X0182_merged_ncl.fits 
+SHV 0501215-680112        05 01 15.35 -67 56 58.6 X0261 55439.3210     fits/xsl_spectrum_X0261_merged_ncl.fits 
+SHV 0502469-692418        05 02 28.89 -69 20 09.8 X0516 56213.3118 UVB fits/xsl_spectrum_X0516_merged.fits         
+SHV 0503595-691915        05 03 42.14 -69 15 12.1 X0053 55142.2079     fits/xsl_spectrum_X0053_merged_ncl_ncge.fits 
+SHV 0503595-691915        05 03 42.14 -69 15 12.1 X0262 55439.3313     fits/xsl_spectrum_X0262_merged_ncl.fits 
+SHV 0504353-712622        05 03 55.97 -71 22 22.0 X0047 55119.2564     fits/xsl_spectrum_X0047_merged_ncl.fits 
+SHV 0506368-681557        05 06 27.68 -68 12 03.6 X0048 55119.2671     fits/xsl_spectrum_X0048_merged_ncl.fits 
+SHV 0506368-681557        05 06 27.68 -68 12 03.6 X0184 55407.4250     fits/xsl_spectrum_X0184_merged_ncl.fits 
+SHV 0506368-681557        05 06 27.68 -68 12 03.6 X0264 55439.3859     fits/xsl_spectrum_X0264_merged_ncl.fits 
+HD 271018                 05 07 14.18 -66 03 18.4 X0518 56213.3487     fits/xsl_spectrum_X0518_merged.fits 
+SHV 0510004-692755        05 09 40.54 -69 24 16.6 X0049 55119.2765     fits/xsl_spectrum_X0049_merged_ncl.fits 
+SHV 0510004-692755        05 09 40.54 -69 24 16.6 X0237 55423.3932     fits/xsl_spectrum_X0237_merged_ncl_ncge.fits A few artificial waves in the VIS arm, as for X0144
+HD 33299                  05 10 34.98 +30 47 51.1 X0110 55235.0092     fits/xsl_spectrum_X0110_merged_scl.fits 
+[PHS2008] RGB 512         05 10 57.03 -71 11 34.2 X0206 55408.3893     fits/xsl_spectrum_X0206_merged.fits 
+[PHS2008] RGB 522         05 11 22.58 -71 07 27.7 X0263 55439.3486     fits/xsl_spectrum_X0263_merged_scl.fits 
+HD 33793                  05 11 40.58 -45 01 06.2 X0540 56260.2430     fits/xsl_spectrum_X0540_merged.fits 
+HV 2360                   05 12 46.36 -67 19 37.8 X0050 55119.2902     fits/xsl_spectrum_X0050_merged.fits 
+[PHS2008] RGB 533         05 13 12.68 -71 18 00.5 X0238 55429.3470     fits/xsl_spectrum_X0238_merged.fits 
+SHV 0515313-694303        05 15 08.59 -69 39 50.3 X0517 56213.3253     fits/xsl_spectrum_X0517_merged.fits 
+SHV 0515461-691822        05 15 26.89 -69 15 07.4 X0054 55142.2597     fits/xsl_spectrum_X0054_merged_ncl.fits 
+SHV 0517337-725738        05 16 33.32 -72 54 32.0 X0519 56213.3618     fits/xsl_spectrum_X0519_merged.fits 
+SHV 0518222-750327        05 16 49.73 -75 00 22.8 X0055 55142.2774     fits/xsl_spectrum_X0055_merged_ncl.fits 
+SHV 0518161-683543        05 18 02.48 -68 32 39.1 X0530 56234.2848     fits/xsl_spectrum_X0530_merged.fits 
+SHV 0518331-685102        05 18 17.50 -68 47 59.1 X0531 56237.3360     fits/xsl_spectrum_X0531_merged.fits 
+SHV 0518570-692207        05 18 36.62 -69 19 05.1 X0056 55142.2922     fits/xsl_spectrum_X0056_merged_ncl.fits 
+SHV 0518571-690729        05 18 39.10 -69 04 28.2 X0532 56240.3017     fits/xsl_spectrum_X0532_merged.fits 
+HD 34797                  05 19 18.31 -18 30 34.3 X0113 55235.0591     fits/xsl_spectrum_X0113_merged.fits 
+HD 34816                  05 19 34.52 -13 10 36.3 X0303 55467.3751     fits/xsl_spectrum_X0303_merged_ncl_ncge.fits 
+SHV 0520036-692817        05 19 42.27 -69 25 19.6 X0509 56212.2973     fits/xsl_spectrum_X0509_merged.fits 
+HV 2446                   05 20 01.58 -67 34 42.1 X0057 55142.3046     fits/xsl_spectrum_X0057_merged_ncl.fits 
+SHV 0520261-693826        05 20 03.34 -69 35 33.5 X0524 56214.3460     fits/xsl_spectrum_X0524_merged.fits 
+SHV 0520342-693911        05 20 11.29 -69 36 20.0 X0592 56316.0320     fits/xsl_spectrum_X0592_merged.fits 
+SHV 0520505-705019        05 20 15.01 -70 47 26.1 X0058 55142.3152     fits/xsl_spectrum_X0058_merged_ncl.fits 
+SHV 0520427-693637        05 20 20.19 -69 33 44.8 X0534 56240.3521     fits/xsl_spectrum_X0534_merged_ncl.fits 
+SHV 0520498-692715        05 20 28.16 -69 24 22.7 X0543 56261.3108     fits/xsl_spectrum_X0543_merged_ncl.fits 
+HD 271182                 05 21 01.71 -65 48 02.4 X0542 56261.2490     fits/xsl_spectrum_X0542_merged.fits 
+SHV 0522380-691255        05 22 18.28 -69 10 10.4 X0059 55142.3298     fits/xsl_spectrum_X0059_merged_scl.fits 
+HD 35179                  05 22 21.01 -14 23 50.0 X0570 56286.1202     fits/xsl_spectrum_X0570_merged.fits 
+SHV 0523371-713351        05 22 53.08 -71 31 10.0 X0510 56212.3449     fits/xsl_spectrum_X0510_merged.fits 
+SHV 0523357-692038        05 23 14.70 -69 17 57.7 X0060 55142.3471     fits/xsl_spectrum_X0060_merged_ncl.fits 
+NGC 1904 153              05 24 09.13 -24 34 16.1 X0521 56214.2940     fits/xsl_spectrum_X0521_merged.fits 
+NGC 1904 160              05 24 09.39 -24 33 30.1 X0522 56214.3095     fits/xsl_spectrum_X0522_merged.fits 
+NGC 1904 223              05 24 18.48 -24 31 43.4 X0523 56214.3214     fits/xsl_spectrum_X0523_merged.fits 
+SHV 0525012-694829        05 24 36.23 -69 45 56.0 X0551 56273.1213     fits/xsl_spectrum_X0551_merged.fits 
+SHV 0525478-690944        05 25 28.22 -69 07 13.2 X0061 55142.3627     fits/xsl_spectrum_X0061_merged_ncl.fits      C star. NIR poor below 1.3 micro-m.
+SHV 0525543-692639        05 25 32.18 -69 24 09.2 X0098 55226.1607     fits/xsl_spectrum_X0098_merged_ncl.fits 
+SHV 0526364-693639        05 26 12.45 -69 34 13.1 X0099 55226.1731     fits/xsl_spectrum_X0099_merged_scl.fits 
+SHV 0527072-701238        05 26 37.82 -70 10 11.6 X0544 56261.3372 UVB fits/xsl_spectrum_X0544_merged.fits         
+SHV 0527058-693746        05 26 42.23 -69 35 22.3 X0533 56240.3268     fits/xsl_spectrum_X0533_merged_ncl.fits 
+SHV 0527122-695006        05 26 46.66 -69 47 41.5 X0798 56579.2991     fits/xsl_spectrum_X0798_merged.fits          M giant with contamination by nearby hot star below 450 nm
+HD 35601                  05 27 10.22 +29 55 15.8 X0330 55599.0677 NIR fits/xsl_spectrum_X0330_merged_ncl_ncge.fits    
+HV 2555                   05 28 14.86 -66 32 46.1 X0786 56561.3701     fits/xsl_spectrum_X0786_merged.fits 
+SHV 0528537-695119        05 28 27.73 -69 49 01.7 X0100 55226.1888 UVB fits/xsl_spectrum_X0100_merged_ncl.fits      
+CL* NGC 1978 LE 09        05 28 50.74 -66 14 44.1 X0804 56581.2980     fits/xsl_spectrum_X0804_merged.fits 
+CL* NGC 1978 LE 09        05 28 50.74 -66 14 44.1 X0805 56581.3088     fits/xsl_spectrum_X0805_merged_scl.fits 
+CL* NGC 1978 LE 09        05 28 50.74 -66 14 44.1 X0806 56581.3203     fits/xsl_spectrum_X0806_merged_scl.fits 
+[M2002] LMC 143035        05 29 03.47 -69 06 46.2 X0118 55240.0322     fits/xsl_spectrum_X0118_merged.fits 
+SHV 0529222-684846        05 29 05.39 -68 46 31.1 X0803 56579.3649     fits/xsl_spectrum_X0803_merged_ncl.fits 
+SHV 0529355-694037        05 29 11.15 -69 38 24.9 X0799 56579.3168     fits/xsl_spectrum_X0799_merged_ncl_ncge.fits 
+SHV 0529355-694037        05 29 11.15 -69 38 24.9 X0800 56579.3273     fits/xsl_spectrum_X0800_merged_ncl_ncge.fits 
+SHV 0529355-694037        05 29 11.15 -69 38 24.9 X0801 56579.3424     fits/xsl_spectrum_X0801_merged.fits 
+SHV 0529467-693825        05 29 22.66 -69 36 13.0 X0101 55226.2003     fits/xsl_spectrum_X0101_merged_ncl_ncge.fits 
+SHV 0530380-702618        05 30 05.81 -70 24 06.9 X0807 56581.3405     fits/xsl_spectrum_X0807_merged.fits 
+SHV 0530380-702618        05 30 05.81 -70 24 06.9 X0808 56581.3512     fits/xsl_spectrum_X0808_merged_ncl.fits 
+[M2002] LMC 148035        05 30 35.54 -68 59 23.4 X0119 55240.0406     fits/xsl_spectrum_X0119_merged.fits 
+[M2002] LMC 150040        05 31 09.27 -67 25 55.0 X0120 55240.0491     fits/xsl_spectrum_X0120_merged.fits 
+SHV 0531398-701050        05 31 10.18 -70 08 43.6 X0811 56584.2885     fits/xsl_spectrum_X0811_merged.fits 
+SHV 0531398-701050        05 31 10.18 -70 08 43.6 X0812 56584.2997 NIR fits/xsl_spectrum_X0812_merged_ncl.fits    
+HD 36395                  05 31 27.40 -03 40 38.0 X0830 56595.3566 NIR fits/xsl_spectrum_X0830_merged.fits     
+SHV 0531582-701623        05 31 27.52 -70 14 16.8 X0813 56584.3214     fits/xsl_spectrum_X0813_merged_ncl.fits 
+SHV 0531582-701623        05 31 27.52 -70 14 16.8 X0814 56584.3321     fits/xsl_spectrum_X0814_merged_ncl.fits 
+HD 36702                  05 31 52.30 -38 33 24.0 X0827 56589.2914     fits/xsl_spectrum_X0827_merged.fits 
+HD 37763                  05 31 52.83 -76 20 27.2 X0298 55465.1796     fits/xsl_spectrum_X0298_merged_scl.fits 
+SHV 0533015-720047        05 32 11.05 -71 58 48.8 X0102 55226.2110     fits/xsl_spectrum_X0102_merged_ncl_ncge.fits 
+SHV 0533130-702409        05 32 40.86 -70 22 07.5 X0815 56584.3475     fits/xsl_spectrum_X0815_merged.fits 
+[M2002] LMC 157533        05 33 29.60 -67 31 37.6 X0825 56587.3497     fits/xsl_spectrum_X0825_merged.fits 
+[M2002] LMC 158646        05 33 52.18 -69 11 13.5 X0241 55429.4153     fits/xsl_spectrum_X0241_merged.fits 
+[M2002] LMC 159974        05 34 21.43 -69 22 00.2 X0797 56579.2889     fits/xsl_spectrum_X0797_merged.fits 
+SHV 0534578-702532        05 34 25.33 -70 23 38.4 X0821 56586.3348     fits/xsl_spectrum_X0821_merged.fits 
+SHV 0534578-702532        05 34 25.33 -70 23 38.4 X0822 56586.3460     fits/xsl_spectrum_X0822_merged_ncl.fits 
+SHV 0534578-702532        05 34 25.33 -70 23 38.4 X0823 56586.3571     fits/xsl_spectrum_X0823_merged_ncl.fits 
+SHV 0535237-700720        05 34 54.19 -70 05 29.9 X0818 56586.2893 NIR fits/xsl_spectrum_X0818_merged.fits        
+SHV 0535237-700720        05 34 54.19 -70 05 29.9 X0819 56586.3006     fits/xsl_spectrum_X0819_merged_ncl_ncge.fits 
+SHV 0535237-700720        05 34 54.19 -70 05 29.9 X0820 56586.3115 NIR fits/xsl_spectrum_X0820_merged_ncl.fits     
+[M2002] LMC 162635        05 35 24.53 -69 04 03.3 X0265 55439.3921     fits/xsl_spectrum_X0265_merged.fits 
+SHV 0536139-701604        05 35 42.81 -70 14 16.3 X0103 55226.2269     fits/xsl_spectrum_X0103_merged_ncl.fits 
+[M2002] LMC 168757        05 37 36.80 -69 29 23.5 X0266 55439.4008     fits/xsl_spectrum_X0266_merged.fits 
+[M2002] LMC 170452        05 38 16.00 -69 10 11.2 X0148 55392.4105     fits/xsl_spectrum_X0148_merged.fits 
+HD 37828                  05 40 54.64 -11 12 00.1 X0097 55224.0808     fits/xsl_spectrum_X0097_merged_scl.fits 
+HD 37828                  05 40 54.64 -11 12 00.1 X0304 55467.3916     fits/xsl_spectrum_X0304_merged_scl.fits      Continuum poor between 1 and 1.4 micro-m (prefer X0097)  
+SHV 0542111-683837        05 41 54.71 -68 37 18.7 X0809 56581.3659     fits/xsl_spectrum_X0809_merged.fits 
+SHV 0542111-683837        05 41 54.71 -68 37 18.7 X0810 56581.3757     fits/xsl_spectrum_X0810_merged_ncl.fits 
+SHV 0543367-695800        05 43 08.04 -69 56 45.5 X0117 55237.0630     fits/xsl_spectrum_X0117_merged_ncl.fits 
+HD 38145                  05 43 42.23 +04 00 15.3 X0831 56595.3622     fits/xsl_spectrum_X0831_merged.fits 
+HD 38237                  05 44 30.59 +04 20 21.0 X0285 55461.2934     fits/xsl_spectrum_X0285_merged.fits 
+HD 270110                 05 46 59.25 -70 06 15.6 X0824 56587.3320     fits/xsl_spectrum_X0824_merged.fits 
+HD 38769                  05 48 14.65 +01 36 34.9 X0816 56584.3594     fits/xsl_spectrum_X0816_merged.fits 
+HD 38856                  05 48 45.97 +00 43 32.0 X0771 56553.3814     fits/xsl_spectrum_X0771_merged.fits 
+HD 38856                  05 48 45.97 +00 43 32.0 X0817 56584.3652     fits/xsl_spectrum_X0817_merged.fits 
+SHV 0549503-704331        05 49 13.34 -70 42 40.6 X0037 55116.3580     fits/xsl_spectrum_X0037_merged.fits 
+HD 39587                  05 54 22.97 +20 16 34.4 X0317 55586.0864     fits/xsl_spectrum_X0317_merged_ncl_ncge.fits 
+HD 39833                  05 55 01.96 -00 30 28.6 X0832 56595.3676     fits/xsl_spectrum_X0832_merged.fits 
+HD 39801                  05 55 10.31 +07 24 25.4 X0036 55116.3425 NIR fits/xsl_spectrum_X0036_merged_ncl_ncge.fits 
+HD 39949                  05 57 05.56 +27 18 59.9 X0854 56613.3513     fits/xsl_spectrum_X0854_merged.fits 
+HD 250792                 06 03 14.86 +19 21 38.6 X0571 56286.1283     fits/xsl_spectrum_X0571_merged.fits 
+HD 41667                  06 05 03.64 -32 59 38.7 X0593 56316.0536     fits/xsl_spectrum_X0593_merged.fits 
+HD 41433                  06 05 08.57 +00 51 59.3 X0578 56293.2043     fits/xsl_spectrum_X0578_merged.fits 
+SHV 0606101-724012        06 05 09.77 -72 40 35.2 X0121 55240.1409     fits/xsl_spectrum_X0121_merged_ncl_ncge.fits 
+HD 41661                  06 06 24.43 -00 57 48.1 X0579 56293.2134     fits/xsl_spectrum_X0579_merged.fits 
+HD 41770                  06 07 14.38 +01 30 30.0 X0580 56293.2230     fits/xsl_spectrum_X0580_merged.fits 
+HD 42143                  06 09 23.30 +06 16 31.8 X0834 56596.3698     fits/xsl_spectrum_X0834_merged.fits          Bad telluric correction (O2 ) in A-band (VIS arm)
+HD 42182                  06 09 35.91 +05 40 08.0 X0520 56214.2806     fits/xsl_spectrum_X0520_merged.fits 
+HD 42256                  06 09 49.14 +02 52 10.0 X0581 56293.2283     fits/xsl_spectrum_X0581_merged.fits 
+HD 42597                  06 11 58.73 +07 23 28.7 X0582 56293.2338     fits/xsl_spectrum_X0582_merged.fits 
+HD 42983                  06 13 52.76 +02 48 31.8 X0583 56293.2509     fits/xsl_spectrum_X0583_merged.fits 
+HD 43021                  06 14 10.42 +02 34 28.6 X0535 56244.3062     fits/xsl_spectrum_X0535_merged.fits 
+HD 43286                  06 15 30.24 +03 57 29.5 X0539 56255.3322     fits/xsl_spectrum_X0539_merged.fits 
+HD 44007                  06 18 48.53 -14 50 43.4 X0122 55240.1542     fits/xsl_spectrum_X0122_merged.fits 
+HD 44285                  06 20 59.18 +00 14 22.4 X0556 56277.2801     fits/xsl_spectrum_X0556_merged.fits 
+HD 44515                  06 22 25.26 +05 34 34.2 X0584 56293.2565     fits/xsl_spectrum_X0584_merged.fits 
+LHS 1841                  06 22 38.57 -12 53 05.0 X0572 56286.1554     fits/xsl_spectrum_X0572_merged.fits 
+HD 44391                  06 22 47.88 +27 59 12.0 X0563 56281.1806     fits/xsl_spectrum_X0563_merged.fits 
+HD 44770                  06 23 46.49 +04 35 45.1 X0564 56281.1872     fits/xsl_spectrum_X0564_merged.fits 
+HD 45196                  06 25 58.97 -01 48 48.7 X0358 56051.9734     fits/xsl_spectrum_X0358_merged.fits 
+HD 45282                  06 26 40.77 +03 25 29.7 X0123 55240.1621     fits/xsl_spectrum_X0123_merged.fits 
+HD 45507                  06 28 02.89 +05 55 21.1 X0836 56598.3277     fits/xsl_spectrum_X0836_merged.fits 
+HD 46454                  06 33 46.44 +07 14 24.0 X0826 56587.3597     fits/xsl_spectrum_X0826_merged.fits 
+IRAS 06404+0311           06 43 07.02 +03 08 53.5 X0849 56607.2735     fits/xsl_spectrum_X0849_merged.fits 
+IRAS 06404+0311           06 43 07.02 +03 08 53.5 X0850 56607.3402     fits/xsl_spectrum_X0850_merged.fits 
+HD 48616                  06 44 25.40 +03 08 29.6 X0837 56598.3342     fits/xsl_spectrum_X0837_merged.fits 
+HD 49068                  06 45 43.01 -20 51 09.6 X0829 56592.3555     fits/xsl_spectrum_X0829_merged.fits 
+HD 49739                  06 50 12.33 +05 40 24.6 X0838 56598.3419     fits/xsl_spectrum_X0838_merged.fits 
+IRAS 06498-1102           06 52 12.05 -11 05 52.4 X0828 56592.3487     fits/xsl_spectrum_X0828_merged.fits 
+HD 50372                  06 52 59.30 +02 44 36.5 X0839 56598.3479     fits/xsl_spectrum_X0839_merged.fits 
+HD 50877                  06 54 07.95 -24 11 03.1 X0314 55526.3384     fits/xsl_spectrum_X0314_merged_ncl_ncge.fits 
+HD 50819                  06 54 57.92 +02 02 34.2 X0851 56608.2836     fits/xsl_spectrum_X0851_merged.fits 
+HD 52298                  06 57 45.44 -52 38 54.4 X0287 55461.3221     fits/xsl_spectrum_X0287_merged.fits 
+HD 52005                  07 00 15.82 +16 04 44.4 X0312 55508.3639 NIR fits/xsl_spectrum_X0312_merged_scl.fits    
+HD 53003                  07 03 34.57 +02 26 14.3 X0554 56274.3265     fits/xsl_spectrum_X0554_merged.fits 
+HD 52973                  07 04 06.53 +20 34 13.0 X0318 55586.1032     fits/xsl_spectrum_X0318_merged_scl.fits 
+CL* NGC 2324 BSV 10828    07 04 16.17 +01 01 13.4 X0835 56597.3292     fits/xsl_spectrum_X0835_merged.fits 
+HD 53927                  07 08 04.24 +29 50 04.1 X0555 56274.3351     fits/xsl_spectrum_X0555_merged.fits 
+HD 54828                  07 10 44.22 +09 04 34.8 X0536 56245.3497     fits/xsl_spectrum_X0536_merged.fits 
+AL Mon                    07 12 52.17 -05 20 47.1 X0557 56277.3479     fits/xsl_spectrum_X0557_merged.fits 
+HD 55693                  07 13 02.67 -24 13 32.0 X0585 56293.2621     fits/xsl_spectrum_X0585_merged.fits 
+HD 55583                  07 13 51.52 +09 28 06.2 X0537 56245.3552     fits/xsl_spectrum_X0537_merged.fits 
+HD 56448                  07 17 01.56 +00 32 30.4 X0586 56293.2676     fits/xsl_spectrum_X0586_merged.fits 
+HD 57060                  07 18 40.38 -24 33 31.3 X0116 55235.1232     fits/xsl_spectrum_X0116_merged_ncl_ncge.fits P-Cygni emission in Halpha and HeI (1.083 micro-m); known eclipsing binary
+HD 57132                  07 20 02.62 +03 46 36.5 X0562 56278.3407     fits/xsl_spectrum_X0562_merged.fits 
+HD 57707                  07 22 28.32 +00 42 03.0 X0565 56281.2037     fits/xsl_spectrum_X0565_merged.fits 
+BD-16 1934                07 23 27.28 -16 31 19.6 X0844 56605.2511     fits/xsl_spectrum_X0844_merged.fits 
+BD-16 1934                07 23 27.28 -16 31 19.6 X0852 56608.2899     fits/xsl_spectrum_X0852_merged.fits 
+HD 58051                  07 24 18.38 +07 54 53.7 X0588 56293.2803     fits/xsl_spectrum_X0588_merged.fits 
+HD 58072                  07 24 24.57 +10 14 44.4 X0538 56245.3606     fits/xsl_spectrum_X0538_merged.fits 
+HD 58455                  07 25 55.66 +05 14 00.4 X0553 56274.3196     fits/xsl_spectrum_X0553_merged.fits 
+HD 58554                  07 26 25.49 +08 20 07.1 X0552 56274.3075     fits/xsl_spectrum_X0552_merged.fits 
+HD 58790                  07 26 40.06 -11 35 13.6 X0841 56600.3363     fits/xsl_spectrum_X0841_merged.fits 
+HD 59295                  07 29 35.44 +07 50 25.7 X0840 56600.3305     fits/xsl_spectrum_X0840_merged.fits 
+BD+24 1676                07 30 41.27 +24 05 10.2 X0868 56621.3230     fits/xsl_spectrum_X0868_merged.fits 
+HD 59984                  07 32 05.76 -08 52 52.7 X0842 56600.3421     fits/xsl_spectrum_X0842_merged.fits 
+HD 60319                  07 34 35.11 +16 54 04.0 X0846 56605.2883     fits/xsl_spectrum_X0846_merged.fits 
+HD 61064                  07 37 16.69 -04 06 39.5 X0310 55507.3547     fits/xsl_spectrum_X0310_merged.fits 
+HD 61064                  07 37 16.69 -04 06 39.5 X0326 55596.3150     fits/xsl_spectrum_X0326_merged.fits 
+BD-01 1792                07 39 50.11 -01 31 20.3 X0843 56605.2362     fits/xsl_spectrum_X0843_merged.fits 
+BD-01 1792                07 39 50.11 -01 31 20.3 X0853 56608.2979     fits/xsl_spectrum_X0853_merged.fits 
+[W71b] 008-03             07 40 55.46 -26 01 30.6 X0864 56618.3266     fits/xsl_spectrum_X0864_merged_ncl.fits     
+CD-31 4916                07 41 02.63 -31 40 59.0 X0127 55297.0387 NIR fits/xsl_spectrum_X0127_merged.fits          
+HD 62968                  07 46 35.35 +04 07 50.1 X0855 56613.3591     fits/xsl_spectrum_X0855_merged.fits 
+HD 63302                  07 47 38.53 -15 59 26.4 X0336 55636.1358 NIR fits/xsl_spectrum_X0336_merged_ncl_ncge.fits 
+[ABC89] Pup17             07 49 32.49 -27 23 36.4 X0862 56618.3151     fits/xsl_spectrum_X0862_merged_ncl.fits 
+HD 64332                  07 53 05.27 -11 37 29.3 X0346 55637.1484     fits/xsl_spectrum_X0346_merged_ncl_ncge.fits 
+HD 64630                  07 55 07.92 +06 59 45.5 X0847 56605.3334     fits/xsl_spectrum_X0847_merged.fits 
+HD 65354                  07 57 03.02 -34 22 42.3 X0308 55475.3627     fits/xsl_spectrum_X0308_merged_scl.fits 
+HD 65372                  07 58 30.33 +02 56 09.0 X0848 56605.3458     fits/xsl_spectrum_X0848_merged.fits 
+HD 65583                  08 00 32.13 +29 12 44.4 X0566 56281.2176     fits/xsl_spectrum_X0566_merged.fits 
+[ABC89] Pup42             08 04 57.55 -29 51 25.6 X0574 56292.2528 UVB fits/xsl_spectrum_X0574_merged_ncge.fits     
+HD 66776                  08 05 24.56 +08 11 58.6 X0567 56281.2245     fits/xsl_spectrum_X0567_merged.fits 
+RU Pup                    08 07 29.83 -22 54 45.2 X0337 55636.1505 NIR fits/xsl_spectrum_X0337_merged_ncl.fits     
+HD 69701                  08 18 22.96 +05 58 18.1 X0845 56605.2725     fits/xsl_spectrum_X0845_merged.fits 
+HD 69701                  08 18 22.96 +05 58 18.1 X0869 56627.3431     fits/xsl_spectrum_X0869_merged.fits 
+HD 70138                  08 19 43.09 -18 15 52.8 X0325 55596.2987     fits/xsl_spectrum_X0325_merged.fits 
+R Cha                     08 21 46.46 -76 21 18.2 X0338 55636.1626     fits/xsl_spectrum_X0338_merged_ncl_ncge.fits Slightly affected by saturation in the H-band (1600-1700 nm) and K-band (2130-2230 nm) (NIR arm)
+HD 71160                  08 24 39.85 -32 55 26.5 X0550 56262.3433     fits/xsl_spectrum_X0550_merged.fits 
+HD 71310                  08 27 00.03 +07 13 16.0 X0856 56614.3482     fits/xsl_spectrum_X0856_merged.fits 
+HD 71310                  08 27 00.03 +07 13 16.0 X0857 56614.3507     fits/xsl_spectrum_X0857_merged.fits 
+HD 71497                  08 27 56.16 +04 49 17.1 X0858 56615.3521     fits/xsl_spectrum_X0858_merged.fits 
+HD 72968                  08 35 28.20 -07 58 56.2 X0327 55596.3326     fits/xsl_spectrum_X0327_merged.fits 
+HD 74088                  08 38 27.86 -62 50 35.6 X0309 55475.3729     fits/xsl_spectrum_X0309_merged_scl.fits 
+HD 73665                  08 40 06.42 +20 00 28.0 X0871 56631.3383     fits/xsl_spectrum_X0871_merged.fits 
+HD 74166                  08 40 42.65 -42 20 26.5 X0861 56617.3437     fits/xsl_spectrum_X0861_merged.fits 
+HD 74000                  08 40 50.80 -16 20 42.5 X0863 56618.3207     fits/xsl_spectrum_X0863_merged.fits 
+BD+25 1981                08 44 24.69 +24 47 47.7 X0870 56631.3320     fits/xsl_spectrum_X0870_merged.fits 
+HD 74721                  08 45 59.26 +13 15 48.5 X0874 56632.3352     fits/xsl_spectrum_X0874_merged.fits 
+HD 75318                  08 49 21.21 +03 41 02.3 X0873 56632.3203     fits/xsl_spectrum_X0873_merged.fits 
+NGC 2682 108              08 51 17.48 +11 45 22.6 X0568 56281.3040     fits/xsl_spectrum_X0568_merged.fits 
+NGC 2682 108              08 51 17.48 +11 45 22.6 X0859 56615.3580     fits/xsl_spectrum_X0859_merged.fits 
+LHS 2065                  08 53 36.16 -03 29 32.2 X0130 55297.0584 UVB fits/xsl_spectrum_X0130_merged_ncl_ncge.fits 
+LHS 2065                  08 53 36.16 -03 29 32.2 X0131 55297.0705 UVB fits/xsl_spectrum_X0131_merged_ncge.fits     
+HD 76221                  08 55 22.88 +17 13 52.5 X0316 55558.3587 NIR fits/xsl_spectrum_X0316_merged_ncl_ncge.fits 
+HD 76780                  08 58 55.73 +21 09 58.6 X0875 56632.3411     fits/xsl_spectrum_X0875_merged.fits 
+HD 76780                  08 58 55.73 +21 09 58.6 X0877 56641.3295     fits/xsl_spectrum_X0877_merged.fits 
+HD 78737                  09 09 03.37 -27 01 49.3 X0573 56292.2414     fits/xsl_spectrum_X0573_merged.fits 
+HD 79349                  09 11 43.04 -48 46 23.4 X0323 55590.3621     fits/xsl_spectrum_X0323_merged.fits 
+HD 79349                  09 11 43.04 -48 46 23.4 X0328 55596.3485     fits/xsl_spectrum_X0328_merged.fits 
+HD 81797                  09 27 35.24 -08 39 30.9 X0319 55586.1189     fits/xsl_spectrum_X0319_merged_scl.fits 
+BD+09 2190                09 29 15.56 +08 38 00.4 X0872 56632.3116     fits/xsl_spectrum_X0872_merged.fits 
+HD 82734                  09 33 12.46 -21 06 56.6 X0339 55636.1713 NIR fits/xsl_spectrum_X0339_merged_scl.fits     
+HD 83212                  09 36 19.95 -20 53 14.7 X0347 55637.1584     fits/xsl_spectrum_X0347_merged.fits 
+HD 83632                  09 40 34.06 +26 00 13.9 X0878 56650.3502     fits/xsl_spectrum_X0878_merged.fits          Artifacts in H-band (NIR arm)
+CM Car                    09 47 55.58 -67 27 07.0 X0149 55393.0122     fits/xsl_spectrum_X0149_merged.fits 
+HD 84937                  09 48 56.10 +13 44 39.3 X0867 56618.3534     fits/xsl_spectrum_X0867_merged.fits 
+IRAS 09484-6242           09 49 49.42 -62 56 09.0 X0860 56617.3378     fits/xsl_spectrum_X0860_merged.fits 
+Y Hya                     09 51 03.72 -23 01 02.3 X0340 55636.1815 NIR fits/xsl_spectrum_X0340_merged_ncl_ncge.fits 
+HD 85380                  09 51 21.62 -06 10 54.9 X0865 56618.3329     fits/xsl_spectrum_X0865_merged.fits 
+HD 85773                  09 53 39.24 -22 50 08.4 X0866 56618.3386     fits/xsl_spectrum_X0866_merged.fits 
+BS 3923                   09 54 52.21 -19 00 33.6 X0342 55636.2017     fits/xsl_spectrum_X0342_merged_ncl_ncge.fits 
+IRAS 10019-6156           10 03 28.79 -62 10 37.2 X0576 56292.2665     fits/xsl_spectrum_X0576_merged_ncl.fits 
+HD 88737                  10 14 29.75 +21 10 04.9 X0569 56281.3161     fits/xsl_spectrum_X0569_merged.fits 
+IRAS 10151-6008 ?         10 16 51.   -60 23 47.  X0587 56293.2740     fits/xsl_spectrum_X0587_merged.fits          O-rich star (not C-star as assumed in Whitelock et al. 2006). We suspect Whitelock et al. observed 2MASS 10165028-6023549, while we observed 2MASS 10165173-6023466.
+EV Car                    10 20 21.60 -60 27 15.7 X0341 55636.1928 NIR fits/xsl_spectrum_X0341_merged_ncl_ncge.fits 
+BS 4104                   10 27 09.10 -31 04 03.9 X0343 55636.2113 NIR fits/xsl_spectrum_X0343_merged_scl.fits     
+HD 90862                  10 29 44.42 +16 58 47.9 X0880 56656.3449     fits/xsl_spectrum_X0880_merged.fits 
+BD+30 2034                10 33 14.93 +29 36 55.0 X0883 56662.3201     fits/xsl_spectrum_X0883_merged.fits 
+TU Car                    10 34 56.00 -60 42 37.4 X0876 56639.3339     fits/xsl_spectrum_X0876_merged_ncl_ncge.fits O-rich LPV (as already suggested in Aaronson et al. 1989), not C-star
+CPD-5703502               10 35 43.76 -58 14 42.0 X0344 55636.2205 NIR fits/xsl_spectrum_X0344_merged_ncl_ncge.fits 
+HD 93329                  10 46 36.64 +11 11 02.8 X0885 56664.3196     fits/xsl_spectrum_X0885_merged.fits 
+BD+29 2091                10 47 23.16 +28 23 55.9 X0882 56662.2930     fits/xsl_spectrum_X0882_merged.fits 
+HD 93487                  10 47 55.53 +23 20 06.9 X0881 56656.3527     fits/xsl_spectrum_X0881_merged.fits 
+HD 93813                  10 49 37.49 -16 11 37.1 X0334 55636.0211     fits/xsl_spectrum_X0334_merged_scl.fits 
+CI Vel                    11 01 01.28 -54 24 41.5 X0589 56293.3054     fits/xsl_spectrum_X0589_merged.fits 
+HD 96446                  11 06 05.82 -59 56 59.5 X0085 55200.3289     fits/xsl_spectrum_X0085_merged_ncl_ncge.fits He-rich; wavy NIR continuum (prefer X0133) 
+HD 96446                  11 06 05.82 -59 56 59.5 X0133 55349.0207     fits/xsl_spectrum_X0133_merged.fits          He-rich
+U Crt                     11 12 45.30 -07 17 54.5 X0134 55351.9554     fits/xsl_spectrum_X0134_merged.fits 
+HD 98468                  11 20 00.12 +28 48 27.2 X0594 56318.2834     fits/xsl_spectrum_X0594_merged.fits 
+HD 98817                  11 21 38.97 -60 59 28.2 X0345 55637.0581     fits/xsl_spectrum_X0345_merged_ncl_ncge.fits 
+[W65] c2                  11 22 05.04 -59 38 45.1 X0591 56299.3495     fits/xsl_spectrum_X0591_merged_ncl.fits 
+[W65] c2                  11 22 05.04 -59 38 45.1 X0609 56320.3511     fits/xsl_spectrum_X0609_merged_ncl.fits 
+HD 99109                  11 24 17.36 -01 31 44.6 X0595 56318.2952     fits/xsl_spectrum_X0595_merged.fits 
+HD 99329                  11 25 50.06 +03 51 36.2 X0596 56319.2679     fits/xsl_spectrum_X0596_merged.fits 
+HD 99491                  11 26 45.32 +03 00 47.1 X0597 56319.2801     fits/xsl_spectrum_X0597_merged.fits 
+BD+04 2466                11 26 49.19 +03 51 51.6 X0602 56319.3396     fits/xsl_spectrum_X0602_merged.fits 
+HD 99648                  11 27 56.24 +02 51 22.5 X0321 55589.2627 NIR fits/xsl_spectrum_X0321_merged_scl.fits    
+BS 4432                   11 30 18.89 -03 00 12.5 X0333 55623.3909     fits/xsl_spectrum_X0333_merged_scl.fits 
+BS 4463                   11 35 13.28 -47 22 21.2 X0332 55621.1155 NIR fits/xsl_spectrum_X0332_merged_ncl_ncge.fits 
+CD-60 3621                11 35 44.95 -61 34 41.0 X0106 55231.3723     fits/xsl_spectrum_X0106_merged_scl.fits 
+CD-60 3636                11 36 34.84 -61 36 35.1 X0320 55586.1309     fits/xsl_spectrum_X0320_merged_scl.fits 
+HD 100906                 11 36 42.41 -18 58 10.5 X0886 56664.3332     fits/xsl_spectrum_X0886_merged.fits 
+UZ Cen                    11 40 58.54 -62 41 32.9 X0590 56293.3601     fits/xsl_spectrum_X0590_merged.fits 
+HD 101712                 11 41 49.40 -63 24 52.4 X0132 55314.2094     fits/xsl_spectrum_X0132_merged_ncl_ncge.fits 
+HD 101712                 11 41 49.40 -63 24 52.4 X0150 55393.0288 NIR fits/xsl_spectrum_X0150_merged_ncl_ncge.fits 
+HE 1142-1422              11 44 59.30 -14 38 49.0 X0623 56383.0939     fits/xsl_spectrum_X0623_merged.fits 
+BS 4517                   11 45 51.56 +06 31 45.7 X0335 55636.0364     fits/xsl_spectrum_X0335_merged_ncl_ncge.fits 
+HD 102634                 11 49 01.28 -00 19 07.2 X0898 56686.3524     fits/xsl_spectrum_X0898_merged.fits 
+LHS 2463                  11 49 45.91 +04 58 00.2 X0884 56662.3297     fits/xsl_spectrum_X0884_merged.fits 
+V354 Cen                  11 51 43.36 -47 56 12.0 X0888 56672.3502     fits/xsl_spectrum_X0888_merged.fits 
+LHS 318                   11 56 54.79 +26 39 58.6 X0892 56678.2810 NIR fits/xsl_spectrum_X0892_merged_ncge.fits     
+HD 103877                 11 57 42.39 +17 28 04.2 X0879 56654.3444     fits/xsl_spectrum_X0879_merged.fits 
+HD 103932                 11 57 56.21 -27 42 25.3 X0887 56664.3415     fits/xsl_spectrum_X0887_merged.fits 
+HD 104307                 12 00 42.22 -21 50 15.0 X0612 56321.2941 NIR fits/xsl_spectrum_X0612_merged.fits         
+LHS 320                   12 02 33.66 +08 25 50.7 X0889 56676.3427     fits/xsl_spectrum_X0889_merged.fits 
+HE 1201-1512              12 03 37.10 -15 29 31.9 X0622 56382.1540     fits/xsl_spectrum_X0622_merged.fits 
+HD 104893                 12 04 43.13 -29 11 05.1 X0598 56319.2863     fits/xsl_spectrum_X0598_merged.fits 
+HE 1204-0744              12 06 46.20 -08 00 43.0 X0624 56383.1339     fits/xsl_spectrum_X0624_merged.fits 
+HD 105262                 12 07 10.83 +12 59 07.6 X0599 56319.2930     fits/xsl_spectrum_X0599_merged_ncge.fits 
+HE 1207-3108              12 09 54.10 -31 25 11.0 X0630 56383.2280     fits/xsl_spectrum_X0630_merged.fits 
+NGC 4147 230              12 10 04.05 +18 32 53.1 X0601 56319.3080     fits/xsl_spectrum_X0601_merged.fits 
+HD 105740                 12 10 16.96 +16 22 13.3 X0600 56319.2985     fits/xsl_spectrum_X0600_merged.fits 
+G012-021                  12 12 01.37 +13 15 40.6 X0607 56320.3357     fits/xsl_spectrum_X0607_merged.fits 
+HD 106304                 12 13 53.56 -40 52 24.6 X0614 56321.3139     fits/xsl_spectrum_X0614_merged.fits 
+CD-28 9374                12 14 29.74 -29 35 55.6 X0604 56319.3529     fits/xsl_spectrum_X0604_merged.fits 
+G013-035                  12 25 34.96 +01 17 02.2 X0611 56320.3757     fits/xsl_spectrum_X0611_merged.fits 
+G013-035                  12 25 34.96 +01 17 02.2 X0613 56321.3072     fits/xsl_spectrum_X0613_merged.fits 
+HD 108564                 12 28 19.12 -16 54 39.7 X0891 56677.2796     fits/xsl_spectrum_X0891_merged.fits 
+HD 108915                 12 30 48.93 +12 29 12.2 X0890 56676.3555     fits/xsl_spectrum_X0890_merged.fits 
+HD 109307                 12 33 34.22 +24 16 58.7 X0894 56678.3221     fits/xsl_spectrum_X0894_merged.fits 
+HD 109443                 12 34 46.73 -23 28 32.2 X0899 56686.3733     fits/xsl_spectrum_X0899_merged.fits 
+HD 109871                 12 38 13.02 +01 58 47.5 X0907 56690.3575     fits/xsl_spectrum_X0907_merged.fits 
+HD 110184                 12 40 14.08 +08 31 38.0 X0897 56681.3455     fits/xsl_spectrum_X0897_merged.fits 
+V Crv                     12 40 32.31 -17 38 51.1 X0905 56689.3685     fits/xsl_spectrum_X0905_merged.fits 
+BD+03 2688                12 44 07.75 +02 44 37.9 X0902 56689.3506     fits/xsl_spectrum_X0902_merged.fits 
+HD 110885                 12 45 19.26 +01 03 21.1 X0900 56688.3584     fits/xsl_spectrum_X0900_merged.fits 
+HD 111515                 12 49 44.83 +01 11 16.9 X0901 56688.3644     fits/xsl_spectrum_X0901_merged.fits 
+HD 111631                 12 50 43.57 -00 46 05.2 X0903 56689.3565     fits/xsl_spectrum_X0903_merged.fits 
+HD 111721                 12 51 25.19 -13 29 28.1 X0904 56689.3626     fits/xsl_spectrum_X0904_merged.fits 
+HD 111786                 12 51 57.90 -26 44 17.8 X0895 56678.3345     fits/xsl_spectrum_X0895_merged.fits 
+LHS 343                   12 56 23.81 +15 41 47.1 X0906 56690.3450     fits/xsl_spectrum_X0906_merged.fits 
+HD 112374                 12 56 30.13 -26 27 37.0 X0893 56678.3068     fits/xsl_spectrum_X0893_merged.fits 
+HD 113002                 13 00 28.75 +19 37 55.6 X0375 56088.1436     fits/xsl_spectrum_X0375_merged.fits 
+Kelu 1                    13 05 40.17 -25 41 05.8 X0136 55352.1540     fits/xsl_spectrum_X0136_merged_ncl_ncge.fits 
+HD 114606                 13 11 21.40 +09 37 33.5 X0376 56088.1495     fits/xsl_spectrum_X0376_merged.fits 
+HD 114960                 13 13 57.57 +01 27 23.2 X0174 55405.0293     fits/xsl_spectrum_X0174_merged_scl.fits 
+HIP 64965                 13 18 56.71 -03 04 18.0 X0378 56088.1906     fits/xsl_spectrum_X0378_merged.fits 
+HD 116114                 13 21 46.31 -18 44 31.5 X0371 56087.2211     fits/xsl_spectrum_X0371_merged.fits 
+HD 116544                 13 24 24.16 -02 18 54.9 X0377 56088.1551     fits/xsl_spectrum_X0377_merged.fits 
+G063-026                  13 24 30.60 +20 27 22.1 X0359 56052.1727     fits/xsl_spectrum_X0359_merged.fits 
+NGC 5139 1627             13 25 57.25 -47 40 24.2 X0351 56043.2981     fits/xsl_spectrum_X0351_merged.fits 
+NGC 5139 1627             13 25 57.25 -47 40 24.2 X0610 56320.3649     fits/xsl_spectrum_X0610_merged.fits 
+CL* NGC 5139 SAW V1       13 26 05.17 -47 23 42.5 X0349 56043.2563     fits/xsl_spectrum_X0349_merged.fits 
+CL* NGC 5139 SAW V1       13 26 05.17 -47 23 42.5 X0616 56321.3376     fits/xsl_spectrum_X0616_merged.fits 
+HD 116745                 13 26 26.32 -47 16 27.3 X0350 56043.2715     fits/xsl_spectrum_X0350_merged.fits 
+HD 116745                 13 26 26.32 -47 16 27.3 X0619 56328.3204     fits/xsl_spectrum_X0619_merged.fits 
+NGC 5139 3812             13 27 26.38 -47 29 16.9 X0348 56019.1381     fits/xsl_spectrum_X0348_merged.fits 
+NGC 5139 3812             13 27 26.38 -47 29 16.9 X0615 56321.3221     fits/xsl_spectrum_X0615_merged.fits 
+HD 117880                 13 33 29.81 -18 30 54.2 X0626 56383.2038     fits/xsl_spectrum_X0626_merged.fits 
+HD 118055                 13 34 39.91 -16 19 22.7 X0627 56383.2089     fits/xsl_spectrum_X0627_merged.fits 
+HD 118100                 13 34 43.21 -08 20 31.3 X0625 56383.1940     fits/xsl_spectrum_X0625_merged.fits 
+HIP 66993                 13 43 46.77 -35 24 15.8 X0649 56401.1615     fits/xsl_spectrum_X0649_merged.fits 
+HD 119802                 13 45 14.72 +08 50 09.5 X0379 56088.1976     fits/xsl_spectrum_X0379_merged.fits 
+HD 119850                 13 45 43.78 +14 53 29.4 X0628 56383.2149     fits/xsl_spectrum_X0628_merged.fits 
+HE 1346-0427              13 49 25.07 -04 42 14.7 X0631 56383.2491     fits/xsl_spectrum_X0631_merged.fits 
+[ABC89] Cir18             13 55 26.40 -59 22 23.8 X0353 56043.3309 UVB fits/xsl_spectrum_X0353_merged_ncge.fits     
+[ABC89] Cir18             13 55 26.40 -59 22 23.8 X0605 56319.3701 UVB fits/xsl_spectrum_X0605_merged_ncge.fits     
+[ABC89] Cir18             13 55 26.40 -59 22 23.8 X0606 56319.3749 UVB fits/xsl_spectrum_X0606_merged_ncge.fits     
+[ABC89] Cir18             13 55 26.40 -59 22 23.8 X0635 56383.3109 UVB fits/xsl_spectrum_X0635_merged_ncge.fits     
+HD 122956                 14 05 13.02 -14 51 25.4 X0372 56087.2466     fits/xsl_spectrum_X0372_merged.fits 
+HD 124292                 14 12 45.24 -03 19 12.3 X0373 56087.2539     fits/xsl_spectrum_X0373_merged.fits 
+BD+09 2860                14 13 19.74 +08 36 40.0 X0361 56059.1659     fits/xsl_spectrum_X0361_merged.fits 
+BD+09 2870                14 16 29.95 +08 27 52.9 X0363 56059.1818     fits/xsl_spectrum_X0363_merged.fits 
+BD+01 2916                14 21 45.26 +00 46 59.1 X0360 56059.1450     fits/xsl_spectrum_X0360_merged.fits 
+HD 126053                 14 23 15.28 +01 14 29.6 X0382 56088.2288     fits/xsl_spectrum_X0382_merged.fits 
+HIP 70472                 14 24 49.86 -17 27 08.0 X0651 56405.1753     fits/xsl_spectrum_X0651_merged.fits 
+HD 126661                 14 26 27.37 +19 13 36.8 X0617 56324.3767     fits/xsl_spectrum_X0617_merged.fits 
+HD 126778                 14 26 54.16 +28 35 20.4 X0409 56110.9865     fits/xsl_spectrum_X0409_merged.fits 
+HD 126681                 14 27 24.91 -18 24 40.4 X0366 56069.2403     fits/xsl_spectrum_X0366_merged.fits 
+HE 1428-1950              14 30 59.39 -20 03 41.9 X0637 56383.3270     fits/xsl_spectrum_X0637_merged_ncge.fits 
+BD+18 2890                14 32 13.49 +17 25 24.2 X0392 56096.9932     fits/xsl_spectrum_X0392_merged.fits 
+IRAS 14303-1042           14 32 59.87 -10 56 03.4 X0242 55437.9941     fits/xsl_spectrum_X0242_merged.fits 
+HD 128429                 14 36 59.80 -12 18 19.0 X0629 56383.2203     fits/xsl_spectrum_X0629_merged.fits 
+HD 128801                 14 38 48.09 +07 54 40.3 X0243 55438.0029     fits/xsl_spectrum_X0243_merged.fits 
+CD-26 10417               14 39 47.03 -26 41 53.0 X0650 56401.1772     fits/xsl_spectrum_X0650_merged.fits 
+HD 130095                 14 46 51.21 -27 14 53.9 X0370 56087.2034     fits/xsl_spectrum_X0370_merged.fits 
+HD 130322                 14 47 32.72 -00 16 53.3 X0384 56088.2409     fits/xsl_spectrum_X0384_merged.fits 
+BD+06 2986                15 04 53.53 +05 38 17.1 X0390 56096.9738     fits/xsl_spectrum_X0390_merged.fits 
+BD+06 2986                15 04 53.53 +05 38 17.1 X0391 56096.9767     fits/xsl_spectrum_X0391_merged.fits 
+BD+30 2611                15 06 53.82 +30 00 36.9 X0393 56097.0097     fits/xsl_spectrum_X0393_merged.fits 
+BD+30 2611                15 06 53.82 +30 00 36.9 X0394 56097.0125     fits/xsl_spectrum_X0394_merged.fits 
+HD 134063                 15 07 15.44 +22 33 51.7 X0395 56097.0270     fits/xsl_spectrum_X0395_merged.fits 
+HD 134063                 15 07 15.44 +22 33 51.7 X0618 56326.3592     fits/xsl_spectrum_X0618_merged.fits 
+IRAS 15060+0947           15 08 25.75 +09 36 18.3 X0234 55414.0189 NIR fits/xsl_spectrum_X0234_merged_ncl_ncge.fits 
+HD 134440                 15 10 12.97 -16 27 46.5 X0383 56088.2353     fits/xsl_spectrum_X0383_merged.fits 
+HD 134439                 15 10 13.09 -16 22 45.8 X0374 56087.2603     fits/xsl_spectrum_X0374_merged.fits 
+CL* NGC 5904 Arp III-03   15 18 18.68 +02 04 32.9 X0380 56088.2114     fits/xsl_spectrum_X0380_merged.fits 
+CL* NGC 5904 Arp IV-19    15 18 35.05 +02 01 06.9 X0381 56088.2206     fits/xsl_spectrum_X0381_merged.fits 
+HIP 75423                 15 24 45.75 -17 07 39.3 X0683 56412.1752     fits/xsl_spectrum_X0683_merged.fits 
+HIP 75423                 15 24 45.75 -17 07 39.3 X0684 56412.1786     fits/xsl_spectrum_X0684_merged.fits 
+HD 138290                 15 30 55.43 +08 34 44.7 X0410 56111.0023     fits/xsl_spectrum_X0410_merged.fits 
+HD 138776                 15 34 16.92 -02 43 26.6 X0685 56412.1855     fits/xsl_spectrum_X0685_merged.fits 
+HD 138776                 15 34 16.92 -02 43 26.6 X0686 56412.1883     fits/xsl_spectrum_X0686_merged.fits 
+X Lib                     15 36 12.71 -21 09 03.9 X0689 56412.2099     fits/xsl_spectrum_X0689_merged.fits 
+X Lib                     15 36 12.71 -21 09 03.9 X0690 56412.2127     fits/xsl_spectrum_X0690_merged.fits 
+HD 140232                 15 41 54.72 +18 27 50.5 X0633 56383.2962     fits/xsl_spectrum_X0633_merged.fits 
+HD 139717                 15 42 20.92 -55 18 42.9 X0632 56383.2887     fits/xsl_spectrum_X0632_merged.fits 
+HD 140283                 15 43 03.10 -10 56 00.6 X0687 56412.2018     fits/xsl_spectrum_X0687_merged.fits 
+HD 140283                 15 43 03.10 -10 56 00.6 X0688 56412.2049     fits/xsl_spectrum_X0688_merged.fits 
+HD 141531                 15 49 16.50 +09 36 42.4 X0500 56168.0127     fits/xsl_spectrum_X0500_merged.fits 
+HD 141531                 15 49 16.50 +09 36 42.4 X0501 56168.0153     fits/xsl_spectrum_X0501_merged.fits 
+HD 141531                 15 49 16.50 +09 36 42.4 X0620 56357.3894     fits/xsl_spectrum_X0620_merged.fits 
+HD 141531                 15 49 16.50 +09 36 42.4 X0634 56383.3030     fits/xsl_spectrum_X0634_merged.fits 
+HD 142575                 15 55 02.84 +05 04 12.1 X0636 56383.3190     fits/xsl_spectrum_X0636_merged.fits 
+HD 142703                 15 56 33.37 -14 49 45.9 X0691 56412.2181     fits/xsl_spectrum_X0691_merged.fits 
+HD 143459                 16 00 47.63 -08 24 40.8 X0386 56091.1735     fits/xsl_spectrum_X0386_merged.fits 
+HD 144172                 16 04 29.59 +00 40 20.0 X0455 56155.9905     fits/xsl_spectrum_X0455_merged.fits 
+HD 144921                 16 07 27.25 +24 54 29.9 X0498 56167.9908     fits/xsl_spectrum_X0498_merged.fits 
+HD 144921                 16 07 27.25 +24 54 29.9 X0694 56412.3303     fits/xsl_spectrum_X0694_merged.fits 
+CPD-53 07400f             16 13 18.01 -54 14 06.3 X0365 56069.0917     fits/xsl_spectrum_X0365_merged.fits 
+CPD-53 07400f             16 13 18.01 -54 14 06.3 X0367 56070.3852     fits/xsl_spectrum_X0367_merged.fits 
+HD 147550                 16 22 38.90 -02 04 47.5 X0245 55438.0453     fits/xsl_spectrum_X0245_merged.fits 
+BD-11 4126                16 23 26.91 -11 35 40.5 X0356 56051.1654     fits/xsl_spectrum_X0356_merged.fits 
+CL* NGC 6121 LEE 2626     16 23 26.95 -26 31 31.3 X0354 56043.3458     fits/xsl_spectrum_X0354_merged.fits 
+CL* NGC 6121 LEE 2626     16 23 26.95 -26 31 31.3 X0502 56168.0301     fits/xsl_spectrum_X0502_merged.fits 
+CL* NGC 6121 LEE 2626     16 23 26.95 -26 31 31.3 X0661 56407.3246     fits/xsl_spectrum_X0661_merged.fits 
+CL* NGC 6121 LEE 2303     16 23 31.95 -26 24 18.2 X0640 56394.3855     fits/xsl_spectrum_X0640_merged.fits 
+CL* NGC 6121 LEE 4302     16 23 37.42 -26 38 23.9 X0352 56043.3128     fits/xsl_spectrum_X0352_merged.fits 
+CL* NGC 6121 LEE 4302     16 23 37.42 -26 38 23.9 X0621 56372.3940     fits/xsl_spectrum_X0621_merged.fits 
+CL* NGC 6121 LEE 4611     16 23 38.47 -26 33 19.3 X0364 56059.1885     fits/xsl_spectrum_X0364_merged.fits 
+CL* NGC 6121 LEE 4611     16 23 38.47 -26 33 19.3 X0908 56732.3282     fits/xsl_spectrum_X0908_merged.fits 
+CL* NGC 6121 LEE 4613     16 23 39.23 -26 33 06.1 X0909 56732.3550     fits/xsl_spectrum_X0909_merged.fits 
+BD+09 3223                16 33 35.58 +09 06 16.3 X0464 56163.9971     fits/xsl_spectrum_X0464_merged.fits 
+HD 149382                 16 34 23.33 -04 00 52.0 X0692 56412.2250     fits/xsl_spectrum_X0692_merged_ncge.fits 
+HD 150281                 16 39 49.99 +05 30 25.9 X0456 56156.0083     fits/xsl_spectrum_X0456_merged.fits 
+G169-28                   16 50 11.47 +22 18 50.0 X0225 55412.0490     fits/xsl_spectrum_X0225_merged.fits 
+GJ 644C                   16 55 35.26 -08 23 40.7 X0156 55395.1134     fits/xsl_spectrum_X0156_merged_ncl_ncge.fits 
+G019-013                  17 05 03.39 -05 03 59.4 X0458 56156.0843     fits/xsl_spectrum_X0458_merged.fits 
+HIP 84123                 17 11 52.25 -01 51 06.3 X0659 56407.2953     fits/xsl_spectrum_X0659_merged.fits 
+CD-69 1618                17 12 32.90 -70 05 08.5 X0357 56051.1785     fits/xsl_spectrum_X0357_merged.fits          He-rich
+HD 157089                 17 21 07.06 +01 26 34.9 X0140 55357.2093     fits/xsl_spectrum_X0140_merged.fits 
+CD-49 11404               17 24 50.07 -49 56 56.0 X0355 56043.3608     fits/xsl_spectrum_X0355_merged.fits 
+CD-49 11404               17 24 50.07 -49 56 56.0 X0454 56155.9755     fits/xsl_spectrum_X0454_merged.fits 
+RR Ara                    17 27 51.96 -49 54 15.3 X0396 56097.0345     fits/xsl_spectrum_X0396_merged_ncl.fits 
+RR Ara                    17 27 51.96 -49 54 15.3 X0397 56097.0380     fits/xsl_spectrum_X0397_merged.fits 
+FR Her                    17 37 05.96 +18 13 04.7 X0638 56383.3393     fits/xsl_spectrum_X0638_merged.fits 
+HD 160365                 17 38 57.85 +13 19 45.3 X0141 55357.2194     fits/xsl_spectrum_X0141_merged.fits 
+HD 160346                 17 39 16.93 +03 33 18.9 X0142 55357.2306     fits/xsl_spectrum_X0142_merged.fits 
+NGC 6397 211              17 41 25.41 -53 37 37.9 X0643 56395.3850     fits/xsl_spectrum_X0643_merged.fits 
+HD 161149                 17 43 22.02 +14 17 42.6 X0488 56165.0718     fits/xsl_spectrum_X0488_merged.fits 
+HD 161227                 17 44 59.25 -16 45 46.6 X0674 56407.4031     fits/xsl_spectrum_X0674_merged.fits 
+HD 161370                 17 45 00.88 +05 31 22.4 X0465 56164.0045     fits/xsl_spectrum_X0465_merged.fits 
+HD 161817                 17 46 40.63 +25 44 56.9 X0639 56383.3498     fits/xsl_spectrum_X0639_merged.fits 
+G20-15                    17 47 27.97 -08 46 47.7 X0157 55395.1211     fits/xsl_spectrum_X0157_merged.fits 
+OGLEII DIA BUL-SC26 0532  17 47 42.33 -35 19 57.5 X0144 55375.3414     fits/xsl_spectrum_X0144_merged_ncl.fits      A few artificial waves in the VIS arm (residuals from stripes in raw images)
+HD 161770                 17 47 46.08 -09 36 18.4 X0143 55357.2408     fits/xsl_spectrum_X0143_merged.fits 
+OGLEII DIA BUL-SC15 1379  17 48 25.03 -23 15 34.5 X0158 55395.1282     fits/xsl_spectrum_X0158_merged_ncl_ncge.fits 
+OGLEII DIA BUL-SC15 2106  17 48 30.35 -23 05 23.4 X0159 55395.1370     fits/xsl_spectrum_X0159_merged_ncl_ncge.fits 
+V348 Sco                  17 51 29.93 -43 16 23.4 X0647 56399.3931     fits/xsl_spectrum_X0647_merged.fits 
+SY Pav                    17 52 04.72 -57 51 46.0 X0642 56395.3768     fits/xsl_spectrum_X0642_merged.fits 
+SY Pav                    17 52 04.72 -57 51 46.0 X0644 56395.3947     fits/xsl_spectrum_X0644_merged.fits 
+SY Pav                    17 52 04.72 -57 51 46.0 X0910 56759.4046     fits/xsl_spectrum_X0910_merged.fits 
+SY Pav                    17 52 04.72 -57 51 46.0 X0911 56762.4124     fits/xsl_spectrum_X0911_merged.fits 
+HD 162652                 17 52 05.20 +01 06 40.2 X0466 56164.0244     fits/xsl_spectrum_X0466_merged_scl.fits 
+OGLEII DIA BUL-SC41 3443  17 52 13.89 -32 46 34.0 X0145 55375.3561     fits/xsl_spectrum_X0145_merged_ncge.fits 
+OGLEII DIA BUL-SC41 3304  17 52 25.93 -32 49 07.9 X0146 55375.3681     fits/xsl_spectrum_X0146_merged_ncl_ncge.fits 
+OGLEII DIA BUL-SC03 3941  17 53 32.57 -29 57 13.0 X0160 55395.1451     fits/xsl_spectrum_X0160_merged.fits 
+OGLEII DIA BUL-SC24 0989  17 53 39.35 -33 06 03.1 X0147 55375.3842     fits/xsl_spectrum_X0147_merged_ncl_ncge.fits 
+OGLEII DIA BUL-SC03 1890  17 53 45.23 -30 11 51.7 X0246 55438.0573     fits/xsl_spectrum_X0246_merged.fits 
+2MASS J17535707-2931427   17 53 57.07 -29 31 42.8 X0247 55438.0688     fits/xsl_spectrum_X0247_merged.fits 
+OGLEII DIA BUL-SC04 9008  17 54 27.95 -29 15 46.0 X0251 55439.1299     fits/xsl_spectrum_X0251_merged.fits 
+OGLEII DIA BUL-SC04 4628  17 54 33.41 -29 44 04.1 X0250 55439.1241     fits/xsl_spectrum_X0250_merged_ncl_ncge.fits 
+BD+20 3603                17 54 43.23 +20 16 16.4 X0387 56091.2015     fits/xsl_spectrum_X0387_merged.fits 
+OGLEII DIA BUL-SC04 1709  17 54 49.07 -30 00 31.0 X0252 55439.1357     fits/xsl_spectrum_X0252_merged_ncl_ncge.fits 
+HD 163346                 17 55 37.51 +02 04 29.7 X0269 55457.0671     fits/xsl_spectrum_X0269_merged.fits          A few artificial waves in the VIS arm, as for X0144
+HD 163641                 17 56 55.98 +06 29 15.8 X0270 55457.0803     fits/xsl_spectrum_X0270_merged.fits 
+OGLEII DIA BUL-SC22 1319  17 57 10.19 -31 02 16.7 X0253 55439.1414 UVB fits/xsl_spectrum_X0253_merged.fits     
+HD 163810                 17 58 38.45 -13 05 49.6 X0282 55458.1338     fits/xsl_spectrum_X0282_merged.fits 
+HD 164115                 17 59 27.07 +06 25 08.2 X0677 56410.3280     fits/xsl_spectrum_X0677_merged.fits 
+TLE Sgr I 55              17 59 29.65 -29 03 20.6 X0226 55412.0623     fits/xsl_spectrum_X0226_merged_ncl_ncge.fits 
+HD 164257                 18 00 07.31 +06 33 14.1 X0228 55412.0867     fits/xsl_spectrum_X0228_merged.fits 
+TLE Sgr I 117             18 00 45.75 -29 11 05.3 X0229 55412.0974     fits/xsl_spectrum_X0229_merged_ncl_ncge.fits 
+HD 164432                 18 00 52.86 +06 16 05.8 X0467 56164.0302     fits/xsl_spectrum_X0467_merged.fits 
+OGLEII DIA BUL-SC30 0707  18 01 46.14 -29 11 18.3 X0230 55412.1032     fits/xsl_spectrum_X0230_merged_ncl.fits 
+OGLEII DIA BUL-SC01 0235  18 02 12.64 -30 22 34.9 X0231 55412.1089     fits/xsl_spectrum_X0231_merged_ncl.fits 
+OGLEII DIA BUL-SC01 1821  18 02 12.76 -30 02 12.3 X0254 55439.1892     fits/xsl_spectrum_X0254_merged.fits 
+BMB 3                     18 02 45.73 -30 01 12.0 X0255 55439.1953     fits/xsl_spectrum_X0255_merged_ncl_ncge.fits 
+BMB 2                     18 02 46.12 -30 04 50.9 X0256 55439.2013     fits/xsl_spectrum_X0256_merged_ncl.fits 
+BMB 13                    18 02 52.78 -29 54 33.6 X0257 55439.2095     fits/xsl_spectrum_X0257_merged.fits 
+HD 164967                 18 03 21.05 +08 25 09.6 X0468 56164.0355     fits/xsl_spectrum_X0468_merged.fits 
+BMB 106                   18 03 25.25 -29 59 48.4 X0169 55397.2355     fits/xsl_spectrum_X0169_merged_ncl.fits 
+CL* NGC 6522 ARP 4126     18 03 27.67 -30 00 56.5 X0405 56144.0984     fits/xsl_spectrum_X0405_merged.fits 
+CL* NGC 6522 Arp 4329     18 03 28.43 -29 58 41.6 X0170 55397.2461     fits/xsl_spectrum_X0170_merged.fits 
+V5475 Sgr                 18 03 31.92 -30 00 28.7 X0398 56097.0573     fits/xsl_spectrum_X0398_merged_ncl.fits 
+V5475 Sgr                 18 03 31.92 -30 00 28.7 X0399 56097.0661     fits/xsl_spectrum_X0399_merged.fits 
+CL* NGC 6522 ARP 3190     18 03 33.74 -30 03 57.3 X0403 56097.1878     fits/xsl_spectrum_X0403_merged.fits 
+CL* NGC 6522 ARP 3213     18 03 35.16 -30 05 25.4 X0424 56144.0775     fits/xsl_spectrum_X0424_merged_ncge.fits     Superimposed stars with very different velocities. One dominant in the UVB arm (cz -198 km/s ); the other in the NIR (cz +30 km/s). The UVB velocity is used for the barycentric correction in all arms.
+2MASS J18033716-2954227   18 03 37.16 -29 54 22.7 X0152 55393.1387     fits/xsl_spectrum_X0152_merged.fits 
+CL* NGC 6522 ARP 1021     18 03 39.60 -29 58 23.8 X0400 56097.0857     fits/xsl_spectrum_X0400_merged.fits 
+CL* NGC 6522 ARP 1021     18 03 39.60 -29 58 23.8 X0401 56097.1030     fits/xsl_spectrum_X0401_merged.fits 
+CL* NGC 6522 ARP 1073     18 03 42.75 -29 58 59.6 X0402 56097.1547     fits/xsl_spectrum_X0402_merged.fits 
+BMB 162                   18 03 43.05 -30 07 54.1 X0173 55397.2846     fits/xsl_spectrum_X0173_merged_ncl.fits 
+[B86] 133                 18 03 45.47 -30 03 00.4 X0172 55397.2788     fits/xsl_spectrum_X0172_merged.fits 
+BMB 245                   18 04 06.39 -30 10 49.7 X0153 55393.1740     fits/xsl_spectrum_X0153_merged.fits 
+2MASS J18041187-3006214   18 04 11.88 -30 06 21.4 X0431 56144.2451     fits/xsl_spectrum_X0431_merged_ncl_ncge.fits 
+BMB 286                   18 04 22.45 -30 00 53.3 X0154 55393.1809 UVB fits/xsl_spectrum_X0154_merged.fits          
+BMB 289                   18 04 22.66 -29 54 51.8 X0155 55393.1889     fits/xsl_spectrum_X0155_merged_ncl_ncge.fits 
+BMB 300                   18 04 27.20 -30 02 57.5 X0293 55463.1555     fits/xsl_spectrum_X0293_merged_ncl.fits 
+HD 165195                 18 04 40.07 +03 46 44.7 X0232 55413.0828     fits/xsl_spectrum_X0232_merged.fits 
+OGLEII DIA BUL-SC33 4149  18 05 39.41 -28 30 28.7 X0185 55408.1202     fits/xsl_spectrum_X0185_merged_ncl_ncge.fits 
+OGLEII DIA BUL-SC36 2158  18 05 52.68 -28 11 36.6 X0186 55408.1260     fits/xsl_spectrum_X0186_merged_ncl_ncge.fits 
+OGLEII DIA BUL-SC33 0357  18 05 56.36 -29 16 37.8 X0187 55408.1396     fits/xsl_spectrum_X0187_merged_ncl.fits 
+HD 165438                 18 06 15.20 -04 45 04.5 X0233 55413.0943 NIR fits/xsl_spectrum_X0233_merged.fits         
+OGLEII DIA BUL-SC19 2302  18 07 35.21 -27 15 34.2 X0188 55408.1454     fits/xsl_spectrum_X0188_merged_ncl.fits 
+OGLEII DIA BUL-SC06 2525  18 07 51.30 -31 49 01.7 X0189 55408.1553     fits/xsl_spectrum_X0189_merged_ncl.fits 
+OGLEII DIA BUL-SC19 2332  18 07 57.74 -27 15 51.7 X0190 55408.1612     fits/xsl_spectrum_X0190_merged_ncl_ncge.fits O-rich Mira, possible TiO emission near 1.25 micro-m (Lancon et al. 2018)
+HD 165887                 18 08 07.24 +02 13 07.2 X0469 56164.0413     fits/xsl_spectrum_X0469_merged.fits 
+2MASS J18080765-3142020   18 08 07.66 -31 42 02.1 X0191 55408.1735     fits/xsl_spectrum_X0191_merged_ncl.fits 
+OGLEII DIA BUL-SC19 2948  18 08 16.21 -27 08 52.6 X0192 55408.1800     fits/xsl_spectrum_X0192_merged_ncl_ncge.fits 
+2MASS J18083220-3201531   18 08 32.21 -32 01 53.2 X0193 55408.1901     fits/xsl_spectrum_X0193_merged_ncl.fits 
+2MASS J18092055-3147006   18 09 20.55 -31 47 00.6 X0426 56144.1125     fits/xsl_spectrum_X0426_merged.fits 
+2MASS J18092323-3141039   18 09 23.23 -31 41 03.9 X0419 56143.2538     fits/xsl_spectrum_X0419_merged.fits 
+2MASS J18093159-3150397   18 09 31.59 -31 50 39.7 X0406 56104.3992     fits/xsl_spectrum_X0406_merged_scl.fits 
+2MASS J18093159-3150397   18 09 31.59 -31 50 39.7 X0427 56144.1392     fits/xsl_spectrum_X0427_merged.fits 
+2MASS J18093344-3145250   18 09 33.45 -31 45 25.0 X0652 56405.3137     fits/xsl_spectrum_X0652_merged.fits 
+OGLE 204664c4?            18 09 34.   -31 38 51.  X0660 56407.3029     fits/xsl_spectrum_X0660_merged.fits          G8V/K0V star. This name was taken from Zoccali et al. (2008), but does not directly relate to the OGLE survey catalogs. Prefer Gaia DR2 4049054206130689024.
+HD 166161                 18 09 40.68 -08 46 45.6 X0449 56153.1443     fits/xsl_spectrum_X0449_merged.fits 
+HD 166283                 18 09 44.79 +04 36 11.2 X0459 56156.0927     fits/xsl_spectrum_X0459_merged.fits 
+XZ Her                    18 10 03.61 +18 06 25.4 X0489 56165.0771     fits/xsl_spectrum_X0489_merged.fits 
+OGLEII DIA BUL-SC16 1428  18 10 29.54 -26 29 00.1 X0168 55397.1706     fits/xsl_spectrum_X0168_merged_ncl_ncge.fits 
+HD 166991                 18 13 03.83 +02 58 50.0 X0450 56153.1508     fits/xsl_spectrum_X0450_merged.fits          Artifacts in K-band (NIR arm)
+HD 167278                 18 14 33.65 +00 10 32.9 X0271 55457.0876     fits/xsl_spectrum_X0271_merged.fits 
+OGLEII DIA BUL-SC13 0324  18 16 47.52 -24 20 32.3 X0296 55465.1507 UVB fits/xsl_spectrum_X0296_merged_ncge.fits     
+OGLEII DIA BUL-SC13 1542  18 17 06.47 -23 59 35.8 X0301 55466.1379     fits/xsl_spectrum_X0301_merged_ncl_ncge.fits 
+HD 167946                 18 17 14.37 +05 45 12.9 X0460 56156.1003     fits/xsl_spectrum_X0460_merged.fits 
+RY CrA                    18 21 58.07 -44 53 59.4 X0368 56070.4014     fits/xsl_spectrum_X0368_merged_ncl.fits 
+RY CrA                    18 21 58.07 -44 53 59.4 X0428 56144.1592     fits/xsl_spectrum_X0428_merged.fits 
+HD 169032                 18 22 27.01 +07 13 34.6 X0461 56156.1065     fits/xsl_spectrum_X0461_merged.fits 
+OGLEII DIA BUL-SC08 1687  18 23 20.26 -21 35 53.9 X0218 55410.2100     fits/xsl_spectrum_X0218_merged_ncl_ncge.fits 
+HD 170413                 18 29 16.48 +00 19 23.2 X0481 56164.1170     fits/xsl_spectrum_X0481_merged.fits 
+HD 170756                 18 30 16.24 +21 52 00.6 X0300 55466.0187     fits/xsl_spectrum_X0300_merged.fits 
+HD 170783                 18 31 04.45 +04 37 37.0 X0470 56164.0472     fits/xsl_spectrum_X0470_merged.fits 
+HD 170899                 18 31 26.17 +08 01 38.1 X0641 56395.3631     fits/xsl_spectrum_X0641_merged.fits 
+HD 170820                 18 32 13.11 -19 07 26.3 X0299 55465.9946     fits/xsl_spectrum_X0299_merged.fits 
+HD 171234                 18 33 31.74 +01 54 12.8 X0648 56399.4080     fits/xsl_spectrum_X0648_merged.fits 
+HD 171367                 18 34 25.27 +03 49 50.6 X0678 56410.3330     fits/xsl_spectrum_X0678_merged.fits 
+2MASS J18351420-3438060   18 35 14.21 -34 38 06.0 X0698 56427.2786     fits/xsl_spectrum_X0698_merged.fits 
+2MASS J18351799-3428093   18 35 17.99 -34 28 09.4 X0139 55356.3971     fits/xsl_spectrum_X0139_merged.fits 
+2MASS J18352206-3429112   18 35 22.06 -34 29 11.2 X0138 55356.1742     fits/xsl_spectrum_X0138_merged.fits 
+2MASS J18352834-3444085   18 35 28.35 -34 44 08.5 X0151 55393.0506     fits/xsl_spectrum_X0151_merged.fits 
+2MASS J18352834-3444085   18 35 28.35 -34 44 08.5 X0171 55397.2569     fits/xsl_spectrum_X0171_merged.fits 
+2MASS J18355679-3434481   18 35 56.79 -34 34 48.1 X0137 55355.4046     fits/xsl_spectrum_X0137_merged.fits 
+HD 171496                 18 36 07.49 -24 26 11.3 X0715 56455.3194     fits/xsl_spectrum_X0715_merged.fits 
+HD 171496                 18 36 07.49 -24 26 11.3 X0716 56455.3218     fits/xsl_spectrum_X0716_merged.fits 
+HD 171496                 18 36 07.49 -24 26 11.3 X0717 56455.3243     fits/xsl_spectrum_X0717_merged.fits 
+HD 172230                 18 38 54.95 +06 16 14.8 X0161 55395.1852     fits/xsl_spectrum_X0161_merged.fits 
+HD 172365                 18 39 36.88 +05 15 51.4 X0680 56410.3506     fits/xsl_spectrum_X0680_merged.fits 
+HD 172472                 18 40 04.28 +07 45 46.4 X0471 56164.0532     fits/xsl_spectrum_X0471_merged.fits 
+HD 172522                 18 40 22.61 +08 52 06.4 X0655 56405.3897     fits/xsl_spectrum_X0655_merged.fits 
+HD 172506                 18 40 31.30 +02 41 04.0 X0654 56405.3845     fits/xsl_spectrum_X0654_merged.fits 
+HD 172488                 18 40 48.05 -08 43 07.6 X0653 56405.3790 UVB fits/xsl_spectrum_X0653_merged.fits          Possibly He-rich     
+HD 173073                 18 43 26.43 +03 47 08.5 X0657 56405.4007     fits/xsl_spectrum_X0657_merged.fits 
+HD 173158                 18 43 45.30 +05 44 14.6 X0162 55395.1915     fits/xsl_spectrum_X0162_merged.fits 
+HD 173369                 18 44 37.38 +07 58 39.4 X0472 56164.0585     fits/xsl_spectrum_X0472_merged.fits 
+V874 Aql                  18 45 41.08 +09 38 38.6 X0478 56164.0928     fits/xsl_spectrum_X0478_merged_ncl.fits      O-rich LPV (not C-star as was stated in Nassau and Blanco 1957)
+V874 Aql                  18 45 41.08 +09 38 38.6 X0675 56410.3126     fits/xsl_spectrum_X0675_merged.fits          O-rich LPV (not C-star as was stated in Nassau and Blanco 1957)
+HD 173669                 18 46 19.64 +05 09 11.2 X0656 56405.3953     fits/xsl_spectrum_X0656_merged.fits 
+G021-024                  18 47 27.25 -03 38 23.4 X0663 56407.3450     fits/xsl_spectrum_X0663_merged.fits 
+BH Tel                    18 49 31.71 -49 54 29.4 X0672 56407.3919     fits/xsl_spectrum_X0672_merged.fits 
+HD 174240                 18 49 37.19 +00 50 10.3 X0163 55395.1990     fits/xsl_spectrum_X0163_merged.fits 
+HD 174350                 18 49 50.43 +06 51 49.1 X0658 56405.4062     fits/xsl_spectrum_X0658_merged.fits 
+HD 174512                 18 51 07.98 -06 16 45.0 X0662 56407.3324     fits/xsl_spectrum_X0662_merged.fits 
+HD 174866                 18 53 01.81 -09 34 31.8 X0645 56395.4017     fits/xsl_spectrum_X0645_merged.fits 
+HD 174966                 18 53 07.83 +01 45 19.6 X0164 55395.2057     fits/xsl_spectrum_X0164_merged.fits 
+HD 174966                 18 53 07.83 +01 45 19.6 X0220 55410.2257     fits/xsl_spectrum_X0220_merged.fits 
+HD 174966                 18 53 07.83 +01 45 19.6 X0283 55458.1612     fits/xsl_spectrum_X0283_merged.fits 
+HD 175058                 18 53 55.95 -09 22 13.1 X0646 56398.3866     fits/xsl_spectrum_X0646_merged.fits 
+HD 175181                 18 54 27.95 -05 57 27.4 X0664 56407.3501     fits/xsl_spectrum_X0664_merged.fits 
+HD 175376                 18 55 21.66 -05 08 27.5 X0667 56407.3661     fits/xsl_spectrum_X0667_merged.fits 
+HD 175545                 18 55 51.45 -00 44 22.1 X0165 55395.2160     fits/xsl_spectrum_X0165_merged.fits 
+HD 175640                 18 56 22.66 -01 47 59.5 X0221 55410.2311     fits/xsl_spectrum_X0221_merged.fits          K-band continuum wavy  
+HD 175640                 18 56 22.66 -01 47 59.5 X0294 55465.1115     fits/xsl_spectrum_X0294_merged.fits 
+HD 175805                 18 56 58.07 +02 27 42.0 X0222 55410.2405     fits/xsl_spectrum_X0222_merged.fits 
+HD 175805                 18 56 58.07 +02 27 42.0 X0295 55465.1280     fits/xsl_spectrum_X0295_merged.fits 
+HD 175892                 18 58 24.83 -22 31 46.1 X0666 56407.3607     fits/xsl_spectrum_X0666_merged.fits 
+HD 176301                 18 58 45.06 +19 47 39.8 X0676 56410.3179     fits/xsl_spectrum_X0676_merged.fits 
+HD 176698                 19 01 26.93 +01 17 18.8 X0473 56164.0640     fits/xsl_spectrum_X0473_merged.fits 
+HD 176851                 19 02 24.17 -05 32 48.1 X0451 56153.1621     fits/xsl_spectrum_X0451_merged.fits 
+HD 178287                 19 08 20.77 -07 26 15.8 X0474 56164.0698     fits/xsl_spectrum_X0474_merged.fits 
+HD 179315                 19 11 59.17 +04 21 17.4 X0452 56153.1695     fits/xsl_spectrum_X0452_merged.fits 
+HD 179870                 19 13 53.59 +09 01 59.6 X0207 55409.1811     fits/xsl_spectrum_X0207_merged.fits 
+HD 179870                 19 13 53.59 +09 01 59.6 X0272 55457.0939     fits/xsl_spectrum_X0272_merged.fits 
+HD 179821                 19 13 58.61 +00 07 31.9 X0208 55409.1864     fits/xsl_spectrum_X0208_merged_ncge.fits     K-band continuum wavy
+HD 179821                 19 13 58.61 +00 07 31.9 X0302 55466.1546     fits/xsl_spectrum_X0302_merged_ncge.fits 
+HD 180086                 19 15 22.29 -06 02 59.1 X0475 56164.0754     fits/xsl_spectrum_X0475_merged.fits 
+GJ 752B                   19 16 57.61 +05 09 01.5 X0209 55409.1997 UVB fits/xsl_spectrum_X0209_merged.fits         
+HD 183085                 19 27 41.09 +04 42 34.9 X0476 56164.0809     fits/xsl_spectrum_X0476_merged.fits 
+CD-24 15398               19 32 20.78 -23 51 12.7 X0421 56143.2933     fits/xsl_spectrum_X0421_merged.fits 
+HD 184266                 19 34 15.39 -16 19 00.2 X0477 56164.0866     fits/xsl_spectrum_X0477_merged.fits 
+HD 184571                 19 35 01.81 +04 18 40.8 X0679 56410.3451     fits/xsl_spectrum_X0679_merged.fits 
+HD 185094                 19 37 43.72 -05 03 42.4 X0668 56407.3710     fits/xsl_spectrum_X0668_merged.fits 
+HD 232078                 19 38 12.07 +16 48 25.6 X0210 55409.2070     fits/xsl_spectrum_X0210_merged.fits 
+HD 232078                 19 38 12.07 +16 48 25.6 X0273 55457.0996     fits/xsl_spectrum_X0273_merged.fits 
+HIP 96710                 19 39 36.17 -26 45 07.0 X0665 56407.3556     fits/xsl_spectrum_X0665_merged.fits 
+HD 186478                 19 45 14.14 -17 29 27.0 X0670 56407.3812     fits/xsl_spectrum_X0670_merged.fits 
+HD 187111                 19 48 39.57 -12 07 19.7 X0669 56407.3762     fits/xsl_spectrum_X0669_merged.fits 
+Y Sge                     19 53 30.87 +18 14 28.8 X0761 56507.1835     fits/xsl_spectrum_X0761_merged.fits 
+NGC 6838 1078             19 53 37.18 +18 47 20.2 X0494 56165.1360     fits/xsl_spectrum_X0494_merged.fits 
+NGC 6838 1078             19 53 37.18 +18 47 20.2 X0748 56488.2784     fits/xsl_spectrum_X0748_merged.fits 
+CL* NGC 6838 AH A9        19 53 37.47 +18 44 59.6 X0407 56110.3440     fits/xsl_spectrum_X0407_merged.fits 
+CL* NGC 6838 AH A9        19 53 37.47 +18 44 59.6 X0702 56440.3432     fits/xsl_spectrum_X0702_merged.fits 
+NGC 6838 1077             19 53 37.57 +18 47 28.6 X0493 56165.1256     fits/xsl_spectrum_X0493_merged.fits 
+NGC 6838 1077             19 53 37.57 +18 47 28.6 X0746 56487.2826     fits/xsl_spectrum_X0746_merged.fits 
+NGC 6838 1075             19 53 41.57 +18 47 43.0 X0741 56467.3225     fits/xsl_spectrum_X0741_merged.fits 
+NGC 6838 1075             19 53 41.57 +18 47 43.0 X0742 56467.3445     fits/xsl_spectrum_X0742_merged_scl.fits 
+NGC 6838 1073             19 53 42.54 +18 47 08.3 X0735 56464.2903     fits/xsl_spectrum_X0735_merged.fits 
+NGC 6838 1073             19 53 42.54 +18 47 08.3 X0762 56507.1884     fits/xsl_spectrum_X0762_merged_scl.fits 
+NGC 6838 1071             19 53 43.73 +18 47 33.6 X0734 56464.2763     fits/xsl_spectrum_X0734_merged.fits 
+NGC 6838 1066             19 53 45.25 +18 46 55.4 X0718 56455.3400     fits/xsl_spectrum_X0718_merged.fits 
+NGC 6838 1066             19 53 45.25 +18 46 55.4 X0719 56455.3479     fits/xsl_spectrum_X0719_merged.fits 
+NGC 6838 1066             19 53 45.25 +18 46 55.4 X0720 56455.3560     fits/xsl_spectrum_X0720_merged.fits 
+HD 188262                 19 53 45.93 +16 46 41.1 X0211 55409.2125     fits/xsl_spectrum_X0211_merged.fits 
+HD 188262                 19 53 45.93 +16 46 41.1 X0268 55445.9817     fits/xsl_spectrum_X0268_merged.fits 
+NGC 6838 1063             19 53 46.57 +18 47 44.2 X0713 56455.2807     fits/xsl_spectrum_X0713_merged.fits 
+NGC 6838 1063             19 53 46.57 +18 47 44.2 X0714 56455.2935     fits/xsl_spectrum_X0714_merged.fits 
+NGC 6838 1037             19 53 48.02 +18 47 08.6 X0491 56165.0963     fits/xsl_spectrum_X0491_merged.fits 
+NGC 6838 1037             19 53 48.02 +18 47 08.6 X0704 56440.3733 NIR fits/xsl_spectrum_X0704_merged.fits         
+NGC 6838 1037             19 53 48.02 +18 47 08.6 X0705 56440.3997     fits/xsl_spectrum_X0705_merged.fits 
+NGC 6838 1039             19 53 48.74 +18 47 17.4 X0389 56093.4058     fits/xsl_spectrum_X0389_merged.fits 
+NGC 6838 1039             19 53 48.74 +18 47 17.4 X0706 56440.4167     fits/xsl_spectrum_X0706_merged_scl.fits 
+NGC 6838 1009             19 53 49.05 +18 46 00.3 X0703 56440.3574     fits/xsl_spectrum_X0703_merged.fits 
+NGC 6838 1053             19 53 50.64 +18 49 07.5 X0712 56455.2581     fits/xsl_spectrum_X0712_merged.fits 
+CL* NGC 6838 AH A2        19 53 54.19 +18 45 32.7 X0408 56110.3617     fits/xsl_spectrum_X0408_merged.fits 
+CL* NGC 6838 AH A2        19 53 54.19 +18 45 32.7 X0681 56410.3781     fits/xsl_spectrum_X0681_merged.fits 
+CL* NGC 6838 AH A2        19 53 54.19 +18 45 32.7 X0701 56440.3284     fits/xsl_spectrum_X0701_merged_scl.fits 
+HD 188510                 19 55 09.68 +10 44 27.4 X0697 56412.4086     fits/xsl_spectrum_X0697_merged.fits 
+HD 189511                 20 00 22.05 +01 41 53.5 X0482 56164.1271     fits/xsl_spectrum_X0482_merged.fits 
+HD 190073                 20 03 02.51 +05 44 16.6 X0214 55409.2395     fits/xsl_spectrum_X0214_merged.fits          Herbig Ae/Be star, numerous emission lines, continuum contribution from cool component in the NIR arm; K-band continuum wavy (prefer X0248)
+HD 190073                 20 03 02.51 +05 44 16.6 X0248 55438.1223     fits/xsl_spectrum_X0248_merged.fits          Herbig Ae/Be star, numerous emission lines, continuum contribution from cool component in the NIR arm
+HD 190404                 20 03 52.13 +23 20 26.4 X0212 55409.2230     fits/xsl_spectrum_X0212_merged.fits 
+HD 190404                 20 03 52.13 +23 20 26.4 X0249 55438.1327     fits/xsl_spectrum_X0249_merged.fits 
+HD 190404                 20 03 52.13 +23 20 26.4 X0490 56165.0841     fits/xsl_spectrum_X0490_merged.fits 
+HD 190390                 20 05 05.41 -11 35 57.9 X0432 56144.2644     fits/xsl_spectrum_X0432_merged.fits 
+G024-003                  20 05 44.32 +04 02 52.8 X0480 56164.1103     fits/xsl_spectrum_X0480_merged.fits 
+HD 345957                 20 10 48.16 +23 57 54.5 X0213 55409.2283     fits/xsl_spectrum_X0213_merged.fits 
+HD 191709                 20 11 18.86 -00 07 35.2 X0671 56407.3863     fits/xsl_spectrum_X0671_merged.fits 
+HIP 100047                20 17 52.38 -17 17 09.0 X0736 56465.3324     fits/xsl_spectrum_X0736_merged.fits 
+HIP 100047                20 17 52.38 -17 17 09.0 X0763 56507.2088     fits/xsl_spectrum_X0763_merged.fits 
+HD 193225                 20 19 00.70 +02 14 00.2 X0483 56164.1323     fits/xsl_spectrum_X0483_merged.fits 
+HD 193326                 20 19 39.58 +01 59 36.3 X0484 56164.1376     fits/xsl_spectrum_X0484_merged.fits 
+HD 193281                 20 20 27.88 -29 11 49.9 X0194 55408.2035     fits/xsl_spectrum_X0194_merged_scl.fits 
+HD 193281                 20 20 27.88 -29 11 49.9 X0267 55440.0987     fits/xsl_spectrum_X0267_merged.fits 
+V335 Aql                  20 21 17.78 +01 19 18.9 X0487 56164.1957     fits/xsl_spectrum_X0487_merged.fits 
+HD 193896                 20 23 00.79 -09 39 16.9 X0195 55408.2153     fits/xsl_spectrum_X0195_merged.fits 
+HD 193896                 20 23 00.79 -09 39 16.9 X0297 55465.1702     fits/xsl_spectrum_X0297_merged.fits 
+HD 194453                 20 25 25.43 +06 38 30.5 X0196 55408.2275     fits/xsl_spectrum_X0196_merged.fits          K-band continuum wavy
+HD 194453                 20 25 25.43 +06 38 30.5 X0288 55462.1764     fits/xsl_spectrum_X0288_merged.fits 
+HD 195729                 20 32 56.89 +02 25 38.9 X0695 56412.3913     fits/xsl_spectrum_X0695_merged.fits 
+HD 196125                 20 35 26.94 -02 03 05.5 X0673 56407.3976     fits/xsl_spectrum_X0673_merged.fits 
+HD 196218                 20 35 42.87 +03 18 10.5 X0696 56412.3966     fits/xsl_spectrum_X0696_merged.fits 
+HD 196426                 20 37 18.38 +00 05 49.0 X0199 55408.2574     fits/xsl_spectrum_X0199_merged.fits 
+HD 196426                 20 37 18.38 +00 05 49.0 X0289 55462.1867     fits/xsl_spectrum_X0289_merged.fits 
+HD 196892                 20 40 49.38 -18 47 33.2 X0200 55408.2692     fits/xsl_spectrum_X0200_merged.fits 
+HD 196892                 20 40 49.38 -18 47 33.2 X0290 55462.2004     fits/xsl_spectrum_X0290_merged.fits 
+CD-30 18140               20 44 06.29 -30 00 07.6 X0682 56410.3975     fits/xsl_spectrum_X0682_merged.fits 
+BPS CS 30336-049          20 45 23.53 -28 42 35.9 X0699 56428.3814     fits/xsl_spectrum_X0699_merged.fits 
+HD 198140                 20 48 56.84 -19 01 09.0 X0479 56164.0989     fits/xsl_spectrum_X0479_merged_ncge.fits 
+HD 198140                 20 48 56.84 -19 01 09.0 X0738 56465.3462     fits/xsl_spectrum_X0738_merged_ncge.fits 
+HD 198140                 20 48 56.84 -19 01 09.0 X0764 56507.2145     fits/xsl_spectrum_X0764_merged_ncge.fits 
+HIP 103039                20 52 33.02 -16 58 29.0 X0737 56465.3399     fits/xsl_spectrum_X0737_merged.fits 
+BD-14 5890                20 56 09.14 -13 31 17.6 X0496 56165.1579     fits/xsl_spectrum_X0496_merged.fits 
+HD 200081                 21 01 22.42 -02 30 50.4 X0177 55407.2758     fits/xsl_spectrum_X0177_merged.fits 
+HD 200081                 21 01 22.42 -02 30 50.4 X0292 55462.2250     fits/xsl_spectrum_X0292_merged.fits 
+HD 200494                 21 03 39.28 +02 55 36.3 X0438 56144.3535     fits/xsl_spectrum_X0438_merged.fits 
+HD 200779                 21 05 19.75 +07 04 09.4 X0437 56144.3403     fits/xsl_spectrum_X0437_merged.fits 
+CD-62 1346                21 06 02.92 -61 33 44.6 X0412 56113.3936     fits/xsl_spectrum_X0412_merged.fits 
+HD 201053                 21 07 04.89 +05 26 36.0 X0436 56144.3250     fits/xsl_spectrum_X0436_merged.fits 
+HD 201237                 21 08 41.70 -19 59 41.4 X0721 56455.3774     fits/xsl_spectrum_X0721_merged.fits 
+HD 201237                 21 08 41.70 -19 59 41.4 X0722 56455.3800     fits/xsl_spectrum_X0722_merged.fits 
+HD 201237                 21 08 41.70 -19 59 41.4 X0723 56455.3827     fits/xsl_spectrum_X0723_merged.fits 
+HD 201377                 21 09 16.01 -00 14 05.7 X0433 56144.2791     fits/xsl_spectrum_X0433_merged.fits 
+HD 201626                 21 09 59.27 +26 36 55.0 X0197 55408.2376     fits/xsl_spectrum_X0197_merged_ncge.fits 
+HD 201626                 21 09 59.27 +26 36 55.0 X0274 55457.1060     fits/xsl_spectrum_X0274_merged.fits 
+HD 202851                 21 18 43.49 -01 32 03.3 X0435 56144.3127     fits/xsl_spectrum_X0435_merged_ncge.fits 
+HD 202851                 21 18 43.49 -01 32 03.3 X0750 56488.3009     fits/xsl_spectrum_X0750_merged_ncge.fits 
+G187-40                   21 21 57.75 +27 27 10.3 X0198 55408.2486     fits/xsl_spectrum_X0198_merged.fits 
+HD 204041                 21 25 51.58 +00 32 03.6 X0178 55407.2825     fits/xsl_spectrum_X0178_merged.fits 
+HD 204041                 21 25 51.58 +00 32 03.6 X0291 55462.2118     fits/xsl_spectrum_X0291_merged.fits 
+HD 204155                 21 26 42.91 +05 26 29.9 X0179 55407.2934     fits/xsl_spectrum_X0179_merged.fits 
+HD 204155                 21 26 42.91 +05 26 29.9 X0275 55457.1121     fits/xsl_spectrum_X0275_merged.fits 
+HD 204543                 21 29 28.21 -03 30 55.3 X0446 56147.3478     fits/xsl_spectrum_X0446_merged.fits 
+HD 204587                 21 30 02.76 -12 30 36.2 X0434 56144.2974     fits/xsl_spectrum_X0434_merged.fits 
+HD 204587                 21 30 02.76 -12 30 36.2 X0439 56147.2590     fits/xsl_spectrum_X0439_merged.fits 
+NGC 7078 1079             21 30 15.66 +12 08 23.0 X0388 56093.2736     fits/xsl_spectrum_X0388_merged.fits 
+HD 205202                 21 33 02.84 +30 21 35.0 X0175 55407.2547     fits/xsl_spectrum_X0175_merged.fits 
+HD 205202                 21 33 02.84 +30 21 35.0 X0276 55457.1251     fits/xsl_spectrum_X0276_merged.fits 
+HD 205555                 21 35 58.90 +06 04 26.2 X0485 56164.1437     fits/xsl_spectrum_X0485_merged.fits 
+HD 205734                 21 37 14.09 +05 51 05.0 X0727 56455.4037     fits/xsl_spectrum_X0727_merged.fits 
+HD 205734                 21 37 14.09 +05 51 05.0 X0728 56455.4062     fits/xsl_spectrum_X0728_merged.fits 
+HD 205734                 21 37 14.09 +05 51 05.0 X0729 56455.4089     fits/xsl_spectrum_X0729_merged.fits 
+G188-22                   21 43 57.12 +27 23 23.9 X0176 55407.2604     fits/xsl_spectrum_X0176_merged.fits 
+BD-09 5831                21 45 30.52 -08 24 35.2 X0700 56439.3988     fits/xsl_spectrum_X0700_merged.fits 
+HD 207222                 21 46 56.26 +21 17 50.7 X0730 56455.4195     fits/xsl_spectrum_X0730_merged.fits 
+HD 207222                 21 46 56.26 +21 17 50.7 X0731 56455.4223     fits/xsl_spectrum_X0731_merged.fits 
+HD 207222                 21 46 56.26 +21 17 50.7 X0732 56455.4256     fits/xsl_spectrum_X0732_merged.fits 
+HD 207795                 21 51 39.43 +00 50 57.8 X0486 56164.1490     fits/xsl_spectrum_X0486_merged.fits 
+HD 209290                 22 02 10.28 +01 24 00.8 X0201 55408.2823     fits/xsl_spectrum_X0201_merged.fits 
+HD 209290                 22 02 10.28 +01 24 00.8 X0277 55457.1343     fits/xsl_spectrum_X0277_merged.fits 
+DG Peg                    22 03 33.92 +14 00 31.2 X0492 56165.1135     fits/xsl_spectrum_X0492_merged.fits 
+HD 210295                 22 09 41.45 -13 36 19.4 X0441 56147.2830     fits/xsl_spectrum_X0441_merged.fits 
+BD+17 4708                22 11 31.38 +18 05 34.1 X0743 56467.3593     fits/xsl_spectrum_X0743_merged_scl.fits 
+BD+17 4708                22 11 31.38 +18 05 34.1 X0745 56487.2750     fits/xsl_spectrum_X0745_merged_ncl.fits 
+BD+17 4708                22 11 31.38 +18 05 34.1 X0774 56554.1906     fits/xsl_spectrum_X0774_merged_scl.fits 
+HD 211075                 22 14 20.04 +18 01 13.3 X0447 56148.2538     fits/xsl_spectrum_X0447_merged.fits 
+G018-039                  22 18 36.51 +08 26 44.9 X0445 56147.3313     fits/xsl_spectrum_X0445_merged.fits 
+HD 212516                 22 24 34.44 +16 09 00.4 X0495 56165.1494     fits/xsl_spectrum_X0495_merged.fits 
+2MASS J22244381-0158521   22 24 43.82 -01 58 52.1 X0215 55409.2570     fits/xsl_spectrum_X0215_merged_ncl_ncge.fits 
+HD 213042                 22 29 15.24 -30 01 06.2 X0430 56144.2271     fits/xsl_spectrum_X0430_merged.fits 
+HD 214080                 22 36 06.44 -16 23 16.7 X0443 56147.3106     fits/xsl_spectrum_X0443_merged.fits 
+GJ 866                    22 38 33.73 -15 17 57.3 X0202 55408.2905     fits/xsl_spectrum_X0202_merged_ncl.fits 
+HD 215578                 22 45 58.41 +19 15 00.9 X0787 56579.0186     fits/xsl_spectrum_X0787_merged.fits 
+HD 215578                 22 45 58.41 +19 15 00.9 X0788 56579.0211     fits/xsl_spectrum_X0788_merged.fits 
+HD 215578                 22 45 58.41 +19 15 00.9 X0789 56579.0235     fits/xsl_spectrum_X0789_merged.fits 
+HD 216143                 22 50 31.09 -06 54 49.5 X0444 56147.3220     fits/xsl_spectrum_X0444_merged.fits 
+HD 216219                 22 50 52.15 +18 00 07.7 X0216 55409.2826     fits/xsl_spectrum_X0216_merged.fits 
+HD 216219                 22 50 52.15 +18 00 07.7 X0278 55457.1417     fits/xsl_spectrum_X0278_merged.fits 
+HD 217357                 23 00 16.12 -22 31 27.6 X0413 56141.2095     fits/xsl_spectrum_X0413_merged.fits 
+HD 217877                 23 03 57.27 -04 47 41.5 X0217 55409.2938     fits/xsl_spectrum_X0217_merged.fits 
+HD 217877                 23 03 57.27 -04 47 41.5 X0279 55457.1479     fits/xsl_spectrum_X0279_merged.fits 
+HD 218502                 23 08 39.37 -15 03 11.9 X0414 56141.2149     fits/xsl_spectrum_X0414_merged.fits 
+HD 218566                 23 09 10.73 -02 15 38.6 X0739 56465.4127     fits/xsl_spectrum_X0739_merged.fits 
+HD 218566                 23 09 10.73 -02 15 38.6 X0751 56488.3133     fits/xsl_spectrum_X0751_merged.fits 
+HD 218857                 23 11 24.59 -16 15 04.0 X0415 56141.2209     fits/xsl_spectrum_X0415_merged.fits 
+G029-023                  23 19 40.45 +03 22 16.6 X0223 55410.3248     fits/xsl_spectrum_X0223_merged.fits 
+Feige 110                 23 19 58.40 -05 09 56.1 X0758 56504.3353     fits/xsl_spectrum_X0758_merged_ncl_ncge.fits S/N ratio poor in NIR, use average 
+Feige 110                 23 19 58.40 -05 09 56.1 X0766 56508.2739     fits/xsl_spectrum_X0766_merged_ncl_ncge.fits S/N ratio poor in NIR, use average
+Feige 110                 23 19 58.40 -05 09 56.1 X0790 56579.1040     fits/xsl_spectrum_X0790_merged_ncl_ncge.fits S/N ratio poor in NIR, use average
+HD 220662                 23 25 41.63 -23 56 20.6 X0416 56141.2263     fits/xsl_spectrum_X0416_merged.fits 
+HD 220838                 23 27 16.48 -26 58 58.1 X0417 56141.2313     fits/xsl_spectrum_X0417_merged.fits 
+HD 221170                 23 29 28.81 +30 25 57.8 X0442 56147.2956     fits/xsl_spectrum_X0442_merged.fits 
+HD 221149                 23 29 36.34 -06 50 08.7 X0749 56488.2954     fits/xsl_spectrum_X0749_merged.fits 
+BD+19 5116B               23 31 52.57 +19 56 14.0 X0440 56147.2718     fits/xsl_spectrum_X0440_merged.fits 
+HD 222434                 23 40 41.51 -34 41 46.5 X0752 56488.3194     fits/xsl_spectrum_X0752_merged.fits 
+LP 731-58                 10 48 13.14 -11 20 25.4 MD001 55314.1665     fits/xsl_spectrum_MD001_merged_ncl_ncge.fits 
+LTT 2544                  06 24 04.23 -45 56 14.0 MD002 55845.3191     fits/xsl_spectrum_MD002_merged_scl.fits 
+HD 50281B                 06 52 17.77 -05 11 23.3 MD003 55846.3386     fits/xsl_spectrum_MD003_merged_scl.fits 
+* 18 Pup B                08 10 34.31 -13 48 51.2 MD004 55846.3561     fits/xsl_spectrum_MD004_merged_scl.fits 
+L 442-13                  02 54 03.05 -35 54 54.8 MD005 55853.3504     fits/xsl_spectrum_MD005_merged_scl.fits 
+G 272-119                 01 54 21.38 -15 43 50.5 MD006 55862.0342     fits/xsl_spectrum_MD006_merged_scl.fits 
+* omi02 Eri C             04 15 19.9  -07 40 01.3 MD007 55910.0446     fits/xsl_spectrum_MD007_merged_scl.fits 
+G 83-29                   04 39 43.27 +09 51 44.3 MD008 55916.1313     fits/xsl_spectrum_MD008_merged_scl.fits 
+HD 31412B                 04 55 54.52 +04 40 16.1 MD009 55916.1532     fits/xsl_spectrum_MD009_merged_scl.fits      Bad telluric correction
+LP 659-4                  05 58 17.7  -04 38 01.8 MD010 55916.1800     fits/xsl_spectrum_MD010_merged_scl.fits 
+G 102-4                   05 28 56.63 +12 31 52.9 MD011 55981.0326     fits/xsl_spectrum_MD011_merged_scl.fits 
+HD 38529B                 05 46 19.22 +01 12 48.9 MD012 55982.0860     fits/xsl_spectrum_MD012_merged_scl.fits 
+G 106-36                  06 17 10.54 +05 07 07.3 MD013 55997.1109     fits/xsl_spectrum_MD013_merged_scl.fits 
+HD 46375B                 06 33 12.26 +05 27 54.6 MD014 55997.1206     fits/xsl_spectrum_MD014_merged_scl.fits 
+GJ 768.1 B                19 51 01.10 +10 24 36.8 MD017 56583.0009     fits/xsl_spectrum_MD017_merged_scl.fits 
+G 143-35                  20 11 12.94 +16 11 11.1 MD018 56583.0290     fits/xsl_spectrum_MD018_merged_scl.fits 
+LP 703-44                 23 41 45.13 -05 58 16.7 MD020 56589.2363     fits/xsl_spectrum_MD020_merged_scl.fits 
+V* V645 Cen               14 29 35.66 -62 40 34.0 MD021 56672.2901     fits/xsl_spectrum_MD021_merged_scl.fits 
+HD 125455B                14 19 35.21 -05 09 07.4 MD022 56693.3634     fits/xsl_spectrum_MD022_merged_scl.fits 
+HD 115404B                13 16 52.23 +17 00 59.5 MD023 56695.3779     fits/xsl_spectrum_MD023_merged_ncl_ncge.fits 
