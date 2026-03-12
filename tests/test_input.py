@@ -679,6 +679,33 @@ def test_cols():
     np.testing.assert_array_equal(props_dict['gr_color'], gr_color)
     np.testing.assert_array_equal(props_dict['rz_color'], rz_color)
 
+    # Check generic constant properties, including values that depend on image_num.
+    config = {
+                'dir' : 'input',
+                'image_file_name' : [
+                    'test_input_image_00.fits',
+                    'test_input_image_01.fits',
+                ],
+                'cat_file_name' : [
+                    'test_input_cat_00.fits',
+                    'test_input_cat_00.fits',
+                ],
+                'properties' : {
+                    'const_prop' : 1.5,
+                    'image_id' : '$@image_num + 10',
+                    'gr_plus_one' : '$gr_color + 1',
+                },
+                'property_cols' : ['gr_color'],
+             }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, _, props_dict = input.getRawImageData(0)
+    np.testing.assert_array_equal(props_dict['const_prop'], [1.5] * 100)
+    np.testing.assert_array_equal(props_dict['image_id'], [10] * 100)
+    np.testing.assert_allclose(props_dict['gr_plus_one'], gr_color + 1)
+    _, _, _, props_dict = input.getRawImageData(1)
+    np.testing.assert_array_equal(props_dict['const_prop'], [1.5] * 100)
+    np.testing.assert_array_equal(props_dict['image_id'], [11] * 100)
+
     # Check invalid column names
     base_config = {
                 'dir' : 'input',
@@ -704,6 +731,13 @@ def test_cols():
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
     with np.testing.assert_raises(ValueError):
         input = piff.InputFiles(dict(property_cols='invalid_string', **base_config))
+    with np.testing.assert_raises(galsim.GalSimConfigError):
+        input = piff.InputFiles(dict(properties='invalid_string', **base_config))
+    input = piff.InputFiles(
+        dict(properties={'foo': {'type': 'invalid', 'value': 1}}, **base_config))
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+    input = piff.InputFiles(dict(properties={'foo': []}, **base_config))
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
     input = piff.InputFiles(dict(property_cols=['gr_color','invalid_col'], **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
@@ -724,6 +758,48 @@ def test_cols():
     np.testing.assert_raises(KeyError, input.getRawImageData, 0)
     input = piff.InputFiles(dict(satur='satur', **base_config))
     np.testing.assert_raises(KeyError, input.getRawImageData, 0)
+
+
+@timer
+def test_eval_properties():
+    """Test the helper that evaluates dynamic input properties."""
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = piff.config.setup_logger()
+
+    # None is a valid no-op.
+    props = piff.InputFiles._evaluate_properties(None, {}, 0, 3, {}, logger)
+    assert props == {}
+
+    # The helper requires a dict when properties are provided.
+    with np.testing.assert_raises(ValueError):
+        piff.InputFiles._evaluate_properties('invalid', {}, 0, 3, {}, logger)
+
+    # Properties can depend on catalog values and on previous computed properties.
+    extra_props = {
+        'gr_color': np.array([0.1, 0.2, 0.3]),
+    }
+    props = piff.InputFiles._evaluate_properties(
+        {
+            'gr_plus_one': '$gr_color + 1',
+            'gr_plus_two': '$gr_plus_one + 1',
+            'image_id': '$@image_num + 10',
+        },
+        extra_props, 2, 3, {}, logger)
+    np.testing.assert_allclose(props['gr_plus_one'], [1.1, 1.2, 1.3])
+    np.testing.assert_allclose(props['gr_plus_two'], [2.1, 2.2, 2.3])
+    np.testing.assert_array_equal(props['image_id'], [12, 12, 12])
+
+    # If a scalar-only function rejects arrays, we fall back to per-row evaluation.
+    props = piff.InputFiles._evaluate_properties(
+        {'gr_bin': '$int(gr_color * 10)'},
+        extra_props, 0, 3, {}, logger)
+    np.testing.assert_array_equal(props['gr_bin'], [1, 2, 3])
+
+    # Invalid property values should raise.
+    with np.testing.assert_raises(ValueError):
+        piff.InputFiles._evaluate_properties({'bad': []}, {}, 0, 1, {}, logger)
 
 
 @timer

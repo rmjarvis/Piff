@@ -115,7 +115,8 @@ class Input(object):
         kwargs = dict(stamp_size=self.stamp_size,
                       pointing=self.pointing, use_partial=self.use_partial,
                       invert_weight=self.invert_weight,
-                      remove_signal_from_weight=self.remove_signal_from_weight)
+                      remove_signal_from_weight=self.remove_signal_from_weight,
+                      config=self.config)
 
         all_stars = run_multi(self._makeStarsFromImage, self.nproc, raise_except=True,
                               args=args, logger=logger, kwargs=kwargs)
@@ -233,6 +234,12 @@ class InputFiles(Input):
                         Items with flag & use_flag == 0 will be skipped.
         :property_cols: A list of column names of star properties (e.g. star colors).
                         [default: None]
+        :properties:    A dict of constant star properties to attach to every star from each
+                        input image. The keys are property names. Values are parsed using
+                        the GalSim config parser for each ``image_num``. Plain strings that
+                        begin with ``$`` or ``@`` are treated as config expressions; other
+                        strings are left as literal strings. The explicit ``type``/``value``
+                        dict form is also supported. [default: None]
         :sky_col:       The name of a column with sky values. [default: None]
         :gain_col:      The name of a column with gain values. [default: None]
         :sky:           The sky level to subtract from the image values. [default: None]
@@ -304,6 +311,7 @@ class InputFiles(Input):
                 'ra_units' : str,
                 'dec_units' : str,
                 'property_cols' : list,
+                'properties' : dict,
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
@@ -562,6 +570,7 @@ class InputFiles(Input):
             skip_flag = params.get('skip_flag', -1)
             use_flag = params.get('use_flag', None)
             property_cols = params.get('property_cols', None)
+            properties = params.get('properties', None)
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             gain = params.get('gain', None)
@@ -588,6 +597,8 @@ class InputFiles(Input):
                     'skip_flag' : skip_flag,
                     'use_flag' : use_flag,
                     'property_cols': property_cols,
+                    'properties': properties,
+                    'image_num': image_num,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
                     'sky' : sky,
@@ -607,6 +618,7 @@ class InputFiles(Input):
         ra = config.get('ra',None)
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
+        self.config = galsim.config.CleanConfig(config)
 
     def load_images(self, stars, logger=None):
         """Load the image data into a list of Stars.
@@ -646,12 +658,13 @@ class InputFiles(Input):
     def getRawImageData(self, image_num, logger=None):
         return self._getRawImageData(self.image_kwargs[image_num], self.cat_kwargs[image_num],
                                      self.wcs_list[image_num], self.invert_weight,
-                                     self.remove_signal_from_weight, logger=logger)
+                                     self.remove_signal_from_weight,
+                                     config=self.config, logger=logger)
 
     @staticmethod
     def _getRawImageData(image_kwargs, cat_kwargs, wcs,
                          invert_weight, remove_signal_from_weight,
-                         logger=None):
+                         config=None, logger=None):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         image, weight = InputFiles.readImage(logger=logger, **image_kwargs)
@@ -662,8 +675,11 @@ class InputFiles(Input):
         # Update the wcs
         image.wcs = wcs
 
+        # Don't use mutable as default parameter value.  Convert None -> {} as needed.
+        config = config if config is not None else {}
+
         image_pos, extra_props = InputFiles.readStarCatalog(
-                logger=logger, image=image, **cat_kwargs)
+                logger=logger, image=image, config=config, **cat_kwargs)
 
         if remove_signal_from_weight:
             # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -691,11 +707,12 @@ class InputFiles(Input):
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, pointing, use_partial,
                             invert_weight, remove_signal_from_weight,
-                            logger):
+                            config, logger):
         """Make "stars" from a single input image
         """
         image, wt, image_pos, extra_props = InputFiles._getRawImageData(
-                image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight, logger)
+                image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight,
+                config, logger)
         logger.verbose("Processing catalog %s with %d objects",chipnum,len(image_pos))
 
         objects = []
@@ -727,8 +744,7 @@ class InputFiles(Input):
                     continue
             stamp = image[bounds].copy()
             wt_stamp = wt[bounds].copy()
-            props = { 'chipnum' : chipnum,
-                    }
+            props = { 'chipnum' : chipnum }
 
             # if an object is totally masked, then don't add it!
             if np.all(wt_stamp.array == 0):
@@ -962,8 +978,9 @@ class InputFiles(Input):
     @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
-                        flag_col, skip_flag, use_flag, property_cols, sky_col, gain_col,
-                        sky, gain, satur, trust_pos, nstars, stamp_size, logger):
+                        flag_col, skip_flag, use_flag, property_cols, properties,
+                        image_num, sky_col, gain_col, sky, gain, satur, trust_pos,
+                        nstars, stamp_size, config, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -981,6 +998,8 @@ class InputFiles(Input):
         :param use_flag:        The flag indicating which items to use. [default: None]
                                 Items with flag & use_flag == 0 will be skipped.
         :param property_cols:   A list of column names with star properties (e.g. star colors).
+        :param properties:      A dict of additional star properties to attach to every star.
+        :param image_num:       The image number of the current input image.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -992,6 +1011,7 @@ class InputFiles(Input):
         :param trust_pos:       Optional bool value indicating whether to trust input positions.
         :param nstars:          Optionally a maximum number of stars to use from this catalog.
         :param stamp_size:      The stamp size being used for the star stamps.
+        :param config:          The input section of the config dict.
         :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: lists image_pos, extra_props
@@ -1164,7 +1184,53 @@ class InputFiles(Input):
             trust_pos = _GetBoolValue(trust_pos)
             extra_props['trust_pos'] = np.array([trust_pos]*len(cat), dtype=bool)
 
+        if properties is not None:
+            logger.debug('properties = %s', properties)
+            extra_props.update(InputFiles._evaluate_properties(
+                properties, extra_props, image_num, len(cat), config, logger))
+
         return image_pos, extra_props
+
+    @staticmethod
+    def _evaluate_properties(properties, extra_props, image_num, nstars, config, logger):
+        if properties is None:
+            return {}
+        if not isinstance(properties, dict):
+            raise ValueError("properties should be a dict")
+
+        base = { 'input' : config, 'index_key' : 'image_num', 'image_num' : image_num,
+                 'eval_variables': {} }
+        # Load the existing extra properties into eval_variables so they are available
+        # to be used in eval strings.
+        for prop_name, value in extra_props.items():
+            base['eval_variables']['x' + prop_name] = value
+
+        parsed = {}
+        for key, value in properties.items():
+            try:
+                result = galsim.config.ParseValue({'x': value}, 'x', base, None)[0]
+                if np.ndim(result) == 0:
+                    result = np.array([result] * nstars)
+                else:
+                    result = np.asarray(result)
+            except Exception as e:
+                logger.debug("Caught exception trying vector eval for property %r: %r", key, e)
+                result = []
+                row_base = base.copy()
+                row_base['eval_variables'] = {}
+                for i in range(nstars):
+                    for k, v in base['eval_variables'].items():
+                        row_base['eval_variables'][k] = v[i]
+                    result.append(galsim.config.ParseValue({'x': value}, 'x', row_base, None)[0])
+                result = np.array(result)
+            else:
+                if len(result) != nstars:
+                    raise ValueError("properties[%r] did not evaluate to %d values" % (key, nstars))
+
+            base['eval_variables']['x' + key] = result
+            parsed[key] = result
+
+        return parsed
 
     def setPointing(self, ra, dec, logger=None):
         """Set the pointing attribute based on the input ra, dec (given in the initializer)
