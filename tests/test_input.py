@@ -1031,6 +1031,11 @@ def test_weight():
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 34.**-1)
 
+    # Error if specified noise is not found in header.
+    config['noise'] = 'invalid'
+    with np.testing.assert_raises(KeyError):
+        piff.InputFiles(config, logger=logger).getRawImageData(0)
+
     # Some old versions of fitsio had a bug where the badpix mask could be offset by 32768.
     # We move them back to 0
     config = {
