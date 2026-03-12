@@ -274,6 +274,17 @@ def test_centroid():
     assert stars5[1].is_flagged is True
     assert stars5[2].is_flagged is True
 
+    # Check that outliers round trip properly through file.
+    fn = os.path.join('output', 'outliers_writelist_test.piff')
+    psf.interp.mean = [0]
+    psf.write(fn)
+    psf2 = piff.read(fn)
+    assert isinstance(psf2.outliers, list)
+    assert len(psf2.outliers) == len(psf.outliers)
+    assert psf2.outliers[0]._type_name == 'Chisq'
+    assert psf2.outliers[1]._type_name == 'Centroid'
+
+
 
 if __name__ == '__main__':
     test_chisq()

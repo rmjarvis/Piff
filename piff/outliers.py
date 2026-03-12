@@ -116,8 +116,6 @@ class Outliers(object):
         :param name:        A name to associate with the outliers in the serialized output.
         :param outliers:    A list of Outliers instances.
         """
-        if not outliers:
-            return
         if len(outliers) == 1:
             # Only 1 outlier.  Write it to this extension.
             outliers[0].write(writer, name)
@@ -187,8 +185,6 @@ class Outliers(object):
             with reader.nested(name) as r:
                 for i in range(n_outliers):
                     outlier = cls.read(r, f'outlier_{i}')
-                    if outlier is None:
-                        raise ValueError("Missing outlier_%d in serialized outliers list" % i)
                     outliers.append(outlier)
             return outliers
         else:
