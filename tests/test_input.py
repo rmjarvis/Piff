@@ -1254,16 +1254,34 @@ def test_weight():
     assert input.image_kwargs[1]['weight_file_name'] == 'input/test_input_weight_00.fits'
     assert input.image_kwargs[0]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
     assert input.image_kwargs[1]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
-    expected_weight = fitsio.read('input/test_input_weight_00.fits', ext=0)
-    expected_weight[1::2, :] = 0
+    expected_weight0 = fitsio.read('input/test_input_weight_00.fits', ext=0)
+    expected_weight0[1::2, :] = 0
     _, weight, image_pos, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
-    np.testing.assert_allclose(weight.array, expected_weight)
-    expected_weight = fitsio.read('input/test_input_weight_00.fits', ext=1)
-    expected_weight[1::2, :] = 0
+    np.testing.assert_allclose(weight.array, expected_weight0)
+    expected_weight1 = fitsio.read('input/test_input_weight_00.fits', ext=1)
+    expected_weight1[1::2, :] = 0
     _, weight, image_pos, _ = input.getRawImageData(1)
     assert len(image_pos) == 100
-    np.testing.assert_allclose(weight.array, expected_weight)
+    np.testing.assert_allclose(weight.array, expected_weight1)
+
+    # Both weight_file_name and badpix_file_name can be a dict using the GalSim parser
+    config['weight_file_name'] = { 'type': 'List', 'items': ['input/test_input_weight_00.fits'], }
+    config['badpix_file_name'] = { 'type': 'List', 'items': ['input/test_input_badpix_00.fits'], }
+    input = piff.InputFiles(config, logger=logger)
+    assert input.nimages == 2
+    assert input.image_file_name == ['input/test_input_image_00.fits'] * 2
+    assert input.cat_file_name == ['input/test_input_cat_00.fits'] * 2
+    assert input.image_kwargs[0]['weight_file_name'] == 'input/test_input_weight_00.fits'
+    assert input.image_kwargs[1]['weight_file_name'] == 'input/test_input_weight_00.fits'
+    assert input.image_kwargs[0]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
+    assert input.image_kwargs[1]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
+    _, weight, image_pos, _ = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    np.testing.assert_allclose(weight.array, expected_weight0)
+    _, weight, image_pos, _ = input.getRawImageData(1)
+    assert len(image_pos) == 100
+    np.testing.assert_allclose(weight.array, expected_weight1)
 
 
 @timer
