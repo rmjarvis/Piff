@@ -81,11 +81,25 @@ def setup():
         b'xsl_spectrum_X0527_merged.fits',      # M
     ])
     sed_file = np.resize(sed_names, 100)
+    sed_labels = np.array(['F', 'G', 'K', 'M'])
+    sed_label = np.resize(sed_labels, 100)
     print('gr_color, rz_color = ', gr_color[:10], rz_color[:10])
     with fitsio.FITS(cat_file_name, 'rw') as f:
         f[1].insert_column('gr_color', gr_color)
         f[1].insert_column('rz_color', rz_color)
         f[1].insert_column('sed_file', sed_file)
+        f[1].insert_column('sed_label', sed_label)
+
+    sed_map_file = os.path.join(dir, 'input', 'test_sed_map.yaml')
+    with open(sed_map_file, 'w') as f:
+        f.write("F: xsl_spectrum_X0529_merged.fits\n")
+        f.write("G: xsl_spectrum_X0203_merged.fits\n")
+        f.write("K: xsl_spectrum_X0066_merged_scl.fits\n")
+        f.write("M: xsl_spectrum_X0527_merged.fits\n")
+    sed_bad_map_file = os.path.join(dir, 'input', 'test_sed_bad_map.yaml')
+    with open(sed_bad_map_file, 'w') as f:
+        f.write("- xsl_spectrum_X0529_merged.fits\n")
+        f.write("- xsl_spectrum_X0203_merged.fits\n")
 
     # Add some header values to the first one.
     # Also add some alternate weight and badpix maps to enable some edge-case tests
@@ -2119,6 +2133,41 @@ def test_sed_col():
     input = piff.InputFiles(config2, logger=logger)
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
+    # With a sed_file_name dict, sed_col entries act as labels into the mapping.
+    config3 = dict(config, sed_col='sed_label', sed_file_name='test_sed_map.yaml')
+    _, _, _, extra_props2 = piff.InputFiles(config3, logger=logger).getRawImageData(0)
+    assert extra_props2['sed'][0] is extra_props2['sed'][4]
+    assert extra_props2['sed'][1] is extra_props2['sed'][5]
+    assert extra_props2['sed'][0] is not extra_props2['sed'][1]
+    np.testing.assert_allclose(
+        float(extra_props2['sed'][0](1000.0)),
+        float(extra_props['sed'][0](1000.0)),
+        rtol=1.0e-12,
+        atol=0.0,
+    )
+    np.testing.assert_allclose(
+        float(extra_props2['sed'][1](1000.0)),
+        float(extra_props['sed'][1](1000.0)),
+        rtol=1.0e-12,
+        atol=0.0,
+    )
+
+    # Missing label in sed_file_name mapping should raise.
+    bad_map = {
+        'F': 'xsl_spectrum_X0529_merged.fits',
+        'G': 'xsl_spectrum_X0203_merged.fits',
+        'K': 'xsl_spectrum_X0066_merged_scl.fits',
+    }
+    input = piff.InputFiles(dict(config3, sed_file_name=bad_map), logger=logger)
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+
+    # sed_file_name YAML must parse to a dict for mapping mode.
+    input = piff.InputFiles(
+        dict(config3, sed_file_name='test_sed_bad_map.yaml'),
+        logger=logger
+    )
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+
 
 @timer
 def test_single_sed():
@@ -2174,10 +2223,11 @@ def test_single_sed():
         atol=0.0,
     )
 
-    # If both sed_col and sed_file_name are present, sed_col takes precedence.
+    # If both sed_col and sed_file_name are present, sed_file_name is treated as a mapping
+    # source for sed_col values, not as a fallback single SED file.
     config2 = dict(config, sed_col='sed_file')
-    _, _, _, props = piff.InputFiles(config2).getRawImageData(0)
-    assert props['sed'][0] is not props['sed'][1]
+    input = piff.InputFiles(config2, logger=logger)
+    np.testing.assert_raises(Exception, input.getRawImageData, 0)
 
     # Blank and missing sed_file_name should raise.
     config3 = dict(config, sed_file_name='')
