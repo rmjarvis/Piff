@@ -112,7 +112,7 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                pip install -U nose coverage "pytest<8" nbval ipykernel pillow pyarrow pandas
+                pip install -U nose coverage "pytest<8" nbval ipykernel pillow
 
             - name: Install Jax
               if: matrix.py == 3.9 || matrix.py == 3.10 || matrix.py == 3.11 || matrix.py == 3.12
