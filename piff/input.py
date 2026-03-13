@@ -241,6 +241,7 @@ class InputFiles(Input):
                         begin with ``$`` or ``@`` are treated as config expressions; other
                         strings are left as literal strings. The explicit ``type``/``value``
                         dict form is also supported. [default: None]
+
         :sed_col:       The name of a column with per-star SED selectors. If ``sed_file_name``
                         is not provided, selectors are interpreted as SED file names. If
                         ``sed_file_name`` is provided, selectors are treated as keys in the
@@ -257,6 +258,33 @@ class InputFiles(Input):
                         SEDs from FITS tables. [default: ``WAVE``]
         :sed_flux_key:  FITS-table column name to use for flux when loading SEDs
                         from FITS tables. [default: ``FLUX``]
+
+    .. note::
+
+        For chromatic PSF fitting, you must define the SED of each star in one of the
+        following ways:
+
+        1. You can use the same SED for every star.  In this case, the SED should probably
+           be some kind of median SED of the stars in your sample.  You won't be capturing
+           the variation in the chromaticity among the various stars, but at least you will
+           be using the correct average chromatic effect of the stellar population.
+           For this case, give the SED file name as ``sed_file_name``.
+
+        2. You may instead want to specify a (potentially) different SED file for each star.
+           In this case, you can give that file name in the input catalog as one of the
+           columns.  Set ``sed_col`` to the name of the catalog column containing the file names.
+
+        3. Another way to give each star its own SED is to have the values in the input catalog
+           be some kind of label indicating which file to use.  The mapping of these labels to
+           file names would then be in a YAML file, which should parse as a dict giving
+           ``sed_file_name[label]``.  In this case, specify ``sed_col`` to be the input column
+           with the labels and ``sed_file_name`` to be the YAML file with the mapping.
+
+        In each case, ``sed_wave_type`` and ``sed_flux_type`` are required values, specifying
+        the units to use for the wavelengths and flux values in the SED file.  For SED files
+        that are FITS tables, you may also want to set ``sed_wave_key`` and ``sed_flux_key`` to
+        specify which columns correspond to the wave and flux arrays.
+
         :sky_col:       The name of a column with sky values. [default: None]
         :gain_col:      The name of a column with gain values. [default: None]
         :sky:           The sky level to subtract from the image values. [default: None]
