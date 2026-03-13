@@ -880,24 +880,29 @@ class InputFiles(Input):
                 if flag == 0: break
             return mask
 
-    @staticmethod
-    def _read_cat(cat_file_name, cat_hdu):
+    @classmethod
+    def _read_cat(cls, cat_file_name, cat_hdu):
         if cat_file_name.endswith('.fits'):
-            import fitsio
-            return fitsio.read(cat_file_name, cat_hdu)
+            return cls._read_fits_cat(cat_file_name, cat_hdu)
         elif cat_file_name.endswith('.parquet'):
-            import pyarrow.parquet as pq
-            tab = pq.read_table(cat_file_name)
-            return tab.to_pandas().to_records(index=False)
+            return cls._read_parquet_cat(cat_file_name)
         else:
             # For other endings, try parquet then fits so error message is for fits.
             try:
-                import pyarrow.parquet as pq
-                tab = pq.read_table(cat_file_name)
-                return tab.to_pandas().to_records(index=False)
+                return cls._read_parquet_cat(cat_file_name)
             except Exception:
-                import fitsio
-                return fitsio.read(cat_file_name, cat_hdu)
+                return cls._read_fits_cat(cat_file_name, cat_hdu)
+
+    @classmethod
+    def _read_fits_cat(cls, cat_file_name, cat_hdu):
+        import fitsio
+        return fitsio.read(cat_file_name, cat_hdu)
+
+    @classmethod
+    def _read_parquet_cat(cls, cat_file_name):
+        import pyarrow.parquet as pq
+        tab = pq.read_table(cat_file_name)
+        return tab.to_pandas().to_records(index=False)
 
     @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
