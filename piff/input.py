@@ -264,21 +264,65 @@ class InputFiles(Input):
         For chromatic PSF fitting, you must define the SED of each star in one of the
         following ways:
 
-        1. You can use the same SED for every star.  In this case, the SED should probably
-           be some kind of median SED of the stars in your sample.  You won't be capturing
-           the variation in the chromaticity among the various stars, but at least you will
-           be using the correct average chromatic effect of the stellar population.
-           For this case, give the SED file name as ``sed_file_name``.
+        1. Use a single SED for each every star.
 
-        2. You may instead want to specify a (potentially) different SED file for each star.
+           In this case, the SED should probably be some kind of median SED of the stars
+           in your sample.  You won't be capturing the variation in the chromaticity among
+           the various stars, but at least you will be using the correct average chromatic
+           effect of the stellar population.  For this case, give the SED file name as
+           ``sed_file_name``.
+
+           Sample config file excerpt::
+
+                input:
+                    [...]
+                    sed_file_name: 'stellar_sed.fits'
+                    sed_wave_type: 'nm'
+                    sed_flux_type: 'erg cm**(-2) s**(-1) angstrom**(-1)'
+
+        2. Specify a file name for the SED of each star.
+
+           You may instead want to specify a (potentially) different SED file for each star.
            In this case, you can give that file name in the input catalog as one of the
            columns.  Set ``sed_col`` to the name of the catalog column containing the file names.
 
-        3. Another way to give each star its own SED is to have the values in the input catalog
+           Sample config file excerpt::
+
+                input:
+                    [...]
+                    sed_col: 'sed_file'
+                    sed_wave_type: 'nm'
+                    sed_flux_type: 'erg cm**(-2) s**(-1) angstrom**(-1)'
+
+        3. Specify the SED of each star by some label.
+
+           Another way to give each star its own SED is to have the values in the input catalog
            be some kind of label indicating which file to use.  The mapping of these labels to
            file names would then be in a YAML file, which should parse as a dict giving
            ``sed_file_name[label]``.  In this case, specify ``sed_col`` to be the input column
            with the labels and ``sed_file_name`` to be the YAML file with the mapping.
+
+           Sample config file excerpt::
+
+                input:
+                    [...]
+                    sed_col: 'sed_label'
+                    sed_file_name: 'sed_mapping.yaml'
+                    sed_wave_type: 'nm'
+                    sed_flux_type: 'erg cm**(-2) s**(-1) angstrom**(-1)'
+
+           If you want, you can also put the mapping dict directly in the config file::
+
+                input:
+                    [...]
+                    sed_col: 'stellar_type'
+                    sed_file_name:
+                        'F': 'xsl_spectrum_X0529_merged.fits'
+                        'G': 'xsl_spectrum_X0203_merged.fits'
+                        'K': 'xsl_spectrum_X0066_merged_scl.fits'
+                        'M': 'xsl_spectrum_X0527_merged.fits'
+                    sed_wave_type: 'nm'
+                    sed_flux_type: 'erg cm**(-2) s**(-1) angstrom**(-1)'
 
         In each case, ``sed_wave_type`` and ``sed_flux_type`` are required values, specifying
         the units to use for the wavelengths and flux values in the SED file.  For SED files
