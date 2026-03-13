@@ -1184,16 +1184,15 @@ class InputFiles(Input):
             trust_pos = _GetBoolValue(trust_pos)
             extra_props['trust_pos'] = np.array([trust_pos]*len(cat), dtype=bool)
 
-        logger.debug('properties = %s', properties)
-        extra_props.update(InputFiles._evaluate_properties(
-            properties, extra_props, image_num, len(cat), config, logger))
+        if properties is not None:
+            logger.debug('properties = %s', properties)
+            extra_props.update(InputFiles._evaluate_properties(
+                properties, extra_props, image_num, len(cat), config, logger))
 
         return image_pos, extra_props
 
     @staticmethod
     def _evaluate_properties(properties, extra_props, image_num, nstars, config, logger):
-        if properties is None:
-            return {}
         if not isinstance(properties, dict):
             raise ValueError("properties should be a dict")
 
