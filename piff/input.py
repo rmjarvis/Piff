@@ -1184,10 +1184,9 @@ class InputFiles(Input):
             trust_pos = _GetBoolValue(trust_pos)
             extra_props['trust_pos'] = np.array([trust_pos]*len(cat), dtype=bool)
 
-        if properties is not None:
-            logger.debug('properties = %s', properties)
-            extra_props.update(InputFiles._evaluate_properties(
-                properties, extra_props, image_num, len(cat), config, logger))
+        logger.debug('properties = %s', properties)
+        extra_props.update(InputFiles._evaluate_properties(
+            properties, extra_props, image_num, len(cat), config, logger))
 
         return image_pos, extra_props
 
