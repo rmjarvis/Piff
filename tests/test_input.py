@@ -2227,20 +2227,21 @@ def test_single_sed():
     # source for sed_col values, not as a fallback single SED file.
     config2 = dict(config, sed_col='sed_file')
     input = piff.InputFiles(config2, logger=logger)
-    np.testing.assert_raises(Exception, input.getRawImageData, 0)
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
     # Blank and missing sed_file_name should raise.
-    config3 = dict(config, sed_file_name='')
-    np.testing.assert_raises(Exception, piff.InputFiles, config3, logger=logger)
+    config3 = dict(config, sed_file_name='   ')
+    input = piff.InputFiles(config3, logger=logger)
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
     config4 = dict(config, sed_file_name='missing_sed_file_for_test.fits')
     input = piff.InputFiles(config4, logger=logger)
-    np.testing.assert_raises(Exception, input.getRawImageData, 0)
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
     # Invalid wave-type strings should raise when SED parsing is used.
     config5 = dict(config, sed_wave_type='nm/s')
     input = piff.InputFiles(config5, logger=logger)
-    np.testing.assert_raises(Exception, input.getRawImageData, 0)
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
     # Absolute path for sed_file_name also works.
     test_dir = os.path.dirname(os.path.realpath(__file__))
