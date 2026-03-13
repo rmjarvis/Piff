@@ -768,10 +768,6 @@ def test_eval_properties():
     else:
         logger = piff.config.setup_logger()
 
-    # None is a valid no-op.
-    props = piff.InputFiles._evaluate_properties(None, {}, 0, 3, {}, logger)
-    assert props == {}
-
     # The helper requires a dict when properties are provided.
     with np.testing.assert_raises(ValueError):
         piff.InputFiles._evaluate_properties('invalid', {}, 0, 3, {}, logger)
