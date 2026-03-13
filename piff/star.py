@@ -346,6 +346,8 @@ class Star(object):
 
         # Start with the data properties
         prop_keys = list(stars[0].data.properties)
+        # SED objects are large and not directly serializable; persist SED metadata only.
+        prop_keys = [key for key in prop_keys if key != 'sed']
         # Do the position ones first
         for key in [ 'x', 'y', 'u', 'v' ]:
             dtypes.append( (key, float) )
@@ -521,6 +523,7 @@ class Star(object):
                 prop_list[i]['is_reserve'] = True
             if 'flag_psf' in data.dtype.names and row['flag_psf']:
                 prop_list[i]['is_flagged'] = True
+        cls._restore_seds(prop_list)
 
         wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
         pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]
@@ -536,6 +539,26 @@ class Star(object):
 
         stars = [ Star(d,f) for (d,f) in zip(data_list, fit_list) ]
         return stars
+
+    @classmethod
+    def _restore_seds(cls, prop_list):
+        from .input import InputFiles
+
+        for prop in prop_list:
+            if 'sed' in prop or 'sed_file_name' not in prop:
+                continue
+            sed_file_name = prop['sed_file_name']
+            sed_wave_key = prop.get('sed_wave_key', 'WAVE')
+            sed_flux_key = prop.get('sed_flux_key', 'FLUX')
+            sed_wave_type = prop.get('sed_wave_type')
+            sed_flux_type = prop.get('sed_flux_type')
+            prop['sed'] = InputFiles._read_sed_file(
+                sed_file_name,
+                sed_wave_type=sed_wave_type,
+                sed_flux_type=sed_flux_type,
+                sed_wave_key=sed_wave_key,
+                sed_flux_key=sed_flux_key,
+            )
 
     @staticmethod
     def load_images(stars, file_name, pointing=None,
