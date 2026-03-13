@@ -240,6 +240,20 @@ class InputFiles(Input):
                         begin with ``$`` or ``@`` are treated as config expressions; other
                         strings are left as literal strings. The explicit ``type``/``value``
                         dict form is also supported. [default: None]
+        :sed_col:       The name of a column with SED file names to load for each star.
+                        Loaded SEDs are attached as the ``sed`` star property.
+                        [default: None]
+        :sed_file_name: A single SED file name to use for all stars (if ``sed_col`` is
+                        not provided). [default: None]
+        :sed_wave_type: Wavelength unit for SED files (e.g. ``nm``, ``Angstrom``).
+                        [required if sed_col or sed_file_name is not None]
+        :sed_flux_type: Flux convention for SED files (e.g. ``flambda``, ``fnu``,
+                        ``fphotons`` or units parseable by astropy.Unit).
+                        [required if sed_col or sed_file_name is not None]
+        :sed_wave_key:  FITS-table column name to use for wavelength when loading
+                        SEDs from FITS tables. [default: ``WAVE``]
+        :sed_flux_key:  FITS-table column name to use for flux when loading SEDs
+                        from FITS tables. [default: ``FLUX``]
         :sky_col:       The name of a column with sky values. [default: None]
         :gain_col:      The name of a column with gain values. [default: None]
         :sky:           The sky level to subtract from the image values. [default: None]
@@ -312,6 +326,12 @@ class InputFiles(Input):
                 'dec_units' : str,
                 'property_cols' : list,
                 'properties' : dict,
+                'sed_col' : str,
+                'sed_file_name' : str,
+                'sed_wave_type' : str,
+                'sed_flux_type' : str,
+                'sed_wave_key' : str,
+                'sed_flux_key' : str,
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
@@ -571,6 +591,12 @@ class InputFiles(Input):
             use_flag = params.get('use_flag', None)
             property_cols = params.get('property_cols', None)
             properties = params.get('properties', None)
+            sed_col = params.get('sed_col', None)
+            sed_file_name = params.get('sed_file_name', None)
+            sed_wave_type = params.get('sed_wave_type', None)
+            sed_flux_type = params.get('sed_flux_type', None)
+            sed_wave_key = params.get('sed_wave_key', 'WAVE')
+            sed_flux_key = params.get('sed_flux_key', 'FLUX')
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             gain = params.get('gain', None)
@@ -599,6 +625,12 @@ class InputFiles(Input):
                     'property_cols': property_cols,
                     'properties': properties,
                     'image_num': image_num,
+                    'sed_col': sed_col,
+                    'sed_file_name': sed_file_name,
+                    'sed_wave_type': sed_wave_type,
+                    'sed_flux_type': sed_flux_type,
+                    'sed_wave_key': sed_wave_key,
+                    'sed_flux_key': sed_flux_key,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
                     'sky' : sky,
@@ -976,11 +1008,90 @@ class InputFiles(Input):
         return np.rec.fromarrays(tab.columns, names=tab.schema.names)
 
     @staticmethod
+    def _resolve_sed_file_name(value, cat_file_name):
+        sed_file_name = os.fsdecode(value).strip()
+        if sed_file_name == '':
+            raise ValueError("Encountered blank SED file name")
+        if os.path.isabs(sed_file_name):
+            return sed_file_name
+        cat_dir = os.path.dirname(os.path.abspath(cat_file_name))
+        cat_relative = os.path.join(cat_dir, sed_file_name)
+        if os.path.isfile(cat_relative):
+            return cat_relative
+        else:
+            return sed_file_name
+
+    @staticmethod
+    def _parse_wave_type(wave_type):
+        if wave_type is None:
+            raise ValueError("wave_type is required for reading sed files.")
+        wt = wave_type.lower().strip()
+        try:
+            from astropy import units as u
+            return u.Unit(wt)
+        except Exception:
+            raise ValueError("Invalid sed_wave_type %r" % (wave_type,))
+
+    @staticmethod
+    def _parse_flux_type(flux_type):
+        if flux_type is None:
+            raise ValueError("flux_type is required for reading sed files.")
+        ft = flux_type.lower().strip()
+        if ft in ('flambda', 'fnu', 'fphotons'):
+            return ft
+        else:
+            try:
+                from astropy import units as u
+                return u.Unit(ft)
+            except Exception:
+                raise ValueError("Invalid sed_flux_type %r" % (flux_type,))
+
+    @staticmethod
+    def _read_sed_file(sed_file_name, sed_wave_type, sed_flux_type,
+                       sed_wave_key, sed_flux_key):
+        wave_type = InputFiles._parse_wave_type(sed_wave_type)
+        flux_type = InputFiles._parse_flux_type(sed_flux_type)
+        try:
+            # If GalSim can read the file directly, let it do so.
+            return galsim.SED(sed_file_name, wave_type=wave_type, flux_type=flux_type)
+        except Exception as e:
+            # If GalSim failed because the file doesn't exist, just raise this error.
+            if not os.path.isfile(sed_file_name):
+                raise
+            # Otherwise, try to read it ourselves.  In particular, handle FITS tables,
+            # which GalSim currently cannot read directly.
+            import fitsio
+            try:
+                with fitsio.FITS(sed_file_name) as f:
+                    data = f[1].read()
+            except Exception:
+                raise ValueError("Could not read SED file %r as a FITS file"%(
+                                 sed_file_name,)) from None
+            if data.dtype.names is None:
+                raise ValueError("Could not parse SED file %r as a FITS table"%(
+                                 sed_file_name,)) from None
+
+            if sed_wave_key in data.dtype.names:
+                wave = np.array(data[sed_wave_key], dtype=float)
+            else:
+                raise ValueError("sed_wave_key = %r not found in the FITS table"%(
+                                 sed_wave_key,)) from None
+            if sed_flux_key in data.dtype.names:
+                flux = np.array(data[sed_flux_key], dtype=float)
+            else:
+                raise ValueError("sed_flux_key = %r not found in the FITS table"%(
+                                 sed_flux_key,)) from None
+
+            table = galsim.LookupTable(wave, flux, interpolant='linear')
+            return galsim.SED(table, wave_type=wave_type, flux_type=flux_type)
+
+    @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
-                        flag_col, skip_flag, use_flag, property_cols, properties,
-                        image_num, sky_col, gain_col, sky, gain, satur, trust_pos,
-                        nstars, stamp_size, config, logger):
+                        flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
+                        sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
+                        properties, image_num, sky_col, gain_col, sky, gain, satur,
+                        trust_pos, nstars, stamp_size, config, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -1000,6 +1111,12 @@ class InputFiles(Input):
         :param property_cols:   A list of column names with star properties (e.g. star colors).
         :param properties:      A dict of additional star properties to attach to every star.
         :param image_num:       The image number of the current input image.
+        :param sed_col:         A column with per-star SED file names.
+        :param sed_file_name:   A single SED file name for all stars (if sed_col is None).
+        :param sed_wave_type:   Wave type for SED files.
+        :param sed_flux_type:   Flux type for SED files.
+        :param sed_wave_key:    FITS-table wavelength column name for SED files.
+        :param sed_flux_key:    FITS-table flux column name for SED files.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -1129,6 +1246,31 @@ class InputFiles(Input):
                     raise ValueError("Entry in property_cols = " +
                                      "%s is not a column in %s"%(col_name,cat_file_name))
                 extra_props[col_name] = cat[col_name]
+
+        if sed_col is not None:
+            if sed_col not in cat.dtype.names:
+                raise ValueError("sed_col = %s is not a column in %s" % (sed_col, cat_file_name))
+            sed_cache = {}
+            sed_values = []
+            for value in cat[sed_col]:
+                sed_file_name = InputFiles._resolve_sed_file_name(value, cat_file_name)
+                if sed_file_name not in sed_cache:
+                    sed_cache[sed_file_name] = InputFiles._read_sed_file(
+                        sed_file_name, sed_wave_type=sed_wave_type,
+                        sed_flux_type=sed_flux_type,
+                        sed_wave_key=sed_wave_key,
+                        sed_flux_key=sed_flux_key,
+                    )
+                sed_values.append(sed_cache[sed_file_name])
+            extra_props['sed'] = np.array(sed_values, dtype=object)
+        elif sed_file_name is not None:
+            sed_file_name = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
+            sed = InputFiles._read_sed_file(
+                sed_file_name, sed_wave_type=sed_wave_type,
+                sed_flux_type=sed_flux_type, sed_wave_key=sed_wave_key,
+                sed_flux_key=sed_flux_key
+            )
+            extra_props['sed'] = np.array([sed] * len(cat), dtype=object)
 
         # If we used a flag column, keep it as a property.
         if flag_col is not None:

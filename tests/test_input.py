@@ -74,10 +74,18 @@ def setup():
     rng2 = np.random.default_rng(234)
     gr_color = rng1.uniform(0.,1.,100)
     rz_color = rng2.uniform(0.,1.,100)
+    sed_names = np.array([
+        b'xsl_spectrum_X0529_merged.fits',      # F
+        b'xsl_spectrum_X0203_merged.fits',      # G
+        b'xsl_spectrum_X0066_merged_scl.fits',  # K
+        b'xsl_spectrum_X0527_merged.fits',      # M
+    ])
+    sed_file = np.resize(sed_names, 100)
     print('gr_color, rz_color = ', gr_color[:10], rz_color[:10])
     with fitsio.FITS(cat_file_name, 'rw') as f:
         f[1].insert_column('gr_color', gr_color)
         f[1].insert_column('rz_color', rz_color)
+        f[1].insert_column('sed_file', sed_file)
 
     # Add some header values to the first one.
     # Also add some alternate weight and badpix maps to enable some edge-case tests
@@ -2066,6 +2074,177 @@ def test_sky():
         piff.InputFiles(config, logger=logger)
 
 
+@timer
+def test_sed_col():
+    """Test per-star SED loading from a catalog filename column (`input.sed_col`).
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    # Main success path: each star selects its SED from the sed_file column.
+    config = {
+        'dir': 'input',
+        'image_file_name': 'test_input_image_00.fits',
+        'cat_file_name': 'test_input_cat_00.fits',
+        'x_col': 'x',
+        'y_col': 'y',
+        'sed_col': 'sed_file',
+        'sed_wave_type': 'nm',
+        'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+    }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, extra_props = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    assert len(extra_props['sed']) == 100
+
+    stars = input.makeStars(logger=logger)
+    assert len(stars) > 0
+    for star in stars[:8]:
+        assert isinstance(star['sed'], galsim.SED)
+        assert np.isfinite(float(star['sed'](1000.0)))
+
+    # Repeated file names should reuse the same cached SED object.
+    assert extra_props['sed'][0] is extra_props['sed'][4]
+    assert extra_props['sed'][1] is extra_props['sed'][5]
+    assert extra_props['sed'][0] is not extra_props['sed'][1]
+
+    # Distinct template spectra should have different flux at a representative wavelength.
+    sed_vals = [float(extra_props['sed'][i](1000.0)) for i in range(4)]
+    assert len(np.unique(np.round(sed_vals, 12))) > 1
+
+    # Invalid sed_col should raise.
+    config2 = dict(config, sed_col='not_a_column')
+    input = piff.InputFiles(config2, logger=logger)
+    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+
+
+@timer
+def test_single_sed():
+    """Test single-file SED mode (`sed_file_name`)
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    config = {
+        'dir': 'input',
+        'image_file_name': 'test_input_image_00.fits',
+        'cat_file_name': 'test_input_cat_00.fits',
+        'x_col': 'x',
+        'y_col': 'y',
+        'sed_file_name': 'vega.txt',
+        'sed_wave_type': 'Angstrom',
+        'sed_flux_type': 'flambda',
+    }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, extra_props = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    assert len(extra_props['sed']) == 100
+
+    ref_sed = galsim.SED('vega.txt', wave_type='Angstrom', flux_type='flambda')
+    np.testing.assert_allclose(
+        float(extra_props['sed'][0](100.0)),
+        float(ref_sed(100.0)),
+        rtol=1.0e-12,
+        atol=0.0,
+    )
+
+    # A single XSL SED file can be applied to all stars.
+    config = {
+        'dir': 'input',
+        'image_file_name': 'test_input_image_00.fits',
+        'cat_file_name': 'test_input_cat_00.fits',
+        'x_col': 'x',
+        'y_col': 'y',
+        'sed_file_name': 'xsl_spectrum_X0203_merged.fits',
+        'sed_wave_type': 'nm',
+        'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+    }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, _, props = input.getRawImageData(0)
+    assert len(props['sed']) == 100
+    assert props['sed'][0] is props['sed'][1]
+    np.testing.assert_allclose(
+        float(props['sed'][0](1000.0)),
+        float(props['sed'][37](1000.0)),
+        rtol=0.0,
+        atol=0.0,
+    )
+
+    # If both sed_col and sed_file_name are present, sed_col takes precedence.
+    config2 = dict(config, sed_col='sed_file')
+    _, _, _, props = piff.InputFiles(config2).getRawImageData(0)
+    assert props['sed'][0] is not props['sed'][1]
+
+    # Blank and missing sed_file_name should raise.
+    config3 = dict(config, sed_file_name='')
+    np.testing.assert_raises(Exception, piff.InputFiles, config3, logger=logger)
+
+    config4 = dict(config, sed_file_name='missing_sed_file_for_test.fits')
+    input = piff.InputFiles(config4, logger=logger)
+    np.testing.assert_raises(Exception, input.getRawImageData, 0)
+
+    # Invalid wave-type strings should raise when SED parsing is used.
+    config5 = dict(config, sed_wave_type='nm/s')
+    input = piff.InputFiles(config5, logger=logger)
+    np.testing.assert_raises(Exception, input.getRawImageData, 0)
+
+    # Absolute path for sed_file_name also works.
+    test_dir = os.path.dirname(os.path.realpath(__file__))
+    abs_sed = os.path.join(test_dir, 'input', 'xsl_spectrum_X0203_merged.fits')
+    input = piff.InputFiles(dict(config, sed_file_name=abs_sed), logger=logger)
+    input.getRawImageData(0)
+
+    # Missing/invalid unit specifications raise clear errors.
+    input = piff.InputFiles(dict(config, sed_wave_type=None), logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "wave_type is required" in str(e.value)
+
+    input = piff.InputFiles(dict(config, sed_flux_type=None), logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "flux_type is required" in str(e.value)
+
+    input = piff.InputFiles(dict(config, sed_wave_type='bad_wave'), logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "Invalid sed_wave_type" in str(e.value)
+
+    input = piff.InputFiles(dict(config, sed_flux_type='bad_flux'), logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "Invalid sed_flux_type" in str(e.value)
+
+    # Existing non-FITS file fails when forced through FITS fallback.
+    input = piff.InputFiles(dict(config, sed_file_name='table_xsl_dr3.dat'), logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "Could not read SED file" in str(e.value)
+
+    # FITS image HDU that is not a table fails table parsing.
+    input = piff.InputFiles(dict(config, sed_file_name='test_input_image_00.fits'),
+                            logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "Could not parse SED file" in str(e.value)
+    assert "as a FITS table" in str(e.value)
+
+    # Invalid FITS keys raise errors.
+    input = piff.InputFiles(dict(config, sed_wave_key='NO_WAVE'), logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "sed_wave_key" in str(e.value)
+
+    input = piff.InputFiles(dict(config, sed_flux_key='NO_FLUX'), logger=logger)
+    with pytest.raises(ValueError) as e:
+        input.getRawImageData(0)
+    assert "sed_flux_key" in str(e.value)
+
+
 if __name__ == '__main__':
     setup()
     test_basic()
@@ -2077,3 +2256,5 @@ if __name__ == '__main__':
     test_lsst_weight()
     test_stars()
     test_pointing()
+    test_sed_col()
+    test_single_sed()
