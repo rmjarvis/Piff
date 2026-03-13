@@ -306,6 +306,7 @@ class InputFiles(Input):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Files'
+    _sed_cache = {}
 
     def __init__(self, config, logger=None):
         import copy
@@ -1049,11 +1050,15 @@ class InputFiles(Input):
     @staticmethod
     def _read_sed_file(sed_file_name, sed_wave_type, sed_flux_type,
                        sed_wave_key, sed_flux_key):
+        cache_key = (sed_file_name, sed_wave_type, sed_flux_type, sed_wave_key, sed_flux_key)
+        if cache_key in InputFiles._sed_cache:
+            return InputFiles._sed_cache[cache_key]
+
         wave_type = InputFiles._parse_wave_type(sed_wave_type)
         flux_type = InputFiles._parse_flux_type(sed_flux_type)
         try:
             # If GalSim can read the file directly, let it do so.
-            return galsim.SED(sed_file_name, wave_type=wave_type, flux_type=flux_type)
+            sed = galsim.SED(sed_file_name, wave_type=wave_type, flux_type=flux_type)
         except Exception as e:
             # If GalSim failed because the file doesn't exist, just raise this error.
             if not os.path.isfile(sed_file_name):
@@ -1083,7 +1088,10 @@ class InputFiles(Input):
                                  sed_flux_key,)) from None
 
             table = galsim.LookupTable(wave, flux, interpolant='linear')
-            return galsim.SED(table, wave_type=wave_type, flux_type=flux_type)
+            sed = galsim.SED(table, wave_type=wave_type, flux_type=flux_type)
+
+        InputFiles._sed_cache[cache_key] = sed
+        return sed
 
     @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
@@ -1250,19 +1258,23 @@ class InputFiles(Input):
         if sed_col is not None:
             if sed_col not in cat.dtype.names:
                 raise ValueError("sed_col = %s is not a column in %s" % (sed_col, cat_file_name))
-            sed_cache = {}
             sed_values = []
+            sed_file_name_values = []
             for value in cat[sed_col]:
                 sed_file_name = InputFiles._resolve_sed_file_name(value, cat_file_name)
-                if sed_file_name not in sed_cache:
-                    sed_cache[sed_file_name] = InputFiles._read_sed_file(
-                        sed_file_name, sed_wave_type=sed_wave_type,
-                        sed_flux_type=sed_flux_type,
-                        sed_wave_key=sed_wave_key,
-                        sed_flux_key=sed_flux_key,
-                    )
-                sed_values.append(sed_cache[sed_file_name])
+                sed_file_name_values.append(sed_file_name)
+                sed_values.append(InputFiles._read_sed_file(
+                    sed_file_name, sed_wave_type=sed_wave_type,
+                    sed_flux_type=sed_flux_type,
+                    sed_wave_key=sed_wave_key,
+                    sed_flux_key=sed_flux_key,
+                ))
             extra_props['sed'] = np.array(sed_values, dtype=object)
+            extra_props['sed_file_name'] = np.array(sed_file_name_values, dtype=object)
+            extra_props['sed_wave_type'] = np.array([sed_wave_type] * len(cat), dtype=object)
+            extra_props['sed_flux_type'] = np.array([sed_flux_type] * len(cat), dtype=object)
+            extra_props['sed_wave_key'] = np.array([sed_wave_key] * len(cat), dtype=object)
+            extra_props['sed_flux_key'] = np.array([sed_flux_key] * len(cat), dtype=object)
         elif sed_file_name is not None:
             sed_file_name = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
             sed = InputFiles._read_sed_file(
@@ -1271,6 +1283,11 @@ class InputFiles(Input):
                 sed_flux_key=sed_flux_key
             )
             extra_props['sed'] = np.array([sed] * len(cat), dtype=object)
+            extra_props['sed_file_name'] = np.array([sed_file_name] * len(cat), dtype=object)
+            extra_props['sed_wave_type'] = np.array([sed_wave_type] * len(cat), dtype=object)
+            extra_props['sed_flux_type'] = np.array([sed_flux_type] * len(cat), dtype=object)
+            extra_props['sed_wave_key'] = np.array([sed_wave_key] * len(cat), dtype=object)
+            extra_props['sed_flux_key'] = np.array([sed_flux_key] * len(cat), dtype=object)
 
         # If we used a flag column, keep it as a property.
         if flag_col is not None:

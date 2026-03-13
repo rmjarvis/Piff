@@ -2245,6 +2245,68 @@ def test_single_sed():
     assert "sed_flux_key" in str(e.value)
 
 
+@timer
+def test_sed_star_io():
+    """Test that star serialization stores SED metadata and reconstructs sed on read.
+    """
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    config = {
+        'dir': 'input',
+        'image_file_name': 'test_input_image_00.fits',
+        'cat_file_name': 'test_input_cat_00.fits',
+        'x_col': 'x',
+        'y_col': 'y',
+        'sed_col': 'sed_file',
+        'sed_wave_type': 'nm',
+        'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+    }
+    stars = piff.InputFiles(config, logger=logger).makeStars(logger=logger)
+    assert len(stars) > 10
+    assert 'sed' in stars[0].data.properties
+    assert 'sed_file_name' in stars[0].data.properties
+    assert 'sed_wave_type' in stars[0].data.properties
+    assert 'sed_flux_type' in stars[0].data.properties
+    assert 'sed_wave_key' in stars[0].data.properties
+    assert 'sed_flux_key' in stars[0].data.properties
+
+    file_name = os.path.join('output', 'sed_star_io.fits')
+    with piff.writers.FitsWriter.open(file_name) as w:
+        piff.Star.write(stars, w, 'stars')
+
+    with fitsio.FITS(file_name) as f:
+        cols = f['stars'].get_colnames()
+    assert 'sed' not in cols
+    assert 'sed_file_name' in cols
+    assert 'sed_wave_type' in cols
+    assert 'sed_flux_type' in cols
+    assert 'sed_wave_key' in cols
+    assert 'sed_flux_key' in cols
+
+    with piff.readers.FitsReader.open(file_name) as r:
+        stars2 = piff.Star.read(r, 'stars')
+
+    for s1, s2 in zip(stars, stars2):
+        assert isinstance(s2['sed'], galsim.SED)
+        assert s1['sed_file_name'] == s2['sed_file_name']
+        assert s1['sed_wave_type'] == s2['sed_wave_type']
+        assert s1['sed_flux_type'] == s2['sed_flux_type']
+        assert s1['sed_wave_key'] == s2['sed_wave_key']
+        assert s1['sed_flux_key'] == s2['sed_flux_key']
+        np.testing.assert_allclose(
+            float(s2['sed'](1000.0)),
+            float(s1['sed'](1000.0)),
+            rtol=1.0e-12,
+            atol=0.0,
+        )
+    # Same file names should still share one cached SED after deserialization.
+    assert stars2[0]['sed'] is stars2[4]['sed']
+    assert stars2[1]['sed'] is stars2[5]['sed']
+
+
 if __name__ == '__main__':
     setup()
     test_basic()
@@ -2258,3 +2320,4 @@ if __name__ == '__main__':
     test_pointing()
     test_sed_col()
     test_single_sed()
+    test_sed_star_io()
