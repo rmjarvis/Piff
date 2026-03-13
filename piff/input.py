@@ -240,7 +240,7 @@ class InputFiles(Input):
                         no sky level will be subtracted off.
                         .. note::
                             The special value sky = 'median' means to compute the median of
-                            the image and use that as a the sky level.  Any other string value
+                            the image and use that as the sky level.  Any other string value
                             (rather than a float) indicates to get the value from the FITS
                             header.
         :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
@@ -780,6 +780,9 @@ class InputFiles(Input):
         :param noise:           Either a float constant noise value to use in lieu of a weight
                                 map or a str keyword to use to read a value from FITS header.
         :param sky:             If this is 'median', then treat the median as the sky level.
+                                Otherwise, the sky level is set to the value passed here,
+                                or to the value in the fits header associated to the
+                                keyword that's passed here.
         :param noise:           A constant noise value to use in lieu of a weight map.
         :param logger:          A logger object for logging debug info.
 
