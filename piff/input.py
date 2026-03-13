@@ -21,6 +21,7 @@ import scipy
 import glob
 import os
 import galsim
+import yaml
 
 from .util import run_multi
 from .star import Star, StarData
@@ -240,11 +241,13 @@ class InputFiles(Input):
                         begin with ``$`` or ``@`` are treated as config expressions; other
                         strings are left as literal strings. The explicit ``type``/``value``
                         dict form is also supported. [default: None]
-        :sed_col:       The name of a column with SED file names to load for each star.
-                        Loaded SEDs are attached as the ``sed`` star property.
-                        [default: None]
+        :sed_col:       The name of a column with per-star SED selectors. If ``sed_file_name``
+                        is not provided, selectors are interpreted as SED file names. If
+                        ``sed_file_name`` is provided, selectors are treated as keys in the
+                        SED mapping. [default: None]
         :sed_file_name: A single SED file name to use for all stars (if ``sed_col`` is
-                        not provided). [default: None]
+                        not provided), or a dict / YAML file mapping ``sed_col`` selectors to
+                        SED file names. [default: None]
         :sed_wave_type: Wavelength unit for SED files (e.g. ``nm``, ``Angstrom``).
                         [required if sed_col or sed_file_name is not None]
         :sed_flux_type: Flux convention for SED files (e.g. ``flambda``, ``fnu``,
@@ -328,7 +331,7 @@ class InputFiles(Input):
                 'property_cols' : list,
                 'properties' : dict,
                 'sed_col' : str,
-                'sed_file_name' : str,
+                'sed_file_name' : (str, dict),
                 'sed_wave_type' : str,
                 'sed_flux_type' : str,
                 'sed_wave_key' : str,
@@ -1094,6 +1097,18 @@ class InputFiles(Input):
         return sed
 
     @staticmethod
+    def _read_sed_mapping(sed_file_name, cat_file_name):
+        if isinstance(sed_file_name, dict):
+            return sed_file_name
+
+        sed_map_file = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
+        with open(sed_map_file) as f:
+            sed_map = yaml.safe_load(f)
+        if not isinstance(sed_map, dict):
+            raise ValueError("SED mapping file must parse to a dict: %r" % sed_map_file)
+        return sed_map
+
+    @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
@@ -1258,10 +1273,22 @@ class InputFiles(Input):
         if sed_col is not None:
             if sed_col not in cat.dtype.names:
                 raise ValueError("sed_col = %s is not a column in %s" % (sed_col, cat_file_name))
+            sed_map = None
+            if sed_file_name is not None:
+                sed_map = InputFiles._read_sed_mapping(sed_file_name, cat_file_name)
             sed_values = []
             sed_file_name_values = []
-            for value in cat[sed_col]:
-                sed_file_name = InputFiles._resolve_sed_file_name(value, cat_file_name)
+            for sed_label in cat[sed_col]:
+                if sed_map is not None:
+                    sed_label = os.fsdecode(sed_label).strip()
+                    if sed_label not in sed_map:
+                        raise ValueError(
+                            "sed_col value %r is not in sed_file_name mapping" % sed_label
+                        )
+                    sed_file_name = sed_map[sed_label]
+                else:
+                    sed_file_name = sed_label
+                sed_file_name = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
                 sed_file_name_values.append(sed_file_name)
                 sed_values.append(InputFiles._read_sed_file(
                     sed_file_name, sed_wave_type=sed_wave_type,
