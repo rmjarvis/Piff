@@ -764,7 +764,8 @@ class InputFiles(Input):
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
         :param sky_hdu:         The hdu to use in the sky_file_name (if any).
-        :param noise:           A constant noise value to use in lieu of a weight map.
+        :param noise:           Either a float constant noise value to use in lieu of a weight
+                                map or a str keyword to use to read a value from FITS header.
         :param logger:          A logger object for logging debug info.
 
         :returns: image, weight
