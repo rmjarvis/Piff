@@ -902,7 +902,10 @@ class InputFiles(Input):
     def _read_parquet_cat(cls, cat_file_name):
         import pyarrow.parquet as pq
         tab = pq.read_table(cat_file_name)
-        return tab.to_pandas().to_records(index=False)
+        # This works, but requires pandas
+        #return tab.to_pandas().to_records(index=False)
+        # This doesn't required pandas
+        return np.rec.fromarrays(tab.columns, names=tab.schema.names)
 
     @staticmethod
     def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
