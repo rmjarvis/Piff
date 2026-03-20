@@ -91,7 +91,7 @@ def test_roman_optics():
         assert prof is not None
         assert method == psf.model._method
         image = psf.draw(x=123.4, y=456.7, sca=5)
-        assert image.array.shape == (48, 48)
+        assert image.array.shape == (48, 48)  # Default stamp_size=48 in draw function.
         assert np.isclose(image.array.sum(), 1.0, rtol=0.05)
 
         # Helper function to use as a side-effect of getPSF to record what sca argument is used.

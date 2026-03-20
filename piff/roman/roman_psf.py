@@ -99,7 +99,7 @@ class RomanSCAInterp(Interp):
             return
         sca = sorted(self.sca_mean)
         mean = np.array([self.sca_mean[s] for s in sca])
-        #Writes an n_param length array 'mean' for each 'sca'
+        # Writes an n_param length array 'mean' for each 'sca'
         data = np.array(
             list(zip(sca, mean)),
             dtype=[('sca', int), ('mean', float, (len(self.global_mean),))],
