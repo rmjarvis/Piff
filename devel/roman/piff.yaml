@@ -49,7 +49,7 @@ psf:
         filter: H158
         chromatic: False
         max_zernike: 12    # Fit Zernike coefficients 4-12 inclusive.
-        aberration_prior_sigma: 0.05  # Gaussian prior on all Zernike coefficients.
+       aberration_prior_sigma: 0.05   # Gaussian prior on all Zernike coefficients in absolute units.
         nproc: 4
 
       - 
