@@ -110,7 +110,6 @@ from .size_mag import SizeMagStats, SmallBrightSelect, SizeMagSelect
 
 # Optics
 from .optical_model import Optical, optical_templates
-from .roman_psf import Roman, RomanOptics
 
 # Composite PSFs
 from .sumpsf import SumPSF
@@ -119,6 +118,7 @@ from .convolvepsf import ConvolvePSF
 # Leave these in their own namespaces
 from . import util
 from . import des
+from . import roman
 from . import wavefront
 from . import meta_data
 from . import readers
