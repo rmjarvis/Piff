@@ -300,6 +300,11 @@ def test_roman_fit():
             model.getProfile(params=np.zeros(model.param_len), star=None)
         assert "requires the star argument" in str(err.value)
 
+        # Error if params is given and has wrong length.
+        with pytest.raises(ValueError) as err:
+            model.getProfile(star=fit_star, params=np.zeros(model.param_len+2))
+        assert "params must have length 3" in str(err.value)
+
         # Error if convert_funcs is given but has different length than stars.
         with pytest.raises(ValueError) as err:
             model.fit_many([fit_star], convert_funcs=[])
