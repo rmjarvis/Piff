@@ -236,7 +236,7 @@ def test_convolve_optatm():
             'noise': noise**2,
         },
         'select': {
-            'max_snr': 1.e6,
+            'max_snr_weight': 1.e6,
             'max_edge_frac': 0.1,
             'hsm_size_reject': True,
         },
@@ -413,7 +413,7 @@ def test_convolve_pixelgrid():
             'noise': noise**2,
         },
         'select': {
-            'max_snr': 1.e6,
+            'max_snr_weight': 1.e6,
             'max_edge_frac': 0.1,
             'hsm_size_reject': True,
         },
@@ -568,7 +568,7 @@ def test_nested_convolve():
             'noise': noise**2,
         },
         'select': {
-            'max_snr': 1.e6,
+            'max_snr_weight': 1.e6,
             'max_edge_frac': 0.1,
             'hsm_size_reject': True,
         },

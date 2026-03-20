@@ -202,7 +202,7 @@ def test_easy_sum2():
             'trust_pos': True,
         },
         'select' : {
-            'max_snr': 1.e6,
+            'max_snr_weight': 1.e6,
         },
         'psf' : {
             'type' : 'Sum',
@@ -394,7 +394,7 @@ def test_mixed_pixel_sum2():
             'trust_pos': True,
         },
         'select' : {
-            'max_snr': 1.e6,
+            'max_snr_weight': 1.e6,
         },
         'psf' : {
             'type' : 'Sum',
@@ -583,7 +583,7 @@ def test_atmpsf():
             'noise': noise**2,
         },
         'select' : {
-            'max_snr': 1.e6,
+            'max_snr_weight': 1.e6,
             'max_edge_frac': 0.1,
             'hsm_size_reject': True,
         },

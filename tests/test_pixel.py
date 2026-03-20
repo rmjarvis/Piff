@@ -1388,7 +1388,7 @@ def test_des2():
             'stamp_size' : 25
         },
         'select' : {
-            'max_snr' : 100,
+            'max_snr_weight' : 100,
             'min_snr' : 20,
         },
         'output' : {
