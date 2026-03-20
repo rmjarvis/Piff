@@ -21,11 +21,12 @@ import galsim.roman
 import numpy as np
 import scipy.linalg
 
-from .interp import Interp
-from .model import Model
-from .outliers import Outliers
-from .psf import PSF
-from .star import Star
+from ..interp import Interp
+from ..model import Model
+from ..outliers import Outliers
+from ..psf import PSF
+from ..star import Star
+from ..config import LoggerWrapper
 
 # Global control of GalSim Roman pupil-plane resolution in getPSF calls.
 # Kept module-level so tests can override to faster values (e.g. 8 or 16).
@@ -591,7 +592,6 @@ class RomanOptics(PSF):
         return self.model.getProfile(params, star=star), self.model._method
 
     def _finish_write(self, writer, logger):
-        from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         chisq_dict = {
             'chisq': self.chisq,
