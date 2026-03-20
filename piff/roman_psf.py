@@ -172,7 +172,7 @@ class Roman(Model):
             'chromatic': self.chromatic,
             'max_zernike': self.max_zernike,
             'aberration_interp': self.aberration_interp,
-            'aberration_prior_sigma': self.prior_sigma if self.prior_sigma is not None else None,
+            'aberration_prior_sigma': self.prior_sigma,
         }
         self.sca_size = float(galsim.roman.n_pix)
         self.clear_cache()
