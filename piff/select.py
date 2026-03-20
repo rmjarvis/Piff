@@ -40,14 +40,14 @@ class Select(object):
 
     # Parameters that derived classes should ignore if they appear in the config dict
     # (since they are handled by the base class).
-    base_keys= ['min_snr', 'max_snr', 'hsm_size_reject', 'max_pixel_cut', 'reject_where',
+    base_keys= ['min_snr', 'max_snr_weight', 'hsm_size_reject', 'max_pixel_cut', 'reject_where',
                 'max_edge_frac', 'stamp_center_size', 'max_mask_pixels', 'nstars', 'min_sep',
-                'reserve_frac', 'seed']
+                'reserve_frac', 'seed', 'max_snr']
 
     def __init__(self, config, logger=None):
         # Read the optional parameters that are used by the base class.
         self.min_snr = config.get('min_snr', None)
-        self.max_snr = config.get('max_snr', 100)
+        self.max_snr_weight = config.get('max_snr_weight', 100)
         self.max_edge_frac = config.get('max_edge_frac', None)
         self.stamp_center_size = config.get('stamp_center_size', 13)
         self.max_mask_pixels = config.get('max_mask_pixels', None)
@@ -58,6 +58,12 @@ class Select(object):
         self.reserve_frac = config.get('reserve_frac', 0.)
         self.nstars = config.get('nstars', None)
         self.rng = np.random.default_rng(config.get('seed', None))
+
+        if 'max_snr' in config:
+            import warnings
+            warnings.warn("max_snr has been renamed max_snr_weight as of version 1.7",
+                          DeprecationWarning)
+            self.max_snr_weight = config.get('max_snr', 100)
 
         if self.hsm_size_reject == 1:
             # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
@@ -95,11 +101,11 @@ class Select(object):
 
             :min_snr:       The minimum S/N ratio to use.  If an input star is too faint, it is
                             removed from the input list of PSF stars.
-            :max_snr:       The maximum S/N ratio to allow for any given star.  If an input star
-                            is too bright, it can have too large an influence on the interpolation,
-                            so this parameter limits the effective S/N of any single star.
-                            Basically, it adds noise to bright stars to lower their S/N down to
-                            this value.  [default: 100]
+            :max_snr_weight: The maximum effective S/N ratio to use for the weights of any star.
+                            If an input star is too bright, it can have too large an influence on
+                            the interpolation, so this parameter limits the effective S/N of any
+                            single star.  Basically, it adds noise to bright stars to lower their
+                            S/N down to this value.  [default: 100]
             :max_edge_frac: Cutoff on the fraction of the flux comming from pixels on the edges of
                             the postage stamp. [default: None]
             :stamp_center_size: Distance from center of postage stamp (in pixels) to consider as
@@ -141,9 +147,9 @@ class Select(object):
 
         .. note::
 
-            The max_snr parameter is not actually a "selection" parameter.  It doesn't change
-            what stars are used.  Rather, it adjusts the relative weight that is given to the
-            brightest stars (so that they don't dominate the fit).
+            The max_snr_weight parameter is not actually a "selection" parameter.  It doesn't
+            change what stars are used.  Rather, it adjusts the relative weight that is given to
+            the brightest stars (so that they don't dominate the fit).
 
         :param config_select:   The configuration dict.
         :param objects:         A list of Star instances, which are at this point all potential
@@ -269,12 +275,12 @@ class Select(object):
                                star.image_pos.x, star.image_pos.y, raw_snr)
                 continue
             snr = raw_snr
-            if self.max_snr > 0 and snr > self.max_snr:
-                factor = (self.max_snr / snr)**2
+            if self.max_snr_weight > 0 and snr > self.max_snr_weight:
+                factor = (self.max_snr_weight / snr)**2
                 logger.debug("Scaling noise by factor of %f to achieve snr=%f",
-                             factor, self.max_snr)
+                             factor, self.max_snr_weight)
                 star.data.weight *= factor
-                snr = self.max_snr
+                snr = self.max_snr_weight
                 logger.debug("SNR => %f",snr)
             star.data.properties['snr'] = snr
             star.data.properties['raw_snr'] = raw_snr

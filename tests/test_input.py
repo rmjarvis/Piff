@@ -307,7 +307,7 @@ def test_basic():
     # setting a number for each input file when there are multiple catalogs.
     # It also selects the N highest-S/N stars after doing all other selection/rejections steps.
     # These are going to be the best subset to use for PSF estimation.
-    select_config = {'nstars': 37, 'max_snr': 1.e9}
+    select_config = {'nstars': 37, 'max_snr_weight': 1.e9}
     stars = piff.Select.process(select_config, objects, logger=logger)
     assert len(stars) == 37
     snr_list = np.array([piff.util.calculateSNR(obj.image, obj.weight) for obj in objects])
@@ -317,7 +317,7 @@ def test_basic():
     assert np.count_nonzero(snr_list >= cutoff) >= len(stars)
 
     # The nstars limit is applied after other selection cuts.
-    select_config = {'min_snr': 35, 'max_snr': 1.e9, 'nstars': 12}
+    select_config = {'min_snr': 35, 'max_snr_weight': 1.e9, 'nstars': 12}
     stars = piff.Select.process(select_config, objects, logger=logger)
     assert len(stars) == 12
     allowed = [obj for obj in objects if piff.util.calculateSNR(obj.image, obj.weight) >= 35]
@@ -327,10 +327,10 @@ def test_basic():
     assert np.count_nonzero(snr_list > cutoff) < len(stars)
     assert np.count_nonzero(snr_list >= cutoff) >= len(stars)
 
-    # nstars ranking should use unclipped S/N even when max_snr clips the fit weighting.
+    # nstars ranking should use unclipped S/N even when max_snr_weight clips the fit weighting.
     objects2 = input.makeStars(logger=logger)
     snr_list2 = np.array([piff.util.calculateSNR(obj.image, obj.weight) for obj in objects2])
-    select_config = {'nstars': 12, 'max_snr': 20}
+    select_config = {'nstars': 12, 'max_snr_weight': 20}
     stars = piff.Select.process(select_config, objects2, logger=logger)
     assert len(stars) == 12
     expected = np.sort(np.sort(snr_list2)[::-1][:12])
@@ -1537,7 +1537,7 @@ def test_stars():
     image_file = 'test_input_image_00.fits'
     cat_file = 'test_input_cat_00.fits'
 
-    # Turn off two defaults for now (max_snr=100 and use_partial=False)
+    # Turn off two defaults for now (max_snr_weight=100 and use_partial=False)
     config = {
         'input' : {
                 'dir' : dir,
@@ -1549,7 +1549,7 @@ def test_stars():
                 'use_partial' : True,
              },
         'select': {
-                'max_snr' : 0,
+                'max_snr_weight' : 0,
         }
     }
     input = piff.InputFiles(config['input'], logger=logger)
@@ -1566,12 +1566,12 @@ def test_stars():
     np.testing.assert_array_equal(gain_list, gain_list[0])
     np.testing.assert_almost_equal(snr_list, snr_list2, decimal=5)
     print('min_snr = ',np.min(snr_list))
-    print('max_snr = ',np.max(snr_list))
+    print('max_snr_weight = ',np.max(snr_list))
     assert np.min(snr_list) < 30.
     assert np.max(snr_list) > 600.
 
-    # max_snr increases the noise to achieve a maximum snr
-    config['select']['max_snr'] = 120
+    # max_snr_weight increases the noise to achieve a maximum snr
+    config['select']['max_snr_weight'] = 120
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -1591,7 +1591,18 @@ def test_stars():
     assert np.all(snr_list2[hi] <= 120.)
     assert np.all(snr_list2[hi] > 110.)
 
-    # The default is max_snr == 100
+    # max_snr is equivalent but deprecated.
+    del config['select']['max_snr_weight']
+    config['select']['max_snr'] = 120
+    with np.testing.assert_warns(DeprecationWarning):
+        select = piff.FlagSelect(config['select'], logger=logger)
+    stars2 = input.makeStars(logger=logger)
+    stars2 = select.rejectStars(stars2, logger=logger)
+    assert len(stars) == 100
+    snr_list2 = [ star['snr'] for star in stars ]
+    np.testing.assert_array_equal(snr_list2, snr_list)
+
+    # The default is max_snr_weight == 100
     del config['select']['max_snr']
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1675,13 +1686,13 @@ def test_stars():
 
     # Gratuitous coverage test.  If all objects have snr < 40, then max_pixel_cut doesn't
     # remove anything, since it only considers stars with snr > 40.
-    config['select']['max_snr'] = 30
+    config['select']['max_snr_weight'] = 30
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 90
-    del config['select']['max_snr']
+    del config['select']['max_snr_weight']
     del config['select']['max_pixel_cut']
 
     # hsm_size_reject=True rejects a few of these.  But mostly objects with neighbors.
@@ -1803,20 +1814,20 @@ def test_select_min_sep():
     ]
 
     # Disable SNR clipping so this test only exercises min_sep neighbor rejection behavior.
-    select = piff.FlagSelect({'max_snr': 0, 'min_sep': 0.5}, logger=logger)
+    select = piff.FlagSelect({'max_snr_weight': 0, 'min_sep': 0.5}, logger=logger)
     kept = select.rejectStars(stars, logger=logger)
     assert len(kept) == 2
     assert sorted(int(s['chipnum']) for s in kept) == [0, 1]
     assert any(np.isclose(s['x'], 30.0) and np.isclose(s['y'], 10.0) for s in kept)
 
     # Smaller threshold should keep all stars.
-    select = piff.FlagSelect({'max_snr': 0, 'min_sep': 0.2}, logger=logger)
+    select = piff.FlagSelect({'max_snr_weight': 0, 'min_sep': 0.2}, logger=logger)
     kept = select.rejectStars(stars, logger=logger)
     assert len(kept) == 4
 
     # Invalid negative min_sep should raise when min_sep logic is used.
     with np.testing.assert_raises(ValueError):
-        select = piff.FlagSelect({'max_snr': 0, 'min_sep': -0.1}, logger=logger)
+        select = piff.FlagSelect({'max_snr_weight': 0, 'min_sep': -0.1}, logger=logger)
         select.rejectStars(stars, logger=logger)
 
 
