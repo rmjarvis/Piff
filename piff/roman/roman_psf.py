@@ -125,7 +125,7 @@ class RomanSCAInterp(Interp):
         )
 
 
-class Roman(Model):
+class RomanOpticalModel(Model):
     """Model a Roman PSF using GalSim's built-in Roman optical model.
 
     The expensive GalSim Roman PSF construction is approximated as a bilinear function across
@@ -452,7 +452,7 @@ class Roman(Model):
         )
 
 
-class RomanOptics(PSF):
+class RomanOpticsPSF(PSF):
     """A PSF wrapper for Roman optical fits with configurable aberration interpolation."""
 
     _type_name = 'RomanOptics'
@@ -507,7 +507,7 @@ class RomanOptics(PSF):
         model_interp = 'constant' if aberration_interp == 'global' else aberration_interp
         interp_per_sca = (aberration_interp != 'global')
 
-        model = Roman(aberration_interp=model_interp, logger=logger, **kwargs)
+        model = RomanOpticalModel(aberration_interp=model_interp, logger=logger, **kwargs)
         interp = RomanSCAInterp(per_sca=interp_per_sca)
 
         parsed = {

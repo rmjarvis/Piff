@@ -24,7 +24,7 @@ import piff
 import galsim
 import pytest
 
-from piff.roman import Roman, RomanOptics, RomanSCAInterp
+from piff.roman import RomanOpticsPSF, RomanOpticalModel, RomanSCAInterp
 from piff_test_helper import timer
 
 
@@ -52,7 +52,7 @@ def test_roman_optics():
         psf = piff.PSF.process(
             {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
         )
-        assert isinstance(psf, RomanOptics)
+        assert isinstance(psf, RomanOpticsPSF)
         logger = piff.config.setup_logger()
         assert psf.interp_property_names == ('sca',)
         assert psf.fit_center is False
@@ -179,21 +179,21 @@ def test_roman_optics():
 
     # max_zernike must be >= 4
     with pytest.raises(ValueError) as err:
-        Roman(filter='H158', chromatic=False, max_zernike=3)
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=3)
     assert "range 4..22" in str(err.value)
 
     # max_zernike must be <= 22
     with pytest.raises(ValueError) as err:
-        Roman(filter='H158', chromatic=False, max_zernike=23)
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=23)
     assert "range 4..22" in str(err.value)
 
     # Check invalid filter string
     with pytest.raises(ValueError) as err:
-        Roman(filter='NotAFilter', chromatic=False, max_zernike=6)
+        RomanOpticalModel(filter='NotAFilter', chromatic=False, max_zernike=6)
     assert "not a valid GalSim Roman bandpass" in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        Roman(filter='H158', chromatic=False, max_zernike=6, aberration_interp='bad')
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6, aberration_interp='bad')
     assert "must be one of" in str(err.value)
 
 @timer
@@ -239,7 +239,7 @@ def test_roman_fit():
     """Check local convergence of single-star Roman fits in constant mode.
     """
     with fast_pupil_bin():
-        model = Roman(
+        model = RomanOpticalModel(
             filter='H158',
             chromatic=False,
             max_zernike=6,
@@ -311,13 +311,13 @@ def test_roman_aberration_prior():
     """Validate the use of priors on the aberration values.
     """
     # Check that fitted aberrations stay closer to 0 when strong prior is applied.
-    weak_prior = Roman(
+    weak_prior = RomanOpticalModel(
         filter='H158',
         chromatic=False,
         max_zernike=6,
         aberration_prior_sigma=1.0e6,
     )
-    strong_prior = Roman(
+    strong_prior = RomanOpticalModel(
         filter='H158',
         chromatic=False,
         max_zernike=6,
@@ -334,7 +334,7 @@ def test_roman_aberration_prior():
     assert abs(new_strong[0]) < abs(new_weak[0])
 
     # None means no prior, which is equivalent to infinite prior.
-    no_prior = Roman(
+    no_prior = RomanOpticalModel(
         filter='H158',
         chromatic=False,
         max_zernike=6,
@@ -351,7 +351,7 @@ def test_roman_aberration_prior():
     np.testing.assert_allclose(atb, atb0)
 
     # Compare the solve to what you get with an actually infinite prior.
-    inf_prior = Roman(
+    inf_prior = RomanOpticalModel(
         filter='H158',
         chromatic=False,
         max_zernike=6,
@@ -365,24 +365,24 @@ def test_roman_aberration_prior():
 
     # prior length must match number of zernikes used
     with pytest.raises(ValueError) as err:
-        Roman(filter='H158', chromatic=False, max_zernike=6,
-              aberration_prior_sigma=[1.0, 2.0])
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
+                          aberration_prior_sigma=[1.0, 2.0])
     assert "scalar or length 3" in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        Roman(filter='H158', chromatic=False, max_zernike=6,
-              aberration_prior_sigma=[])
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
+                          aberration_prior_sigma=[])
     assert "scalar or length 3" in str(err.value)
 
     # priors cannot be <= 0
     with pytest.raises(ValueError) as err:
-        Roman(filter='H158', chromatic=False, max_zernike=6,
-              aberration_prior_sigma=[1.0, 0.0, 1.0])
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
+                          aberration_prior_sigma=[1.0, 0.0, 1.0])
     assert "must all be > 0" in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        Roman(filter='H158', chromatic=False, max_zernike=6,
-              aberration_prior_sigma=[1.0, -1.0, 1.0])
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
+                          aberration_prior_sigma=[1.0, -1.0, 1.0])
     assert "must all be > 0" in str(err.value)
 
 
@@ -391,7 +391,7 @@ def test_roman_fit_many():
     """Check accuracy of fitting multiple stars using fit_many.
     """
     with fast_pupil_bin():
-        model = Roman(
+        model = RomanOpticalModel(
             filter='H158',
             chromatic=False,
             max_zernike=6,
