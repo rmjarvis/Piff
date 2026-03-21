@@ -678,6 +678,22 @@ def test_cols():
     print('len = ',len(image_pos))
     assert len(image_pos) == 12
 
+    # If no valid stars according to flags, Input.process raises an error.
+    # (Here we set the use_flag = 128, which no stars have set.)
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'flag_col' : 'flag',
+                'use_flag' : 128
+             }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, _ = input.getRawImageData(0)
+    print('len = ',len(image_pos))
+    assert len(image_pos) == 0
+    with np.testing.assert_raises(RuntimeError):
+        piff.Input.process(config, logger=logger)
+
     # Check property_cols gets set for stars' props_dict correctly
     cat_file_name = os.path.join('input', 'test_input_cat_00.fits')
     data = fitsio.read(cat_file_name)
