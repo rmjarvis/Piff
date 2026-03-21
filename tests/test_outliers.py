@@ -284,6 +284,19 @@ def test_centroid():
     assert psf2.outliers[0]._type_name == 'Chisq'
     assert psf2.outliers[1]._type_name == 'Centroid'
 
+    # No outliers also round trip correctly.
+    psf.outliers = None
+    fn = os.path.join('output', 'outliers_writenone_test.piff')
+    psf.write(fn)
+    psf2 = piff.read(fn)
+    assert psf2.outliers is None
+    with piff.readers.FitsReader.open(fn) as r:
+        out2 = piff.Outliers.read_all(r, 'outliers')
+    assert out2 is None
+    with piff.readers.FitsReader.open(fn) as r:
+        out3 = piff.Outliers.read(r, 'outliers')
+    assert out3 is None
+
 
 if __name__ == '__main__':
     test_chisq()
