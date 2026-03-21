@@ -118,6 +118,7 @@ from .convolvepsf import ConvolvePSF
 # Leave these in their own namespaces
 from . import util
 from . import des
+from . import roman
 from . import wavefront
 from . import meta_data
 from . import readers

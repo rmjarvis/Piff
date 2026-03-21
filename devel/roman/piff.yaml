@@ -1,0 +1,76 @@
+input:
+
+    # This file is quite large, so not saved in the repo.
+    # It and the cat_file are available from here:
+    #   https://drive.google.com/drive/folders/1akvHjdKSTMppPTcNfXjEy9SVq_hFBDBc
+    image_file_name: 'ffov_13906_test_v251020.fits'
+    image_hdu: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]  # hdu = SCA
+    badpix_zeros: True
+
+    cat_file_name: 'stars_13906_test_v251105.parquet'
+
+    ra_col: ra
+    dec_col: dec
+    properties:
+        sca: '$@image_num + 1'
+    noise: BKGNDVAR
+    gain: EQVGAIN
+    sky: median
+
+    stamp_size: 25
+
+select:
+
+    min_snr: 50           # reject very faint stars
+    #max_snr: 500          # don't over-weight very bright stars
+    #max_mask_pixels: 10   # how many pixels in stamp are allowed to be masked.
+    hsm_size_reject: 5    # number of inter-quartile ranges from median to reject size estimate.
+    max_pixel_cut: 50000  # reject stars with a pixel value higher than this. (sort of)
+    min_sep: 1.0          # reject stars with a neighbor closer than 1 arcsec away.
+    #nstars: 100
+
+output:
+    file_name: 'ffov_13906_1.piff'
+
+    stats:
+        - 
+          type: StarImages
+          file_name: stars.png
+          nplot: 0  # all stars
+
+psf:
+
+    type: Sum
+
+    components:
+
+      -
+        type: RomanOptics
+        filter: H158
+        chromatic: False
+        max_zernike: 12    # Fit Zernike coefficients 4-12 inclusive.
+       aberration_prior_sigma: 0.05   # Gaussian prior on all Zernike coefficients in absolute units.
+        nproc: 4
+
+      - 
+        type: Simple
+        model:
+            type: PixelGrid
+            scale: 0.11
+            size: 5
+        interp:
+            type: BasisPolynomial
+            order: 2
+
+    outliers:
+      -
+        type: Chisq
+        nsigma: 5
+        max_remove: 0.01
+      -
+        type: Centroid
+        max_offset: 0.2 # arcsec
+
+
+  
+verbose: 2

@@ -1102,7 +1102,7 @@ def test_depr_select():
                 'nstars': 15,  # Just to make the test faster
              },
         'select': {
-                'max_snr' : 200,
+                'max_snr_weight' : 200,
                 'min_snr' : 20,
                 'hsm_size_reject' : 20,
                 'max_edge_frac': 0.25,
@@ -1144,12 +1144,12 @@ def test_depr_select():
 
     # Also ok for some items to be in select, but erroneously put some in input.
     config['input']['min_snr'] = config['select'].pop('min_snr')
-    config['input']['max_snr'] = config['select'].pop('max_snr')
+    config['input']['max_snr_weight'] = config['select'].pop('max_snr_weight')
     config = galsim.config.CleanConfig(config)
     print('config = ',config)
     with CaptureLog(level=1) as cl:
         piff.piffify(config, cl.logger)
-    assert "WARNING: Items ['max_snr', 'min_snr'] should now be in the 'select' field of the config file." in cl.output
+    assert "WARNING: Items ['max_snr_weight', 'min_snr'] should now be in the 'select' field of the config file." in cl.output
     psf3 = piff.read(psf_file)
     print('len3 = ',len(psf3.stars))
     assert len(psf1.stars) == len(psf3.stars)
