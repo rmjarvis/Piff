@@ -21,6 +21,7 @@ import galsim.roman
 import numpy as np
 import scipy.linalg
 import copy
+from galsim.utilities import lazy_property
 
 from ..interp import Interp
 from ..model import Model
@@ -130,10 +131,11 @@ class RomanSCAInterp(Interp):
 class RomanOpticalModel(Model):
     """Model a Roman PSF using GalSim's built-in Roman optical model.
 
-    The expensive GalSim Roman PSF construction is approximated as a bilinear function across
-    each SCA. For each ``(sca, params)`` state we build corner PSFs at the four SCA corners and
-    interpolate between them at each star position. This keeps the optical model much faster when
-    many stars on a chip share similar parameter vectors.
+    The expensive GalSim Roman PSF construction is approximated across each SCA by evaluating
+    PSFs at a small set of fixed sample points and interpolating between them at each star
+    position. ``nominal_interp='bilinear'`` uses the four SCA corners; ``'five_point'`` adds
+    the SCA center and uses a five-term basis ``[1, x, y, x*y, (x^2+y^2)]`` in normalized
+    coordinates.
     """
 
     _type_name = 'Roman'
@@ -147,6 +149,7 @@ class RomanOpticalModel(Model):
         chromatic=True,
         max_zernike=22,
         aberration_interp='constant',
+        nominal_interp='bilinear',
         aberration_prior_sigma=0.05,
         nproc=1,
         logger=None,
@@ -156,6 +159,7 @@ class RomanOpticalModel(Model):
         self.chromatic = chromatic
         self.max_zernike = int(max_zernike)
         self.aberration_interp = str(aberration_interp)
+        self.nominal_interp = str(nominal_interp)
         self.nproc = int(nproc)
         self.set_num(None)
 
@@ -163,6 +167,8 @@ class RomanOpticalModel(Model):
             raise ValueError("max_zernike must be in the range 4..22")
         if self.aberration_interp not in ('global', 'constant', 'linear'):
             raise ValueError("aberration_interp must be one of 'global', 'constant', 'linear'")
+        if self.nominal_interp not in ('bilinear', 'five_point'):
+            raise ValueError("nominal_interp must be one of 'bilinear', 'five_point'")
 
         # Notation: filter is the string name of the filter.
         #           bandpass is the galsim.Bandpass object with the transmission function.
@@ -180,6 +186,7 @@ class RomanOpticalModel(Model):
             'chromatic': self.chromatic,
             'max_zernike': self.max_zernike,
             'aberration_interp': self.aberration_interp,
+            'nominal_interp': self.nominal_interp,
             'aberration_prior_sigma': self.orig_prior_sigma,
             'nproc': self.nproc,
         }
@@ -472,16 +479,25 @@ class RomanOpticalModel(Model):
                 return cached_profiles
 
         wavelength = None if self.chromatic else self.bandpass.effective_wavelength
-        corners = (
+        corners = [
             galsim.PositionD(0.0, 0.0),
             galsim.PositionD(self.sca_size, 0.0),
             galsim.PositionD(0.0, self.sca_size),
             galsim.PositionD(self.sca_size, self.sca_size),
-        )
+        ]
+        if self.nominal_interp == 'five_point':
+            corners.append(galsim.PositionD(0.5 * self.sca_size, 0.5 * self.sca_size))
         if self.aberration_interp == 'linear':
             corner_params = params.reshape(4, self._corner_param_len)
+            if self.nominal_interp == 'five_point':
+                # Add the center-evaluated extra_aberrations for the fifth sample point.
+                # In linear mode, center is the bilinear average of the four corners.
+                center_params = np.mean(corner_params, axis=0)
+                corner_params = np.vstack((corner_params, center_params))
         else:
-            corner_params = np.tile(params, 4).reshape(4, self._corner_param_len)
+            npts = 5 if self.nominal_interp == 'five_point' else 4
+            # In constant/global mode, the same per-SCA vector applies everywhere.
+            corner_params = np.tile(params, npts).reshape(npts, self._corner_param_len)
         profiles = tuple(
             galsim.roman.getPSF(
                 sca,
@@ -499,9 +515,14 @@ class RomanOpticalModel(Model):
         return profiles
 
     def _interpolate_corners(self, star, corner_profiles):
-        w_ll, w_lr, w_ul, w_ur = self._corner_weights(star)
-        ll, lr, ul, ur = corner_profiles
-        return w_ll * ll + w_lr * lr + w_ul * ul + w_ur * ur
+        if self.nominal_interp == 'five_point':
+            w_ll, w_lr, w_ul, w_ur, w_c = self._five_point_weights(star)
+            ll, lr, ul, ur, c = corner_profiles
+            return w_ll * ll + w_lr * lr + w_ul * ul + w_ur * ur + w_c * c
+        else:
+            w_ll, w_lr, w_ul, w_ur = self._corner_weights(star)
+            ll, lr, ul, ur = corner_profiles
+            return w_ll * ll + w_lr * lr + w_ul * ul + w_ur * ur
 
     def _corner_weights(self, star):
         x = np.clip(star.image_pos.x, 0.0, self.sca_size)
@@ -514,6 +535,36 @@ class RomanOpticalModel(Model):
             (1.0 - fx) * fy,
             fx * fy,
         )
+
+    @staticmethod
+    def _five_point_weight_matrix():
+        # Basis functions are [1, x, y, xy, x^2+y^2], with x,y normalized to [-1,1].
+        points = np.array([
+            [-1.0, -1.0],  # LL
+            [1.0, -1.0],   # LR
+            [-1.0, 1.0],   # UL
+            [1.0, 1.0],    # UR
+            [0.0, 0.0],    # C
+        ])
+        basis = np.empty((5, 5), dtype=float)
+        basis[:, 0] = 1.0
+        basis[:, 1] = points[:, 0]
+        basis[:, 2] = points[:, 1]
+        basis[:, 3] = points[:, 0] * points[:, 1]
+        basis[:, 4] = points[:, 0] ** 2 + points[:, 1] ** 2
+        return np.linalg.inv(basis.T)
+
+    @lazy_property
+    def _five_point_solver(self):
+        return self._five_point_weight_matrix()
+
+    def _five_point_weights(self, star):
+        x = np.clip(star.image_pos.x, 0.0, self.sca_size)
+        y = np.clip(star.image_pos.y, 0.0, self.sca_size)
+        xn = 2.0 * x / self.sca_size - 1.0
+        yn = 2.0 * y / self.sca_size - 1.0
+        phi = np.array([1.0, xn, yn, xn * yn, xn * xn + yn * yn], dtype=float)
+        return tuple(self._five_point_solver.dot(phi))
 
 
 class RomanOpticsPSF(PSF):
