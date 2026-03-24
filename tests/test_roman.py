@@ -58,6 +58,7 @@ def test_roman_optics():
         assert psf.fit_center is False
         assert psf.include_model_centroid is False
         assert psf.model.aberration_interp == 'constant'
+        assert psf.model.nominal_interp == 'bilinear'
         assert psf.interp.per_sca is True
 
         # Global mode uses one aberration vector for full focal plane.
@@ -196,6 +197,10 @@ def test_roman_optics():
         RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6, aberration_interp='bad')
     assert "must be one of" in str(err.value)
 
+    with pytest.raises(ValueError) as err:
+        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6, nominal_interp='bad')
+    assert "must be one of" in str(err.value)
+
 @timer
 def test_roman_corner_cache():
     """Verify corner-profile caching reuses one 4-corner set for same SCA and params.
@@ -232,6 +237,76 @@ def test_roman_corner_cache():
         assert len(psf.model._corner_cache) == 1
         assert 5 in psf.model._corner_cache
         assert len(psf.model._corner_cache[5][2]) == 4
+
+        # In five-point mode, the cache stores four corners plus center.
+        psf5 = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'filter': 'H158',
+                'chromatic': False,
+                'max_zernike': 6,
+                'nominal_interp': 'five_point',
+            }
+        )
+        stars5, _ = psf5.initialize_params(stars, logger=logger)
+        psf5.drawStar(stars5[0])
+        params5 = stars5[0].fit.params
+        profiles5 = psf5.model._get_corner_profiles(stars5[0], params5, cache=True)
+        assert len(profiles5) == 5
+        assert len(psf5.model._corner_cache[5][2]) == 5
+
+
+@timer
+def test_roman_five_point_weights():
+    """Check five-point interpolation weights for corner/center and quadratic basis terms.
+    """
+    with fast_pupil_bin():
+        model = RomanOpticalModel(
+            filter='H158',
+            chromatic=False,
+            max_zernike=6,
+            nominal_interp='five_point',
+        )
+        sca = 7
+        s = model.sca_size
+
+        def make_star(x, y):
+            return piff.Star.makeTarget(
+                x=x,
+                y=y,
+                stamp_size=25,
+                scale=0.11,
+                properties={'sca': sca},
+            ).withFlux(1.0, (0.0, 0.0))
+
+        # Sampling locations used by the interpolation should be one-hot.
+        w_ll = model._five_point_weights(make_star(0.0, 0.0))
+        w_lr = model._five_point_weights(make_star(s, 0.0))
+        w_ul = model._five_point_weights(make_star(0.0, s))
+        w_ur = model._five_point_weights(make_star(s, s))
+        w_c = model._five_point_weights(make_star(0.5 * s, 0.5 * s))
+        np.testing.assert_allclose(w_ll, [1, 0, 0, 0, 0], atol=1.e-12, rtol=0.0)
+        np.testing.assert_allclose(w_lr, [0, 1, 0, 0, 0], atol=1.e-12, rtol=0.0)
+        np.testing.assert_allclose(w_ul, [0, 0, 1, 0, 0], atol=1.e-12, rtol=0.0)
+        np.testing.assert_allclose(w_ur, [0, 0, 0, 1, 0], atol=1.e-12, rtol=0.0)
+        np.testing.assert_allclose(w_c, [0, 0, 0, 0, 1], atol=1.e-12, rtol=0.0)
+
+        # Verify exact reproduction of [1, x, y, xy, x^2+y^2] basis under this interpolation.
+        corner_xy = np.array([[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]], dtype=float)
+
+        def basis_values(xn, yn):
+            return np.array([1.0, xn, yn, xn * yn, xn * xn + yn * yn], dtype=float)
+
+        corner_basis = np.array([basis_values(xn, yn) for xn, yn in corner_xy])
+        test_positions = [(0.13 * s, 0.27 * s), (0.82 * s, 0.39 * s), (0.61 * s, 0.91 * s)]
+        for x, y in test_positions:
+            star = make_star(x, y)
+            w = np.array(model._five_point_weights(star))
+            xn = 2.0 * np.clip(x, 0.0, s) / s - 1.0
+            yn = 2.0 * np.clip(y, 0.0, s) / s - 1.0
+            expected = basis_values(xn, yn)
+            interp = w.dot(corner_basis)
+            np.testing.assert_allclose(interp, expected, atol=1.e-12, rtol=0.0)
 
 
 @timer
@@ -1063,6 +1138,7 @@ def test_roman_sca_interp():
 if __name__ == '__main__':
     test_roman_optics()
     test_roman_corner_cache()
+    test_roman_five_point_weights()
     test_roman_fit()
     test_roman_aberration_prior()
     test_roman_fit_many()
