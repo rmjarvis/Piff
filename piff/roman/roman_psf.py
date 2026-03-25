@@ -21,7 +21,6 @@ import galsim.roman
 import numpy as np
 import scipy.linalg
 import copy
-from galsim.utilities import lazy_property
 
 from ..interp import Interp
 from ..model import Model
@@ -191,6 +190,7 @@ class RomanOpticalModel(Model):
             'nproc': self.nproc,
         }
         self.sca_size = float(galsim.roman.n_pix)
+        self._roman_five_point_data = {}
         self.clear_cache()
 
     def __getstate__(self):
@@ -202,12 +202,12 @@ class RomanOpticalModel(Model):
     @property
     def param_len(self):
         if self.aberration_interp == 'linear':
-            return 4 * self._corner_param_len
+            return 4 * self._single_point_param_len
         else:
-            return self._corner_param_len
+            return self._single_point_param_len
 
     @property
-    def _corner_param_len(self):
+    def _single_point_param_len(self):
         return self.max_zernike - 3
 
     def initialize_iteration(self):
@@ -216,6 +216,61 @@ class RomanOpticalModel(Model):
 
     def clear_cache(self):
         self._corner_cache = {}
+
+    def _get_roman_five_point_data(self, sca):
+        if sca in self._roman_five_point_data:
+            return self._roman_five_point_data[sca]
+
+        aberrations, x_pos, y_pos = galsim.roman.roman_psfs._read_aberrations(sca)
+        center = galsim.PositionD(x_pos[0], y_pos[0])
+
+        # The project aberrations data has aberration values at 5 points on each SCA:
+        # the four corners plus the center.  The center is always at position 0, but
+        # the others aren't necessarily in the same order each time.  So figure out
+        # which one is which.
+        # cf. _interp_aberrations_bilinear in galsim.roman.roman_psfs.py
+        ll = ul = lr = ur = None
+        for i in range(1, 5):
+            if x_pos[i] < x_pos[0] and y_pos[i] < y_pos[0]:
+                ll = i
+            if x_pos[i] < x_pos[0] and y_pos[i] > y_pos[0]:
+                ul = i
+            if x_pos[i] > x_pos[0] and y_pos[i] < y_pos[0]:
+                lr = i
+            if x_pos[i] > x_pos[0] and y_pos[i] > y_pos[0]:
+                ur = i
+        assert None not in (ll, ul, lr, ur)
+
+        # Order as (ll, lr, ul, ur, center) to match the rest of this class.
+        idx = (ll, lr, ul, ur, 0)
+        points = tuple(galsim.PositionD(x_pos[i], y_pos[i]) for i in idx)
+
+        # Build the solver matrix for basis [1, x, y, xy, x^2+y^2].
+        basis = np.empty((5, 5), dtype=float)
+        px = np.array([x_pos[i] for i in idx], dtype=float)
+        py = np.array([y_pos[i] for i in idx], dtype=float)
+        basis[0,:] = 1.0
+        basis[1,:] = px
+        basis[2,:] = py
+        basis[3,:] = px * py
+        basis[4,:] = px * px + py * py
+        # If f(x,y) = c·phi(x,y), where phi(x,y) = [1, x, y, xy, x^2+y^2],
+        # then sampled values satisfy s = B c, where B[:,k] = phi(x_k,y_k).
+        # For any target point, weights w that interpolate from
+        # sample values are w = B^{-1} phi(target), so that f(target) = w·s.
+        solver = np.linalg.inv(basis)
+
+        # GalSim uses bilinear nominal interpolation, so correct center by adding this delta.
+        bilinear_center = galsim.roman.roman_psfs._interp_aberrations_bilinear(
+            aberrations, x_pos, y_pos, center
+        )
+        delta = np.array(aberrations[0] - bilinear_center, dtype=float)
+        center_delta = np.zeros(self.max_zernike + 1, dtype=float)
+        center_delta[4:] = delta[4:self.max_zernike + 1]
+
+        out = {'points': points, 'solver': solver, 'center_delta': center_delta}
+        self._roman_five_point_data[sca] = out
+        return out
 
     def _make_extra_aberrations(self, params):
         # GalSim expects extra_aberrations indexed by Zernike number.  Our parameter vector
@@ -252,7 +307,7 @@ class RomanOpticalModel(Model):
         if aberration_prior_sigma is None:
             return None
         sigma = np.array(aberration_prior_sigma, dtype=float).ravel()
-        nprior = self._corner_param_len
+        nprior = self._single_point_param_len
         if sigma.size == 1:
             sigma = np.full(nprior, sigma[0], dtype=float)
         elif sigma.size != nprior:
@@ -285,7 +340,7 @@ class RomanOpticalModel(Model):
 
     def fit(self, star, logger=None, convert_func=None, draw_method=None):
         # We usually batch the stars in groups by SCA and do the fitting calculation
-        # together for efficiency of building the adjusted corner profiles.  So this
+        # together for efficiency of building the adjusted sample-point profiles.  So this
         # function is rarely used.  However, it's part of the Interp API, so just
         # farm this out to the fit_many function with a list of one star.
         return self.fit_many(
@@ -297,14 +352,14 @@ class RomanOpticalModel(Model):
 
     @staticmethod
     def _fit_sca_group_worker(model, sca, stars, convert_funcs, draw_method, logger):
-        fit_group, mean_params, corner_profiles = model._fit_sca_group(
+        fit_group, mean_params, sample_profiles = model._fit_sca_group(
             sca,
             stars,
             convert_funcs=convert_funcs,
             logger=logger,
             draw_method=draw_method,
         )
-        return sca, fit_group, mean_params, corner_profiles
+        return sca, fit_group, mean_params, sample_profiles
 
     def fit_many(self, stars, logger=None, convert_funcs=None, draw_method=None):
         logger = LoggerWrapper(logger)
@@ -350,11 +405,11 @@ class RomanOpticalModel(Model):
         out = [None] * len(stars)
         sca_mean = {}
         for fit_result in fit_results:
-            sca, fit_group, mean_params, corner_profiles = fit_result
+            sca, fit_group, mean_params, sample_profiles = fit_result
             indices = grouped[sca]['indices']
             sca_mean[sca] = mean_params
             wcs = stars[indices[0]].image.wcs
-            self._corner_cache[sca] = (mean_params, wcs, corner_profiles)
+            self._corner_cache[sca] = (mean_params, wcs, sample_profiles)
             # Output the stars in the same order as input, so they stay matched with
             # convert_funcs array if there is one.
             for i, star in zip(indices, fit_group):
@@ -366,9 +421,9 @@ class RomanOpticalModel(Model):
         ref = stars[0]
         params = ref.fit.get_params(self._num)
 
-        # We're about to change params, so if the corner profiles aren't yet in the cache,
+        # We're about to change params, so if the sample profiles aren't yet in the cache,
         # there is not reason now to add them.
-        corner_base_profiles = self._get_corner_profiles(ref, params, cache=False, sca=sca)
+        sample_base_profiles = self._get_sample_profiles(ref, params, cache=False, sca=sca)
 
         # First draw the base image for each star.
         # Also set up an empty Jacobian array for each to be filled in below.
@@ -377,9 +432,9 @@ class RomanOpticalModel(Model):
         for star, convert_func in zip(stars, convert_funcs):
             image = star.image.array
             weight = star.weight.array
-            base_image = self._draw_model_image_from_corners(
+            base_image = self._draw_model_image_from_samples(
                 star,
-                corner_base_profiles,
+                sample_base_profiles,
                 convert_func=convert_func,
             )
             resid = image - base_image
@@ -393,13 +448,13 @@ class RomanOpticalModel(Model):
         for i, step in enumerate(steps):
             p1 = params.copy()
             p1[i] += step
-            corner_plus_profiles = self._get_corner_profiles(ref, p1, cache=False, sca=sca)
+            sample_plus_profiles = self._get_sample_profiles(ref, p1, cache=False, sca=sca)
             scale = 1.0 / step
-            # Use these adjusted corner profiles for all stars on the SCA.
+            # Use these adjusted sample profiles for all stars on the SCA.
             for star, convert_func, _, _, _, jac, base_image in group_data:
-                im1 = self._draw_model_image_from_corners(
+                im1 = self._draw_model_image_from_samples(
                     star,
-                    corner_plus_profiles,
+                    sample_plus_profiles,
                     convert_func=convert_func,
                 )
                 jac[:, i] = ((im1 - base_image) * scale).ravel()
@@ -416,13 +471,13 @@ class RomanOpticalModel(Model):
 
         # Solve once for a single SCA parameter vector.
         sca_params, var = self._solve_normal_equations(ata_sum, atb_sum, params)
-        corner_sca_profiles = self._get_corner_profiles(ref, sca_params, cache=False, sca=sca)
+        sample_sca_profiles = self._get_sample_profiles(ref, sca_params, cache=False, sca=sca)
 
         # Compute the final model and chisq for each star.
         out = []
         for star, convert_func, weight in solved:
-            model_image = self._draw_model_image_from_corners(
-                star, corner_sca_profiles, convert_func=convert_func
+            model_image = self._draw_model_image_from_samples(
+                star, sample_sca_profiles, convert_func=convert_func
             )
             chisq = np.sum(weight * (star.image.array - model_image) ** 2)
             dof = np.count_nonzero(weight) - 3
@@ -434,7 +489,7 @@ class RomanOpticalModel(Model):
                     ),
                 )
             )
-        return out, sca_params, corner_sca_profiles
+        return out, sca_params, sample_sca_profiles
 
     def draw(self, star, copy_image=True):
         params = star.fit.get_params(self._num)
@@ -454,11 +509,11 @@ class RomanOpticalModel(Model):
                 raise ValueError(
                     "Roman params must have length %d (got %d)" % (self.param_len, params.size)
                 )
-        corner_profiles = self._get_corner_profiles(star, params, cache=cache)
-        return self._interpolate_corners(star, corner_profiles)
+        sample_profiles = self._get_sample_profiles(star, params, cache=cache)
+        return self._interpolate_samples(star, sample_profiles)
 
-    def _draw_model_image_from_corners(self, star, corner_profiles, convert_func=None):
-        prof = self._interpolate_corners(star, corner_profiles)
+    def _draw_model_image_from_samples(self, star, sample_profiles, convert_func=None):
+        prof = self._interpolate_samples(star, sample_profiles)
         prof = prof.shift(star.fit.center) * star.fit.flux
         if convert_func is not None:
             prof = convert_func(prof)
@@ -466,7 +521,7 @@ class RomanOpticalModel(Model):
         self._draw_profile_to_image(prof, image, star.image_pos)
         return image.array
 
-    def _get_corner_profiles(self, star, params, cache=True, sca=None):
+    def _get_sample_profiles(self, star, params, cache=True, sca=None):
         if sca is None:
             sca = _get_sca(star)
         wcs = star.image.wcs
@@ -479,49 +534,55 @@ class RomanOpticalModel(Model):
                 return cached_profiles
 
         wavelength = None if self.chromatic else self.bandpass.effective_wavelength
-        corners = [
-            galsim.PositionD(0.0, 0.0),
-            galsim.PositionD(self.sca_size, 0.0),
-            galsim.PositionD(0.0, self.sca_size),
-            galsim.PositionD(self.sca_size, self.sca_size),
-        ]
         if self.nominal_interp == 'five_point':
-            corners.append(galsim.PositionD(0.5 * self.sca_size, 0.5 * self.sca_size))
+            points = self._get_roman_five_point_data(sca)['points']
+        else:
+            points = (
+                galsim.PositionD(0.0, 0.0),
+                galsim.PositionD(self.sca_size, 0.0),
+                galsim.PositionD(0.0, self.sca_size),
+                galsim.PositionD(self.sca_size, self.sca_size),
+            )
         if self.aberration_interp == 'linear':
-            corner_params = params.reshape(4, self._corner_param_len)
+            sample_params = params.reshape(4, self._single_point_param_len)
             if self.nominal_interp == 'five_point':
                 # Add the center-evaluated extra_aberrations for the fifth sample point.
                 # In linear mode, center is the bilinear average of the four corners.
-                center_params = np.mean(corner_params, axis=0)
-                corner_params = np.vstack((corner_params, center_params))
+                center_params = np.mean(sample_params, axis=0)
+                sample_params = np.vstack((sample_params, center_params))
         else:
             npts = 5 if self.nominal_interp == 'five_point' else 4
             # In constant/global mode, the same per-SCA vector applies everywhere.
-            corner_params = np.tile(params, npts).reshape(npts, self._corner_param_len)
-        profiles = tuple(
-            galsim.roman.getPSF(
-                sca,
-                self.filter,
-                SCA_pos=corner,
-                pupil_bin=pupil_bin,
-                wcs=wcs,
-                extra_aberrations=self._make_extra_aberrations(p),
-                wavelength=wavelength,
+            sample_params = np.tile(params, npts).reshape(npts, self._single_point_param_len)
+        profiles = []
+        for i, (pt, p) in enumerate(zip(points, sample_params)):
+            extra = self._make_extra_aberrations(p)
+            if self.nominal_interp == 'five_point' and i == 4:
+                extra = extra + self._get_roman_five_point_data(sca)['center_delta']
+            profiles.append(
+                galsim.roman.getPSF(
+                    sca,
+                    self.filter,
+                    SCA_pos=pt,
+                    pupil_bin=pupil_bin,
+                    wcs=wcs,
+                    extra_aberrations=extra,
+                    wavelength=wavelength,
+                )
             )
-            for corner, p in zip(corners, corner_params)
-            )
+        profiles = tuple(profiles)
         if cache:
             self._corner_cache[sca] = (params, wcs, profiles)
         return profiles
 
-    def _interpolate_corners(self, star, corner_profiles):
+    def _interpolate_samples(self, star, sample_profiles):
         if self.nominal_interp == 'five_point':
             w_ll, w_lr, w_ul, w_ur, w_c = self._five_point_weights(star)
-            ll, lr, ul, ur, c = corner_profiles
+            ll, lr, ul, ur, c = sample_profiles
             return w_ll * ll + w_lr * lr + w_ul * ul + w_ur * ur + w_c * c
         else:
             w_ll, w_lr, w_ul, w_ur = self._corner_weights(star)
-            ll, lr, ul, ur = corner_profiles
+            ll, lr, ul, ur = sample_profiles
             return w_ll * ll + w_lr * lr + w_ul * ul + w_ur * ur
 
     def _corner_weights(self, star):
@@ -536,35 +597,15 @@ class RomanOpticalModel(Model):
             fx * fy,
         )
 
-    @staticmethod
-    def _five_point_weight_matrix():
-        # Basis functions are [1, x, y, xy, x^2+y^2], with x,y normalized to [-1,1].
-        points = np.array([
-            [-1.0, -1.0],  # LL
-            [1.0, -1.0],   # LR
-            [-1.0, 1.0],   # UL
-            [1.0, 1.0],    # UR
-            [0.0, 0.0],    # C
-        ])
-        basis = np.empty((5, 5), dtype=float)
-        basis[:, 0] = 1.0
-        basis[:, 1] = points[:, 0]
-        basis[:, 2] = points[:, 1]
-        basis[:, 3] = points[:, 0] * points[:, 1]
-        basis[:, 4] = points[:, 0] ** 2 + points[:, 1] ** 2
-        return np.linalg.inv(basis.T)
-
-    @lazy_property
-    def _five_point_solver(self):
-        return self._five_point_weight_matrix()
-
     def _five_point_weights(self, star):
-        x = np.clip(star.image_pos.x, 0.0, self.sca_size)
-        y = np.clip(star.image_pos.y, 0.0, self.sca_size)
-        xn = 2.0 * x / self.sca_size - 1.0
-        yn = 2.0 * y / self.sca_size - 1.0
-        phi = np.array([1.0, xn, yn, xn * yn, xn * xn + yn * yn], dtype=float)
-        return tuple(self._five_point_solver.dot(phi))
+        sca = _get_sca(star)
+        solver = self._get_roman_five_point_data(sca)['solver']
+        x = star.image_pos.x
+        y = star.image_pos.y
+        phi = np.array([1.0, x, y, x * y, x * x + y * y], dtype=float)
+        # Convert basis values at this star position into interpolation weights on the
+        # 5 sample locations (LL, LR, UL, UR, C).
+        return tuple(solver.dot(phi))
 
 
 class RomanOpticsPSF(PSF):
@@ -639,7 +680,7 @@ class RomanOpticsPSF(PSF):
     def initialize_params(self, stars, logger=None, default_init=None):
         nremoved = 0
 
-        # Start each new fit with a fresh corner-profile cache.
+        # Start each new fit with a fresh sample-profile cache.
         self.model.clear_cache()
 
         logger.debug("Initializing models")

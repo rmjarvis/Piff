@@ -231,8 +231,8 @@ def test_roman_corner_cache():
         psf.drawStar(stars[1])
 
         params = stars[0].fit.params
-        profiles1 = psf.model._get_corner_profiles(stars[0], params, cache=True)
-        profiles2 = psf.model._get_corner_profiles(stars[1], params, cache=True)
+        profiles1 = psf.model._get_sample_profiles(stars[0], params, cache=True)
+        profiles2 = psf.model._get_sample_profiles(stars[1], params, cache=True)
         assert profiles1 is profiles2
         assert len(psf.model._corner_cache) == 1
         assert 5 in psf.model._corner_cache
@@ -251,7 +251,7 @@ def test_roman_corner_cache():
         stars5, _ = psf5.initialize_params(stars, logger=logger)
         psf5.drawStar(stars5[0])
         params5 = stars5[0].fit.params
-        profiles5 = psf5.model._get_corner_profiles(stars5[0], params5, cache=True)
+        profiles5 = psf5.model._get_sample_profiles(stars5[0], params5, cache=True)
         assert len(profiles5) == 5
         assert len(psf5.model._corner_cache[5][2]) == 5
 
@@ -260,53 +260,57 @@ def test_roman_corner_cache():
 def test_roman_five_point_weights():
     """Check five-point interpolation weights for corner/center and quadratic basis terms.
     """
-    with fast_pupil_bin():
-        model = RomanOpticalModel(
-            filter='H158',
-            chromatic=False,
-            max_zernike=6,
-            nominal_interp='five_point',
-        )
-        sca = 7
-        s = model.sca_size
+    model = RomanOpticalModel(
+        filter='H158',
+        chromatic=False,
+        max_zernike=6,
+        nominal_interp='five_point',
+    )
+    sca = 7
+    size = model.sca_size
 
-        def make_star(x, y):
-            return piff.Star.makeTarget(
-                x=x,
-                y=y,
-                stamp_size=25,
-                scale=0.11,
-                properties={'sca': sca},
-            ).withFlux(1.0, (0.0, 0.0))
+    def make_star(x, y):
+        return piff.Star.makeTarget(
+            x=x,
+            y=y,
+            stamp_size=25,
+            scale=0.11,
+            properties={'sca': sca},
+        ).withFlux(1.0, (0.0, 0.0))
 
-        # Sampling locations used by the interpolation should be one-hot.
-        w_ll = model._five_point_weights(make_star(0.0, 0.0))
-        w_lr = model._five_point_weights(make_star(s, 0.0))
-        w_ul = model._five_point_weights(make_star(0.0, s))
-        w_ur = model._five_point_weights(make_star(s, s))
-        w_c = model._five_point_weights(make_star(0.5 * s, 0.5 * s))
-        np.testing.assert_allclose(w_ll, [1, 0, 0, 0, 0], atol=1.e-12, rtol=0.0)
-        np.testing.assert_allclose(w_lr, [0, 1, 0, 0, 0], atol=1.e-12, rtol=0.0)
-        np.testing.assert_allclose(w_ul, [0, 0, 1, 0, 0], atol=1.e-12, rtol=0.0)
-        np.testing.assert_allclose(w_ur, [0, 0, 0, 1, 0], atol=1.e-12, rtol=0.0)
-        np.testing.assert_allclose(w_c, [0, 0, 0, 0, 1], atol=1.e-12, rtol=0.0)
+    fp = model._get_roman_five_point_data(sca)
+    points = fp['points']
 
-        # Verify exact reproduction of [1, x, y, xy, x^2+y^2] basis under this interpolation.
-        corner_xy = np.array([[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]], dtype=float)
+    # Sampling locations used by the interpolation should have a single w=1.
+    w_ll = model._five_point_weights(make_star(points[0].x, points[0].y))
+    w_lr = model._five_point_weights(make_star(points[1].x, points[1].y))
+    w_ul = model._five_point_weights(make_star(points[2].x, points[2].y))
+    w_ur = model._five_point_weights(make_star(points[3].x, points[3].y))
+    w_c = model._five_point_weights(make_star(points[4].x, points[4].y))
+    np.testing.assert_allclose(w_ll, [1, 0, 0, 0, 0], atol=1.e-11, rtol=0.0)
+    np.testing.assert_allclose(w_lr, [0, 1, 0, 0, 0], atol=1.e-11, rtol=0.0)
+    np.testing.assert_allclose(w_ul, [0, 0, 1, 0, 0], atol=1.e-11, rtol=0.0)
+    np.testing.assert_allclose(w_ur, [0, 0, 0, 1, 0], atol=1.e-11, rtol=0.0)
+    np.testing.assert_allclose(w_c, [0, 0, 0, 0, 1], atol=1.e-11, rtol=0.0)
 
-        def basis_values(xn, yn):
-            return np.array([1.0, xn, yn, xn * yn, xn * xn + yn * yn], dtype=float)
+    # Verify exact reproduction of [1, x, y, xy, x^2+y^2] basis under this interpolation.
+    sample_xy = np.array([(p.x, p.y) for p in points], dtype=float)
 
-        corner_basis = np.array([basis_values(xn, yn) for xn, yn in corner_xy])
-        test_positions = [(0.13 * s, 0.27 * s), (0.82 * s, 0.39 * s), (0.61 * s, 0.91 * s)]
-        for x, y in test_positions:
-            star = make_star(x, y)
-            w = np.array(model._five_point_weights(star))
-            xn = 2.0 * np.clip(x, 0.0, s) / s - 1.0
-            yn = 2.0 * np.clip(y, 0.0, s) / s - 1.0
-            expected = basis_values(xn, yn)
-            interp = w.dot(corner_basis)
-            np.testing.assert_allclose(interp, expected, atol=1.e-12, rtol=0.0)
+    def basis_values(x, y):
+        return np.array([1.0, x, y, x * y, x * x + y * y], dtype=float)
+
+    sample_basis = np.array([basis_values(x, y) for x, y in sample_xy])
+    test_positions = [
+        (0.13 * size, 0.27 * size),
+        (0.82 * size, 0.39 * size),
+        (0.61 * size, 0.91 * size),
+    ]
+    for x, y in test_positions:
+        star = make_star(x, y)
+        w = np.array(model._five_point_weights(star))
+        expected = basis_values(x, y)
+        interp = w.dot(sample_basis)
+        np.testing.assert_allclose(interp, expected, atol=1.e-8, rtol=0.0)
 
 
 @timer
@@ -687,6 +691,110 @@ def test_roman_fit_many_nproc():
         for s in fit_stars:
             np.testing.assert_allclose(s.fit.params, truth_params, atol=0.0, rtol=2.e-3)
         assert list(model._corner_cache.keys()) == [5]
+
+
+@timer
+def test_bilinear_vs_five_point():
+    """Exercise practical fit behavior and quantify bilinear vs five-point differences.
+    """
+    with fast_pupil_bin():
+        # Make 5 stars at various points around an SCA using GalSim.
+        filt = 'H158'
+        sca = 8
+        size = galsim.roman.n_pix
+
+        def make_star(x, y):
+            return piff.Star.makeTarget(
+                x=x,
+                y=y,
+                stamp_size=25,
+                scale=0.11,
+                properties={'sca': sca},
+            ).withFlux(1.0, (0.0, 0.0))
+
+        positions = [
+            (0.12 * size, 0.18 * size),
+            (0.33 * size, 0.74 * size),
+            (0.71 * size, 0.21 * size),
+            (0.83 * size, 0.66 * size),
+            (0.49 * size, 0.52 * size),
+        ]
+        truth_stars = [make_star(x, y) for x, y in positions]
+        truth_params = np.array([0.004, -0.003, 0.005])
+        extra_truth = np.concatenate(([0,0,0,0], truth_params))
+        wavelength = galsim.roman.getBandpasses()[filt].effective_wavelength
+        for st in truth_stars:
+            prof = galsim.roman.getPSF(
+                int(st['sca']), filt,
+                SCA_pos=st.image_pos,
+                pupil_bin=piff.roman.roman_psf.pupil_bin,
+                wcs=st.image.wcs,
+                extra_aberrations=extra_truth,
+                wavelength=wavelength,
+            )
+            prof.drawImage(st.image, center=st.image_pos)
+
+        # Fit these stars with both models in Piff.  Bilinear and 5-point.
+        # Note: GalSim internally does bilinear interpolation of the nominal aberrations.
+        # This is not the same bilinear that we do in Piff -- we do either bilinear or
+        # 5-point interpolation of the profiles.  These are not equivalent.
+        model_bilinear = RomanOpticalModel(
+            filter=filt,
+            chromatic=False,
+            max_zernike=6,
+            nominal_interp='bilinear',
+            aberration_prior_sigma=1.0e6,
+        )
+        model_five = RomanOpticalModel(
+            filter=filt,
+            chromatic=False,
+            max_zernike=6,
+            nominal_interp='five_point',
+            aberration_prior_sigma=1.0e6,
+        )
+        fit_bilinear = [model_bilinear.initialize(st) for st in truth_stars]
+        fit_five = [model_five.initialize(st) for st in truth_stars]
+        for it in range(3):
+            fit_bilinear = model_bilinear.fit_many(fit_bilinear)
+            fit_five = model_five.fit_many(fit_five)
+            print(f'iter {it+1} bilinear fit[0] = ', fit_bilinear[0].fit.params)
+            print(f'iter {it+1} five-point fit[0] = ', fit_five[0].fit.params)
+            print(
+                f'iter {it+1} chisq (bilinear, five-point) = ',
+                sum(st.fit.chisq for st in fit_bilinear),
+                sum(st.fit.chisq for st in fit_five),
+            )
+
+        # Compare the results.
+        chisq_bilinear = sum(st.fit.chisq for st in fit_bilinear)
+        chisq_five = sum(st.fit.chisq for st in fit_five)
+        params_bilinear = fit_bilinear[0].fit.params
+        params_five = fit_five[0].fit.params
+        print('bilinear chisq = ', chisq_bilinear)
+        print('five-point chisq = ', chisq_five)
+        print('final bilinear fit[0] = ', params_bilinear)
+        print('final five-point fit[0] = ', params_five)
+        print('truth params = ', truth_params)
+
+        # With direct GalSim truth generation, both nominal interpolation options should converge
+        # to reasonable fits, but neither is expected to recover truth_params exactly
+        # for the reason mentioned above.  (Profile interpolation != aberration interpolation.)
+        # Interesting that it turns out that bilinear gets the model parameters somewhat
+        # closer to the truth, but the chisq for five_point is smaller.
+        np.testing.assert_allclose(params_bilinear, truth_params, atol=1.5e-3)
+        np.testing.assert_allclose(params_five, truth_params, atol=4.e-3)
+        assert chisq_bilinear < 1.0e-6
+        assert chisq_five < 4.0e-7
+        # Quantify that the two nominal interpolation choices are observably different.
+        assert abs(chisq_five - chisq_bilinear) > 1.e-7
+
+        # Quantify direct model-image difference at the same position and params.
+        sample = make_star(0.63 * size, 0.37 * size)
+        image_b = model_bilinear.draw(model_bilinear.initialize(sample)).image.array
+        image_f = model_five.draw(model_five.initialize(sample)).image.array
+        mean_abs_diff = np.mean(np.abs(image_b - image_f))
+        print('mean abs image difference = ', mean_abs_diff)
+        assert mean_abs_diff > 1.e-6
 
 
 @timer
@@ -1143,6 +1251,7 @@ if __name__ == '__main__':
     test_roman_aberration_prior()
     test_roman_fit_many()
     test_roman_fit_many_nproc()
+    test_bilinear_vs_five_point()
     test_roman_fit_linear()
     test_roman_fit_linear_gradient()
     test_roman_fit_linear_nproc()
