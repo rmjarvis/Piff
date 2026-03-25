@@ -451,10 +451,7 @@ class RomanOpticalModel(Model):
             cached_params, cached_wcs, cached_profiles = self._corner_cache[sca]
             same_wcs = cached_wcs is wcs
             if not same_wcs:
-                try:
-                    same_wcs = (cached_wcs == wcs)
-                except Exception:
-                    same_wcs = False
+                same_wcs = (cached_wcs == wcs)
             if same_wcs and np.array_equal(cached_params, params):
                 return cached_profiles
 
