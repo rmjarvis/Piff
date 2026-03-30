@@ -985,9 +985,9 @@ def test_single_image():
         # Process the star data
         model = piff.PixelGrid(0.2, 16)
         interp = piff.BasisPolynomial(order=order)
-        pointing = None     # wcs is not Celestial here, so pointing needs to be None.
         psf = piff.SimplePSF(model, interp)
-        psf.fit(orig_stars, {0:image1.wcs}, pointing, logger=logger)
+        psf.set_context(wcs={0:image1.wcs})
+        psf.fit(orig_stars, logger=logger)
 
         # Check that the interpolation is what it should be
         print('target.flux = ',target_star.fit.flux)
@@ -1200,7 +1200,8 @@ def test_des_image():
 
         # Make a psf
         psf = piff.SimplePSF(model, interp)
-        psf.fit(stars, wcs, pointing, logger=logger)
+        psf.set_context(wcs, pointing)
+        psf.fit(stars, logger=logger)
 
         # The difference between the images of the fitted stars and the originals should be
         # consistent with noise.  Keep track of how many don't meet that goal.
@@ -1897,7 +1898,8 @@ def test_convergence_centering_failed():
         )
         stars.append(piff.Star(data, None))
 
-    piffResult = piff.PSF.process(piffConfig, wcs, pointing)
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.set_context(wcs)
     piffResult.fit(stars)
 
     assert piffResult.niter == 6, 'Maximum number of iterations in this example must be 6.'
@@ -1936,8 +1938,8 @@ def test_too_small():
 
     # Run on a single CCD, and in image coords rather than sky coords.
     wcs = {0: galsim.PixelScale(1.0)}
-    pointing = None
-    piffResult = piff.PSF.process(piffConfig, wcs, pointing)
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.set_context(wcs)
 
     # The original behavior was to complete successfully, but the model had crazy values
     # off the edge of the constrained region.
@@ -1949,7 +1951,8 @@ def test_too_small():
 
     # This configuration works.
     piffConfig['model']['size'] = 21
-    piffResult = piff.PSF.process(piffConfig, wcs, pointing)
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.set_context(wcs)
     piffResult.fit(stars)
     im = piffResult.draw(10, 10)
     assert im(10,10) > 0

@@ -2467,7 +2467,14 @@ def test_input_bandpass():
     assert pointing is None
     assert bandpass is not None
 
-    psf = piff.PSF.process(config['psf'], wcs, pointing, bandpass, logger=logger)
+    # PSF.process creates a PSF object without the wcs, poining, bandpass context yet.
+    psf = piff.PSF.process(config['psf'], logger=logger)
+    assert psf.wcs is None
+    assert psf.pointing is None
+    assert psf.bandpass is None
+
+    # set_context assigns them as attributes of the psf.
+    psf.set_context(wcs, pointing, bandpass)
     assert psf.wcs == wcs
     assert psf.pointing == pointing
     assert psf.bandpass == bandpass
@@ -2482,7 +2489,7 @@ def test_input_bandpass():
     with CaptureLog() as cl:
         psf_old = piff.PSF.process(config['psf'], logger=cl.logger)
         psf_old.fit(objects, wcs, pointing, logger=cl.logger)
-    assert "wcs and pointing should now be given in process, not fit" in cl.output
+    assert "wcs should now be set with set_context" in cl.output
     assert psf_old.bandpass is None  # Old pattern didn't include bandpass
     test_im_old = psf_old.draw(x=123.4, y=234.5, chipnum=0)
     test_im_new = psf2.draw(x=123.4, y=234.5, chipnum=0)

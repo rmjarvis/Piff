@@ -162,7 +162,8 @@ def process(config, logger=None):
     objects, wcs, pointing, bandpass = Input.process(config['input'], logger=logger)
     stars = Select.process(config.get('select',{}), objects, logger=logger)
 
-    psf = PSF.process(config['psf'], wcs, pointing, bandpass, logger=logger)
+    psf = PSF.process(config['psf'], logger=logger)
+    psf.set_context(wcs, pointing, bandpass)
     psf.fit(stars, logger=logger)
 
     # Attach these for reference

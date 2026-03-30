@@ -372,6 +372,21 @@ def test_single():
             print('max diff = ',np.max(np.abs(im.array - star.data.image.array)))
             np.testing.assert_almost_equal(im.array, star.data.image.array)
 
+    # Make sure old pattern of giving wcs, pointing in fit() still works.
+    objects, wcs_dict, pointing, bandpass = piff.Input.process(config['input'], logger=logger)
+    assert bandpass is None
+    with CaptureLog(level=2) as cl:
+        psf_old = piff.PSF.process(config['psf'], logger=cl.logger)
+        psf_old.fit(objects, wcs_dict, pointing, logger=cl.logger)
+    assert "wcs should now be set with set_context" in cl.output
+
+    for chipnum, data in [(1, data1), (2, data2)]:
+        x = data['x'][0]
+        y = data['y'][0]
+        im = psf.draw(x, y, chipnum=chipnum)
+        im_old = psf_old.draw(x, y, chipnum=chipnum)
+        np.testing.assert_almost_equal(im_old.array, im.array)
+
     # SingleChip doesn't use code paths that hit these functions, but they are officially
     # required methods for PSF classes, so just check them directly.
     assert psf.fit_center is True
