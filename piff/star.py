@@ -555,12 +555,14 @@ class Star(object):
             sed_flux_key = prop.get('sed_flux_key', 'FLUX')
             sed_wave_type = prop.get('sed_wave_type')
             sed_flux_type = prop.get('sed_flux_type')
+            sed_tol = prop.get('sed_tol', 0.0)
             prop['sed'] = InputFiles._read_sed_file(
                 sed_file_name,
                 sed_wave_type=sed_wave_type,
                 sed_flux_type=sed_flux_type,
                 sed_wave_key=sed_wave_key,
                 sed_flux_key=sed_flux_key,
+                sed_tol=sed_tol,
                 bandpass=bandpass,
             )
 

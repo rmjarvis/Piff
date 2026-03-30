@@ -2150,6 +2150,7 @@ def test_sed_col():
         np.testing.assert_allclose(
             star['sed'].calculateFlux(bandpass), 1.0, rtol=1.0e-12, atol=0.0
         )
+        assert star['sed_tol'] == 0.0
 
     # Repeated file names should reuse the same cached SED object.
     assert extra_props['sed'][0] is extra_props['sed'][4]
@@ -2257,6 +2258,7 @@ def test_single_sed():
     _, _, _, props = input.getRawImageData(0)
     assert len(props['sed']) == 100
     assert props['sed'][0] is props['sed'][1]
+    assert props['sed_tol'][0] == 0.0
     np.testing.assert_allclose(
         float(props['sed'][0](1500.0)),
         float(props['sed'][37](1500.0)),
@@ -2344,6 +2346,56 @@ def test_single_sed():
 
 
 @timer
+def test_sed_thin():
+    """Test optional input-time SED reduction (`sed_tol`)."""
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    config = {
+        'dir': 'input',
+        'image_file_name': 'test_input_image_00.fits',
+        'cat_file_name': 'test_input_cat_00.fits',
+        'x_col': 'x',
+        'y_col': 'y',
+        'sed_file_name': 'xsl_spectrum_X0203_merged.fits',
+        'sed_wave_type': 'nm',
+        'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+        'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
+    }
+
+    bandpass = galsim.roman.getBandpasses()['H158']
+
+    # First default is no thinning.
+    piff.InputFiles._sed_cache = {}
+    _, _, _, props = piff.InputFiles(config, logger=logger).getRawImageData(0)
+    sed = props['sed'][0]
+    assert props['sed'][0] is props['sed'][1]
+    assert props['sed_tol'][0] == 0.0
+    np.testing.assert_allclose(
+        sed.calculateFlux(bandpass),
+        1.0,
+        rtol=1.0e-12,
+        atol=0.0,
+    )
+
+    # Now test with a non-trivial thinning value.
+    piff.InputFiles._sed_cache = {}
+    thin_config = dict(config, sed_tol=0.1)
+    _, _, _, thin_props = piff.InputFiles(thin_config, logger=logger).getRawImageData(0)
+    thin_sed = thin_props['sed'][0]
+    assert thin_props['sed'][0] is thin_props['sed'][1]
+    assert thin_props['sed_tol'][0] == 0.1
+    assert thin_sed is not sed
+    assert len(thin_sed.wave_list) < len(sed.wave_list)
+    np.testing.assert_allclose(
+        thin_sed.calculateFlux(bandpass), 1.0, rtol=1.0e-12, atol=0.0
+    )
+    assert thin_sed.blue_limit == bandpass.blue_limit
+    assert thin_sed.red_limit == bandpass.red_limit
+
+@timer
 def test_sed_star_io():
     """Test that star serialization stores SED metadata and reconstructs sed on read.
     """
@@ -2361,6 +2413,7 @@ def test_sed_star_io():
         'sed_col': 'sed_file',
         'sed_wave_type': 'nm',
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+        'sed_tol': 0.1,
         'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
     stars = piff.InputFiles(config, logger=logger).makeStars(logger=logger)
@@ -2371,6 +2424,7 @@ def test_sed_star_io():
     assert 'sed_flux_type' in stars[0].data.properties
     assert 'sed_wave_key' in stars[0].data.properties
     assert 'sed_flux_key' in stars[0].data.properties
+    assert 'sed_tol' in stars[0].data.properties
 
     file_name = os.path.join('output', 'sed_star_io.fits')
     with piff.writers.FitsWriter.open(file_name) as w:
@@ -2384,6 +2438,7 @@ def test_sed_star_io():
     assert 'sed_flux_type' in cols
     assert 'sed_wave_key' in cols
     assert 'sed_flux_key' in cols
+    assert 'sed_tol' in cols
 
     bandpass = galsim.roman.getBandpasses()['H158']
     with piff.readers.FitsReader.open(file_name) as r:
@@ -2399,6 +2454,7 @@ def test_sed_star_io():
         assert s1['sed_flux_type'] == s2['sed_flux_type']
         assert s1['sed_wave_key'] == s2['sed_wave_key']
         assert s1['sed_flux_key'] == s2['sed_flux_key']
+        assert s1['sed_tol'] == s2['sed_tol'] == 0.1
         np.testing.assert_allclose(
             float(s2['sed'](1500.0)),
             float(s1['sed'](1500.0)),
