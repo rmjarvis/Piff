@@ -16,6 +16,7 @@ from __future__ import print_function
 import os
 import shutil
 import galsim
+import galsim.roman
 import numpy as np
 import fitsio
 import piff
@@ -2134,6 +2135,7 @@ def test_sed_col():
         'sed_col': 'sed_file',
         'sed_wave_type': 'nm',
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+        'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, extra_props = input.getRawImageData(0)
@@ -2152,7 +2154,7 @@ def test_sed_col():
     assert extra_props['sed'][0] is not extra_props['sed'][1]
 
     # Distinct template spectra should have different flux at a representative wavelength.
-    sed_vals = [float(extra_props['sed'][i](1000.0)) for i in range(4)]
+    sed_vals = [float(extra_props['sed'][i](1500.0)) for i in range(4)]
     assert len(np.unique(np.round(sed_vals, 12))) > 1
 
     # Invalid sed_col should raise.
@@ -2167,14 +2169,14 @@ def test_sed_col():
     assert extra_props2['sed'][1] is extra_props2['sed'][5]
     assert extra_props2['sed'][0] is not extra_props2['sed'][1]
     np.testing.assert_allclose(
-        float(extra_props2['sed'][0](1000.0)),
-        float(extra_props['sed'][0](1000.0)),
+        float(extra_props2['sed'][0](1500.0)),
+        float(extra_props['sed'][0](1500.0)),
         rtol=1.0e-12,
         atol=0.0,
     )
     np.testing.assert_allclose(
-        float(extra_props2['sed'][1](1000.0)),
-        float(extra_props['sed'][1](1000.0)),
+        float(extra_props2['sed'][1](1500.0)),
+        float(extra_props['sed'][1](1500.0)),
         rtol=1.0e-12,
         atol=0.0,
     )
@@ -2214,12 +2216,20 @@ def test_single_sed():
         'sed_file_name': 'vega.txt',
         'sed_wave_type': 'Angstrom',
         'sed_flux_type': 'flambda',
+        'bandpass': {
+            'type': 'Eval',
+            'str': "galsim.Bandpass(lambda wave: 1.0, 'Angstrom', "
+                   "blue_limit=1000.0, red_limit=2000.0)",
+        },
     }
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, extra_props = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert len(extra_props['sed']) == 100
 
+    bandpass = galsim.config.BuildBandpass(
+        {'bandpass': config['bandpass']}, 'bandpass', {'image_num': 0, 'index_key': 'image_num'}
+    )[0]
     ref_sed = galsim.SED('vega.txt', wave_type='Angstrom', flux_type='flambda')
     np.testing.assert_allclose(
         float(extra_props['sed'][0](100.0)),
@@ -2238,14 +2248,15 @@ def test_single_sed():
         'sed_file_name': 'xsl_spectrum_X0203_merged.fits',
         'sed_wave_type': 'nm',
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+        'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
     input = piff.InputFiles(config, logger=logger)
     _, _, _, props = input.getRawImageData(0)
     assert len(props['sed']) == 100
     assert props['sed'][0] is props['sed'][1]
     np.testing.assert_allclose(
-        float(props['sed'][0](1000.0)),
-        float(props['sed'][37](1000.0)),
+        float(props['sed'][0](1500.0)),
+        float(props['sed'][37](1500.0)),
         rtol=0.0,
         atol=0.0,
     )
@@ -2322,6 +2333,12 @@ def test_single_sed():
         input.getRawImageData(0)
     assert "sed_flux_key" in str(e.value)
 
+    config6 = dict(config)
+    del config6['bandpass']
+    with pytest.raises(ValueError) as e:
+        piff.InputFiles(config6, logger=logger)
+    assert "bandpass is required" in str(e.value)
+
 
 @timer
 def test_sed_star_io():
@@ -2341,6 +2358,7 @@ def test_sed_star_io():
         'sed_col': 'sed_file',
         'sed_wave_type': 'nm',
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
+        'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
     stars = piff.InputFiles(config, logger=logger).makeStars(logger=logger)
     assert len(stars) > 10
@@ -2385,6 +2403,100 @@ def test_sed_star_io():
     assert stars2[1]['sed'] is stars2[5]['sed']
 
 
+@timer
+def test_wcs_bandpass_io():
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    file_name = os.path.join('output', 'wcs_bandpass_io.fits')
+    wcs = {1: galsim.PixelScale(0.2)}
+    pointing = galsim.CelestialCoord(6 * galsim.hours, -30 * galsim.degrees)
+    bandpass = galsim.config.BuildBandpass(
+        {'bandpass': {'type': 'RomanBandpass', 'name': 'H158'}},
+        'bandpass',
+        {'image_num': 0, 'index_key': 'image_num'},
+    )[0]
+
+    with piff.writers.FitsWriter.open(file_name) as w:
+        w.write_wcs_map('wcs', wcs, pointing)
+        w.write_bandpass('bandpass', bandpass)
+
+    with piff.readers.FitsReader.open(file_name) as r:
+        wcs2, pointing2 = r.read_wcs_map('wcs', logger=logger)
+        bandpass2 = r.read_bandpass('bandpass')
+
+    assert list(wcs2.keys()) == [1]
+    assert repr(wcs2[1]) == repr(wcs[1])
+    assert pointing2 == pointing
+    assert bandpass2.blue_limit == bandpass.blue_limit
+    assert bandpass2.red_limit == bandpass.red_limit
+    np.testing.assert_allclose(bandpass2(1500.0), bandpass(1500.0), rtol=0.0, atol=0.0)
+
+
+@timer
+def test_input_bandpass():
+    if __name__ == '__main__':
+        logger = piff.config.setup_logger(verbose=2)
+    else:
+        logger = None
+
+    config = {
+        'input': {
+            'dir': 'input',
+            'image_file_name': 'test_input_image_00.fits',
+            'cat_file_name': 'test_input_cat_00.fits',
+            'flag_col': 'flag',
+            'use_flag': 1,
+            'skip_flag': 4,
+            'stamp_size': 15,
+            'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
+        },
+        'psf': {
+            'model': {'type': 'Gaussian', 'fastfit': True, 'include_pixel': False},
+            'interp': {'type': 'Mean'},
+            'min_iter': 1,
+            'max_iter': 1,
+        },
+    }
+
+    objects, wcs, pointing, bandpass = piff.Input.process(config['input'], logger=logger)
+    assert len(objects) > 0
+    assert wcs is not None
+    assert pointing is None
+    assert bandpass is not None
+
+    psf = piff.PSF.process(config['psf'], wcs, pointing, bandpass, logger=logger)
+    assert psf.wcs == wcs
+    assert psf.pointing == pointing
+    assert psf.bandpass == bandpass
+
+    psf2 = piff.process(config, logger=logger)
+    assert psf2.wcs == wcs
+    assert psf2.pointing == pointing
+    assert psf2.bandpass == bandpass
+
+    # The old pattern was to provide wcs and pointing to fit rather than process.
+    # It is still supported, but should emit a deprecation warning and be equivalent.
+    with CaptureLog() as cl:
+        psf_old = piff.PSF.process(config['psf'], logger=cl.logger)
+        psf_old.fit(objects, wcs, pointing, logger=cl.logger)
+    assert "wcs and pointing should now be given in process, not fit" in cl.output
+    assert psf_old.bandpass is None  # Old pattern didn't include bandpass
+    test_im_old = psf_old.draw(x=123.4, y=234.5, chipnum=0)
+    test_im_new = psf2.draw(x=123.4, y=234.5, chipnum=0)
+    np.testing.assert_allclose(test_im_old.array, test_im_new.array, atol=1.0e-12)
+
+    # Check roundtrip through file
+    file_name = os.path.join('output', 'input_bandpass.piff')
+    psf2.write(file_name, logger=logger)
+    psf3 = piff.read(file_name, logger=logger)
+    assert psf3.wcs == wcs
+    assert psf3.pointing == pointing
+    assert psf3.bandpass == bandpass
+
+
 if __name__ == '__main__':
     setup()
     test_basic()
@@ -2399,3 +2511,5 @@ if __name__ == '__main__':
     test_sed_col()
     test_single_sed()
     test_sed_star_io()
+    test_wcs_bandpass_io()
+    test_input_bandpass()

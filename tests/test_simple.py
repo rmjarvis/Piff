@@ -269,7 +269,7 @@ def test_single_image():
         },
         'output' : { 'file_name' : psf_file },
     }
-    orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
 
     # Use a SimplePSF to process the stars data this time.
     interp = piff.Mean()
@@ -873,7 +873,7 @@ def test_load_images():
                'cat_file_name': cat_file,
                'sky': 10
              }
-    orig_stars, wcs, pointing = piff.Input.process(config, logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config, logger)
 
     # Fit these with a simple Mean, Gaussian
     model = piff.Gaussian()

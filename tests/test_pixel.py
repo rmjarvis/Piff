@@ -1186,7 +1186,7 @@ def test_des_image():
 
         # Largely copied from Gary's fit_des.py, but using the Piff input_handler to
         # read the input files.
-        stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+        stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
         if nstars is not None:
             stars = stars[:nstars]
 
@@ -1257,7 +1257,7 @@ def test_des_image():
     print('start piffify')
     piff.piffify(config)
     print('read stars')
-    stars, wcs, pointing = piff.Input.process(config['input'])
+    stars, wcs, pointing, _ = piff.Input.process(config['input'])
     print('read psf')
     psf = piff.read(psf_file)
     nreserve = len([s for s in psf.stars if s.is_reserve])
@@ -1294,7 +1294,7 @@ def test_des_image():
         p = subprocess.Popen( [piffify_exe, 'pixel_des.yaml'] )
         p.communicate()
         print('read stars')
-        stars, wcs, pointing = piff.Input.process(config['input'])
+        stars, wcs, pointing, _ = piff.Input.process(config['input'])
         print('read psf')
         psf = piff.read(psf_file)
         stars = [psf.model.initialize(s) for s in stars]
@@ -1417,7 +1417,7 @@ def test_des2():
     piff.piffify(config)
     t1 = time.time()
     print('Time for direct ATA solution = ',t1-t0)
-    stars, wcs, pointing = piff.Input.process(config['input'])
+    stars, wcs, pointing, _ = piff.Input.process(config['input'])
     psf = piff.read(psf_file)
     stars = psf.initialize_flux_center(stars)
 
@@ -1897,9 +1897,8 @@ def test_convergence_centering_failed():
         )
         stars.append(piff.Star(data, None))
 
-
-    piffResult = piff.PSF.process(piffConfig)
-    piffResult.fit(stars, wcs, pointing)
+    piffResult = piff.PSF.process(piffConfig, wcs, pointing)
+    piffResult.fit(stars)
 
     assert piffResult.niter == 6, 'Maximum number of iterations in this example must be 6.'
     assert np.shape(piffResult.stars[28].fit.A) == (0, 625), 'Centroid failed for this star, expected shape of A is (0,625)'
@@ -1935,23 +1934,23 @@ def test_too_small():
         }
     }
 
-    piffResult = piff.PSF.process(piffConfig)
     # Run on a single CCD, and in image coords rather than sky coords.
     wcs = {0: galsim.PixelScale(1.0)}
     pointing = None
+    piffResult = piff.PSF.process(piffConfig, wcs, pointing)
 
     # The original behavior was to complete successfully, but the model had crazy values
     # off the edge of the constrained region.
     with CaptureLog(2) as cl:
         with np.testing.assert_raises(RuntimeError):
-            piffResult.fit(stars, wcs, pointing, logger=cl.logger)
+            piffResult.fit(stars, logger=cl.logger)
     assert "Image size (21,21) is too small to constrain this PixelGrid." in cl.output
     assert "Removed 12 stars in initialize" in cl.output
 
     # This configuration works.
     piffConfig['model']['size'] = 21
-    piffResult = piff.PSF.process(piffConfig)
-    piffResult.fit(stars, wcs, pointing)
+    piffResult = piff.PSF.process(piffConfig, wcs, pointing)
+    piffResult.fit(stars)
     im = piffResult.draw(10, 10)
     assert im(10,10) > 0
 

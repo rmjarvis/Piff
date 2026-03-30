@@ -159,11 +159,11 @@ def process(config, logger=None):
             config['select'][key] = config['input'].pop(key)
 
     # read in the input images
-    objects, wcs, pointing = Input.process(config['input'], logger=logger)
+    objects, wcs, pointing, bandpass = Input.process(config['input'], logger=logger)
     stars = Select.process(config.get('select',{}), objects, logger=logger)
 
-    psf = PSF.process(config['psf'], logger=logger)
-    psf.fit(stars, wcs, pointing, logger=logger)
+    psf = PSF.process(config['psf'], wcs, pointing, bandpass, logger=logger)
+    psf.fit(stars, logger=logger)
 
     # Attach these for reference
     psf.initial_objects = objects

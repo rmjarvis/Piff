@@ -376,7 +376,7 @@ def test_rhostats_config():
     max_sep = 100
     bin_size = 0.1
     psf = piff.read(psf_file)
-    orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
     stats = piff.RhoStats(min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
     with np.testing.assert_raises(RuntimeError):
         stats.write('dummy')  # Cannot write before compute
@@ -471,7 +471,7 @@ def test_shapestats_config():
     # Test ShapeHistStats directly
     psf = piff.read(psf_file)
     shapeStats = piff.ShapeHistStats(nbins=5)  # default is sqrt(nstars)
-    orig_stars, wcs, pointing = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
     with np.testing.assert_raises(RuntimeError):
         shapeStats.write()  # Cannot write before compute
     shapeStats.compute(psf, orig_stars)
@@ -554,7 +554,7 @@ def test_starstats_config():
     # check default nplot
     psf = piff.read(psf_file)
     starStats = piff.StarStats(include_ave=False)
-    orig_stars, wcs, pointing = piff.Input.process(config['input'], logger=logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
     orig_stars = piff.Select.process(config['select'], orig_stars, logger=logger)
     with np.testing.assert_raises(RuntimeError):
         starStats.write()  # Cannot write before compute
@@ -742,7 +742,7 @@ def test_hsmcatalog():
 
     # Use class directly, rather than through config.
     psf = piff.PSF.read(psf_file)
-    stars, _, _ = piff.Input.process(config['input'])
+    stars, _, _, _ = piff.Input.process(config['input'])
     stars = piff.Select.process(config['select'], stars)
     hsmcat = piff.stats.HSMCatalogStats()
     with np.testing.assert_raises(RuntimeError):

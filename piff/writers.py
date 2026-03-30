@@ -25,6 +25,33 @@ import numpy as np
 from .util import make_dtype, adjust_value
 
 
+def _make_chunked_cols(objs, prefix):
+    # Some serialized payloads are too long for a single FITS table column
+    # (max width 28799). Split them into 2**14-sized chunks, which is safely
+    # below that limit. This is needed for some GalSim WCS objects (notably
+    # Pixmappy) and also for serialized Bandpass objects.
+
+    import base64
+    import pickle
+
+    serialized_list = [base64.b64encode(pickle.dumps(obj)) for obj in objs]
+    nrows = len(serialized_list)
+    max_len = max(len(s) for s in serialized_list)
+    chunk_size = 2**14
+    nchunks = max_len // chunk_size + 1
+    cols = [[nchunks] * nrows]
+    dtypes = [(f"{prefix}_nchunks", int)]
+
+    chunk_size = (max_len + nchunks - 1) // nchunks
+    chunks = [
+        [s[i : i + chunk_size] for i in range(0, max_len, chunk_size)]
+        for s in serialized_list
+    ]
+    cols.extend(zip(*chunks))
+    dtypes.extend((f"{prefix}_str_{i:04d}", bytes, chunk_size) for i in range(nchunks))
+    return cols, dtypes
+
+
 class FitsWriter:
     """A writer object that writes to multiple FITS HDUs.
 
@@ -96,40 +123,20 @@ class FitsWriter:
         self._fits.write_table(array, extname=self.get_full_name(name), header=header)
 
     def write_wcs_map(self, name, wcs_map, pointing):
-        """Write a regular a map of WCS objects and an optoinal pointing coord.
+        """Write a regular a map of WCS objects and an optional pointing coord.
 
         :param name:      Name used to save this WCS map.
         :param wcs_map:   A `dict` mapping `int` chipnum to `galsim.BaseWCS`.
         :param pointing:  A `galsim.CelestialCoord`, or `None`.
-        :param logger:    A logger object for logging debug info.
         """
-        import base64
-        import pickle
         # Start with the chipnums
         chipnums = list(wcs_map.keys())
         cols = [chipnums]
         dtypes = [("chipnums", int)]
 
-        # GalSim WCS objects can be serialized via pickle
-        wcs_str = [base64.b64encode(pickle.dumps(w)) for w in wcs_map.values()]
-        max_len = np.max([len(s) for s in wcs_str])
-        # Some GalSim WCS serializations are rather long.  In particular, the Pixmappy one
-        # is longer than the maximum length allowed for a column in a fits table (28799).
-        # So split it into chunks of size 2**14 (mildly less than this maximum).
-        chunk_size = 2**14
-        nchunks = max_len // chunk_size + 1
-        cols.append([nchunks] * len(chipnums))
-        dtypes.append(("nchunks", int))
-
-        # Update to size of chunk we actually need.
-        chunk_size = (max_len + nchunks - 1) // nchunks
-
-        chunks = [
-            [s[i : i + chunk_size] for i in range(0, max_len, chunk_size)]
-            for s in wcs_str
-        ]
-        cols.extend(zip(*chunks))
-        dtypes.extend(("wcs_str_%04d" % i, bytes, chunk_size) for i in range(nchunks))
+        wcs_cols, wcs_dtypes = _make_chunked_cols(list(wcs_map.values()), "wcs")
+        cols.extend(wcs_cols)
+        dtypes.extend(wcs_dtypes)
 
         if pointing is not None:
             # Currently, there is only one pointing for all the chips, but write it out
@@ -139,6 +146,13 @@ class FitsWriter:
             dec = [pointing.dec / galsim.degrees] * len(chipnums)
             cols.extend((ra, dec))
 
+        data = np.array(list(zip(*cols)), dtype=dtypes)
+        self.write_table(name, data)
+
+    def write_bandpass(self, name, bandpass):
+        """Write a serialized bandpass object in its own extension.
+        """
+        cols, dtypes = _make_chunked_cols([bandpass], 'bandpass')
         data = np.array(list(zip(*cols)), dtype=dtypes)
         self.write_table(name, data)
 
