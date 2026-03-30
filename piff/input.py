@@ -271,6 +271,10 @@ class InputFiles(Input):
                         SEDs from FITS tables. [default: ``WAVE``]
         :sed_flux_key:  FITS-table column name to use for flux when loading SEDs
                         from FITS tables. [default: ``FLUX``]
+        :sed_tol:       Relative tolerance for reducing the number of samples of input SEDs
+                        based on the calculated flux over the given bandpass. The SEDs are each
+                        reduced once at read time, and the reduced SED object is then shared
+                        by all matching stars. Values <= 0 disable this step. [default: 0]
         :bandpass:      GalSim bandpass config dict describing the observing bandpass for the
                         input image(s). Required when using ``sed_col`` or ``sed_file_name``.
                         [default: None]
@@ -426,6 +430,7 @@ class InputFiles(Input):
                 'sed_flux_type' : str,
                 'sed_wave_key' : str,
                 'sed_flux_key' : str,
+                'sed_tol' : float,
                 'sky_col' : str,
                 'gain_col' : str,
                 'flag_col' : str,
@@ -691,6 +696,7 @@ class InputFiles(Input):
             sed_flux_type = params.get('sed_flux_type', None)
             sed_wave_key = params.get('sed_wave_key', 'WAVE')
             sed_flux_key = params.get('sed_flux_key', 'FLUX')
+            sed_tol = params.get('sed_tol', 0.0)
             if 'bandpass' in config:
                 bandpass = galsim.config.BuildBandpass(config, 'bandpass', base, logger)[0]
             else:
@@ -731,6 +737,7 @@ class InputFiles(Input):
                     'sed_flux_type': sed_flux_type,
                     'sed_wave_key': sed_wave_key,
                     'sed_flux_key': sed_flux_key,
+                    'sed_tol': sed_tol,
                     'bandpass': bandpass,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
@@ -1153,7 +1160,7 @@ class InputFiles(Input):
 
     @staticmethod
     def _read_sed_file(sed_file_name, sed_wave_type, sed_flux_type,
-                       sed_wave_key, sed_flux_key, bandpass):
+                       sed_wave_key, sed_flux_key, sed_tol, bandpass):
         cache_key = (sed_file_name, sed_wave_type, sed_flux_type, sed_wave_key, sed_flux_key)
         if cache_key in InputFiles._sed_cache:
             return InputFiles._sed_cache[cache_key]
@@ -1194,6 +1201,8 @@ class InputFiles(Input):
             table = galsim.LookupTable(wave, flux, interpolant='linear')
             sed = galsim.SED(table, wave_type=wave_type, flux_type=flux_type)
 
+        if sed_tol > 0:
+            sed = sed.thin(rel_err=sed_tol, bandpass=bandpass)
         sed = sed.withFlux(1.0, bandpass)
 
         InputFiles._sed_cache[cache_key] = sed
@@ -1216,7 +1225,7 @@ class InputFiles(Input):
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
                         sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
-                        bandpass,
+                        sed_tol, bandpass,
                         properties, image_num, sky_col, gain_col, sky, gain, satur,
                         trust_pos, nstars, stamp_size, config, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
@@ -1244,7 +1253,8 @@ class InputFiles(Input):
         :param sed_flux_type:   Flux type for SED files.
         :param sed_wave_key:    FITS-table wavelength column name for SED files.
         :param sed_flux_key:    FITS-table flux column name for SED files.
-        :param bandpass:        galsim.Bandpass for SED thinning and unit-flux normalization.
+        :param sed_tol:         Relative tolerance for reducing loaded SEDs.
+        :param bandpass:        The galsim.Bandpass for the observation.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -1400,6 +1410,7 @@ class InputFiles(Input):
                     sed_flux_type=sed_flux_type,
                     sed_wave_key=sed_wave_key,
                     sed_flux_key=sed_flux_key,
+                    sed_tol=sed_tol,
                     bandpass=bandpass,
                 ))
             extra_props['sed'] = np.array(sed_values, dtype=object)
@@ -1408,12 +1419,13 @@ class InputFiles(Input):
             extra_props['sed_flux_type'] = np.array([sed_flux_type] * len(cat), dtype=object)
             extra_props['sed_wave_key'] = np.array([sed_wave_key] * len(cat), dtype=object)
             extra_props['sed_flux_key'] = np.array([sed_flux_key] * len(cat), dtype=object)
+            extra_props['sed_tol'] = np.full(len(cat), sed_tol, dtype=float)
         elif sed_file_name is not None:
             sed_file_name = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
             sed = InputFiles._read_sed_file(
                 sed_file_name, sed_wave_type=sed_wave_type,
                 sed_flux_type=sed_flux_type, sed_wave_key=sed_wave_key,
-                sed_flux_key=sed_flux_key,
+                sed_flux_key=sed_flux_key, sed_tol=sed_tol,
                 bandpass=bandpass
             )
             extra_props['sed'] = np.array([sed] * len(cat), dtype=object)
@@ -1422,6 +1434,7 @@ class InputFiles(Input):
             extra_props['sed_flux_type'] = np.array([sed_flux_type] * len(cat), dtype=object)
             extra_props['sed_wave_key'] = np.array([sed_wave_key] * len(cat), dtype=object)
             extra_props['sed_flux_key'] = np.array([sed_flux_key] * len(cat), dtype=object)
+            extra_props['sed_tol'] = np.full(len(cat), sed_tol, dtype=float)
 
         # If we used a flag column, keep it as a property.
         if flag_col is not None:
