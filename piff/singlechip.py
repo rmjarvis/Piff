@@ -91,11 +91,12 @@ class SingleChipPSF(PSF):
         config_psf['type'] = config_psf.pop('single_type', 'Simple')
 
         # Now the regular PSF process function can process the dict.
-        single_psf = PSF.process(config_psf, logger)
+        single_psf = PSF.process(config_psf, logger=logger)
 
         return { 'single_psf' : single_psf, 'nproc' : nproc }
 
-    def fit(self, stars, wcs, pointing, logger=None, convert_funcs=None, draw_method=None):
+    def fit(self, stars, wcs=None, pointing=None, logger=None, convert_funcs=None,
+            draw_method=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -112,8 +113,12 @@ class SingleChipPSF(PSF):
         """
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
-        self.wcs = wcs
-        self.pointing = pointing
+        if wcs is None:
+            wcs = self.wcs
+            pointing = self.pointing
+        else:
+            self.wcs = wcs
+            self.pointing = pointing
         self.psf_by_chip = {}
 
         chipnums = list(wcs.keys())

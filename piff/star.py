@@ -34,7 +34,7 @@ class Star(object):
     Piff functions such as:
 
         stars = input_handler.makeStars(logger)
-        stars, wcs = piff.Input.process(config['input'])
+        stars, wcs, pointing, bandpass = piff.Input.process(config['input'])
         target_star = piff.Star.makeTarget(x=x, y=y, wcs=wcs, ...)
 
     However, a star can be constructed directly from a StarData instance and a StarFit instance.
@@ -558,6 +558,7 @@ class Star(object):
                 sed_flux_type=sed_flux_type,
                 sed_wave_key=sed_wave_key,
                 sed_flux_key=sed_flux_key,
+                bandpass=None,
             )
 
     @staticmethod

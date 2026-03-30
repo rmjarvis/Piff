@@ -22,6 +22,20 @@ import fitsio
 import galsim
 import copy
 
+def _read_chunked_objs(data, prefix, encoding='bytes'):
+    import base64
+    import pickle
+    nchunks_key = f'{prefix}_nchunks'
+    if nchunks_key in data.dtype.names:
+        nchunks = data[nchunks_key][0]
+    else:
+        # Prior to version 1.7, there was only 1 chunked item, which is now wcs_nchunks.
+        nchunks = data['nchunks'][0]
+    keys = [f'{prefix}_str_{i:04d}' for i in range(nchunks)]
+    serialized_list = [b''.join(s) for s in zip(*[data[key] for key in keys])]
+    serialized_list = [base64.b64decode(s) for s in serialized_list]
+    return [pickle.loads(s, encoding=encoding) for s in serialized_list]
+
 
 class FitsReader:
     """A reader object that reads from to multiple FITS HDUs.
@@ -108,40 +122,21 @@ class FitsReader:
             return None, None
 
         assert 'chipnums' in self._fits[extname].get_colnames()
-        assert 'nchunks' in self._fits[extname].get_colnames()
+        assert ('wcs_nchunks' in self._fits[extname].get_colnames() or
+                'nchunks' in self._fits[extname].get_colnames())
 
         data = self._fits[extname].read()
 
         chipnums = data['chipnums']
-        nchunks = data['nchunks']
-        nchunks = nchunks[0]  # These are all equal, so just take first one.
-
-        wcs_keys = [ 'wcs_str_%04d'%i for i in range(nchunks) ]
-        wcs_str = [ data[key] for key in wcs_keys ] # Get all wcs_str columns
         try:
-            wcs_str = [ b''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-        except TypeError:  # pragma: no cover
-            # fitsio 1.0 returns strings
-            wcs_str = [ ''.join(s) for s in zip(*wcs_str) ]  # Rejoint into single string each
-
-        wcs_str = [ base64.b64decode(s) for s in wcs_str ] # Convert back from b64 encoding
-        # Convert back into wcs objects
-        try:
-            wcs_list = [ pickle.loads(s, encoding='bytes') for s in wcs_str ]
-        except Exception:
-            # If the file was written by py2, the bytes encoding might raise here,
-            # or it might not until we try to use it.
-            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
-
-        wcs = dict(zip(chipnums, wcs_list))
-
-        try:
+            wcs_list = _read_chunked_objs(data, 'wcs')
+            wcs = dict(zip(chipnums, wcs_list))
             # If this doesn't work, then the file was probably written by py2, not py3
             repr(wcs)
         except Exception:
             logger.verbose('Failed to decode wcs with bytes encoding.')
             logger.verbose('Retry with encoding="latin1" in case file written with python 2.')
-            wcs_list = [ pickle.loads(s, encoding='latin1') for s in wcs_str ]
+            wcs_list = _read_chunked_objs(data, 'wcs', encoding='latin1')
             wcs = dict(zip(chipnums, wcs_list))
             repr(wcs)
 
@@ -168,6 +163,13 @@ class FitsReader:
             pointing = None
 
         return wcs, pointing
+
+    def read_bandpass(self, name):
+        extname = self.get_full_name(name)
+        if extname not in self._fits:
+            return None
+        data = self._fits[extname].read()
+        return _read_chunked_objs(data, 'bandpass')[0]
 
     @contextmanager
     def nested(self, name):

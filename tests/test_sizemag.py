@@ -64,7 +64,7 @@ def test_smallbright():
         'type': 'SmallBright'
     }
 
-    objects, _, _ = piff.Input.process(config['input'], logger=logger)
+    objects, _, _, _ = piff.Input.process(config['input'], logger=logger)
     stars = piff.Select.process(config['select'], objects, logger=logger)
 
     # This does a pretty decent job actually.  Finds 88 stars.
@@ -230,7 +230,7 @@ def test_sizemag():
         'type': 'SizeMag'
     }
 
-    objects, _, _ = piff.Input.process(config['input'], logger=logger)
+    objects, _, _, _ = piff.Input.process(config['input'], logger=logger)
     stars = piff.Select.process(config['select'], objects, logger=logger)
 
     # This finds more stars than the simple SmallBright selector found.
@@ -328,7 +328,7 @@ def test_sizemag():
             # Use all the input objects
         }
     }
-    objects, _, _ = piff.Input.process(config['input'], logger=logger)
+    objects, _, _, _ = piff.Input.process(config['input'], logger=logger)
     stars = piff.Select.process(config['select'], objects, logger=logger)
 
     # Check pathologically few input objects.

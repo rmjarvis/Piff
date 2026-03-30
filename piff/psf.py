@@ -41,9 +41,12 @@ class PSF(object):
     # Normally overridden by subclasses.  But this gives a reasonable default for
     # tests that bypass places where it would be potentially set in normal operations.
     degenerate_points = False
+    wcs = None
+    pointing = None
+    bandpass = None
 
     @classmethod
-    def process(cls, config_psf, logger=None):
+    def process(cls, config_psf, wcs=None, pointing=None, bandpass=None, logger=None):
         """Process the config dict and return a PSF instance.
 
         As the PSF class is an abstract base class, the returned type will in fact be some
@@ -56,14 +59,24 @@ class PSF(object):
         This function merely creates a "blank" PSF object.  It does not actually do any
         part of the solution yet.  Typically this will be followed by fit:
 
-            >>> psf = piff.PSF.process(config['psf'])
-            >>> stars, wcs, pointing = piff.Input.process(config['input'])
-            >>> psf.fit(stars, wcs, pointing)
+            >>> stars, wcs, pointing, bandpass = piff.Input.process(config['input'])
+            >>> psf = piff.PSF.process(config['psf'], wcs, pointing, bandpass)
+            >>> psf.fit(stars)
 
         at which point, the ``psf`` instance would have a solution to the PSF model.
 
+        .. note::
+
+            The preferred pattern now is to provide wcs and pointing here, but these used to
+            be set when calling fit.  The old pattern is still supported, but deprecated.
+
         :param config_psf:  A dict specifying what type of PSF to build along with the
                             appropriate kwargs for building it.
+        :param wcs:         A dict of WCS solutions indexed by chipnum.
+        :param pointing:    A galsim.CelestialCoord object giving the telescope pointing.
+                            [Note: pointing should be None if the WCS is not a CelestialWCS]
+        :param bandpass:    Optional galsim.Bandpass shared by the input data.
+                            [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a PSF instance of the appropriate type.
@@ -92,6 +105,9 @@ class PSF(object):
         # At top level, the num is always None.
         # Composite PSF types will turn this into a series of integer values for each component.
         psf.set_num(None)
+        psf.wcs = wcs
+        psf.pointing = pointing
+        psf.bandpass = bandpass
 
         return psf
 
@@ -373,7 +389,8 @@ class PSF(object):
             nremoved = 0
         return stars, nremoved
 
-    def fit(self, stars, wcs, pointing, logger=None, convert_funcs=None, draw_method=None):
+    def fit(self, stars, wcs=None, pointing=None, logger=None,
+            convert_funcs=None, draw_method=None):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
@@ -391,8 +408,10 @@ class PSF(object):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
 
-        self.wcs = wcs
-        self.pointing = pointing
+        if self.wcs is None:
+            logger.error("WARNING: wcs and pointing should now be given in process, not fit.")
+            self.wcs = wcs
+            self.pointing = pointing
 
         # Initialize stars as needed by the PSF modeling class.
         stars = self.initialize_flux_center(stars, logger=logger)
@@ -766,9 +785,12 @@ class PSF(object):
             if hasattr(self, 'stars'):
                 Star.write(self.stars, w, 'stars')
                 logger.verbose("Wrote the PSF stars to name %s", w.get_full_name('stars'))
-            if hasattr(self, 'wcs'):
+            if self.wcs is not None:
                 w.write_wcs_map('wcs', self.wcs, self.pointing)
                 logger.verbose("Wrote the PSF WCS to name %s", w.get_full_name('wcs'))
+            if self.bandpass is not None:
+                w.write_bandpass('bandpass', self.bandpass)
+                logger.verbose("Wrote the PSF bandpass to name %s", w.get_full_name('bandpass'))
             self._finish_write(w, logger=logger)
 
     @classmethod
@@ -822,15 +844,17 @@ class PSF(object):
 
         with reader.nested(name) as r:
             # Read the stars, wcs, pointing values
+            wcs, pointing = r.read_wcs_map('wcs', logger=logger)
+            bandpass = r.read_bandpass('bandpass')
             stars = Star.read(r, 'stars')
             if stars is not None:
                 logger.debug("stars = %s", stars)
                 psf.stars = stars
-            wcs, pointing = r.read_wcs_map('wcs', logger=logger)
             if wcs is not None:
-                logger.debug("wcs = %s, pointing = %s",wcs,pointing)
+                logger.debug("wcs = %s, pointing = %s, bandpass = %s", wcs, pointing, bandpass)
                 psf.wcs = wcs
                 psf.pointing = pointing
+                psf.bandpass = bandpass
 
             # Just in case the class needs to do something else at the end.
             psf._finish_read(r, logger)

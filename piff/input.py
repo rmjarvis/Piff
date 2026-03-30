@@ -47,11 +47,12 @@ class Input(object):
         :param config_input:    The configuration dict.
         :param logger:          A logger object for logging debug info. [default: None]
 
-        :returns: stars, wcs, pointing
+        :returns: stars, wcs, pointing, bandpass
 
         stars is a list of Star instances with the initial data.
         wcs is a dict of WCS solutions indexed by chipnum.
         pointing is either a galsim.CelestialCoord or None.
+        bandpass is either a galsim.Bandpass or None.
         """
         # Get the class to use for handling the input data
         # Default type is 'Files'
@@ -78,7 +79,10 @@ class Input(object):
         # Get the pointing (the coordinate center of the field of view)
         pointing = input_handler.getPointing(logger)
 
-        return stars, wcs, pointing
+        # Get the observing bandpass, if any
+        bandpass = input_handler.getBandpass(logger)
+
+        return stars, wcs, pointing, bandpass
 
     @classmethod
     def __init_subclass__(cls):
@@ -147,6 +151,15 @@ class Input(object):
         :returns: a galsim.CelestialCoord of the pointing direction.
         """
         return self.pointing
+
+    def getBandpass(self, logger=None):
+        """Get the observing bandpass for the input images.
+
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns: a galsim.Bandpass or None.
+        """
+        return None
 
 
 class InputFiles(Input):
@@ -258,6 +271,10 @@ class InputFiles(Input):
                         SEDs from FITS tables. [default: ``WAVE``]
         :sed_flux_key:  FITS-table column name to use for flux when loading SEDs
                         from FITS tables. [default: ``FLUX``]
+        :bandpass:      GalSim bandpass config dict describing the observing bandpass for the
+                        input image(s). Required when using ``sed_col`` or ``sed_file_name``.
+                        SED thinning will target this bandpass via
+                        ``sed.thin(..., bandpass=...)``. [default: None]
 
     .. note::
 
@@ -435,7 +452,7 @@ class InputFiles(Input):
                 'noise' : str,
                 'nstars' : int,
               }
-        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs' ]
+        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs', 'bandpass' ]
 
         # We're going to change the config dict a bit. Make a copy so we don't mess up the
         # user's original dict (in case they care).
@@ -675,6 +692,12 @@ class InputFiles(Input):
             sed_flux_type = params.get('sed_flux_type', None)
             sed_wave_key = params.get('sed_wave_key', 'WAVE')
             sed_flux_key = params.get('sed_flux_key', 'FLUX')
+            if (sed_col is not None or sed_file_name is not None) and 'bandpass' not in config:
+                raise ValueError("bandpass is required when using sed_col or sed_file_name")
+            if 'bandpass' in config:
+                bandpass = galsim.config.BuildBandpass(config, 'bandpass', base, logger)[0]
+            else:
+                bandpass = None
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             gain = params.get('gain', None)
@@ -709,6 +732,7 @@ class InputFiles(Input):
                     'sed_flux_type': sed_flux_type,
                     'sed_wave_key': sed_wave_key,
                     'sed_flux_key': sed_flux_key,
+                    'bandpass': bandpass,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
                     'sky' : sky,
@@ -719,6 +743,7 @@ class InputFiles(Input):
                     'stamp_size' : self.stamp_size})
 
         self.use_partial = config.get('use_partial', False)
+        self.bandpass = bandpass
 
         # Read all the wcs's, since we'll need this for the pointing, which in turn we'll
         # need for when we make the stars.
@@ -729,6 +754,9 @@ class InputFiles(Input):
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
         self.config = galsim.config.CleanConfig(config)
+
+    def getBandpass(self, logger=None):
+        return self.bandpass
 
     def load_images(self, stars, logger=None):
         """Load the image data into a list of Stars.
@@ -1126,7 +1154,7 @@ class InputFiles(Input):
 
     @staticmethod
     def _read_sed_file(sed_file_name, sed_wave_type, sed_flux_type,
-                       sed_wave_key, sed_flux_key):
+                       sed_wave_key, sed_flux_key, bandpass):
         cache_key = (sed_file_name, sed_wave_type, sed_flux_type, sed_wave_key, sed_flux_key)
         if cache_key in InputFiles._sed_cache:
             return InputFiles._sed_cache[cache_key]
@@ -1187,6 +1215,7 @@ class InputFiles(Input):
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
                         sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
+                        bandpass,
                         properties, image_num, sky_col, gain_col, sky, gain, satur,
                         trust_pos, nstars, stamp_size, config, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
@@ -1214,6 +1243,7 @@ class InputFiles(Input):
         :param sed_flux_type:   Flux type for SED files.
         :param sed_wave_key:    FITS-table wavelength column name for SED files.
         :param sed_flux_key:    FITS-table flux column name for SED files.
+        :param bandpass:        galsim.Bandpass for SED thinning and unit-flux normalization.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
         :param sky:             Either a float value for the sky to use for all objects or a str
@@ -1369,6 +1399,7 @@ class InputFiles(Input):
                     sed_flux_type=sed_flux_type,
                     sed_wave_key=sed_wave_key,
                     sed_flux_key=sed_flux_key,
+                    bandpass=bandpass,
                 ))
             extra_props['sed'] = np.array(sed_values, dtype=object)
             extra_props['sed_file_name'] = np.array(sed_file_name_values, dtype=object)
@@ -1381,7 +1412,8 @@ class InputFiles(Input):
             sed = InputFiles._read_sed_file(
                 sed_file_name, sed_wave_type=sed_wave_type,
                 sed_flux_type=sed_flux_type, sed_wave_key=sed_wave_key,
-                sed_flux_key=sed_flux_key
+                sed_flux_key=sed_flux_key,
+                bandpass=bandpass
             )
             extra_props['sed'] = np.array([sed] * len(cat), dtype=object)
             extra_props['sed_file_name'] = np.array([sed_file_name] * len(cat), dtype=object)
