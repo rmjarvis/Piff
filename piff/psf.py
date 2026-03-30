@@ -46,7 +46,7 @@ class PSF(object):
     bandpass = None
 
     @classmethod
-    def process(cls, config_psf, wcs=None, pointing=None, bandpass=None, logger=None):
+    def process(cls, config_psf, logger=None):
         """Process the config dict and return a PSF instance.
 
         As the PSF class is an abstract base class, the returned type will in fact be some
@@ -57,26 +57,23 @@ class PSF(object):
         several components.
 
         This function merely creates a "blank" PSF object.  It does not actually do any
-        part of the solution yet.  Typically this will be followed by fit:
+        part of the solution yet.  Typically this will be followed by set_context and fit:
 
             >>> stars, wcs, pointing, bandpass = piff.Input.process(config['input'])
-            >>> psf = piff.PSF.process(config['psf'], wcs, pointing, bandpass)
+            >>> psf = piff.PSF.process(config['psf'])
+            >>> psf.set_context(wcs, pointing, bandpass)
             >>> psf.fit(stars)
 
         at which point, the ``psf`` instance would have a solution to the PSF model.
 
         .. note::
 
-            The preferred pattern now is to provide wcs and pointing here, but these used to
-            be set when calling fit.  The old pattern is still supported, but deprecated.
+            Shared runtime context such as wcs, pointing, and bandpass should be attached
+            with set_context before calling fit.  The old pattern of providing wcs and
+            pointing to fit is still supported, but deprecated.
 
         :param config_psf:  A dict specifying what type of PSF to build along with the
                             appropriate kwargs for building it.
-        :param wcs:         A dict of WCS solutions indexed by chipnum.
-        :param pointing:    A galsim.CelestialCoord object giving the telescope pointing.
-                            [Note: pointing should be None if the WCS is not a CelestialWCS]
-        :param bandpass:    Optional galsim.Bandpass shared by the input data.
-                            [default: None]
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a PSF instance of the appropriate type.
@@ -105,11 +102,26 @@ class PSF(object):
         # At top level, the num is always None.
         # Composite PSF types will turn this into a series of integer values for each component.
         psf.set_num(None)
-        psf.wcs = wcs
-        psf.pointing = pointing
-        psf.bandpass = bandpass
 
         return psf
+
+    def set_context(self, wcs, pointing=None, bandpass=None):
+        """Attach shared runtime context to this PSF instance.
+
+        It is permissible for pointing to be None if the WCS is not Celestial.
+        Also, bandpass may be None if the psf to be fit is not chromatic.
+        If pointing or bandpass is None, the existing value is left unchanged.
+
+        :param wcs:         A dict of WCS solutions indexed by chipnum.
+        :param pointing:    A galsim.CelestialCoord object giving the telescope pointing.
+                            [default: None]
+        :param bandpass:    A galsim.Bandpass giving the observing bandpass. [default: None]
+        """
+        self.wcs = wcs
+        if pointing is not None:
+            self.pointing = pointing
+        if bandpass is not None:
+            self.bandpass = bandpass
 
     def set_num(self, num):
         """If there are multiple components involved in the fit, set the number to use
@@ -394,9 +406,9 @@ class PSF(object):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
-        :param wcs:             A dict of WCS solutions indexed by chipnum.
+        :param wcs:             A dict of WCS solutions indexed by chipnum. [deprecated]
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
-                                [Note: pointing should be None if the WCS is not a CelestialWCS]
+                                [deprecated]
         :param logger:          A logger object for logging debug info. [default: None]
         :param convert_funcs:   An optional list of function to apply to the profiles being fit
                                 before drawing it onto the image.  This is used by composite PSFs
@@ -409,9 +421,8 @@ class PSF(object):
         logger = LoggerWrapper(logger)
 
         if self.wcs is None:
-            logger.error("WARNING: wcs and pointing should now be given in process, not fit.")
-            self.wcs = wcs
-            self.pointing = pointing
+            logger.error("WARNING: wcs should now be set with set_context before calling fit.")
+            self.set_context(wcs, pointing, self.bandpass)
 
         # Initialize stars as needed by the PSF modeling class.
         stars = self.initialize_flux_center(stars, logger=logger)
@@ -852,9 +863,7 @@ class PSF(object):
                 psf.stars = stars
             if wcs is not None:
                 logger.debug("wcs = %s, pointing = %s, bandpass = %s", wcs, pointing, bandpass)
-                psf.wcs = wcs
-                psf.pointing = pointing
-                psf.bandpass = bandpass
+                psf.set_context(wcs, pointing, bandpass)
 
             # Just in case the class needs to do something else at the end.
             psf._finish_read(r, logger)

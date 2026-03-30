@@ -106,6 +106,12 @@ class SumPSF(PSF):
             names.update(c.interp_property_names)
         return names
 
+    def set_context(self, wcs, pointing, bandpass):
+        super().set_context(wcs, pointing, bandpass)
+        if isinstance(self.components, list):
+            for comp in self.components:
+                comp.set_context(wcs, pointing, bandpass)
+
     @classmethod
     def parseKwargs(cls, config_psf, logger):
         """Parse the psf field of a configuration dict and return the kwargs to use for

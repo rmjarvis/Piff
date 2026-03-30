@@ -24,18 +24,20 @@ from .psf import PSF
 from .util import make_dtype, adjust_value, run_multi
 
 # Used by SingleChipPSF.fit
-def single_chip_run(chipnum, single_psf, stars, wcs, pointing, convert_funcs, draw_method, logger):
+def single_chip_run(chipnum, single_psf, stars, wcs, convert_funcs, draw_method, logger):
     # Make a copy of single_psf for each chip
     psf_chip = copy.deepcopy(single_psf)
 
     # Break the list of stars up into a list for each chip
     stars_chip = [ s for s in stars if s['chipnum'] == chipnum ]
+
+    # Set the wcs correctly for this chip
     wcs_chip = { chipnum : wcs[chipnum] }
+    psf_chip.set_context(wcs_chip)
 
     # Run the psf_chip fit function using this stars and wcs (and the same pointing)
     logger.info("Building solution for chip %s with %d stars", chipnum, len(stars_chip))
-    psf_chip.fit(stars_chip, wcs_chip, pointing, logger=logger, convert_funcs=convert_funcs,
-                 draw_method=draw_method)
+    psf_chip.fit(stars_chip, logger=logger, convert_funcs=convert_funcs, draw_method=draw_method)
 
     return psf_chip
 
@@ -69,6 +71,12 @@ class SingleChipPSF(PSF):
         if isinstance(self.single_psf, PSF):
             self.single_psf.set_num(num)
 
+    def set_context(self, wcs, pointing=None, bandpass=None):
+        super().set_context(wcs, pointing, bandpass)
+        # wcs will be different for each chip.  This will be set in single_chip_run.
+        if isinstance(self.single_psf, PSF):
+            self.single_psf.set_context(None, pointing, bandpass)
+
     @property
     def interp_property_names(self):
         return self.single_psf.interp_property_names
@@ -100,9 +108,9 @@ class SingleChipPSF(PSF):
         """Fit interpolated PSF model to star data using standard sequence of operations.
 
         :param stars:           A list of Star instances.
-        :param wcs:             A dict of WCS solutions indexed by chipnum.
+        :param wcs:             A dict of WCS solutions indexed by chipnum. [deprecated]
         :param pointing:        A galsim.CelestialCoord object giving the telescope pointing.
-                                [Note: pointing should be None if the WCS is not a CelestialWCS]
+                                [deprecated]
         :param logger:          A logger object for logging debug info. [default: None]
         :param convert_funcs:   An optional list of function to apply to the profiles being fit
                                 before drawing it onto the image.  This is used by composite PSFs
@@ -113,16 +121,13 @@ class SingleChipPSF(PSF):
         """
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
-        if wcs is None:
-            wcs = self.wcs
-            pointing = self.pointing
-        else:
-            self.wcs = wcs
-            self.pointing = pointing
+        if self.wcs is None:
+            logger.error("WARNING: wcs should now be set with set_context before calling fit.")
+            self.set_context(wcs, pointing)
         self.psf_by_chip = {}
 
-        chipnums = list(wcs.keys())
-        args = [(chipnum, self.single_psf, stars, wcs, pointing, convert_funcs, draw_method)
+        chipnums = list(self.wcs.keys())
+        args = [(chipnum, self.single_psf, stars, self.wcs, convert_funcs, draw_method)
                 for chipnum in chipnums]
 
         output = run_multi(single_chip_run, self.nproc, raise_except=False,
