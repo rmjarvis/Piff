@@ -438,11 +438,12 @@ class Star(object):
         return coords, params
 
     @classmethod
-    def read(cls, reader, name):
+    def read(cls, reader, name, bandpass=None):
         """Read a list of stars via an open reader object.
 
         :param reader:      A reader object that encapsulates the serialization format.
-        :param name:         Name associated with the stars in the serialized output.
+        :param name:        Name associated with the stars in the serialized output.
+        :param bandpass:    galsim.Bandpass to use when reconstructing stored SEDs.
         :returns: a list of Star instances, or None if there aren't any
         """
         metadata = {}
@@ -523,7 +524,7 @@ class Star(object):
                 prop_list[i]['is_reserve'] = True
             if 'flag_psf' in data.dtype.names and row['flag_psf']:
                 prop_list[i]['is_flagged'] = True
-        cls._restore_seds(prop_list)
+        cls._restore_seds(prop_list, bandpass)
 
         wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
         pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]
@@ -541,12 +542,14 @@ class Star(object):
         return stars
 
     @classmethod
-    def _restore_seds(cls, prop_list):
+    def _restore_seds(cls, prop_list, bandpass):
         from .input import InputFiles
 
         for prop in prop_list:
             if 'sed' in prop or 'sed_file_name' not in prop:
                 continue
+            if bandpass is None:
+                raise ValueError("bandpass is required to restore stars with serialized SEDs")
             sed_file_name = prop['sed_file_name']
             sed_wave_key = prop.get('sed_wave_key', 'WAVE')
             sed_flux_key = prop.get('sed_flux_key', 'FLUX')
@@ -558,7 +561,7 @@ class Star(object):
                 sed_flux_type=sed_flux_type,
                 sed_wave_key=sed_wave_key,
                 sed_flux_key=sed_flux_key,
-                bandpass=None,
+                bandpass=bandpass,
             )
 
     @staticmethod

@@ -273,8 +273,7 @@ class InputFiles(Input):
                         from FITS tables. [default: ``FLUX``]
         :bandpass:      GalSim bandpass config dict describing the observing bandpass for the
                         input image(s). Required when using ``sed_col`` or ``sed_file_name``.
-                        SED thinning will target this bandpass via
-                        ``sed.thin(..., bandpass=...)``. [default: None]
+                        [default: None]
 
     .. note::
 
@@ -692,11 +691,11 @@ class InputFiles(Input):
             sed_flux_type = params.get('sed_flux_type', None)
             sed_wave_key = params.get('sed_wave_key', 'WAVE')
             sed_flux_key = params.get('sed_flux_key', 'FLUX')
-            if (sed_col is not None or sed_file_name is not None) and 'bandpass' not in config:
-                raise ValueError("bandpass is required when using sed_col or sed_file_name")
             if 'bandpass' in config:
                 bandpass = galsim.config.BuildBandpass(config, 'bandpass', base, logger)[0]
             else:
+                if sed_col is not None or sed_file_name is not None:
+                    raise ValueError("bandpass is required when using sed_col or sed_file_name")
                 bandpass = None
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
@@ -1194,6 +1193,8 @@ class InputFiles(Input):
 
             table = galsim.LookupTable(wave, flux, interpolant='linear')
             sed = galsim.SED(table, wave_type=wave_type, flux_type=flux_type)
+
+        sed = sed.withFlux(1.0, bandpass)
 
         InputFiles._sed_cache[cache_key] = sed
         return sed

@@ -2139,6 +2139,7 @@ def test_sed_col():
     }
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, extra_props = input.getRawImageData(0)
+    bandpass = galsim.roman.getBandpasses()['H158']
     assert len(image_pos) == 100
     assert len(extra_props['sed']) == 100
 
@@ -2146,7 +2147,9 @@ def test_sed_col():
     assert len(stars) > 0
     for star in stars[:8]:
         assert isinstance(star['sed'], galsim.SED)
-        assert np.isfinite(float(star['sed'](1000.0)))
+        np.testing.assert_allclose(
+            star['sed'].calculateFlux(bandpass), 1.0, rtol=1.0e-12, atol=0.0
+        )
 
     # Repeated file names should reuse the same cached SED object.
     assert extra_props['sed'][0] is extra_props['sed'][4]
@@ -2227,10 +2230,9 @@ def test_single_sed():
     assert len(image_pos) == 100
     assert len(extra_props['sed']) == 100
 
-    bandpass = galsim.config.BuildBandpass(
-        {'bandpass': config['bandpass']}, 'bandpass', {'image_num': 0, 'index_key': 'image_num'}
-    )[0]
+    bandpass = galsim.Bandpass(lambda wave: 1.0, 'Angstrom', blue_limit=1000, red_limit=2000)
     ref_sed = galsim.SED('vega.txt', wave_type='Angstrom', flux_type='flambda')
+    ref_sed = ref_sed.withFlux(1.0, bandpass)
     np.testing.assert_allclose(
         float(extra_props['sed'][0](100.0)),
         float(ref_sed(100.0)),
@@ -2250,6 +2252,7 @@ def test_single_sed():
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
         'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
+    piff.InputFiles._sed_cache = {}
     input = piff.InputFiles(config, logger=logger)
     _, _, _, props = input.getRawImageData(0)
     assert len(props['sed']) == 100
@@ -2382,9 +2385,13 @@ def test_sed_star_io():
     assert 'sed_wave_key' in cols
     assert 'sed_flux_key' in cols
 
+    bandpass = galsim.roman.getBandpasses()['H158']
     with piff.readers.FitsReader.open(file_name) as r:
-        stars2 = piff.Star.read(r, 'stars')
-
+        with pytest.raises(ValueError) as e:
+            piff.Star.read(r, 'stars')
+    assert "bandpass is required" in str(e.value)
+    with piff.readers.FitsReader.open(file_name) as r:
+        stars2 = piff.Star.read(r, 'stars', bandpass=bandpass)
     for s1, s2 in zip(stars, stars2):
         assert isinstance(s2['sed'], galsim.SED)
         assert s1['sed_file_name'] == s2['sed_file_name']
@@ -2393,8 +2400,8 @@ def test_sed_star_io():
         assert s1['sed_wave_key'] == s2['sed_wave_key']
         assert s1['sed_flux_key'] == s2['sed_flux_key']
         np.testing.assert_allclose(
-            float(s2['sed'](1000.0)),
-            float(s1['sed'](1000.0)),
+            float(s2['sed'](1500.0)),
+            float(s1['sed'](1500.0)),
             rtol=1.0e-12,
             atol=0.0,
         )
@@ -2413,11 +2420,7 @@ def test_wcs_bandpass_io():
     file_name = os.path.join('output', 'wcs_bandpass_io.fits')
     wcs = {1: galsim.PixelScale(0.2)}
     pointing = galsim.CelestialCoord(6 * galsim.hours, -30 * galsim.degrees)
-    bandpass = galsim.config.BuildBandpass(
-        {'bandpass': {'type': 'RomanBandpass', 'name': 'H158'}},
-        'bandpass',
-        {'image_num': 0, 'index_key': 'image_num'},
-    )[0]
+    bandpass = galsim.roman.getBandpasses()['H158']
 
     with piff.writers.FitsWriter.open(file_name) as w:
         w.write_wcs_map('wcs', wcs, pointing)

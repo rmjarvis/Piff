@@ -857,7 +857,7 @@ class PSF(object):
             # Read the stars, wcs, pointing values
             wcs, pointing = r.read_wcs_map('wcs', logger=logger)
             bandpass = r.read_bandpass('bandpass')
-            stars = Star.read(r, 'stars')
+            stars = Star.read(r, 'stars', bandpass=bandpass)
             if stars is not None:
                 logger.debug("stars = %s", stars)
                 psf.stars = stars
