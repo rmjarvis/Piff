@@ -332,25 +332,14 @@ def test_fit():
             properties={'sca': 5},
         ).withFlux(1.0, (0.0, 0.0))
 
-        init_star = model.initialize(star)
+        star = model.initialize(star)
         # Keep injected extra aberrations modest relative to baseline Roman optics.
         # Typical built-in |z4..z22| values are around 1e-3 to a few e-2, so 4-5e-3 is
         # realistic while still providing measurable signal in this unit test.
         truth_params = np.array([0.004, -0.003, 0.005])
-        truth_fit = init_star.fit.newParams(
-            truth_params,
-            params_var=np.zeros_like(truth_params),
-        )
-        truth_star = model.draw(piff.Star(init_star.data, truth_fit))
-
-        fit_star = piff.Star(
-            truth_star.data,
-            init_star.fit.newParams(
-                np.zeros_like(truth_params),
-                params_var=np.zeros_like(truth_params)
-            ),
-        )
-        fitted = model.fit(fit_star)
+        prof = model.getProfile(truth_params, star=star)
+        model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
+        fitted = model.fit(star)
         print('fit = ',fitted.fit.params)
         # 1 pass isn't great, but after 2 passes, the agreement is sub percent.
         fitted = model.fit(fitted)
@@ -369,10 +358,10 @@ def test_fit():
         assert np.all(fitted_var >= 0)
 
         # Sanity tests about getting profile and drawing it.
-        prof = model.getProfile(star=fit_star)
+        prof = model.getProfile(star=star)
         assert prof is not None
-        drawn_star = model.draw(fit_star)
-        assert drawn_star.image.array.shape == fit_star.image.array.shape
+        drawn_star = model.draw(star)
+        assert drawn_star.image.array.shape == star.image.array.shape
 
         # Error if no star argument in getProfile.  (Allowed by some other classes.)
         with pytest.raises(ValueError) as err:
@@ -381,12 +370,12 @@ def test_fit():
 
         # Error if params is given and has wrong length.
         with pytest.raises(ValueError) as err:
-            model.getProfile(star=fit_star, params=np.zeros(model.param_len+2))
+            model.getProfile(star=star, params=np.zeros(model.param_len+2))
         assert "params must have length 3" in str(err.value)
 
         # Error if convert_funcs is given but has different length than stars.
         with pytest.raises(ValueError) as err:
-            model.fit_many([fit_star], convert_funcs=[])
+            model.fit_many([star], convert_funcs=[])
         assert "len(convert_funcs) must match len(stars)" in str(err.value)
 
 
@@ -593,37 +582,28 @@ def test_fit_many():
         stars = [model.initialize(s) for s in stars]
         # Use the same realistic small-amplitude extra-aberration vector as test_fit.
         truth_params = np.array([0.004, -0.003, 0.005])
-        truth = [
-            model.draw(
-                piff.Star(
-                    s.data,
-                    s.fit.newParams(
-                        truth_params,
-                        params_var=np.zeros_like(truth_params),
-                    ),
-                )
-            )
-            for s in stars
-        ]
-        fit_stars = [
+        stars = [
             piff.Star(
                 s.data,
-                stars[i].fit.newParams(
+                s.fit.newParams(
                     np.zeros_like(truth_params),
                     params_var=np.zeros_like(truth_params),
                 ),
             )
-            for i, s in enumerate(truth)
+            for s in stars
         ]
+        for star in stars:
+            prof = model.getProfile(truth_params, star=star)
+            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
 
         # 1 pass isn't great, but after 2 passes, the agreement is sub percent.
         # And 3 is within 0.1% agreement.
         for _ in range(3):
-            fit_stars = model.fit_many(fit_stars)
-            print('fit[0] => ',fit_stars[0].fit.params)
+            stars = model.fit_many(stars)
+            print('fit[0] => ',stars[0].fit.params)
 
-        p0 = fit_stars[0].fit.params
-        p1 = fit_stars[1].fit.params
+        p0 = stars[0].fit.params
+        p1 = stars[1].fit.params
         print('final p0 = ',p0)
         print('final p1 = ',p1)
         print('   truth = ',truth_params)
@@ -661,34 +641,25 @@ def test_fit_many_nproc():
         ]
         stars = [model.initialize(s) for s in stars]
         truth_params = np.array([0.004, -0.003, 0.005])
-        truth = [
-            model.draw(
-                piff.Star(
-                    s.data,
-                    s.fit.newParams(
-                        truth_params,
-                        params_var=np.zeros_like(truth_params),
-                    ),
-                )
-            )
-            for s in stars
-        ]
-        fit_stars = [
+        stars = [
             piff.Star(
                 s.data,
-                stars[i].fit.newParams(
+                s.fit.newParams(
                     np.zeros_like(truth_params),
                     params_var=np.zeros_like(truth_params),
                 ),
             )
-            for i, s in enumerate(truth)
+            for s in stars
         ]
+        for star in stars:
+            prof = model.getProfile(truth_params, star=star)
+            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
 
         for _ in range(3):
-            fit_stars = model.fit_many(fit_stars)
+            stars = model.fit_many(stars)
 
-        assert [int(s['sca']) for s in fit_stars] == [5, 5]
-        for s in fit_stars:
+        assert [int(s['sca']) for s in stars] == [5, 5]
+        for s in stars:
             np.testing.assert_allclose(s.fit.params, truth_params, atol=0.0, rtol=2.e-3)
         assert list(model._corner_cache.keys()) == [5]
 
@@ -719,11 +690,11 @@ def test_bilinear_vs_five_point():
             (0.83 * size, 0.66 * size),
             (0.49 * size, 0.52 * size),
         ]
-        truth_stars = [make_star(x, y) for x, y in positions]
+        stars = [make_star(x, y) for x, y in positions]
         truth_params = np.array([0.004, -0.003, 0.005])
         extra_truth = np.concatenate(([0,0,0,0], truth_params))
         wavelength = galsim.roman.getBandpasses()[filt].effective_wavelength
-        for st in truth_stars:
+        for st in stars:
             prof = galsim.roman.getPSF(
                 int(st['sca']), filt,
                 SCA_pos=st.image_pos,
@@ -752,8 +723,8 @@ def test_bilinear_vs_five_point():
             nominal_interp='five_point',
             aberration_prior_sigma=1.0e6,
         )
-        fit_bilinear = [model_bilinear.initialize(st) for st in truth_stars]
-        fit_five = [model_five.initialize(st) for st in truth_stars]
+        fit_bilinear = [model_bilinear.initialize(st) for st in stars]
+        fit_five = [model_five.initialize(st) for st in stars]
         for it in range(3):
             fit_bilinear = model_bilinear.fit_many(fit_bilinear)
             fit_five = model_five.fit_many(fit_five)
@@ -831,52 +802,32 @@ def test_fit_linear():
             ).withFlux(1.0, (0.0, 0.0))
             for x, y in pos
         ]
-        init_stars = [model.initialize(star) for star in stars]
+        stars = [model.initialize(star) for star in stars]
         base_truth = np.array([0.004, -0.003, 0.005])
         truth_params = np.tile(base_truth, 4)
-        truth_stars = [
-            model.draw(
-                piff.Star(
-                    init_star.data,
-                    init_star.fit.newParams(
-                        truth_params,
-                        params_var=np.zeros_like(truth_params),
-                    ),
-                )
-            )
-            for init_star in init_stars
-        ]
-
-        fit_stars = [
-            piff.Star(
-                truth_star.data,
-                init_star.fit.newParams(
-                    np.zeros_like(truth_params),
-                    params_var=np.zeros_like(truth_params)
-                ),
-            )
-            for truth_star, init_star in zip(truth_stars, init_stars)
-        ]
+        for star in stars:
+            prof = model.getProfile(truth_params, star=star)
+            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos, star)
 
         for _ in range(4):
-            fit_stars = model.fit_many(fit_stars)
+            stars = model.fit_many(stars)
 
-        fitted_params = fit_stars[0].fit.params
-        fitted_var = fit_stars[0].fit.params_var
+        fitted_params = stars[0].fit.params
+        fitted_var = stars[0].fit.params_var
 
-        for fit_star in fit_stars:
-            assert fit_star.fit.chisq >= 0
-            assert fit_star.fit.dof > 0
-            np.testing.assert_allclose(fit_star.fit.params, fitted_params, atol=1.e-12, rtol=0.0)
+        for star in stars:
+            assert star.fit.chisq >= 0
+            assert star.fit.dof > 0
+            np.testing.assert_allclose(star.fit.params, fitted_params, atol=1.e-12, rtol=0.0)
         print('linear fit = ', fitted_params)
         print('    truth = ', truth_params)
         np.testing.assert_allclose(fitted_params, truth_params, atol=0.0, rtol=1.e-3)
         assert np.all(fitted_var >= 0)
 
-        for fit_star, truth_star in zip(fit_stars, truth_stars):
-            model_star = model.draw(fit_star)
+        for star in stars:
+            model_star = model.draw(star)
             np.testing.assert_allclose(
-                model_star.image.array, truth_star.image.array, atol=5.e-5, rtol=0.0
+                model_star.image.array, star.image.array, atol=5.e-5, rtol=0.0
             )
 
 
@@ -913,7 +864,7 @@ def test_fit_linear_gradient():
             ).withFlux(1.0, (0.0, 0.0))
             for x, y in pos
         ]
-        init_stars = [model.initialize(star) for star in stars]
+        stars = [model.initialize(star) for star in stars]
 
         # Define each Zernike truth as a + b*(x/4088) + c*(y/4088).
         # Build corner values and per-star values analytically from this formula.
@@ -959,32 +910,8 @@ def test_fit_linear_gradient():
                 local_from_corners, eval_truth(x, y), atol=1.e-12, rtol=0.0
             )
 
-        # Draw truth_stars using the class's bilinear interpolation given truth_params
-        truth_stars = [
-            model.draw(
-                piff.Star(
-                    init_star.data,
-                    init_star.fit.newParams(
-                        truth_params,
-                        params_var=np.zeros_like(truth_params),
-                    ),
-                )
-            )
-            for init_star in init_stars
-        ]
-
         # Draw the stars to use for fitting using the aberration array from eval_truth directly.
-        fit_stars = [
-            piff.Star(
-                truth_star.data,
-                init_star.fit.newParams(
-                    np.zeros_like(truth_params),
-                    params_var=np.zeros_like(truth_params)
-                ),
-            )
-            for truth_star, init_star in zip(truth_stars, init_stars)
-        ]
-        for star in fit_stars:
+        for star in stars:
             aber = eval_truth(star.image_pos.x, star.image_pos.y)
             prof = galsim.roman.getPSF(5, 'H158', star.image_pos,
                                        pupil_bin=piff.roman.roman_psf.pupil_bin,
@@ -994,23 +921,23 @@ def test_fit_linear_gradient():
             prof.drawImage(star.image, method='auto', center=star.image_pos)
 
         for _ in range(5):
-            fit_stars = model.fit_many(fit_stars)
+            stars = model.fit_many(stars)
 
         # Note: these are not expected to match exactly.  The real images include the
         # natural variation within the SCA from the roman aberration pattern, fully separate
         # from the extra_aberrations we're fitting for.  This variation is not quite linear,
         # so the bilinear approximation is a small model mismatch.  However, it's relatively
         # close in the fitted extra aberrations, and the drawn images are very close.
-        fitted_params = fit_stars[0].fit.params
+        fitted_params = stars[0].fit.params
         print('linear gradient fit = ', fitted_params)
         print('           truth = ', truth_params)
         np.testing.assert_allclose(fitted_params, truth_params, atol=1.e-4, rtol=0.3)
-        for fit_star in fit_stars:
-            np.testing.assert_allclose(fit_star.fit.params, fitted_params, atol=1.e-4, rtol=0.01)
-        for fit_star, truth_star in zip(fit_stars, truth_stars):
-            model_star = model.draw(fit_star)
+        for star in stars:
+            np.testing.assert_allclose(star.fit.params, fitted_params, atol=1.e-4, rtol=0.01)
+        for star in stars:
+            model_star = model.draw(star)
             np.testing.assert_allclose(
-                model_star.image.array, truth_star.image.array, atol=1.e-4, rtol=0.01)
+                model_star.image.array, star.image.array, atol=1.e-4, rtol=0.002)
 
 
 @timer
@@ -1044,35 +971,16 @@ def test_fit_linear_nproc():
             ).withFlux(1.0, (0.0, 0.0))
             for x, y in pos
         ]
-        init_stars = [model.initialize(star) for star in stars]
+        stars = [model.initialize(star) for star in stars]
         truth_params = np.tile([0.004, -0.003, 0.005], 4)
-        truth_stars = [
-            model.draw(
-                piff.Star(
-                    init_star.data,
-                    init_star.fit.newParams(
-                        truth_params,
-                        params_var=np.zeros_like(truth_params),
-                    ),
-                )
-            )
-            for init_star in init_stars
-        ]
-        fit_stars = [
-            piff.Star(
-                truth_star.data,
-                init_star.fit.newParams(
-                    np.zeros_like(truth_params),
-                    params_var=np.zeros_like(truth_params)
-                ),
-            )
-            for truth_star, init_star in zip(truth_stars, init_stars)
-        ]
+        for star in stars:
+            prof = model.getProfile(truth_params, star=star)
+            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
 
         for _ in range(4):
-            fit_stars = model.fit_many(fit_stars)
-        for fit_star in fit_stars:
-            np.testing.assert_allclose(fit_star.fit.params, truth_params, atol=0.0, rtol=1.e-3)
+            stars = model.fit_many(stars)
+        for star in stars:
+            np.testing.assert_allclose(star.fit.params, truth_params, atol=0.0, rtol=1.e-3)
 
 
 
@@ -1115,32 +1023,24 @@ def test_optics_convert_funcs():
             return prof.shear(g1=0.01, g2=-0.005)
 
         convert_funcs = [apply_shear] * len(stars)
-        fit_stars = []
         for star in stars:
-            truth_fit = star.fit.newParams(
-                truth_params,
-                params_var=np.zeros_like(truth_params),
-            )
-            truth_star = piff.Star(star.data, truth_fit)
             # True profile is sheared version of optical PSF.
-            prof = psf.model.getProfile(truth_params, star=truth_star).shear(g1=0.01, g2=-0.005)
-            image = star.image.copy()
-            psf.model._draw_profile_to_image(prof, image, star.image_pos)
-            fit_stars.append(piff.Star(star.data.withNew(image=image), star.fit))
+            prof = psf.model.getProfile(truth_params, star=star).shear(g1=0.01, g2=-0.005)
+            psf.model._draw_profile_to_image(prof, star.image, star.image_pos)
 
         for _ in range(3):
-            fit_stars, nremoved = psf.single_iteration(
-                fit_stars,
+            stars, nremoved = psf.single_iteration(
+                stars,
                 logger=logger,
                 convert_funcs=convert_funcs,
                 draw_method=None,
             )
             assert nremoved == 0
-            print('params[0] => ',fit_stars[0].fit.params)
+            print('params[0] => ',stars[0].fit.params)
 
-        assert len(fit_stars) == len(stars)
+        assert len(stars) == len(convert_funcs)
         print('truth = ',truth_params)
-        for i, star in enumerate(fit_stars):
+        for i, star in enumerate(stars):
             print(f'star {i} params = ',star.fit.params)
             np.testing.assert_allclose(star.fit.params, truth_params, atol=0.0, rtol=1.e-3)
 
