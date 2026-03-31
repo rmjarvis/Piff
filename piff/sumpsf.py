@@ -304,7 +304,7 @@ class SumPSF(PSF):
             method = methods[0]
 
         # Add them up.
-        return galsim.Sum(profiles), method
+        return galsim.Add(profiles), method
 
     def _finish_write(self, writer, logger):
         """Finish the writing process with any class-specific steps.
