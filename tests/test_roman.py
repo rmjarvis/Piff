@@ -28,6 +28,12 @@ from piff.roman import RomanOpticsPSF, RomanOpticalModel, RomanSCAInterp
 from piff_test_helper import timer
 
 
+def make_roman_model(**kwargs):
+    model = RomanOpticalModel(**kwargs)
+    model.set_bandpass(galsim.roman.getBandpasses()['H158'])
+    return model
+
+
 @contextmanager
 def fast_pupil_bin(value=16):
     """Temporarily raise Roman `pupil_bin` to speed up the getPSF calls in unit tests.
@@ -48,9 +54,11 @@ def test_roman_optics():
     """Check RomanOptics basic construction, drawing, and SCA/chipnum property handling.
     """
     with fast_pupil_bin():
+        bandpass = galsim.roman.getBandpasses()['H158']
+
         # Check basic construction.
         psf = piff.PSF.process(
-            {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
+            {'type': 'RomanOptics', 'chromatic': False, 'max_zernike': 6}
         )
         assert isinstance(psf, RomanOpticsPSF)
         logger = piff.config.setup_logger()
@@ -65,7 +73,6 @@ def test_roman_optics():
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_interp': 'global',
@@ -85,8 +92,7 @@ def test_roman_optics():
 
         stars, nremoved = psf.initialize_params([star], logger=logger)
         assert nremoved == 0
-        psf.wcs = {5: galsim.PixelScale(0.11)}
-        psf.pointing = None
+        psf.set_context({5: galsim.PixelScale(0.11)}, None, bandpass)
         psf.interp.set_sca_solution({5: np.zeros(psf.model.param_len)})
         prof, method = psf.get_profile(x=123.4, y=456.7, sca=5)
         assert prof is not None
@@ -94,6 +100,42 @@ def test_roman_optics():
         image = psf.draw(x=123.4, y=456.7, sca=5)
         assert image.array.shape == (48, 48)  # Default stamp_size=48 in draw function.
         assert np.isclose(image.array.sum(), 1.0, rtol=0.05)
+
+        chromatic_psf = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'chromatic': True,
+                'max_zernike': 6,
+            }
+        )
+        chromatic_psf.set_context({5: galsim.PixelScale(0.11)}, None, bandpass)
+        sed = galsim.SED(lambda w: 1.0, wave_type='nm', flux_type='fphotons')
+        chromatic_star = piff.Star.makeTarget(
+            x=123.4,
+            y=456.7,
+            stamp_size=25,
+            scale=0.11,
+            properties={'sca': 5, 'sed': sed},
+        ).withFlux(1.0, (0.0, 0.0))
+        chromatic_stars, _ = chromatic_psf.initialize_params([chromatic_star], logger=logger)
+        chromatic_psf.interp.set_sca_solution({5: np.zeros(chromatic_psf.model.param_len)})
+        chromatic_model_star = chromatic_psf.drawStar(chromatic_stars[0])
+        assert np.isfinite(chromatic_model_star.image.array).all()
+        assert chromatic_model_star.image.array.sum() > 0.0
+        chromatic_psf.drawStar(chromatic_stars[0])
+        assert chromatic_stars[0].data.properties['sed'] is sed
+
+        missing_sed_star = piff.Star.makeTarget(
+            x=123.4,
+            y=456.7,
+            stamp_size=25,
+            scale=0.11,
+            properties={'sca': 5},
+        ).withFlux(1.0, (0.0, 0.0))
+        missing_sed_stars, _ = chromatic_psf.initialize_params([missing_sed_star], logger=logger)
+        with pytest.raises(ValueError) as err:
+            chromatic_psf.drawStar(missing_sed_stars[0])
+        assert "requires each star to have an 'sed' property" in str(err.value)
 
         # Helper function to use as a side-effect of getPSF to record what sca argument is used.
         used_sca = [] # Use a list so we can modify in place.
@@ -159,7 +201,6 @@ def test_roman_optics():
         psf1 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'outliers': [
@@ -168,6 +209,7 @@ def test_roman_optics():
                 ],
             }
         )
+        psf1.set_context(None, None, bandpass)
         assert psf1.outliers is not None
         assert isinstance(psf1.outliers, list)
         fn = os.path.join('output', 'roman_outliers_write_test.piff')
@@ -180,25 +222,45 @@ def test_roman_optics():
 
     # max_zernike must be >= 4
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=3)
+        RomanOpticalModel(chromatic=False, max_zernike=3)
     assert "range 4..22" in str(err.value)
 
     # max_zernike must be <= 22
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=23)
+        RomanOpticalModel(chromatic=False, max_zernike=23)
     assert "range 4..22" in str(err.value)
 
-    # Check invalid filter string
+    # A custom bandpass can be used as long as the Roman filter_name is given explicitly.
+    model = RomanOpticalModel(chromatic=False, max_zernike=6)
+    custom_bandpass = galsim.Bandpass(lambda wave: 1.0, 'nm', blue_limit=1000, red_limit=2000)
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='NotAFilter', chromatic=False, max_zernike=6)
-    assert "not a valid GalSim Roman bandpass" in str(err.value)
+        model.getProfile(params=np.zeros(model.param_len), star=star)
+    assert "requires bandpass to be set before use" in str(err.value)
+    with pytest.raises(ValueError) as err:
+        model.set_bandpass(custom_bandpass)
+    assert "requires filter_name" in str(err.value)
+    model.set_bandpass(custom_bandpass, filter_name='H158')
+    assert model.bandpass == custom_bandpass
+    assert model.filter_name == 'H158'
 
+    # Invalid filter_name fails when GalSim is actually asked to build the Roman PSF.
+    model.filter_name = None  # Lets set_bandpass actually work.
+    model.set_bandpass(
+        galsim.Bandpass(lambda wave: 1.0, 'nm', blue_limit=1000, red_limit=2000),
+        filter_name='NotAFilter',
+    )
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6, aberration_interp='bad')
+        model.getProfile(params=np.zeros(model.param_len), star=star)
+    assert "valid Roman bandpass" in str(err.value)
+
+    # Invalid aberration_interp
+    with pytest.raises(ValueError) as err:
+        RomanOpticalModel(chromatic=False, max_zernike=6, aberration_interp='bad')
     assert "must be one of" in str(err.value)
 
+    # Invalid nominal_interp
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6, nominal_interp='bad')
+        RomanOpticalModel(chromatic=False, max_zernike=6, nominal_interp='bad')
     assert "must be one of" in str(err.value)
 
 @timer
@@ -206,9 +268,11 @@ def test_corner_cache():
     """Verify corner-profile caching reuses one 4-corner set for same SCA and params.
     """
     with fast_pupil_bin():
+        bandpass = galsim.roman.getBandpasses()['H158']
         psf = piff.PSF.process(
-            {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
+            {'type': 'RomanOptics', 'chromatic': False, 'max_zernike': 6}
         )
+        psf.set_context(None, None, bandpass)
         logger = piff.config.setup_logger()
         stars = [
             piff.Star.makeTarget(
@@ -242,12 +306,12 @@ def test_corner_cache():
         psf5 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'nominal_interp': 'five_point',
             }
         )
+        psf5.set_context(None, None, bandpass)
         stars5, _ = psf5.initialize_params(stars, logger=logger)
         psf5.drawStar(stars5[0])
         params5 = stars5[0].fit.params
@@ -260,12 +324,7 @@ def test_corner_cache():
 def test_five_point_weights():
     """Check five-point interpolation weights for corner/center and quadratic basis terms.
     """
-    model = RomanOpticalModel(
-        filter='H158',
-        chromatic=False,
-        max_zernike=6,
-        nominal_interp='five_point',
-    )
+    model = make_roman_model(chromatic=False, max_zernike=6, nominal_interp='five_point')
     sca = 7
     size = model.sca_size
 
@@ -318,12 +377,7 @@ def test_fit():
     """Check local convergence of single-star Roman fits in constant mode.
     """
     with fast_pupil_bin():
-        model = RomanOpticalModel(
-            filter='H158',
-            chromatic=False,
-            max_zernike=6,
-            aberration_prior_sigma=1.0e6,
-        )
+        model = make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=1.0e6)
         star = piff.Star.makeTarget(
             x=64.0,
             y=64.0,
@@ -338,7 +392,7 @@ def test_fit():
         # realistic while still providing measurable signal in this unit test.
         truth_params = np.array([0.004, -0.003, 0.005])
         prof = model.getProfile(truth_params, star=star)
-        model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
+        model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos, star)
         fitted = model.fit(star)
         print('fit = ',fitted.fit.params)
         # 1 pass isn't great, but after 2 passes, the agreement is sub percent.
@@ -384,18 +438,10 @@ def test_aberration_prior():
     """Validate the use of priors on the aberration values.
     """
     # Check that fitted aberrations stay closer to 0 when strong prior is applied.
-    weak_prior = RomanOpticalModel(
-        filter='H158',
-        chromatic=False,
-        max_zernike=6,
-        aberration_prior_sigma=1.0e6,
-    )
-    strong_prior = RomanOpticalModel(
-        filter='H158',
-        chromatic=False,
-        max_zernike=6,
-        aberration_prior_sigma=[0.02],  # List with 1 element treated as scalar.
-    )
+    weak_prior = make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=1.0e6)
+    strong_prior = make_roman_model(
+        chromatic=False, max_zernike=6, aberration_prior_sigma=[0.02]
+    )  # List with 1 element treated as scalar.
     aw = np.zeros((10, weak_prior.param_len))
     aw[:, 0] = 12.3
     aw[:, 1] = 1.7
@@ -407,12 +453,7 @@ def test_aberration_prior():
     assert abs(new_strong[0]) < abs(new_weak[0])
 
     # None means no prior, which is equivalent to infinite prior.
-    no_prior = RomanOpticalModel(
-        filter='H158',
-        chromatic=False,
-        max_zernike=6,
-        aberration_prior_sigma=None,
-    )
+    no_prior = make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=None)
     ata = np.eye(no_prior.param_len)
     atb = np.ones(no_prior.param_len)
     p = np.zeros(no_prior.param_len)
@@ -424,12 +465,7 @@ def test_aberration_prior():
     np.testing.assert_allclose(atb, atb0)
 
     # Compare the solve to what you get with an actually infinite prior.
-    inf_prior = RomanOpticalModel(
-        filter='H158',
-        chromatic=False,
-        max_zernike=6,
-        aberration_prior_sigma=np.inf
-    )
+    inf_prior = make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=np.inf)
     no_prior_result, _ = no_prior._solve_params(aw, bw, p0)
     inf_prior_result, _ = inf_prior._solve_params(aw, bw, p0)
     print('no prior',no_prior_result)
@@ -438,26 +474,26 @@ def test_aberration_prior():
 
     # prior length must match number of zernikes used
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
-                          aberration_prior_sigma=[1.0, 2.0])
+        make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=[1.0, 2.0])
     assert "scalar or length 3" in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
-                          aberration_prior_sigma=[])
+        make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=[])
     assert "scalar or length 3" in str(err.value)
 
     # Same for linear mode (in particular the allowed length is 3 here, not 9,
     # which is the full param_len).
     with pytest.raises(ValueError) as err:
-        piff.roman.RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
-                                     aberration_interp='linear',
-                                     aberration_prior_sigma=[1.0] * 9)
+        make_roman_model(
+            chromatic=False,
+            max_zernike=6,
+            aberration_interp='linear',
+            aberration_prior_sigma=[1.0] * 12,
+        )
     assert "scalar or length 3" in str(err.value)
 
     # In linear mode, scalar and one-point vectors tile to the (a, b, c) coefficient blocks.
-    linear_scalar = piff.roman.RomanOpticalModel(
-        filter='H158',
+    linear_scalar = make_roman_model(
         chromatic=False,
         max_zernike=6,
         aberration_interp='linear',
@@ -465,8 +501,7 @@ def test_aberration_prior():
     )
     np.testing.assert_allclose(linear_scalar.prior_sigma, np.full(9, 0.05))
 
-    linear_vec = piff.roman.RomanOpticalModel(
-        filter='H158',
+    linear_vec = make_roman_model(
         chromatic=False,
         max_zernike=6,
         aberration_interp='linear',
@@ -476,13 +511,11 @@ def test_aberration_prior():
 
     # priors cannot be <= 0
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
-                          aberration_prior_sigma=[1.0, 0.0, 1.0])
+        make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=[1.0, 0.0, 1.0])
     assert "must all be > 0" in str(err.value)
 
     with pytest.raises(ValueError) as err:
-        RomanOpticalModel(filter='H158', chromatic=False, max_zernike=6,
-                          aberration_prior_sigma=[1.0, -1.0, 1.0])
+        make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=[1.0, -1.0, 1.0])
     assert "must all be > 0" in str(err.value)
 
 
@@ -493,7 +526,6 @@ def test_linear_prior_io():
     psf = piff.PSF.process(
         {
             'type': 'RomanOptics',
-            'filter': 'H158',
             'chromatic': False,
             'max_zernike': 6,
             'aberration_interp': 'linear',
@@ -525,7 +557,6 @@ def test_linear_prior_io():
     psf_scalar = piff.PSF.process(
         {
             'type': 'RomanOptics',
-            'filter': 'H158',
             'chromatic': False,
             'max_zernike': 6,
             'aberration_interp': 'linear',
@@ -557,12 +588,7 @@ def test_fit_many():
     """Check accuracy of fitting multiple stars using fit_many.
     """
     with fast_pupil_bin():
-        model = RomanOpticalModel(
-            filter='H158',
-            chromatic=False,
-            max_zernike=6,
-            aberration_prior_sigma=1.0e6,
-        )
+        model = make_roman_model(chromatic=False, max_zernike=6, aberration_prior_sigma=1.0e6)
         stars = [
             piff.Star.makeTarget(
                 x=64.2,
@@ -594,7 +620,7 @@ def test_fit_many():
         ]
         for star in stars:
             prof = model.getProfile(truth_params, star=star)
-            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
+            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos, star)
 
         # 1 pass isn't great, but after 2 passes, the agreement is sub percent.
         # And 3 is within 0.1% agreement.
@@ -616,12 +642,8 @@ def test_fit_many_nproc():
     """Check `fit_many` multiprocessing path and accuracy with `nproc > 1`.
     """
     with fast_pupil_bin():
-        model = piff.roman.RomanOpticalModel(
-            filter='H158',
-            chromatic=False,
-            max_zernike=6,
-            aberration_prior_sigma=1.0e6,
-            nproc=2,
+        model = make_roman_model(
+            chromatic=False, max_zernike=6, aberration_prior_sigma=1.0e6, nproc=2
         )
         stars = [
             piff.Star.makeTarget(
@@ -653,7 +675,7 @@ def test_fit_many_nproc():
         ]
         for star in stars:
             prof = model.getProfile(truth_params, star=star)
-            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
+            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos, star)
 
         for _ in range(3):
             stars = model.fit_many(stars)
@@ -709,15 +731,13 @@ def test_bilinear_vs_five_point():
         # Note: GalSim internally does bilinear interpolation of the nominal aberrations.
         # This is not the same bilinear that we do in Piff -- we do either bilinear or
         # 5-point interpolation of the profiles.  These are not equivalent.
-        model_bilinear = RomanOpticalModel(
-            filter=filt,
+        model_bilinear = make_roman_model(
             chromatic=False,
             max_zernike=6,
             nominal_interp='bilinear',
             aberration_prior_sigma=1.0e6,
         )
-        model_five = RomanOpticalModel(
-            filter=filt,
+        model_five = make_roman_model(
             chromatic=False,
             max_zernike=6,
             nominal_interp='five_point',
@@ -791,8 +811,7 @@ def test_fit_linear():
             0.0, 0.0, 0.0,
         ])
         for nominal_interp in ['bilinear', 'five_point']:
-            model = piff.roman.RomanOpticalModel(
-                filter='H158',
+            model = make_roman_model(
                 chromatic=False,
                 max_zernike=6,
                 aberration_interp='linear',
@@ -812,7 +831,7 @@ def test_fit_linear():
             stars = [model.initialize(star) for star in stars]
             for star in stars:
                 prof = model.getProfile(truth_params, star=star)
-                model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
+                model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos, star)
 
             for _ in range(4):
                 stars = model.fit_many(stars)
@@ -842,8 +861,7 @@ def test_fit_linear_gradient():
     """Check linear-mode recovery when aberrations vary as a + b x + c y across the SCA.
     """
     with fast_pupil_bin():
-        model = piff.roman.RomanOpticalModel(
-            filter='H158',
+        model = make_roman_model(
             chromatic=False,
             max_zernike=6,
             aberration_interp='linear',
@@ -948,8 +966,7 @@ def test_fit_linear_nproc():
     """Check linear-mode fit_many behavior with multiprocessing enabled.
     """
     with fast_pupil_bin():
-        model = piff.roman.RomanOpticalModel(
-            filter='H158',
+        model = make_roman_model(
             chromatic=False,
             max_zernike=6,
             aberration_interp='linear',
@@ -982,7 +999,7 @@ def test_fit_linear_nproc():
         ])
         for star in stars:
             prof = model.getProfile(truth_params, star=star)
-            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
+            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos, star)
 
         for _ in range(4):
             stars = model.fit_many(stars)
@@ -997,15 +1014,16 @@ def test_optics_convert_funcs():
     """Check aberration recovery when fitting with a nontrivial convert_func (profile shear).
     """
     with fast_pupil_bin():
+        bandpass = galsim.roman.getBandpasses()['H158']
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_prior_sigma': 1.0e6,
             }
         )
+        psf.set_context(None, None, bandpass)
         logger = piff.config.setup_logger()
         stars = [
             piff.Star.makeTarget(
@@ -1034,7 +1052,7 @@ def test_optics_convert_funcs():
         for star in stars:
             # True profile is sheared version of optical PSF.
             prof = psf.model.getProfile(truth_params, star=star).shear(g1=0.01, g2=-0.005)
-            psf.model._draw_profile_to_image(prof, star.image, star.image_pos)
+            psf.model._draw_profile_to_image(prof, star.image, star.image_pos, star)
 
         for _ in range(3):
             stars, nremoved = psf.single_iteration(
@@ -1060,7 +1078,7 @@ def test_sca_interp():
     with fast_pupil_bin():
         # Start with some basic exercises of interp machinery.
         psf = piff.PSF.process(
-            {'type': 'RomanOptics', 'filter': 'H158', 'chromatic': False, 'max_zernike': 6}
+            {'type': 'RomanOptics', 'chromatic': False, 'max_zernike': 6}
         )
         assert type(psf.interp).__name__ == 'RomanSCAInterp'
 
@@ -1119,7 +1137,6 @@ def test_sca_interp():
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_interp': 'global',
@@ -1141,7 +1158,6 @@ def test_sca_interp():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter': 'H158',
             }
         )
         psf.write(fn)

@@ -21,6 +21,7 @@ from contextlib import contextmanager
 import fitsio
 import galsim
 import copy
+import numpy as np
 
 def _read_chunked_objs(data, prefix, encoding='bytes'):
     import base64

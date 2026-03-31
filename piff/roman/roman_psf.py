@@ -150,8 +150,8 @@ class RomanOpticalModel(Model):
 
     def __init__(
         self,
-        filter,
         chromatic=True,
+        filter_name=None,
         max_zernike=22,
         aberration_interp='constant',
         nominal_interp='bilinear',
@@ -160,12 +160,13 @@ class RomanOpticalModel(Model):
         logger=None,
     ):
         self.logger = logger
-        self.filter = filter
         self.chromatic = chromatic
         self.max_zernike = int(max_zernike)
         self.aberration_interp = str(aberration_interp)
         self.nominal_interp = str(nominal_interp)
         self.nproc = int(nproc)
+        self.bandpass = None
+        self.filter_name = filter_name
         self.set_num(None)
 
         if self.max_zernike < 4 or self.max_zernike > 22:
@@ -174,21 +175,14 @@ class RomanOpticalModel(Model):
             raise ValueError("aberration_interp must be one of 'global', 'constant', 'linear'")
         if self.nominal_interp not in ('bilinear', 'five_point'):
             raise ValueError("nominal_interp must be one of 'bilinear', 'five_point'")
-
-        # Notation: filter is the string name of the filter.
-        #           bandpass is the galsim.Bandpass object with the transmission function.
-        bandpasses = galsim.roman.getBandpasses()
-        if self.filter not in bandpasses:
-            raise ValueError("Roman filter %r is not a valid GalSim Roman bandpass" % self.filter)
-        self.bandpass = bandpasses[self.filter]
         # Save the original for serialization.
         self.orig_prior_sigma = self._parse_prior_sigma(aberration_prior_sigma)
         self.prior_sigma = self._expand_prior_sigma(self.orig_prior_sigma)
         self.prior_invsigsq = 1.0/self.prior_sigma**2 if self.prior_sigma is not None else None
 
         self.kwargs = {
-            'filter': self.filter,
             'chromatic': self.chromatic,
+            'filter_name': self.filter_name,
             'max_zernike': self.max_zernike,
             'aberration_interp': self.aberration_interp,
             'nominal_interp': self.nominal_interp,
@@ -222,6 +216,31 @@ class RomanOpticalModel(Model):
 
     def clear_cache(self):
         self._corner_cache = {}
+
+    def set_bandpass(self, bandpass, filter_name=None):
+        if self.filter_name is None:
+            if filter_name is not None:
+                self.filter_name = filter_name
+            elif getattr(bandpass, 'name', None) is not None:
+                self.filter_name = bandpass.name
+            else:
+                raise ValueError(
+                    "RomanOptics requires filter_name when bandpass has no name attribute"
+                )
+        self.bandpass = bandpass
+
+    def _require_bandpass(self):
+        if self.bandpass is None:
+            raise ValueError("RomanOptics requires bandpass to be set before use")
+        return self.bandpass
+
+    def _get_star_sed(self, star):
+        sed = star.data.properties.get('sed')
+        if sed is None:
+            raise ValueError(
+                "RomanOptics with chromatic=True requires each star to have an 'sed' property"
+            )
+        return sed
 
     def _get_roman_five_point_data(self, sca):
         if sca in self._roman_five_point_data:
@@ -285,13 +304,12 @@ class RomanOpticalModel(Model):
         extra_aberrations[4:] = params
         return extra_aberrations
 
-    def _draw_profile_to_image(self, prof, image, center):
-        prof.drawImage(
-            image,
-            method=self._method,
-            center=center,
-            bandpass=self.bandpass if self.chromatic else None
-        )
+    def _draw_profile_to_image(self, prof, image, center, star):
+        if self.chromatic:
+            prof = prof * self._get_star_sed(star)
+            prof.drawImage(self.bandpass, image=image, method=self._method, center=center)
+        else:
+            prof.drawImage(image=image, method=self._method, center=center)
 
     def _solve_params(self, aw, bw, params):
         ata = aw.T.dot(aw)
@@ -449,10 +467,7 @@ class RomanOpticalModel(Model):
             image = star.image.array
             weight = star.weight.array
             base_image = self._draw_model_image_from_samples(
-                star,
-                sample_base_profiles,
-                convert_func=convert_func,
-            )
+                    star, sample_base_profiles, convert_func)
             resid = image - base_image
             sw = np.sqrt(weight.ravel())
             bw = resid.ravel() * sw
@@ -468,11 +483,7 @@ class RomanOpticalModel(Model):
             scale = 1.0 / step
             # Use these adjusted sample profiles for all stars on the SCA.
             for star, convert_func, _, _, _, jac, base_image in group_data:
-                im1 = self._draw_model_image_from_samples(
-                    star,
-                    sample_plus_profiles,
-                    convert_func=convert_func,
-                )
+                im1 = self._draw_model_image_from_samples(star, sample_plus_profiles, convert_func)
                 jac[:, i] = ((im1 - base_image) * scale).ravel()
 
         # Build one SCA-level normal equation from all stars.
@@ -493,8 +504,7 @@ class RomanOpticalModel(Model):
         out = []
         for star, convert_func, weight in solved:
             model_image = self._draw_model_image_from_samples(
-                star, sample_sca_profiles, convert_func=convert_func
-            )
+                    star, sample_sca_profiles, convert_func)
             chisq = np.sum(weight * (star.image.array - model_image) ** 2)
             dof = np.count_nonzero(weight) - 3
             out.append(
@@ -511,7 +521,7 @@ class RomanOpticalModel(Model):
         params = star.fit.get_params(self._num)
         prof = self.getProfile(params, star=star).shift(star.fit.center) * star.fit.flux
         image = star.image.copy() if copy_image else star.image
-        self._draw_profile_to_image(prof, image, center=star.image_pos)
+        self._draw_profile_to_image(prof, image, star.image_pos, star)
         return Star(star.data.withNew(image=image), star.fit)
 
     def getProfile(self, params=None, star=None, cache=True):
@@ -528,13 +538,13 @@ class RomanOpticalModel(Model):
         sample_profiles = self._get_sample_profiles(star, params, cache=cache)
         return self._interpolate_samples(star, sample_profiles)
 
-    def _draw_model_image_from_samples(self, star, sample_profiles, convert_func=None):
+    def _draw_model_image_from_samples(self, star, sample_profiles, convert_func):
         prof = self._interpolate_samples(star, sample_profiles)
         prof = prof.shift(star.fit.center) * star.fit.flux
         if convert_func is not None:
             prof = convert_func(prof)
         image = star.image.copy()
-        self._draw_profile_to_image(prof, image, star.image_pos)
+        self._draw_profile_to_image(prof, image, star.image_pos, star)
         return image.array
 
     def _get_sample_profiles(self, star, params, cache=True, sca=None):
@@ -549,7 +559,8 @@ class RomanOpticalModel(Model):
             if same_wcs and np.array_equal(cached_params, params):
                 return cached_profiles
 
-        wavelength = None if self.chromatic else self.bandpass.effective_wavelength
+        bandpass = self._require_bandpass()
+        wavelength = None if self.chromatic else bandpass.effective_wavelength
         if self.nominal_interp == 'five_point':
             points = self._get_roman_five_point_data(sca)['points']
         else:
@@ -573,7 +584,7 @@ class RomanOpticalModel(Model):
             profiles.append(
                 galsim.roman.getPSF(
                     sca,
-                    self.filter,
+                    self.filter_name,
                     SCA_pos=pt,
                     pupil_bin=pupil_bin,
                     wcs=wcs,
@@ -627,6 +638,11 @@ class RomanOpticsPSF(PSF):
     def __init__(self, model, interp, outliers=None, chisq_thresh=0.1, min_iter=2, max_iter=30):
         self.model = model
         self.interp = interp
+        if isinstance(model, Model):
+            self.bandpass = model.bandpass
+        else:
+            # During read, model is temporarily a placeholder integer until _finish_read.
+            self.bandpass = None
         self.outliers = outliers
         self.chisq_thresh = chisq_thresh
         self.min_iter = min_iter
@@ -653,8 +669,13 @@ class RomanOpticsPSF(PSF):
         # Only call set_num if they are actually built.
         if isinstance(self.model, Model):
             self.model.set_num(num)
-        if isinstance(self.interp, Interp):
             self.interp.set_num(num)
+
+    def set_context(self, wcs, pointing=None, bandpass=None):
+        super().set_context(wcs, pointing, bandpass)
+        # During read, model is temporarily a placeholder integer until _finish_read.
+        if isinstance(self.model, Model):
+            self.model.set_bandpass(self.bandpass)
 
     @property
     def interp_property_names(self):
