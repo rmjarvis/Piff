@@ -20,6 +20,7 @@ import numpy as np
 import galsim
 
 from .star import Star, StarData
+from .util import make_flat
 
 class PSF(object):
     """The base class for describing a PSF model across a field of view.
@@ -44,6 +45,7 @@ class PSF(object):
     wcs = None
     pointing = None
     bandpass = None
+    flat_bandpass = None
 
     @classmethod
     def process(cls, config_psf, logger=None):
@@ -122,6 +124,7 @@ class PSF(object):
             self.pointing = pointing
         if bandpass is not None:
             self.bandpass = bandpass
+            self.flat_bandpass = make_flat(bandpass)
 
     def set_num(self, num):
         """If there are multiple components involved in the fit, set the number to use

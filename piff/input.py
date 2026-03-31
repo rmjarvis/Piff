@@ -23,7 +23,7 @@ import os
 import galsim
 import yaml
 
-from .util import run_multi
+from .util import make_flat, run_multi
 from .star import Star, StarData
 
 class Input(object):
@@ -1201,9 +1201,11 @@ class InputFiles(Input):
             table = galsim.LookupTable(wave, flux, interpolant='linear')
             sed = galsim.SED(table, wave_type=wave_type, flux_type=flux_type)
 
+        flat_bandpass = make_flat(bandpass)
+        sed = sed * bandpass
         if sed_tol > 0:
-            sed = sed.thin(rel_err=sed_tol, bandpass=bandpass)
-        sed = sed.withFlux(1.0, bandpass)
+            sed = sed.thin(rel_err=sed_tol)
+        sed = sed.withFlux(1.0, flat_bandpass)
 
         InputFiles._sed_cache[cache_key] = sed
         return sed
@@ -1413,7 +1415,7 @@ class InputFiles(Input):
                     sed_tol=sed_tol,
                     bandpass=bandpass,
                 ))
-            extra_props['sed'] = np.array(sed_values, dtype=object)
+            extra_props['sed_eff'] = np.array(sed_values, dtype=object)
             extra_props['sed_file_name'] = np.array(sed_file_name_values, dtype=object)
             extra_props['sed_wave_type'] = np.array([sed_wave_type] * len(cat), dtype=object)
             extra_props['sed_flux_type'] = np.array([sed_flux_type] * len(cat), dtype=object)
@@ -1428,7 +1430,7 @@ class InputFiles(Input):
                 sed_flux_key=sed_flux_key, sed_tol=sed_tol,
                 bandpass=bandpass
             )
-            extra_props['sed'] = np.array([sed] * len(cat), dtype=object)
+            extra_props['sed_eff'] = np.array([sed] * len(cat), dtype=object)
             extra_props['sed_file_name'] = np.array([sed_file_name] * len(cat), dtype=object)
             extra_props['sed_wave_type'] = np.array([sed_wave_type] * len(cat), dtype=object)
             extra_props['sed_flux_type'] = np.array([sed_flux_type] * len(cat), dtype=object)

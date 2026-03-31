@@ -347,7 +347,7 @@ class Star(object):
         # Start with the data properties
         prop_keys = list(stars[0].data.properties)
         # SED objects are large and not directly serializable; persist SED metadata only.
-        prop_keys = [key for key in prop_keys if key != 'sed']
+        prop_keys = [key for key in prop_keys if key != 'sed_eff']
         # Do the position ones first
         for key in [ 'x', 'y', 'u', 'v' ]:
             dtypes.append( (key, float) )
@@ -546,7 +546,7 @@ class Star(object):
         from .input import InputFiles
 
         for prop in prop_list:
-            if 'sed' in prop or 'sed_file_name' not in prop:
+            if 'sed_eff' in prop or 'sed_file_name' not in prop:
                 continue
             if bandpass is None:
                 raise ValueError("bandpass is required to restore stars with serialized SEDs")
@@ -556,7 +556,7 @@ class Star(object):
             sed_wave_type = prop.get('sed_wave_type')
             sed_flux_type = prop.get('sed_flux_type')
             sed_tol = prop.get('sed_tol', 0.0)
-            prop['sed'] = InputFiles._read_sed_file(
+            prop['sed_eff'] = InputFiles._read_sed_file(
                 sed_file_name,
                 sed_wave_type=sed_wave_type,
                 sed_flux_type=sed_flux_type,
