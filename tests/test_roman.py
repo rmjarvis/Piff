@@ -202,7 +202,7 @@ def test_roman_optics():
     assert "must be one of" in str(err.value)
 
 @timer
-def test_roman_corner_cache():
+def test_corner_cache():
     """Verify corner-profile caching reuses one 4-corner set for same SCA and params.
     """
     with fast_pupil_bin():
@@ -257,7 +257,7 @@ def test_roman_corner_cache():
 
 
 @timer
-def test_roman_five_point_weights():
+def test_five_point_weights():
     """Check five-point interpolation weights for corner/center and quadratic basis terms.
     """
     model = RomanOpticalModel(
@@ -314,7 +314,7 @@ def test_roman_five_point_weights():
 
 
 @timer
-def test_roman_fit():
+def test_fit():
     """Check local convergence of single-star Roman fits in constant mode.
     """
     with fast_pupil_bin():
@@ -391,7 +391,7 @@ def test_roman_fit():
 
 
 @timer
-def test_roman_aberration_prior():
+def test_aberration_prior():
     """Validate the use of priors on the aberration values.
     """
     # Check that fitted aberrations stay closer to 0 when strong prior is applied.
@@ -498,7 +498,7 @@ def test_roman_aberration_prior():
 
 
 @timer
-def test_roman_linear_prior_io():
+def test_linear_prior_io():
     """Ensure linear-mode aberration priors serialize compactly and round-trip correctly.
     """
     psf = piff.PSF.process(
@@ -564,7 +564,7 @@ def test_roman_linear_prior_io():
 
 
 @timer
-def test_roman_fit_many():
+def test_fit_many():
     """Check accuracy of fitting multiple stars using fit_many.
     """
     with fast_pupil_bin():
@@ -591,7 +591,7 @@ def test_roman_fit_many():
             ).withFlux(1.0, (0.0, 0.0)),
         ]
         stars = [model.initialize(s) for s in stars]
-        # Use the same realistic small-amplitude extra-aberration vector as test_roman_fit.
+        # Use the same realistic small-amplitude extra-aberration vector as test_fit.
         truth_params = np.array([0.004, -0.003, 0.005])
         truth = [
             model.draw(
@@ -632,7 +632,7 @@ def test_roman_fit_many():
 
 
 @timer
-def test_roman_fit_many_nproc():
+def test_fit_many_nproc():
     """Check `fit_many` multiprocessing path and accuracy with `nproc > 1`.
     """
     with fast_pupil_bin():
@@ -798,7 +798,7 @@ def test_bilinear_vs_five_point():
 
 
 @timer
-def test_roman_fit_linear():
+def test_fit_linear():
     """Check linear-mode convergence with stars spanning the SCA geometry.
     """
     with fast_pupil_bin():
@@ -881,7 +881,7 @@ def test_roman_fit_linear():
 
 
 @timer
-def test_roman_fit_linear_gradient():
+def test_fit_linear_gradient():
     """Check linear-mode recovery when corner aberration vectors are genuinely different.
     """
     with fast_pupil_bin():
@@ -1014,7 +1014,7 @@ def test_roman_fit_linear_gradient():
 
 
 @timer
-def test_roman_fit_linear_nproc():
+def test_fit_linear_nproc():
     """Check linear-mode fit_many behavior with multiprocessing enabled.
     """
     with fast_pupil_bin():
@@ -1077,7 +1077,7 @@ def test_roman_fit_linear_nproc():
 
 
 @timer
-def test_roman_optics_convert_funcs():
+def test_optics_convert_funcs():
     """Check aberration recovery when fitting with a nontrivial convert_func (profile shear).
     """
     with fast_pupil_bin():
@@ -1146,7 +1146,7 @@ def test_roman_optics_convert_funcs():
 
 
 @timer
-def test_roman_sca_interp():
+def test_sca_interp():
     """Test per-SCA/global interpolation behavior and RomanSCAInterp serialization round-trip.
     """
     with fast_pupil_bin():
@@ -1245,15 +1245,15 @@ def test_roman_sca_interp():
 
 if __name__ == '__main__':
     test_roman_optics()
-    test_roman_corner_cache()
-    test_roman_five_point_weights()
-    test_roman_fit()
-    test_roman_aberration_prior()
-    test_roman_fit_many()
-    test_roman_fit_many_nproc()
+    test_corner_cache()
+    test_five_point_weights()
+    test_fit()
+    test_aberration_prior()
+    test_fit_many()
+    test_fit_many_nproc()
     test_bilinear_vs_five_point()
-    test_roman_fit_linear()
-    test_roman_fit_linear_gradient()
-    test_roman_fit_linear_nproc()
-    test_roman_optics_convert_funcs()
-    test_roman_sca_interp()
+    test_fit_linear()
+    test_fit_linear_gradient()
+    test_fit_linear_nproc()
+    test_optics_convert_funcs()
+    test_sca_interp()
