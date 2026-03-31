@@ -28,6 +28,7 @@ from ..outliers import Outliers
 from ..psf import PSF
 from ..star import Star
 from ..config import LoggerWrapper
+from ..util import make_flat
 from ..util import run_multi
 
 # Global control of GalSim Roman pupil-plane resolution in getPSF calls.
@@ -166,6 +167,7 @@ class RomanOpticalModel(Model):
         self.nominal_interp = str(nominal_interp)
         self.nproc = int(nproc)
         self.bandpass = None
+        self.flat_bandpass = None
         self.filter_name = filter_name
         self.set_num(None)
 
@@ -228,19 +230,20 @@ class RomanOpticalModel(Model):
                     "RomanOptics requires filter_name when bandpass has no name attribute"
                 )
         self.bandpass = bandpass
+        self.flat_bandpass = make_flat(bandpass)
 
     def _require_bandpass(self):
         if self.bandpass is None:
             raise ValueError("RomanOptics requires bandpass to be set before use")
         return self.bandpass
 
-    def _get_star_sed(self, star):
-        sed = star.data.properties.get('sed')
-        if sed is None:
+    def _get_sed_eff(self, star):
+        sed_eff = star.data.properties.get('sed_eff')
+        if sed_eff is None:
             raise ValueError(
-                "RomanOptics with chromatic=True requires each star to have an 'sed' property"
+                "RomanOptics with chromatic=True requires each star to have an 'sed_eff' property"
             )
-        return sed
+        return sed_eff
 
     def _get_roman_five_point_data(self, sca):
         if sca in self._roman_five_point_data:
@@ -306,8 +309,8 @@ class RomanOpticalModel(Model):
 
     def _draw_profile_to_image(self, prof, image, center, star):
         if self.chromatic:
-            prof = prof * self._get_star_sed(star)
-            prof.drawImage(self.bandpass, image=image, method=self._method, center=center)
+            prof = prof * self._get_sed_eff(star)
+            prof.drawImage(self.flat_bandpass, image=image, method=self._method, center=center)
         else:
             prof.drawImage(image=image, method=self._method, center=center)
 

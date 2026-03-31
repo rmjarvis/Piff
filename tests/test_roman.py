@@ -23,7 +23,9 @@ import numpy as np
 import piff
 import galsim
 import pytest
+import fitsio
 
+from piff.util import make_flat
 from piff.roman import RomanOpticsPSF, RomanOpticalModel, RomanSCAInterp
 from piff_test_helper import timer
 
@@ -115,7 +117,7 @@ def test_roman_optics():
             y=456.7,
             stamp_size=25,
             scale=0.11,
-            properties={'sca': 5, 'sed': sed},
+            properties={'sca': 5, 'sed_eff': sed},
         ).withFlux(1.0, (0.0, 0.0))
         chromatic_stars, _ = chromatic_psf.initialize_params([chromatic_star], logger=logger)
         chromatic_psf.interp.set_sca_solution({5: np.zeros(chromatic_psf.model.param_len)})
@@ -123,7 +125,7 @@ def test_roman_optics():
         assert np.isfinite(chromatic_model_star.image.array).all()
         assert chromatic_model_star.image.array.sum() > 0.0
         chromatic_psf.drawStar(chromatic_stars[0])
-        assert chromatic_stars[0].data.properties['sed'] is sed
+        assert chromatic_stars[0].data.properties['sed_eff'] is sed
 
         missing_sed_star = piff.Star.makeTarget(
             x=123.4,
@@ -135,7 +137,7 @@ def test_roman_optics():
         missing_sed_stars, _ = chromatic_psf.initialize_params([missing_sed_star], logger=logger)
         with pytest.raises(ValueError) as err:
             chromatic_psf.drawStar(missing_sed_stars[0])
-        assert "requires each star to have an 'sed' property" in str(err.value)
+        assert "requires each star to have an 'sed_eff' property" in str(err.value)
 
         # Helper function to use as a side-effect of getPSF to record what sca argument is used.
         used_sca = [] # Use a list so we can modify in place.

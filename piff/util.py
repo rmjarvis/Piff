@@ -33,6 +33,16 @@ def ensure_dir(target):
     if d != '' and  not os.path.exists(d):
         os.makedirs(d)
 
+
+def make_flat(bandpass):
+    """Return a flat bandpass with the same limits as ``bandpass``."""
+    return galsim.Bandpass(
+        lambda wave: 1.0,
+        'nm',
+        blue_limit=bandpass.blue_limit,
+        red_limit=bandpass.red_limit,
+    )
+
 def make_dtype(key, value):
     """A helper function that makes a dtype appropriate for a given value
 
