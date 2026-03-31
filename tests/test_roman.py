@@ -689,6 +689,99 @@ def test_fit_many_nproc():
 
 
 @timer
+def test_chromatic():
+    """Check realistic chromatic RomanOptics fitting with different stellar SEDs.
+    """
+    with fast_pupil_bin():
+        bandpass = galsim.roman.getBandpasses()['H158']
+        flat_bandpass = make_flat(bandpass)
+        psf = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'chromatic': True,
+                'max_zernike': 6,
+            }
+        )
+        psf.set_context(None, None, bandpass)
+        logger = piff.config.setup_logger()
+
+        def read_xsl_sed(file_name):
+            from astropy import units as u
+            data = fitsio.read(os.path.join(os.path.dirname(__file__), 'input', file_name))
+            table = galsim.LookupTable(data['WAVE'], data['FLUX'], interpolant='linear')
+            return galsim.SED(
+                table,
+                wave_type=u.nm,
+                flux_type=u.Unit('erg cm**(-2) s**(-1) angstrom**(-1)'),
+            )
+
+        # The Piff input process will make effective sed's (sed*bp) and thin them.
+        # Do that here for the purpose of this test.
+        sed_blue = read_xsl_sed('xsl_spectrum_X0529_merged.fits')
+        sed_red = read_xsl_sed('xsl_spectrum_X0066_merged_scl.fits')
+        sed_eff_blue = (sed_blue * bandpass).thin(rel_err=0.1).withFlux(1.0, flat_bandpass)
+        sed_eff_red = (sed_red * bandpass).thin(rel_err=0.1).withFlux(1.0, flat_bandpass)
+        print('sed_eff_blue wave_list = ',sed_eff_blue.wave_list)
+        print('sed_eff_red wave_list = ',sed_eff_red.wave_list)
+        assert len(sed_eff_blue.wave_list) <= 10
+        assert len(sed_eff_red.wave_list) <= 10
+
+        flux = 1.e5
+        truth_params = np.array([0.004, -0.003, 0.005])
+
+        # Make the stars with images using a less-thinned sed and bandpass.
+        stars = [
+            piff.Star.makeTarget(x=64.2, y=64.1, stamp_size=25, scale=0.11,
+                                 properties={'sca': 5, 'sed_eff': sed_eff_blue}).withFlux(flux),
+            piff.Star.makeTarget(x=171.8, y=162.7, stamp_size=25, scale=0.11,
+                                 properties={'sca': 5, 'sed_eff': sed_eff_red}).withFlux(flux),
+        ]
+        bp = bandpass.thin(rel_err=0.05)
+        for star, sed in zip(stars, [sed_blue, sed_red]):
+            prof = galsim.roman.getPSF(
+                5, 'H158',
+                SCA_pos=star.image_pos,
+                pupil_bin=piff.roman.roman_psf.pupil_bin,
+                wcs=star.image.wcs,
+                extra_aberrations=psf.model._make_extra_aberrations(truth_params),
+                wavelength=None,
+            )
+            prof = prof * sed.thin(rel_err=0.05).withFlux(flux, bp)
+            prof.drawImage(bp, image=star.image, center=star.image_pos)
+
+        # Do the fit
+        stars, nremoved = psf.initialize_params(stars, logger=logger)
+        assert nremoved == 0
+
+        for _ in range(2):
+            stars, nremoved = psf.single_iteration(
+                stars,
+                logger=logger,
+                convert_funcs=None,
+                draw_method=None,
+            )
+            assert nremoved == 0
+
+        p0 = stars[0].fit.params
+        p1 = stars[1].fit.params
+        print('chromatic p0 = ', p0)
+        print('chromatic p1 = ', p1)
+        print('       truth = ', truth_params)
+        np.testing.assert_allclose(p0, p1, atol=2.0e-6, rtol=0.0)
+        np.testing.assert_allclose(psf.interp.sca_mean[5], p0, atol=2.0e-6, rtol=0.0)
+
+        for star in stars:
+            model_star = psf.drawStar(star)
+            diff = model_star.image.array - star.image.array
+            frac_l2 = np.sqrt(np.sum(diff * diff) / np.sum(star.image.array ** 2))
+            frac_peak = np.max(np.abs(diff)) / np.max(np.abs(star.image.array))
+            print('  frac_l2 = ', frac_l2)
+            print('  frac_peak = ', frac_peak)
+            assert frac_l2 < 0.01
+            assert frac_peak < 0.01
+
+
+@timer
 def test_bilinear_vs_five_point():
     """Exercise practical fit behavior and quantify bilinear vs five-point differences.
     """
@@ -1010,7 +1103,6 @@ def test_fit_linear_nproc():
             np.testing.assert_allclose(star.fit.params[3:], truth_params[3:], atol=5.e-9, rtol=0.0)
 
 
-
 @timer
 def test_optics_convert_funcs():
     """Check aberration recovery when fitting with a nontrivial convert_func (profile shear).
@@ -1177,6 +1269,7 @@ if __name__ == '__main__':
     test_aberration_prior()
     test_fit_many()
     test_fit_many_nproc()
+    test_chromatic()
     test_bilinear_vs_five_point()
     test_fit_linear()
     test_fit_linear_gradient()
