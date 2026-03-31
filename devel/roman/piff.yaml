@@ -4,7 +4,8 @@ input:
     # It and the cat_file are available from here:
     #   https://drive.google.com/drive/folders/1akvHjdKSTMppPTcNfXjEy9SVq_hFBDBc
     image_file_name: 'ffov_13906_test_v251020.fits'
-    image_hdu: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]  # hdu = SCA
+    #image_hdu: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]  # hdu = SCA
+    image_hdu: [1]  # Just one sca for now.
     badpix_zeros: True
 
     cat_file_name: 'stars_13906_test_v251105.parquet'
@@ -35,7 +36,7 @@ select:
     hsm_size_reject: 5    # number of inter-quartile ranges from median to reject size estimate.
     max_pixel_cut: 50000  # reject stars with a pixel value higher than this. (sort of)
     min_sep: 1.0          # reject stars with a neighbor closer than 1 arcsec away.
-    #nstars: 100
+    nstars: 20
 
 output:
     dir: 'output'
