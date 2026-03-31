@@ -9,6 +9,15 @@ input:
 
     cat_file_name: 'stars_13906_test_v251105.parquet'
 
+    # For now just use a single SED for all stars.  This is the SED for a K type star.
+    sed_file_name: 'seds/XSL_DR3_release/xsl_spectrum_X0066_merged_scl.fits'
+    sed_wave_type: 'nm'
+    sed_flux_type: 'erg cm**(-2) s**(-1) angstrom**(-1)'
+    sed_tol: 0.1
+    bandpass:
+        type: RomanBandpass
+        name: H158
+
     ra_col: ra
     dec_col: dec
     properties:
@@ -30,12 +39,12 @@ select:
 
 output:
     dir: 'output'
-    file_name: 'ffov_13906_11.piff'
+    file_name: 'ffov_13906_14.piff'
 
     stats:
         - 
           type: StarImages
-          file_name: 'stars_11.png'
+          file_name: 'stars_14.png'
           nplot: 0  # all stars
 
 psf:
@@ -46,8 +55,7 @@ psf:
 
       -
         type: RomanOptics
-        filter: H158
-        chromatic: False
+        chromatic: True
         max_zernike: 12    # Fit Zernike coefficients 4-12 inclusive.
         aberration_prior_sigma: 3.e-3  # Gaussian prior on all Zernike coefficients in absolute units
         aberration_interp: constant    # linear is possible but doesn't seem to work better.

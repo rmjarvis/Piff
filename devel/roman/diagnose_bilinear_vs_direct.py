@@ -96,7 +96,7 @@ def run_scan(model, scas, grid, stamp_size, scale, margin, aberrations):
 
                 prof = galsim.roman.getPSF(
                     int(sca),
-                    model.filter,
+                    model.filter_name,
                     SCA_pos=star.image_pos,
                     pupil_bin=piff.roman_psf.pupil_bin,
                     wcs=star.image.wcs,
@@ -104,12 +104,7 @@ def run_scan(model, scas, grid, stamp_size, scale, margin, aberrations):
                     wavelength=None if model.chromatic else model.bandpass.effective_wavelength,
                 )
                 direct_image = star.image.copy()
-                prof.drawImage(
-                    direct_image,
-                    method=model._method,
-                    center=star.image_pos,
-                    bandpass=model.bandpass if model.chromatic else None,
-                )
+                model._draw_profile_to_image(prof, direct_image, center=star.image_pos, star=star)
 
                 max_abs, rms, frac_peak, frac_l2 = point_metrics(
                     model_star.image.array, direct_image.array
@@ -301,12 +296,12 @@ def main():
 
     piff.roman_psf.pupil_bin = int(args.pupil_bin)
     model = piff.Roman(
-        filter="H158",
         chromatic=False,
         max_zernike=args.max_zernike,
         aberration_interp="constant",
         aberration_prior_sigma=1.0e6,
     )
+    model.set_bandpass(galsim.roman.getBandpasses()["H158"])
 
     scas = parse_scas(args.scas)
     aberrations = parse_aberrations(args.aberrations, model.param_len)
