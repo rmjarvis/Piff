@@ -700,9 +700,10 @@ def test_chromatic():
                 'type': 'RomanOptics',
                 'chromatic': True,
                 'max_zernike': 6,
+                'max_iter': 1,  # Not used until later when we run fit() directly.
             }
         )
-        psf.set_context(None, None, bandpass)
+        psf.set_context(galsim.PixelScale(0.11), None, bandpass)
         logger = piff.config.setup_logger()
 
         def read_xsl_sed(file_name):
@@ -779,6 +780,16 @@ def test_chromatic():
             print('  frac_peak = ', frac_peak)
             assert frac_l2 < 0.01
             assert frac_peak < 0.01
+
+        # Exercise the chromatic reflux branch through a real fit() call.
+        psf.fit(stars, logger=logger)
+        assert psf.niter == 1
+        assert psf.nremoved == 0
+        for star in psf.stars:
+            print(star.fit.flux, star.fit.center)
+            assert flux/2 < star.fit.flux < flux*2  # < factor of 2 change from reflux.
+            assert 0 < np.abs(star.fit.center[0]) < 0.05  # centroid shift should be small.
+            assert 0 < np.abs(star.fit.center[1]) < 0.05
 
 
 @timer
