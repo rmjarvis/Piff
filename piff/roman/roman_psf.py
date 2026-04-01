@@ -135,6 +135,12 @@ class RomanOpticalModel(Model):
     position. ``nominal_interp='bilinear'`` uses the four SCA corners; ``'five_point'`` adds
     the SCA center and uses a five-term basis ``[1, x, y, x*y, (x^2+y^2)]`` in normalized
     coordinates.
+
+    The ``aberration_interp`` option controls how the fitted extra aberrations vary across an
+    SCA. ``'global'`` and ``'constant'`` both use one fitted aberration vector per SCA in the
+    model, with ``'global'`` only changing how the outer interpolator shares those vectors across
+    SCAs. ``'linear'`` fits a planar extra-aberration field on each SCA, modeled as
+    ``a + b x + c y`` in normalized SCA coordinates.
     """
 
     _type_name = 'Roman'
@@ -202,7 +208,7 @@ class RomanOpticalModel(Model):
     @property
     def param_len(self):
         if self.aberration_interp == 'linear':
-            return 4 * self._single_point_param_len
+            return 3 * self._single_point_param_len
         else:
             return self._single_point_param_len
 
@@ -319,11 +325,21 @@ class RomanOpticalModel(Model):
         return sigma
 
     def _expand_prior_sigma(self, prior_sigma):
-        # Possibly tile the prior_sigma array 4 times if linear mode.
+        # Possibly tile the prior_sigma array for the (a, b, c) coefficient blocks.
         if self.aberration_interp == 'linear' and prior_sigma is not None:
-            return np.tile(prior_sigma, 4)
+            return np.tile(prior_sigma, 3)
         else:
             return prior_sigma
+
+    def _evaluate_linear_params(self, params, points):
+        coeffs = params.reshape(3, self._single_point_param_len)
+        a, b, c = coeffs
+        sample_params = np.empty((len(points), self._single_point_param_len), dtype=float)
+        for i, pt in enumerate(points):
+            xh = pt.x / self.sca_size
+            yh = pt.y / self.sca_size
+            sample_params[i] = a + b * xh + c * yh
+        return sample_params
 
     def _apply_prior(self, ata, atb, params):
         if self.prior_invsigsq is None:
@@ -544,12 +560,7 @@ class RomanOpticalModel(Model):
                 galsim.PositionD(self.sca_size, self.sca_size),
             )
         if self.aberration_interp == 'linear':
-            sample_params = params.reshape(4, self._single_point_param_len)
-            if self.nominal_interp == 'five_point':
-                # Add the center-evaluated extra_aberrations for the fifth sample point.
-                # In linear mode, center is the bilinear average of the four corners.
-                center_params = np.mean(sample_params, axis=0)
-                sample_params = np.vstack((sample_params, center_params))
+            sample_params = self._evaluate_linear_params(params, points)
         else:
             npts = 5 if self.nominal_interp == 'five_point' else 4
             # In constant/global mode, the same per-SCA vector applies everywhere.
