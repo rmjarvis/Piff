@@ -36,12 +36,10 @@ def ensure_dir(target):
 
 def make_flat(bandpass):
     """Return a flat bandpass with the same limits as ``bandpass``."""
-    return galsim.Bandpass(
-        lambda wave: 1.0,
-        'nm',
-        blue_limit=bandpass.blue_limit,
-        red_limit=bandpass.red_limit,
-    )
+    blue = bandpass.blue_limit
+    red = bandpass.red_limit
+    tab = galsim.LookupTable([blue, red], [1, 1], interpolant='linear')
+    return galsim.Bandpass(tab, 'nm', blue_limit=blue, red_limit=red)
 
 def make_dtype(key, value):
     """A helper function that makes a dtype appropriate for a given value
