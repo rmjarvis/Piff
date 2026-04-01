@@ -50,8 +50,6 @@ from ._version import __version__, __version_info__
 # Also let piff.version show the version.
 version = __version__
 
-from . import galsim_patch
-
 # We don't have any C functions, but once we do, I recommend using cffi to
 # wrap them.  This is the entire code we need to get C functions into Python.
 if False:
