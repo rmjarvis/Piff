@@ -1,4 +1,4 @@
-# Note: this run takes ~ 80 minutes to run.
+# Note: this run takes ~ 800 minutes to run (~ 13 hours).
 
 input:
 
@@ -11,6 +11,11 @@ input:
 
     cat_file_name: 'stars_13906_test_v251105.parquet'
 
+    # For now just use a single SED for all stars.  This is the SED for a K type star.
+    sed_file_name: 'seds/XSL_DR3_release/xsl_spectrum_X0066_merged_scl.fits'
+    sed_wave_type: 'nm'
+    sed_flux_type: 'erg cm**(-2) s**(-1) angstrom**(-1)'
+    sed_tol: 0.2
     bandpass:
         type: RomanBandpass
         name: H158
@@ -35,12 +40,12 @@ select:
 
 output:
     dir: 'output'
-    file_name: 'ffov_13906_17.piff'
+    file_name: 'ffov_13906_15.piff'
 
     stats:
         - 
           type: StarImages
-          file_name: 'stars_17.png'
+          file_name: 'stars_15.png'
           nplot: 0  # all stars
 
 psf:
@@ -51,9 +56,9 @@ psf:
 
       -
         type: RomanOptics
-        chromatic: False
+        chromatic: True
         max_zernike: 12    # Fit Zernike coefficients 4-12 inclusive.
-        aberration_prior_sigma: 3.e-3  # Gaussian prior on all Zernike coefficients in absolute units
+        aberration_prior_sigma: 3.e-3  # Gaussian prior on all Zernike coefficients.
         aberration_interp: constant    # linear is possible but doesn't seem to work better.
         nominal_interp: bilinear       # five_points is possible but doesn't work better on
                                        # this sim. May be different on real data.
