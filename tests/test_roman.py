@@ -24,7 +24,7 @@ import piff
 import galsim
 import pytest
 
-from piff.roman.roman_psf import RomanOpticsPSF, RomanOpticalModel, RomanSCAInterp
+from piff.roman import RomanOpticsPSF, RomanOpticalModel, RomanSCAInterp
 from piff_test_helper import timer
 
 
