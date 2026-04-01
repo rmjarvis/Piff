@@ -65,7 +65,7 @@ def test_roman_optics():
         assert isinstance(psf, RomanOpticsPSF)
         logger = piff.config.setup_logger()
         assert psf.interp_property_names == ('sca',)
-        assert psf.fit_center is False
+        assert psf.fit_center is True
         assert psf.include_model_centroid is False
         assert psf.model.aberration_interp == 'constant'
         assert psf.model.nominal_interp == 'bilinear'

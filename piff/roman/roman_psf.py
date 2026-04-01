@@ -146,7 +146,7 @@ class RomanOpticalModel(Model):
 
     _type_name = 'Roman'
     _method = 'auto'
-    _centered = False
+    _centered = True
     _model_can_be_offset = False
 
     def __init__(
