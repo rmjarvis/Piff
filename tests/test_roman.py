@@ -773,13 +773,6 @@ def test_fit_linear():
     """Check linear-mode convergence with stars spanning the SCA geometry.
     """
     with fast_pupil_bin():
-        model = piff.roman.RomanOpticalModel(
-            filter='H158',
-            chromatic=False,
-            max_zernike=6,
-            aberration_interp='linear',
-            aberration_prior_sigma=1.0e6,
-        )
         # Use stars spread across the SCA so all four corner aberration blocks are constrained.
         pos = [
             (512.0, 512.0),
@@ -792,43 +785,52 @@ def test_fit_linear():
             (2044.0, 3576.0),
             (3576.0, 3576.0),
         ]
-        stars = [
-            piff.Star.makeTarget(
-                x=x,
-                y=y,
-                stamp_size=25,
-                scale=0.11,
-                properties={'sca': 5},
-            ).withFlux(1.0, (0.0, 0.0))
-            for x, y in pos
-        ]
-        stars = [model.initialize(star) for star in stars]
         base_truth = np.array([0.004, -0.003, 0.005])
         truth_params = np.tile(base_truth, 4)
-        for star in stars:
-            prof = model.getProfile(truth_params, star=star)
-            model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos, star)
-
-        for _ in range(4):
-            stars = model.fit_many(stars)
-
-        fitted_params = stars[0].fit.params
-        fitted_var = stars[0].fit.params_var
-
-        for star in stars:
-            assert star.fit.chisq >= 0
-            assert star.fit.dof > 0
-            np.testing.assert_allclose(star.fit.params, fitted_params, atol=1.e-12, rtol=0.0)
-        print('linear fit = ', fitted_params)
-        print('    truth = ', truth_params)
-        np.testing.assert_allclose(fitted_params, truth_params, atol=0.0, rtol=1.e-3)
-        assert np.all(fitted_var >= 0)
-
-        for star in stars:
-            model_star = model.draw(star)
-            np.testing.assert_allclose(
-                model_star.image.array, star.image.array, atol=5.e-5, rtol=0.0
+        for nominal_interp in ['bilinear', 'five_point']:
+            model = piff.roman.RomanOpticalModel(
+                filter='H158',
+                chromatic=False,
+                max_zernike=6,
+                aberration_interp='linear',
+                nominal_interp=nominal_interp,
+                aberration_prior_sigma=1.0e6,
             )
+            stars = [
+                piff.Star.makeTarget(
+                    x=x,
+                    y=y,
+                    stamp_size=25,
+                    scale=0.11,
+                    properties={'sca': 5},
+                ).withFlux(1.0, (0.0, 0.0))
+                for x, y in pos
+            ]
+            stars = [model.initialize(star) for star in stars]
+            for star in stars:
+                prof = model.getProfile(truth_params, star=star)
+                model._draw_profile_to_image(prof * star.fit.flux, star.image, star.image_pos)
+
+            for _ in range(4):
+                stars = model.fit_many(stars)
+
+            fitted_params = stars[0].fit.params
+            fitted_var = stars[0].fit.params_var
+
+            for star in stars:
+                assert star.fit.chisq >= 0
+                assert star.fit.dof > 0
+                np.testing.assert_allclose(star.fit.params, fitted_params, atol=1.e-12, rtol=0.0)
+            print(f'linear {nominal_interp} fit = ', fitted_params)
+            print('                truth = ', truth_params)
+            np.testing.assert_allclose(fitted_params, truth_params, atol=0.0, rtol=1.e-3)
+            assert np.all(fitted_var >= 0)
+
+            for star in stars:
+                model_star = model.draw(star)
+                np.testing.assert_allclose(
+                    model_star.image.array, star.image.array, atol=5.e-5, rtol=0.0
+                )
 
 
 @timer
