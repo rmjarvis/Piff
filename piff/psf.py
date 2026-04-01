@@ -292,22 +292,27 @@ class PSF(object):
 
         if self.fit_center and not star.data.properties.get('trust_pos',False):
             psf_prof, method = self._getRawProfile(model_star)
+            if isinstance(psf_prof, galsim.ChromaticObject):
+                psf_prof = psf_prof * star.data.properties['sed_eff']
+                draw_args = (self.flat_bandpass,)
+            else:
+                draw_args = ()
 
             # Use finite different to approximate d(model)/duc, d(model)/dvc
             duv = 1.e-5
             temp = star.image.copy()
             center = star.fit.center
             du_prof = psf_prof.shift(center[0] + duv, center[1]) * new_flux
-            du_prof.drawImage(temp, method=method, center=star.image_pos)
+            du_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
             dmduc = (temp.array.ravel() - model) / duv
             dv_prof = psf_prof.shift(center[0], center[1] + duv) * new_flux
-            dv_prof.drawImage(temp, method=method, center=star.image_pos)
+            dv_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
             dmdvc = (temp.array.ravel() - model) / duv
 
             # Also dmdflux
             dflux = 1.e-5 * max(abs(new_flux), 1.e-5)  # Guard against division by 0
             df_prof = psf_prof.shift(center[0], center[1]) * (new_flux + dflux)
-            df_prof.drawImage(temp, method=method, center=star.image_pos)
+            df_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
             dmdf = (temp.array.ravel() - model) / dflux
 
             # Now construct the design matrix for this minimization
@@ -332,7 +337,7 @@ class PSF(object):
             # Extract the values we want.
             df, duc, dvc = x
 
-            if self.include_model_centroid and psf_prof.centroid != galsim.PositionD(0,0):
+            if self.include_model_centroid:
                 # In addition to shifting to the best fit center location, also shift
                 # by the centroid of the model itself, so the next next pass through the
                 # fit will be closer to centered.  In practice, this converges pretty quickly.
