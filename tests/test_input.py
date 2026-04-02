@@ -2119,7 +2119,7 @@ def test_sky():
 
 @timer
 def test_sed_col():
-    """Test per-star SED loading from a catalog filename column (`input.sed_col`).
+    """Test per-star SED loading from a catalog filename column (input.sed_col).
     """
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
@@ -2206,7 +2206,7 @@ def test_sed_col():
 
 @timer
 def test_single_sed():
-    """Test single-file SED mode (`sed_file_name`)
+    """Test single-file SED mode (sed_file_name)
     """
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
@@ -2349,7 +2349,7 @@ def test_single_sed():
 
 @timer
 def test_sed_thin():
-    """Test optional input-time SED reduction (`sed_tol`)."""
+    """Test optional input-time SED reduction (sed_tol, sed_max_samples)."""
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
@@ -2370,12 +2370,23 @@ def test_sed_thin():
     bandpass = galsim.roman.getBandpasses()['H158']
     flat_bandpass = make_flat(bandpass)
 
+    def weighted_line_fit(wave, flux):
+        weights = np.empty_like(wave)
+        weights[0] = 0.5 * (wave[1] - wave[0])
+        weights[-1] = 0.5 * (wave[-1] - wave[-2])
+        weights[1:-1] = 0.5 * (wave[2:] - wave[:-2])
+        X = np.column_stack([np.ones_like(wave), wave])
+        Xw = X * np.sqrt(weights)[:, np.newaxis]
+        yw = flux * np.sqrt(weights)
+        return np.linalg.lstsq(Xw, yw, rcond=None)[0]
+
     # First default is no thinning.
     piff.InputFiles._sed_cache = {}
     _, _, _, props = piff.InputFiles(config, logger=logger).getRawImageData(0)
     sed = props['sed_eff'][0]
     assert props['sed_eff'][0] is props['sed_eff'][1]
     assert props['sed_tol'][0] == 0.0
+    assert props['sed_max_samples'][0] == 0
     np.testing.assert_allclose(
         sed.calculateFlux(flat_bandpass),
         1.0,
@@ -2390,6 +2401,7 @@ def test_sed_thin():
     thin_sed = thin_props['sed_eff'][0]
     assert thin_props['sed_eff'][0] is thin_props['sed_eff'][1]
     assert thin_props['sed_tol'][0] == 0.1
+    assert thin_props['sed_max_samples'][0] == 0
     assert thin_sed is not sed
     assert len(thin_sed.wave_list) < len(sed.wave_list)
     np.testing.assert_allclose(
@@ -2397,6 +2409,59 @@ def test_sed_thin():
     )
     assert thin_sed.blue_limit == bandpass.blue_limit
     assert thin_sed.red_limit == bandpass.red_limit
+
+    # Hard cap the number of samples and refit their values for the best piecewise-linear
+    # approximation of the original effective SED.
+    piff.InputFiles._sed_cache = {}
+    sample_config = dict(config, sed_max_samples=2)
+    _, _, _, sample_props = piff.InputFiles(sample_config, logger=logger).getRawImageData(0)
+    sample_sed = sample_props['sed_eff'][0]
+    assert sample_props['sed_eff'][0] is sample_props['sed_eff'][1]
+    assert sample_props['sed_tol'][0] == 0.0
+    assert sample_props['sed_max_samples'][0] == 2
+    assert len(sample_sed.wave_list) == 2
+    np.testing.assert_allclose(
+        sample_sed.calculateFlux(flat_bandpass), 1.0, rtol=1.0e-12, atol=0.0
+    )
+    wave = np.array(sed.wave_list, dtype=float)
+    flux = np.array([sed(w) for w in wave], dtype=float)
+    sample_wave = np.array(sample_sed.wave_list, dtype=float)
+    sample_flux = np.array([sample_sed(w) for w in sample_wave], dtype=float)
+    fit0, fit1 = weighted_line_fit(wave, flux)
+    sample0, sample1 = weighted_line_fit(sample_wave, sample_flux)
+    np.testing.assert_allclose(sample1, fit1, rtol=1.0e-3, atol=0.0)
+
+    # The two options can be used together: first use sed_tol to choose candidate samples,
+    # then trim to a maximum count and refit their values.
+    piff.InputFiles._sed_cache = {}
+    combo_config = dict(config, sed_tol=0.1, sed_max_samples=4)
+    _, _, _, combo_props = piff.InputFiles(combo_config, logger=logger).getRawImageData(0)
+    combo_sed = combo_props['sed_eff'][0]
+    assert combo_props['sed_tol'][0] == 0.1
+    assert combo_props['sed_max_samples'][0] == 4
+    assert len(combo_sed.wave_list) == 4
+    np.testing.assert_allclose(
+        combo_sed.calculateFlux(flat_bandpass), 1.0, rtol=1.0e-12, atol=0.0
+    )
+
+    # A large enough sed_max_samples should be a no-op after the sed_tol thinning stage.
+    piff.InputFiles._sed_cache = {}
+    no_op_config = dict(config, sed_tol=0.1, sed_max_samples=100)
+    _, _, _, no_op_props = piff.InputFiles(no_op_config, logger=logger).getRawImageData(0)
+    no_op_sed = no_op_props['sed_eff'][0]
+    assert no_op_props['sed_tol'][0] == 0.1
+    assert no_op_props['sed_max_samples'][0] == 100
+    assert len(no_op_sed.wave_list) == len(thin_sed.wave_list)
+    np.testing.assert_array_equal(
+        [no_op_sed(w) for w in no_op_sed.wave_list],
+        [thin_sed(w) for w in thin_sed.wave_list],
+    )
+
+    # sed_max_samples must be >= 2 if provided.
+    piff.InputFiles._sed_cache = {}
+    bad_config = dict(config, sed_max_samples=1)
+    with np.testing.assert_raises(ValueError):
+        piff.InputFiles(bad_config, logger=logger).getRawImageData(0)
 
 @timer
 def test_sed_star_io():
@@ -2417,8 +2482,10 @@ def test_sed_star_io():
         'sed_wave_type': 'nm',
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
         'sed_tol': 0.1,
+        'sed_max_samples': 6,
         'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
+    piff.InputFiles._sed_cache = {}
     stars = piff.InputFiles(config, logger=logger).makeStars(logger=logger)
     assert len(stars) > 10
     assert 'sed_eff' in stars[0].data.properties
@@ -2428,6 +2495,7 @@ def test_sed_star_io():
     assert 'sed_wave_key' in stars[0].data.properties
     assert 'sed_flux_key' in stars[0].data.properties
     assert 'sed_tol' in stars[0].data.properties
+    assert 'sed_max_samples' in stars[0].data.properties
 
     file_name = os.path.join('output', 'sed_star_io.fits')
     with piff.writers.FitsWriter.open(file_name) as w:
@@ -2442,6 +2510,7 @@ def test_sed_star_io():
     assert 'sed_wave_key' in cols
     assert 'sed_flux_key' in cols
     assert 'sed_tol' in cols
+    assert 'sed_max_samples' in cols
 
     bandpass = galsim.roman.getBandpasses()['H158']
     with piff.readers.FitsReader.open(file_name) as r:
@@ -2458,6 +2527,7 @@ def test_sed_star_io():
         assert s1['sed_wave_key'] == s2['sed_wave_key']
         assert s1['sed_flux_key'] == s2['sed_flux_key']
         assert s1['sed_tol'] == s2['sed_tol'] == 0.1
+        assert s1['sed_max_samples'] == s2['sed_max_samples'] == 6
         np.testing.assert_allclose(
             float(s2['sed_eff'](1500.0)),
             float(s1['sed_eff'](1500.0)),
