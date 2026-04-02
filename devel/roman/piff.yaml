@@ -49,7 +49,7 @@ psf:
         filter: H158
         chromatic: False
         max_zernike: 12    # Fit Zernike coefficients 4-12 inclusive.
-        aberration_prior_sigma: 3.e-3  # Gaussian prior on all Zernike coefficients.
+        aberration_prior_sigma: 3.e-3  # Gaussian prior on all Zernike coefficients in absolute units
         aberration_interp: constant    # linear is possible but doesn't seem to work better.
         nominal_interp: bilinear       # five_points is possible but doesn't work better on
                                        # this sim. May be different on real data.
