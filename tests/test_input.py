@@ -2599,7 +2599,7 @@ def test_input_bandpass():
     assert pointing is None
     assert bandpass is not None
 
-    # PSF.process creates a PSF object without the wcs, poining, bandpass context yet.
+    # PSF.process creates a PSF object without the wcs, pointing, bandpass context yet.
     psf = piff.PSF.process(config['psf'], logger=logger)
     assert psf.wcs is None
     assert psf.pointing is None
