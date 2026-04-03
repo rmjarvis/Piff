@@ -1218,7 +1218,7 @@ class InputFiles(Input):
 
     @staticmethod
     def _select_greedy_samples(wave, flux, candidate_wave, sed_max_samples):
-        # This function selectes a subset of candidate_wave locations that would be most
+        # This function selects a subset of candidate_wave locations that would be most
         # effective for making a piecewise-linear approximation to the SED defined by
         # (wave, flux).
 
