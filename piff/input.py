@@ -42,6 +42,11 @@ class Input(object):
 
     nproc = 1  # Sub-classes can overwrite this as an instance attribute.
 
+    # These shouldn't ever be used, but give these defaults before they are set correctly.
+    wcs_list = []
+    pointing = None
+    bandpass = None
+
     @classmethod
     def process(cls, config_input, logger=None):
         """Parse the input field of the config dict.
@@ -160,7 +165,7 @@ class Input(object):
 
         :returns: a galsim.Bandpass or None.
         """
-        return None
+        return self.bandpass
 
 
 class InputFiles(Input):
@@ -768,9 +773,6 @@ class InputFiles(Input):
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
         self.config = galsim.config.CleanConfig(config)
-
-    def getBandpass(self, logger=None):
-        return self.bandpass
 
     def load_images(self, stars, logger=None):
         """Load the image data into a list of Stars.

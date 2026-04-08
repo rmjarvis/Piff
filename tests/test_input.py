@@ -2243,6 +2243,16 @@ def test_single_sed():
         atol=0.0,
     )
 
+    # An analytic SED expression combined with an analytic bandpass can still have no wave_list
+    # after forming sed * bandpass, which should take the len(wave) == 0 branch in _read_sed_file.
+    config['sed_file_name'] = '1./wave'
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, extra_props = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    assert len(extra_props['sed_eff']) == 100
+    assert extra_props['sed_eff'][0] is extra_props['sed_eff'][1]
+    assert len(extra_props['sed_eff'][0].wave_list) == 0
+
     # A single XSL SED file can be applied to all stars.
     config = {
         'dir': 'input',

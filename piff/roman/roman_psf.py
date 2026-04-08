@@ -806,5 +806,8 @@ class RomanOpticsPSF(PSF):
         for key in chisq_dict:
             setattr(self, key, chisq_dict[key])
         self.model = Model.read(reader, 'model')
+        if self.bandpass is not None:
+            # Now that model is built, we can update its bandpass to the correct value.
+            self.model.set_bandpass(self.bandpass)
         self.interp = Interp.read(reader, 'interp')
         self.outliers = Outliers.read_all(reader, 'outliers')
