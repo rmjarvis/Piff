@@ -109,6 +109,7 @@ class ConvolvePSF(PSF):
     def set_context(self, wcs, pointing, bandpass):
         super().set_context(wcs, pointing, bandpass)
         if isinstance(self.components, list):
+            # If it's a list, then building components has been completed.
             for comp in self.components:
                 comp.set_context(wcs, pointing, bandpass)
 

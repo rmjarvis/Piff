@@ -222,6 +222,25 @@ def test_roman_optics():
         assert psf2.outliers[0]._type_name == 'Chisq'
         assert psf2.outliers[1]._type_name == 'Centroid'
 
+        # Round trip WCS + bandpass through the read path where set_context is called
+        # before _finish_read has replaced the placeholder model.
+        psf1 = piff.PSF.process(
+            {
+                'type': 'RomanOptics',
+                'chromatic': True,
+                'max_zernike': 6,
+            }
+        )
+        wcs = {5: galsim.PixelScale(0.11)}
+        psf1.set_context(wcs, None, bandpass)
+        fn = os.path.join('output', 'roman_context_write_test.piff')
+        psf1.write(fn)
+        psf2 = piff.read(fn)
+        assert psf2.wcs == wcs
+        assert psf2.bandpass == bandpass
+        assert psf2.model.bandpass == bandpass
+        assert psf2.model.filter_name == 'H158'
+
     # max_zernike must be >= 4
     with pytest.raises(ValueError) as err:
         RomanOpticalModel(chromatic=False, max_zernike=3)
@@ -244,6 +263,11 @@ def test_roman_optics():
     model.set_bandpass(custom_bandpass, filter_name='H158')
     assert model.bandpass == custom_bandpass
     assert model.filter_name == 'H158'
+
+    # It's ok, but unnecessary to give the filter_name explicitly with a roman bandpass.
+    model.set_bandpass(galsim.roman.getBandpasses()['H158'], filter_name='H158')
+    assert model.filter_name == 'H158'      # The explicitly set filter_name.
+    assert model.bandpass.name == 'H158'    # The one that galsim.roman sets in the bandpass obj.
 
     # Invalid filter_name fails when GalSim is actually asked to build the Roman PSF.
     model.filter_name = None  # Lets set_bandpass actually work.
