@@ -1912,6 +1912,13 @@ def test_pointing():
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
+    # Config expressions should also work.
+    config['ra'] = '$5.0 + math.exp(0)'
+    config['dec'] = '$-@input.ra*5'
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
+
     # Strings as keys into FITS header
     config['ra'] = 'RA'
     config['dec'] = 'DEC'
