@@ -782,8 +782,8 @@ class InputFiles(Input):
         self.setWCS(config, base, logger)
 
         # Finally, set the pointing coordinate.
-        ra = config.get('ra',None)
-        dec = config.get('dec',None)
+        ra = galsim.config.ParseValue(config, 'ra', base, None)[0] if 'ra' in config else None
+        dec = galsim.config.ParseValue(config, 'dec', base, None)[0] if 'dec' in config else None
         self.setPointing(ra, dec, logger)
         self.config = galsim.config.CleanConfig(config)
         self.base = galsim.config.CleanConfig(base)
