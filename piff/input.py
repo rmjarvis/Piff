@@ -462,15 +462,11 @@ class InputFiles(Input):
                 'invert_weight' : bool,
                 'remove_signal_from_weight' : bool,
                 'stamp_size' : int,
-                'gain' : str,
-                'satur' : str,
-                'trust_pos' : bool,
                 'use_partial' : bool,
-                'sky' : str,
-                'noise' : str,
                 'nstars' : int,
               }
-        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs', 'bandpass' ]
+        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs', 'bandpass',
+                   'sky', 'gain', 'satur', 'noise', 'trust_pos' ]
 
         # We're going to change the config dict a bit. Make a copy so we don't mess up the
         # user's original dict (in case they care).
@@ -683,9 +679,6 @@ class InputFiles(Input):
             badpix_zeros = params.get('badpix_zeros', False)
             sky_file_name = params.get('sky_file_name', None)
             sky_hdu = params.get('sky_hdu', None)
-            sky = params.get('sky', None)
-            noise = params.get('noise', None)
-
             self.image_file_name.append(image_file_name)
             self.image_kwargs.append({
                     'image_file_name' : image_file_name,
@@ -697,8 +690,9 @@ class InputFiles(Input):
                     'badpix_zeros' : badpix_zeros,
                     'sky_file_name' : sky_file_name,
                     'sky_hdu' : sky_hdu,
-                    'sky' : sky,
-                    'noise' : noise})
+                    'image_num' : image_num,
+                    'config' : galsim.config.CleanConfig(config),
+                    'base' : galsim.config.CleanConfig(base)})
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
@@ -730,14 +724,11 @@ class InputFiles(Input):
                 bandpass = None
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
-            gain = params.get('gain', None)
-            satur = params.get('satur', None)
-            trust_pos = params.get('trust_pos', None)
             nstars = params.get('nstars', None)
 
-            if sky_col is not None and sky is not None:
+            if sky_col is not None and 'sky' in config:
                 raise ValueError("Cannot provide both sky_col and sky.")
-            if gain_col is not None and gain is not None:
+            if gain_col is not None and 'gain' in config:
                 raise ValueError("Cannot provide both gain_col and gain.")
 
             self.cat_file_name.append(cat_file_name)
@@ -767,12 +758,10 @@ class InputFiles(Input):
                     'bandpass': bandpass,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
-                    'sky' : sky,
-                    'gain' : gain,
-                    'satur' : satur,
-                    'trust_pos' : trust_pos,
                     'nstars' : nstars,
-                    'stamp_size' : self.stamp_size})
+                    'stamp_size' : self.stamp_size,
+                    'config' : galsim.config.CleanConfig(config),
+                    'base' : galsim.config.CleanConfig(base)})
 
         self.use_partial = config.get('use_partial', False)
         self.bandpass = bandpass
@@ -844,7 +833,7 @@ class InputFiles(Input):
         image.wcs = wcs
 
         image_pos, extra_props = InputFiles.readStarCatalog(
-                logger=logger, image=image, config=config, base=base, **cat_kwargs)
+                logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
             # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -1000,7 +989,7 @@ class InputFiles(Input):
     @staticmethod
     def readImage(image_file_name, image_hdu, weight_file_name, weight_hdu,
                   badpix_file_name, badpix_hdu, badpix_zeros, sky_file_name, sky_hdu,
-                  sky, noise, logger):
+                  image_num, config, base, logger):
         """Read in the image and weight map (or make one if no weight information is given
 
         :param image_file_name: The name of the file to read.
@@ -1014,19 +1003,24 @@ class InputFiles(Input):
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
         :param sky_hdu:         The hdu to use in the sky_file_name (if any).
-        :param sky:             If this is 'median', then treat the median as the sky level.
-                                Otherwise, the sky level is set to the value passed here,
-                                or to the value in the fits header associated to the
-                                keyword that's passed here.
-        :param noise:           Either a float constant noise value to use in lieu of a weight
-                                map or a str keyword to use to read a value from FITS header.
+        :param config:          The input section of the config dict.
+        :param base:            The base config dict.
         :param logger:          A logger object for logging debug info.
 
         :returns: image, weight
         """
         # Read in the image
         logger.info("Reading image file %s",image_file_name)
+        base['image_num'] = image_num
         image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
+
+        noise = None
+        if 'noise' in config:
+            noise = galsim.config.ParseValue(config, 'noise', base, (float, str))[0]
+
+        sky = None
+        if 'sky' in config:
+            sky = galsim.config.ParseValue(config, 'sky', base, (float, str))[0]
 
         # Make sure dtype is at least float32
         if image.dtype not in [np.float32, np.float64]:
@@ -1386,8 +1380,8 @@ class InputFiles(Input):
                         flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
                         sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
                         sed_tol, sed_max_samples, bandpass,
-                        properties, image_num, sky_col, gain_col, sky, gain, satur,
-                        trust_pos, nstars, stamp_size, config, base, logger):
+                        properties, image_num, sky_col, gain_col, nstars, stamp_size,
+                        config, base, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -1418,13 +1412,6 @@ class InputFiles(Input):
         :param bandpass:        The galsim.Bandpass for the observation.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
-        :param sky:             Either a float value for the sky to use for all objects or a str
-                                keyword to read a value from the FITS header.
-        :param gain:            Either a float value for the gain to use for all objects or a str
-                                keyword to read a value from the FITS header.
-        :param satur:           Either a float value for the saturation level to use or a str
-                                keyword to read a value from the FITS header.
-        :param trust_pos:       Optional bool value indicating whether to trust input positions.
         :param nstars:          Optionally a maximum number of stars to use from this catalog.
         :param stamp_size:      The stamp size being used for the star stamps.
         :param config:          The input section of the config dict.
@@ -1442,7 +1429,24 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.info("Reading input catalog %s.",cat_file_name)
+        base['image_num'] = image_num
         cat = InputFiles._read_cat(cat_file_name, cat_hdu)
+
+        sky = None
+        if 'sky' in config:
+            sky = galsim.config.ParseValue(config, 'sky', base, (float, str))[0]
+
+        gain = None
+        if 'gain' in config:
+            gain = galsim.config.ParseValue(config, 'gain', base, (float, str))[0]
+
+        satur = None
+        if 'satur' in config:
+            satur = galsim.config.ParseValue(config, 'satur', base, (float, str))[0]
+
+        trust_pos = None
+        if 'trust_pos' in config:
+            trust_pos = galsim.config.ParseValue(config, 'trust_pos', base, bool)[0]
 
         if flag_col is not None:
             if flag_col not in cat.dtype.names:
@@ -1653,9 +1657,6 @@ class InputFiles(Input):
 
         # Check whether we should trust the positions
         if trust_pos is not None:
-            from galsim.config.value import _GetBoolValue
-            # Converts things like 'Yes', 'True', 'TRUE', 1 to True
-            trust_pos = _GetBoolValue(trust_pos)
             extra_props['trust_pos'] = np.array([trust_pos]*len(cat), dtype=bool)
 
         if properties is not None:

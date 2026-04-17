@@ -1313,6 +1313,7 @@ def test_des_image():
     config['psf']['outliers']['max_remove'] = 0.01
     # We used to have an include_reserve=True option, which we got rid of.
     config['psf']['outliers']['include_reserve'] = True
+    config = galsim.config.CleanConfig(config)
     with CaptureLog(1) as cl:
         piff.piffify(config, logger=cl.logger)
     print(cl.output)
