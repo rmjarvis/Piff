@@ -810,7 +810,7 @@ def test_eval_properties():
 
     # The helper requires a dict when properties are provided.
     with np.testing.assert_raises(ValueError):
-        piff.InputFiles._evaluate_properties('invalid', {}, 0, 3, {}, logger)
+        piff.InputFiles._evaluate_properties('invalid', {}, 3, {}, {'image_num': 0}, logger)
 
     # Properties can depend on catalog values and on previous computed properties.
     extra_props = {
@@ -822,7 +822,7 @@ def test_eval_properties():
             'gr_plus_two': '$gr_plus_one + 1',
             'image_id': '$@image_num + 10',
         },
-        extra_props, 2, 3, {}, logger)
+        extra_props, 3, {}, {'image_num': 2}, logger)
     np.testing.assert_allclose(props['gr_plus_one'], [1.1, 1.2, 1.3])
     np.testing.assert_allclose(props['gr_plus_two'], [2.1, 2.2, 2.3])
     np.testing.assert_array_equal(props['image_id'], [12, 12, 12])
@@ -830,12 +830,12 @@ def test_eval_properties():
     # If a scalar-only function rejects arrays, we fall back to per-row evaluation.
     props = piff.InputFiles._evaluate_properties(
         {'gr_bin': '$int(gr_color * 10)'},
-        extra_props, 0, 3, {}, logger)
+        extra_props, 3, {}, {'image_num': 0}, logger)
     np.testing.assert_array_equal(props['gr_bin'], [1, 2, 3])
 
     # Invalid property values should raise.
     with np.testing.assert_raises(ValueError):
-        piff.InputFiles._evaluate_properties({'bad': []}, {}, 0, 1, {}, logger)
+        piff.InputFiles._evaluate_properties({'bad': []}, {}, 1, {}, {'image_num': 0}, logger)
 
 
 @timer

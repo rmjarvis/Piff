@@ -90,12 +90,13 @@ class SimplePSF(PSF):
         return self.interp.property_names
 
     @classmethod
-    def parseKwargs(cls, config_psf, logger):
+    def parseKwargs(cls, config, base, logger):
         """Parse the psf field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
-        :param config_psf:      The psf field of the configuration dict, config['psf']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The psf field of the configuration dict, config['psf']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
@@ -104,7 +105,7 @@ class SimplePSF(PSF):
         from .outliers import Outliers
 
         kwargs = {}
-        kwargs.update(config_psf)
+        kwargs.update(config)
         kwargs.pop('type',None)
 
         for key in ['model', 'interp']:
@@ -113,15 +114,15 @@ class SimplePSF(PSF):
                 raise ValueError("%s field is required in psf field for type=Simple"%key)
 
         # make a Model object to use for the individual stellar fitting
-        model = Model.process(kwargs.pop('model'), logger=logger)
+        model = Model.process(kwargs.pop('model'), base, logger=logger)
         kwargs['model'] = model
 
         # make an Interp object to use for the interpolation
-        interp = Interp.process(kwargs.pop('interp'), logger=logger)
+        interp = Interp.process(kwargs.pop('interp'), base, logger=logger)
         kwargs['interp'] = interp
 
         if 'outliers' in kwargs:
-            outliers = Outliers.process(kwargs.pop('outliers'), logger=logger)
+            outliers = Outliers.process(kwargs.pop('outliers'), base, logger=logger)
             kwargs['outliers'] = outliers
 
         return kwargs

@@ -48,7 +48,7 @@ class PSF(object):
     flat_bandpass = None
 
     @classmethod
-    def process(cls, config_psf, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Process the config dict and return a PSF instance.
 
         As the PSF class is an abstract base class, the returned type will in fact be some
@@ -61,8 +61,8 @@ class PSF(object):
         This function merely creates a "blank" PSF object.  It does not actually do any
         part of the solution yet.  Typically this will be followed by set_context and fit:
 
-            >>> stars, wcs, pointing, bandpass = piff.Input.process(config['input'])
-            >>> psf = piff.PSF.process(config['psf'])
+            >>> stars, wcs, pointing, bandpass = piff.Input.process(config['input'], config)
+            >>> psf = piff.PSF.process(config['psf'], config)
             >>> psf.set_context(wcs, pointing, bandpass)
             >>> psf.fit(stars)
 
@@ -76,16 +76,19 @@ class PSF(object):
 
         :param config_psf:  A dict specifying what type of PSF to build along with the
                             appropriate kwargs for building it.
+        :param base:        The base configuration dict.
         :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a PSF instance of the appropriate type.
         """
+        base = base if base is not None else {'psf': config}
+
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         logger.debug("Parsing PSF based on config dict:")
 
         # Get the class to use for the PSF
-        psf_type = config_psf.get('type', 'Simple')
+        psf_type = config.get('type', 'Simple')
         if psf_type not in PSF.valid_psf_types:
             raise ValueError("type %s is not a valid psf type. "%psf_type +
                              "Expecting one of %s"%list(PSF.valid_psf_types.keys()))
@@ -94,7 +97,7 @@ class PSF(object):
         psf_cls = PSF.valid_psf_types[psf_type]
 
         # Read any other kwargs in the psf field
-        kwargs = psf_cls.parseKwargs(config_psf, logger)
+        kwargs = psf_cls.parseKwargs(config, base, logger)
 
         # Build PSF object
         logger.verbose("Building %s",psf_type)
@@ -150,15 +153,16 @@ class PSF(object):
             PSF.valid_psf_types[cls._type_name] = cls
 
     @classmethod
-    def parseKwargs(cls, config_psf, logger=None):
+    def parseKwargs(cls, config, base, logger=None):
         """Parse the psf field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_psf:      The psf field of the configuration dict, config['psf']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The psf field of the configuration dict, config['psf']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """

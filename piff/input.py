@@ -48,11 +48,12 @@ class Input(object):
     bandpass = None
 
     @classmethod
-    def process(cls, config_input, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the input field of the config dict.
 
-        :param config_input:    The configuration dict.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the input field.
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: stars, wcs, pointing, bandpass
 
@@ -63,7 +64,8 @@ class Input(object):
         """
         # Get the class to use for handling the input data
         # Default type is 'Files'
-        input_type = config_input.get('type','Files')
+        input_type = config.get('type','Files')
+        base = base if base is not None else {'input' : config}
 
         if input_type not in Input.valid_input_types:
             raise ValueError("type %s is not a valid model type. "%input_type +
@@ -72,7 +74,7 @@ class Input(object):
         input_class = Input.valid_input_types[input_type]
 
         # Build handler object
-        input_handler = input_class(config_input, logger)
+        input_handler = input_class(config, base, logger)
 
         # Creat a lit of StarData objects
         stars = input_handler.makeStars(logger)
@@ -127,7 +129,7 @@ class Input(object):
                       pointing=self.pointing, use_partial=self.use_partial,
                       invert_weight=self.invert_weight,
                       remove_signal_from_weight=self.remove_signal_from_weight,
-                      config=self.config)
+                      config=self.config, base=self.base)
 
         all_stars = run_multi(self._makeStarsFromImage, self.nproc, raise_except=True,
                               args=args, logger=logger, kwargs=kwargs)
@@ -411,12 +413,13 @@ class InputFiles(Input):
                         `setPointing` for details about how this can be specified]
 
     :param config:      The configuration dict used to define the above parameters.
+    :param base:        The base configuration dict if needed for value parsing. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Files'
     _sed_cache = {}
 
-    def __init__(self, config, logger=None):
+    def __init__(self, config, base=None, logger=None):
         import copy
         logger = LoggerWrapper(logger)
 
@@ -472,12 +475,11 @@ class InputFiles(Input):
         # We're going to change the config dict a bit. Make a copy so we don't mess up the
         # user's original dict (in case they care).
         config = copy.deepcopy(config)
+        base = copy.deepcopy(base) if base is not None else {'input': config}
 
         # In GalSim, the base dict holds additional parameters that may be of use.
-        # Here, we just make a dict with a few values that could be relevant.
-        base = { 'input' : config,
-                 'index_key' : 'image_num',
-               }
+        # For now, add index_kex, as this will be the only thing we index anything on.
+        base['index_key'] = 'image_num'
 
         # Convert options 2 and 3 above into option 4.  (1 is also parseable by GalSim's config.)
         nimages = None
@@ -766,13 +768,14 @@ class InputFiles(Input):
 
         # Read all the wcs's, since we'll need this for the pointing, which in turn we'll
         # need for when we make the stars.
-        self.setWCS(config, logger)
+        self.setWCS(config, base, logger)
 
         # Finally, set the pointing coordinate.
         ra = config.get('ra',None)
         dec = config.get('dec',None)
         self.setPointing(ra, dec, logger)
         self.config = galsim.config.CleanConfig(config)
+        self.base = galsim.config.CleanConfig(base)
 
     def load_images(self, stars, logger=None):
         """Load the image data into a list of Stars.
@@ -809,15 +812,17 @@ class InputFiles(Input):
         return loaded_stars
 
     def getRawImageData(self, image_num, logger=None):
+        self.base['image_num'] = image_num
         return self._getRawImageData(self.image_kwargs[image_num], self.cat_kwargs[image_num],
                                      self.wcs_list[image_num], self.invert_weight,
                                      self.remove_signal_from_weight,
-                                     config=self.config, logger=logger)
+                                     config=self.config, base=self.base, logger=logger)
 
     @staticmethod
     def _getRawImageData(image_kwargs, cat_kwargs, wcs,
                          invert_weight, remove_signal_from_weight,
-                         config=None, logger=None):
+                         config, base, logger=None):
+        from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         image, weight = InputFiles.readImage(logger=logger, **image_kwargs)
 
@@ -827,11 +832,8 @@ class InputFiles(Input):
         # Update the wcs
         image.wcs = wcs
 
-        # Don't use mutable as default parameter value.  Convert None -> {} as needed.
-        config = config if config is not None else {}
-
         image_pos, extra_props = InputFiles.readStarCatalog(
-                logger=logger, image=image, config=config, **cat_kwargs)
+                logger=logger, image=image, config=config, base=base, **cat_kwargs)
 
         if remove_signal_from_weight:
             # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -859,12 +861,13 @@ class InputFiles(Input):
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, pointing, use_partial,
                             invert_weight, remove_signal_from_weight,
-                            config, logger):
+                            config, base, logger):
         """Make "stars" from a single input image
         """
+        base['image_num'] = cat_kwargs['image_num']
         image, wt, image_pos, extra_props = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight,
-                config, logger)
+                config, base, logger)
         logger.verbose("Processing catalog %s with %d objects",chipnum,len(image_pos))
 
         objects = []
@@ -938,17 +941,17 @@ class InputFiles(Input):
 
         return objects
 
-    def setWCS(self, config, logger):
+    def setWCS(self, config, base, logger):
         self.wcs_list = []
         self.center_list = []
         for image_num, kwargs in enumerate(self.image_kwargs):
             galsim.config.RemoveCurrent(config) # Makes any @ items work correctly
+            base['image_num'] = image_num
             image_file_name = kwargs['image_file_name']
             image_hdu = kwargs['image_hdu']
             image = galsim.fits.read(image_file_name, hdu=image_hdu)
             if 'wcs' in config:
                 logger.info("Using custom wcs from config for %s",image_file_name)
-                base = { 'input' : config, 'index_key' : 'image_num', 'image_num' : image_num }
                 wcs = galsim.config.BuildWCS(config, 'wcs', base, logger)
             else:
                 logger.info("Getting wcs from image file %s",image_file_name)
@@ -1373,7 +1376,7 @@ class InputFiles(Input):
                         sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
                         sed_tol, sed_max_samples, bandpass,
                         properties, image_num, sky_col, gain_col, sky, gain, satur,
-                        trust_pos, nstars, stamp_size, config, logger):
+                        trust_pos, nstars, stamp_size, config, base, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -1414,6 +1417,7 @@ class InputFiles(Input):
         :param nstars:          Optionally a maximum number of stars to use from this catalog.
         :param stamp_size:      The stamp size being used for the star stamps.
         :param config:          The input section of the config dict.
+        :param base:            The base config dict.
         :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: lists image_pos, extra_props
@@ -1646,17 +1650,16 @@ class InputFiles(Input):
         if properties is not None:
             logger.debug('properties = %s', properties)
             extra_props.update(InputFiles._evaluate_properties(
-                properties, extra_props, image_num, len(cat), config, logger))
+                properties, extra_props, len(cat), config, base, logger))
 
         return image_pos, extra_props
 
     @staticmethod
-    def _evaluate_properties(properties, extra_props, image_num, nstars, config, logger):
+    def _evaluate_properties(properties, extra_props, nstars, config, base, logger):
         if not isinstance(properties, dict):
             raise ValueError("properties should be a dict")
 
-        base = { 'input' : config, 'index_key' : 'image_num', 'image_num' : image_num,
-                 'eval_variables': {} }
+        base['eval_variables'] = {}
         # Load the existing extra properties into eval_variables so they are available
         # to be used in eval strings.
         for prop_name, value in extra_props.items():

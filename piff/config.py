@@ -159,10 +159,10 @@ def process(config, logger=None):
             config['select'][key] = config['input'].pop(key)
 
     # read in the input images
-    objects, wcs, pointing, bandpass = Input.process(config['input'], logger=logger)
-    stars = Select.process(config.get('select',{}), objects, logger=logger)
+    objects, wcs, pointing, bandpass = Input.process(config['input'], config, logger=logger)
+    stars = Select.process(config.get('select',{}), objects, config, logger=logger)
 
-    psf = PSF.process(config['psf'], logger=logger)
+    psf = PSF.process(config['psf'], config, logger=logger)
     psf.set_context(wcs, pointing, bandpass)
     psf.fit(stars, logger=logger)
 
@@ -194,7 +194,7 @@ def piffify(config, logger=None):
     psf = process(config, logger)
 
     # write it out to a file
-    output = Output.process(config['output'], logger=logger)
+    output = Output.process(config['output'], config, logger=logger)
     output.write(psf, logger=logger)
 
 def plotify(config, logger=None):
@@ -238,11 +238,11 @@ def plotify(config, logger=None):
     # so it's not enormous).  So we need to load in the images for the stats.
     input_type = config['input'].get('type', 'Files')
     input_class = Input.valid_input_types[input_type]
-    input_handler = input_class(config['input'], logger)
+    input_handler = input_class(config['input'], config, logger)
     stars = input_handler.load_images(psf.stars, logger=logger)
 
     # We don't want to rewrite the PSF to disk, so jump straight to the stats_list
-    output = Output.process(config['output'], logger=logger)
+    output = Output.process(config['output'], config, logger=logger)
     logger.debug("stats_list = %s",output.stats_list)
     for stats in output.stats_list:
         stats.compute(psf,stars,logger=logger)

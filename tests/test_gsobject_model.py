@@ -149,7 +149,7 @@ def test_simple():
             logger = piff.config.setup_logger(verbose=3)
         else:
             logger = piff.config.setup_logger(verbose=1)
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         star = model.fit(model.initialize(fiducial_star))
         star = psf1.reflux(star)
         star = psf1.reflux(star)
@@ -179,7 +179,7 @@ def test_simple():
             }
         }
         with CaptureLog() as cl:
-            model = piff.Model.process(config['model'], cl.logger)
+            model = piff.Model.process(config['model'], logger=cl.logger)
         print(cl.output)
         assert "The name GSObjectModel is deprecated" in cl.output
         fit1 = model.fit(model.initialize(fiducial_star)).fit
@@ -267,7 +267,7 @@ def test_simple():
         print('Initializing with zero')
         config['model']['init'] = 'zero'
         config['model']['fit_flux'] = True
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
 
@@ -287,7 +287,7 @@ def test_simple():
 
         # init=zero forces fit_flux=True
         config['model']['fit_flux'] = False
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         with CaptureLog() as cl:
             model.initialize(fiducial_star, logger=cl.logger)
@@ -296,7 +296,7 @@ def test_simple():
         print('Initializing with delta')
         config['model']['init'] = 'delta'
         config['model']['fit_flux'] = False
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
 
@@ -316,7 +316,7 @@ def test_simple():
         print('Initializing with (0.2,0.4)')
         config['model']['init'] = '(0.2, 0.4)'
         config['model']['fit_flux'] = True
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
 
@@ -338,7 +338,7 @@ def test_simple():
         print('Initializing with (0.2,0.4)')
         config['model']['init'] = (0.2, 0.4)
         config['model']['fit_flux'] = True
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
 
@@ -358,7 +358,7 @@ def test_simple():
 
         # Can also do this with fastfit, but takes a couple iterations to get decent accuracy.
         config['model']['fastfit'] = True
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         star = model.initialize(fiducial_star)
         for iter in range(2):
@@ -381,7 +381,7 @@ def test_simple():
 
         # tuple init also forces fit_flux=True.
         config['model']['fit_flux'] = False
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         with CaptureLog() as cl:
             model.initialize(fiducial_star, logger=cl.logger)
@@ -389,7 +389,7 @@ def test_simple():
 
         # Invalid init method raises an error
         config['model']['init'] = 'invalid'
-        model = piff.Model.process(config['model'], logger)
+        model = piff.Model.process(config['model'], logger=logger)
         with np.testing.assert_raises(ValueError):
             model.initialize(fiducial_star)
 

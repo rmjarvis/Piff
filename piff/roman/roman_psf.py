@@ -685,8 +685,8 @@ class RomanOpticsPSF(PSF):
         return self.interp.property_names
 
     @classmethod
-    def parseKwargs(cls, config_psf, logger):
-        kwargs = dict(config_psf)
+    def parseKwargs(cls, config, base, logger):
+        kwargs = dict(config)
         kwargs.pop('type', None)
 
         outliers = kwargs.pop('outliers', None)
@@ -709,7 +709,7 @@ class RomanOpticsPSF(PSF):
             'max_iter': max_iter,
         }
         if outliers is not None:
-            parsed['outliers'] = Outliers.process(outliers, logger=logger)
+            parsed['outliers'] = Outliers.process(outliers, base, logger=logger)
         return parsed
 
     def initialize_params(self, stars, logger=None, default_init=None):

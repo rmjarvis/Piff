@@ -80,7 +80,7 @@ def test_Gaussian():
         logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(log_file='output/test_Gaussian.log')
-    model = piff.Model.process(config['model'], logger)
+    model = piff.Model.process(config['model'], logger=logger)
     fit = model.fit(star).fit
 
     # Same tests.
@@ -128,7 +128,7 @@ def test_Mean():
         }
     }
     logger = piff.config.setup_logger()
-    interp = piff.Interp.process(config['interp'], logger)
+    interp = piff.Interp.process(config['interp'], logger=logger)
     interp.solve(stars)
     np.testing.assert_almost_equal(mean, interp.mean)
 
@@ -269,7 +269,7 @@ def test_single_image():
         },
         'output' : { 'file_name' : psf_file },
     }
-    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
 
     # Use a SimplePSF to process the stars data this time.
     interp = piff.Mean()
@@ -777,7 +777,7 @@ def test_psf():
     # Can't do much with a base PSF class
     psf = piff.PSF()
     psf.set_num(None)
-    np.testing.assert_raises(NotImplementedError, psf.parseKwargs, None)
+    np.testing.assert_raises(NotImplementedError, psf.parseKwargs, None, None)
     np.testing.assert_raises(NotImplementedError, psf.interpolateStar, star)
     np.testing.assert_raises(NotImplementedError, psf.interpolateStarList, [star])
     np.testing.assert_raises(NotImplementedError, psf.drawStar, star)
@@ -873,7 +873,7 @@ def test_load_images():
                'cat_file_name': cat_file,
                'sky': 10
              }
-    orig_stars, wcs, pointing, _ = piff.Input.process(config, logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config, logger=logger)
 
     # Fit these with a simple Mean, Gaussian
     model = piff.Gaussian()

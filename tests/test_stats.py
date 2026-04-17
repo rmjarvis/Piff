@@ -376,7 +376,7 @@ def test_rhostats_config():
     max_sep = 100
     bin_size = 0.1
     psf = piff.read(psf_file)
-    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
     stats = piff.RhoStats(min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
     with np.testing.assert_raises(RuntimeError):
         stats.write('dummy')  # Cannot write before compute
@@ -471,7 +471,7 @@ def test_shapestats_config():
     # Test ShapeHistStats directly
     psf = piff.read(psf_file)
     shapeStats = piff.ShapeHistStats(nbins=5)  # default is sqrt(nstars)
-    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
     with np.testing.assert_raises(RuntimeError):
         shapeStats.write()  # Cannot write before compute
     shapeStats.compute(psf, orig_stars)
