@@ -45,19 +45,22 @@ class Interp(object):
     valid_interp_types = {}
 
     @classmethod
-    def process(cls, config_interp, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the interp field of the config dict.
 
-        :param config_interp:   The configuration dict for the interp field.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the interp field.
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: an Interp instance
         """
+        base = base if base is not None else {'interp': config}
+
         # Get the class to use for the interpolator
-        if 'type' not in config_interp:
+        if 'type' not in config:
             raise ValueError("config['interp'] has no type field")
 
-        interp_type = config_interp['type']
+        interp_type = config['type']
         if interp_type not in Interp.valid_interp_types:
             raise ValueError("type %s is not a valid interp type. "%interp_type +
                              "Expecting one of %s"%list(Interp.valid_interp_types.keys()))
@@ -65,7 +68,7 @@ class Interp(object):
         interp_class = Interp.valid_interp_types[interp_type]
 
         # Read any other kwargs in the interp field
-        kwargs = interp_class.parseKwargs(config_interp, logger)
+        kwargs = interp_class.parseKwargs(config, base, logger)
 
         # Build interp object
         interp = interp_class(**kwargs)
@@ -89,20 +92,21 @@ class Interp(object):
             Interp.valid_interp_types[cls._type_name] = cls
 
     @classmethod
-    def parseKwargs(cls, config_interp, logger=None):
+    def parseKwargs(cls, config, base=None, logger=None):
         """Parse the interp field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_interp:   The interpolator field of the configuration dict, config['interp']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The interpolator field of the configuration dict, config['interp']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config_interp)
+        kwargs.update(config)
         kwargs.pop('type',None)
         kwargs['logger'] = logger
         return kwargs

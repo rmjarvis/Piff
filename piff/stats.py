@@ -45,22 +45,23 @@ class Stats(object):
     valid_stats_types = {}
 
     @classmethod
-    def process(cls, config_stats, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the stats field of the config dict.
 
-        :param config_stats:    The configuration dict for the stats field.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the stats field.
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a Stats instance
         """
+        base = base if base is not None else {'stats': config}
+
         # If it's not a list, make it one.
-        try:
-            config_stats[0]
-        except KeyError:
-            config_stats = [config_stats]
+        if not isinstance(config, list):
+            config = [config]
 
         stats = []
-        for cfg in config_stats:
+        for cfg in config:
 
             # Get the class to use for the stats
             if 'type' not in cfg:
@@ -74,7 +75,7 @@ class Stats(object):
             stats_class = Stats.valid_stats_types[stats_type]
 
             # Read any other kwargs in the stats field
-            kwargs = stats_class.parseKwargs(cfg, logger)
+            kwargs = stats_class.parseKwargs(cfg, base, logger)
 
             stats.append(stats_class(**kwargs))
 
@@ -91,20 +92,21 @@ class Stats(object):
             Stats.valid_stats_types[cls._type_name] = cls
 
     @classmethod
-    def parseKwargs(cls, config_stats, logger=None):
+    def parseKwargs(cls, config, base, logger=None):
         """Parse the stats field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_stats:    The stats field of the configuration dict, config['stats']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The stats field of the configuration dict, config['stats']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config_stats)
+        kwargs.update(config)
         kwargs.pop('type',None)
         kwargs['logger'] = logger
         return kwargs
@@ -136,7 +138,7 @@ class Stats(object):
         :param file_name:   The name of the file to write to. [default: Use self.file_name,
                             which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
-        :param \**kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
+        :param \**kwargs:   Optionally, provide extra kwargs for the matplotlib plot command.
         """
         # Note: don't import matplotlib.pyplot, since that can mess around with the user's
         # pyplot state.  Better to do everything with the matplotlib object oriented API.

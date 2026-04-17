@@ -178,12 +178,14 @@ class SmallBrightSelect(Select):
 
     :param config:      The configuration dict used to define the above parameters.
                         (Normally the 'select' field in the overall configuration dict).
+    :param base:        The base configuration dict. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'SmallBright'
 
-    def __init__(self, config, logger=None):
-        super(SmallBrightSelect, self).__init__(config, logger)
+    def __init__(self, config, base=None, logger=None):
+        base = base if base is not None else {'select': config}
+        super(SmallBrightSelect, self).__init__(config, base, logger)
 
         opt = {
             'bright_fraction': float,
@@ -191,7 +193,7 @@ class SmallBrightSelect(Select):
             'locus_fraction': float,
             'max_spread': float,
         }
-        params = galsim.config.GetAllParams(config, config, opt=opt, ignore=Select.base_keys)[0]
+        params = galsim.config.GetAllParams(config, base, opt=opt, ignore=Select.base_keys)[0]
         self.bright_fraction = params.get('bright_fraction', 0.2)
         self.small_fraction = params.get('small_fraction', 0.2)
         self.locus_fraction = params.get('locus_fraction', 0.5)
@@ -369,14 +371,16 @@ class SizeMagSelect(Select):
 
     :param config:      The configuration dict used to define the above parameters.
                         (Normally the 'select' field in the overall configuration dict)
+    :param base:        The base configuration dict. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'SizeMag'
 
-    def __init__(self, config, logger=None):
+    def __init__(self, config, base=None, logger=None):
+        base = base if base is not None else {'select': config}
         from .config import LoggerWrapper
 
-        super(SizeMagSelect, self).__init__(config, logger)
+        super(SizeMagSelect, self).__init__(config, base, logger)
 
         opt = {
             'fit_order': int,
@@ -392,7 +396,7 @@ class SizeMagSelect(Select):
             logger.error("WARNING: The parameter name 'purity' should now be called 'impurity'.")
             config['impurity'] = config.pop('purity')
 
-        params = galsim.config.GetAllParams(config, config, opt=opt, ignore=ignore)[0]
+        params = galsim.config.GetAllParams(config, base, opt=opt, ignore=ignore)[0]
         self.fit_order = params.get('fit_order', 2)
         self.impurity = params.get('impurity', 0.01)
         self.num_iter = params.get('num_iter', 3)
@@ -401,6 +405,7 @@ class SizeMagSelect(Select):
             self.initial_select = config['initial_select']
         else:
             self.initial_select = {'type': 'SmallBright'}
+        self.base = base
 
     def selectStars(self, objects, logger=None):
         """Select which of the input objects should be considered stars.
@@ -415,7 +420,8 @@ class SizeMagSelect(Select):
 
         logger.info("Selecting stars according to locus in size-magnitude diagram")
 
-        stars = Select.process(self.initial_select, objects, logger=logger, select_only=True)
+        stars = Select.process(self.initial_select, objects, self.base,
+                               logger=logger, select_only=True)
 
         logger.debug("N objects = %s", len(objects))
         logger.debug("N initial stars = %s", len(stars))

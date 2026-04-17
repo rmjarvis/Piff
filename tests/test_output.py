@@ -64,7 +64,7 @@ def test_base_output():
 
     out = piff.Output()
 
-    kwargs = out.parseKwargs(config)
+    kwargs = out.parseKwargs(config, config)
     assert kwargs == config
 
     np.testing.assert_raises(NotImplementedError, out.write, None)

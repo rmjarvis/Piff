@@ -34,17 +34,20 @@ class Output(object):
     valid_output_types = {}
 
     @classmethod
-    def process(cls, config_output, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the output field of the config dict.
 
-        :param config_output:   The configuration dict for the output field.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the output field.
+        :param base:        The base configuration dict. [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: an Output handler
         """
+        base = base if base is not None else {'output': config}
+
         # Get the class to use for handling the output data
         # Default type is 'File'
-        output_type = config_output.get('type', 'Files')
+        output_type = config.get('type', 'Files')
 
         if output_type not in Output.valid_output_types:
             raise ValueError("type %s is not a valid model type. "%output_type +
@@ -53,7 +56,7 @@ class Output(object):
         output_class = Output.valid_output_types[output_type]
 
         # Read any other kwargs in the output field
-        kwargs = output_class.parseKwargs(config_output,logger=logger)
+        kwargs = output_class.parseKwargs(config, base, logger=logger)
 
         # Build handler object
         output_handler = output_class(**kwargs)
@@ -69,19 +72,20 @@ class Output(object):
             Output.valid_output_types[cls._type_name] = cls
 
     @classmethod
-    def parseKwargs(cls, config_output, logger=None):
+    def parseKwargs(cls, config, base, logger=None):
         """Parse the output field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_output:   The output field of the configuration dict, config['output']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The output field of the configuration dict, config['output']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
-        kwargs = config_output.copy()
+        kwargs = config.copy()
         return kwargs
 
     def write(self, psf, logger=None):
@@ -137,20 +141,21 @@ class OutputFile(Output):
                 stats.file_name = os.path.join(dir, stats.file_name)
 
     @classmethod
-    def parseKwargs(cls, config_output, logger=None):
+    def parseKwargs(cls, config, base, logger=None):
         """Parse the output field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
-        :param config_output:   The output field of the configuration dict, config['output']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The output field of the configuration dict, config['output']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
         from .stats import Stats
 
-        kwargs = config_output.copy()
-        if 'stats' in config_output:
-            stats = Stats.process(kwargs.pop('stats'), logger=logger)
+        kwargs = config.copy()
+        if 'stats' in config:
+            stats = Stats.process(kwargs.pop('stats'), base, logger=logger)
             kwargs['stats_list'] = stats
         return kwargs
 
