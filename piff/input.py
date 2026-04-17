@@ -490,6 +490,21 @@ class InputFiles(Input):
         if 'nproc' in config:
             self.nproc = galsim.config.ParseValue(config, 'nproc', base, int)[0]
 
+        top_level_opt = {
+                'stamp_size' : int,
+                'invert_weight' : bool,
+                'remove_signal_from_weight' : bool,
+                'use_partial' : bool,
+              }
+        top_level_params = galsim.config.GetAllParams(
+                config, base, opt=top_level_opt, ignore=list(req) + list(opt) + ignore)[0]
+        if '_get' in config:
+            del config['_get']
+        self.stamp_size = top_level_params.get('stamp_size', 32)
+        self.invert_weight = top_level_params.get('invert_weight', False)
+        self.remove_signal_from_weight = top_level_params.get('remove_signal_from_weight', False)
+        self.use_partial = top_level_params.get('use_partial', False)
+
         if 'nstars' in config:
             logger.warning("input.nstars is deprecated; use select.nstars for the new global "
                            "highest-S/N behavior.")
@@ -639,14 +654,10 @@ class InputFiles(Input):
 
         self.nimages = nimages
         self.chipnums = list(range(nimages))
-        self.stamp_size = int(config.get('stamp_size', 32))
         self.image_file_name = []
         self.cat_file_name = []
         self.image_kwargs = []
         self.cat_kwargs = []
-
-        self.remove_signal_from_weight = config.get('remove_signal_from_weight', False)
-        self.invert_weight = config.get('invert_weight', False)
 
         logger.verbose("Reading in %d images",nimages)
         for image_num in range(nimages):
