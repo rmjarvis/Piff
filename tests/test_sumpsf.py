@@ -465,6 +465,7 @@ def test_mixed_pixel_sum2():
         'scale': 1.04,  # 4x4 pixel grid
         'size': 10,
     }
+    config = galsim.config.CleanConfig(config)
     psf = piff.process(config, logger)
     assert type(psf) is piff.SumPSF
     assert len(psf.components) == 2

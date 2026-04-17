@@ -597,6 +597,37 @@ def test_cols():
     np.testing.assert_almost_equal(sky_list, sky)
     np.testing.assert_almost_equal(gain_list, gain)
 
+    # These can also use other parseable config values.
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'sky' : '$100 + 57.03184716403484',
+                'gain' : '$2 + 0.764326381497085',
+                'trust_pos' : {'type': 'Eval', 'str': 'True'},
+             }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, props = input.getRawImageData(0)
+    sky_list = props['sky']
+    gain_list = props['gain']
+    trust_pos = props['trust_pos']
+    assert len(image_pos) == 100
+    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_almost_equal(gain_list, gain)
+    np.testing.assert_array_equal(trust_pos, [True] * 100)
+
+    # Noise should also be parsed through the config machinery.
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'noise' : '$2 + 3',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    image, weight, image_pos, _ = input.getRawImageData(0)
+    assert len(image_pos) == 100
+    np.testing.assert_allclose(weight.array[weight.array != 0], [1./5.] * np.count_nonzero(weight.array))
+
     # including satur will skip stars that are over the given saturation value.
     # (It won't skip them here, just when building the stars list.)
     config = {
@@ -606,6 +637,20 @@ def test_cols():
                 'sky' : 'SKYLEVEL',
                 'gain' : 'GAIN_A',
                 'satur' : 1890,
+             }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, props = input.getRawImageData(0)
+    satur = props['satur'][0]
+    assert satur == 1890
+    assert len(image_pos) == 100
+
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'sky' : '$100 + 57.03184716403484',
+                'gain' : '$2 + 0.764326381497085',
+                'satur' : '$1800 + 90',
              }
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, props = input.getRawImageData(0)
@@ -745,6 +790,33 @@ def test_cols():
     _, _, _, props_dict = input.getRawImageData(1)
     np.testing.assert_array_equal(props_dict['const_prop'], [1.5] * 100)
     np.testing.assert_array_equal(props_dict['image_id'], [11] * 100)
+
+    # Other late-parsed fields should also respect image_num for multi-image inputs.
+    config = {
+                'dir' : 'input',
+                'image_file_name' : [
+                    'test_input_image_00.fits',
+                    'test_input_image_01.fits',
+                ],
+                'cat_file_name' : [
+                    'test_input_cat_00.fits',
+                    'test_input_cat_00.fits',
+                ],
+                'noise' : '$@image_num + 1',
+                'sky' : '$100 + @image_num',
+                'trust_pos' : '$@image_num == 1',
+             }
+    input = piff.InputFiles(config, logger=logger)
+    _, weight0, image_pos0, props0 = input.getRawImageData(0)
+    _, weight1, image_pos1, props1 = input.getRawImageData(1)
+    assert len(image_pos0) == 100
+    assert len(image_pos1) == 100
+    np.testing.assert_allclose(weight0.array[weight0.array != 0], [1.] * np.count_nonzero(weight0.array))
+    np.testing.assert_allclose(weight1.array[weight1.array != 0], [0.5] * np.count_nonzero(weight1.array))
+    np.testing.assert_array_equal(props0['sky'], [100.] * 100)
+    np.testing.assert_array_equal(props1['sky'], [101.] * 100)
+    np.testing.assert_array_equal(props0['trust_pos'], [False] * 100)
+    np.testing.assert_array_equal(props1['trust_pos'], [True] * 100)
 
     # Check invalid column names
     base_config = {
