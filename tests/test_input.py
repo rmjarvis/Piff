@@ -349,6 +349,25 @@ def test_basic():
     with np.testing.assert_raises(RuntimeError):
         piff.Select.process({'nstars': 0}, objects, logger=logger)
 
+    # The base Select parameters can also use ParseValue/Current semantics with the full base.
+    config = {
+        'min_snr_cut': 35,
+        'half_nkeep': 6,
+        'select': {
+            'type': 'Flag',
+            'min_snr': '@min_snr_cut',
+            'max_snr_weight': '$10 ** 9',
+            'nstars': '$@half_nkeep * 2',
+        },
+    }
+    stars = piff.Select.process(config['select'], objects, base=config, logger=logger)
+    assert len(stars) == 12
+    snr_list = np.array([piff.util.calculateSNR(obj.image, obj.weight) for obj in allowed])
+    selected_snr = np.array([piff.util.calculateSNR(star.image, star.weight) for star in stars])
+    cutoff = np.min(selected_snr)
+    assert np.count_nonzero(snr_list > cutoff) < len(stars)
+    assert np.count_nonzero(snr_list >= cutoff) >= len(stars)
+
 
 @timer
 def test_invalid():
@@ -1028,6 +1047,7 @@ def test_flag_select():
     # Raises at different place if all stars are rejected.
     config['select']['use_flag'] = 1
     config['select']['reject_where'] = 'True'
+    config = galsim.config.CleanConfig(config)
     with np.testing.assert_raises(RuntimeError):
         piff.Select.process(config['select'], stars1)
     del config['select']['reject_where']
@@ -1039,6 +1059,7 @@ def test_flag_select():
 
     # Error if flag_name is not in the property list
     config['select']['flag_name'] = 'invalid'
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'])
     with np.testing.assert_raises(ValueError):
         select.selectStars(stars1, logger=logger)
@@ -1047,6 +1068,7 @@ def test_flag_select():
     del config['input']['flag_col']
     del config['input']['skip_flag']
     config['select']['flag_name'] = 'flag'
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'])
     select = piff.FlagSelect(config['select'])
     stars1 = input.makeStars()
@@ -1055,6 +1077,7 @@ def test_flag_select():
 
     # Invalid input type
     config = { 'type': 'invalid' }
+    config = galsim.config.CleanConfig(config)
     with np.testing.assert_raises(ValueError):
         piff.Select.process(config, stars1)
 
@@ -1186,6 +1209,19 @@ def test_properties_select():
         'reject_where': '(flag & 4 != 0) | (flag & 1 == 0)'
     }
     select = piff.FlagSelect(config['select'], logger=logger)
+    stars = select.selectStars(objects, logger=logger)
+    stars = select.rejectStars(stars, logger=logger)
+    assert len(stars) == 68
+
+    # reject_where can also use the full base config context.
+    config = {
+        'reject_expr': '(flag & 4 != 0) | (flag & 1 == 0)',
+        'select': {
+            'type': 'Flag',
+            'reject_where': '@reject_expr',
+        },
+    }
+    select = piff.FlagSelect(config['select'], base=config, logger=logger)
     stars = select.selectStars(objects, logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 68
@@ -1662,6 +1698,7 @@ def test_stars():
 
     # max_snr_weight increases the noise to achieve a maximum snr
     config['select']['max_snr_weight'] = 120
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -1684,6 +1721,7 @@ def test_stars():
     # max_snr is equivalent but deprecated.
     del config['select']['max_snr_weight']
     config['select']['max_snr'] = 120
+    config = galsim.config.CleanConfig(config)
     with np.testing.assert_warns(DeprecationWarning):
         select = piff.FlagSelect(config['select'], logger=logger)
     stars2 = input.makeStars(logger=logger)
@@ -1694,6 +1732,7 @@ def test_stars():
 
     # The default is max_snr_weight == 100
     del config['select']['max_snr']
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -1712,6 +1751,7 @@ def test_stars():
 
     # min_snr removes stars with a snr < min_snr
     config['select']['min_snr'] = 50
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -1768,6 +1808,7 @@ def test_stars():
     # that to avoid imparting a size selection bias.
     # For this set, it pulls in a few more to reject.
     config['select']['max_pixel_cut'] = 1850
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1777,6 +1818,7 @@ def test_stars():
     # Gratuitous coverage test.  If all objects have snr < 40, then max_pixel_cut doesn't
     # remove anything, since it only considers stars with snr > 40.
     config['select']['max_snr_weight'] = 30
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1787,6 +1829,7 @@ def test_stars():
 
     # hsm_size_reject=True rejects a few of these.  But mostly objects with neighbors.
     config['select']['hsm_size_reject'] = True
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1795,16 +1838,19 @@ def test_stars():
 
     # hsm_size_reject can also be a float.  (True is equivalent to 10.)
     config['select']['hsm_size_reject'] = 100.
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 89
     config['select']['hsm_size_reject'] = 3.
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 85 if galsim.__version_info__ < (2,5) else 87
     config['select']['hsm_size_reject'] = 10.
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -1816,6 +1862,7 @@ def test_stars():
     config['input']['x_col'] = 'alt_x'
     config['input']['y_col'] = 'alt_y'
     del config['select']['min_snr']
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1845,6 +1892,7 @@ def test_stars():
     del config['input']['y_col']
     config['input']['weight_hdu'] = 8
     config['select']['max_mask_pixels'] = 513
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1853,6 +1901,7 @@ def test_stars():
     assert len(stars) == 95
 
     config['select']['max_mask_pixels'] = 500
+    config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -1864,6 +1913,7 @@ def test_stars():
     del config['select']['max_mask_pixels']
     config['select']['max_edge_frac'] = 0.25
     config['input']['use_partial'] = True
+    config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1934,6 +1984,18 @@ def test_select_min_sep():
     select = piff.FlagSelect({'max_snr_weight': 0, 'min_sep': 0.2}, logger=logger)
     kept = select.rejectStars(stars, logger=logger)
     assert len(kept) == 4
+
+    # min_sep can also be parsed through the shared base config.
+    config = {
+        'min_sep_value': 0.5,
+        'select': {
+            'max_snr_weight': 0,
+            'min_sep': '@min_sep_value',
+        },
+    }
+    select = piff.FlagSelect(config['select'], base=config, logger=logger)
+    kept = select.rejectStars(stars, logger=logger)
+    assert len(kept) == 2
 
     # Invalid negative min_sep should raise when min_sep logic is used.
     with np.testing.assert_raises(ValueError):

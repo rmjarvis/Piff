@@ -494,8 +494,7 @@ class InputFiles(Input):
               }
         top_level_params = galsim.config.GetAllParams(
                 config, base, opt=top_level_opt, ignore=list(req) + list(opt) + ignore)[0]
-        if '_get' in config:
-            del config['_get']
+        config.pop('_get')
         self.stamp_size = top_level_params.get('stamp_size', 32)
         self.invert_weight = top_level_params.get('invert_weight', False)
         self.remove_signal_from_weight = top_level_params.get('remove_signal_from_weight', False)
