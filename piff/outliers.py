@@ -93,8 +93,9 @@ class Outliers(object):
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config)
-        kwargs.pop('type',None)
+        for key in config:
+            if key != 'type' and not key.startswith('_'):
+                kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
         kwargs['logger'] = logger
         return kwargs
 

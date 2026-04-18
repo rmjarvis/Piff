@@ -13,6 +13,7 @@
 #    and/or other materials provided with the distribution.
 
 from __future__ import print_function
+import math
 import galsim
 import numpy as np
 import piff
@@ -165,6 +166,21 @@ def test_base():
     assert len(out) == 2
     assert isinstance(out[0], piff.ChisqOutliers)
     assert isinstance(out[1], piff.CentroidOutliers)
+
+    # Can use GalSim's config parsing if desired to get the values.
+    config = {
+        'chisq_nsigma': 4.5,
+        'centroid_limit': 0.3,
+        'outliers': [
+            {'type': 'Chisq', 'nsigma': '@chisq_nsigma'},
+            {'type': 'Centroid', 'max_offset': '$@centroid_limit'},
+        ],
+    }
+    out = piff.Outliers.process(config['outliers'], config)
+    assert isinstance(out[0], piff.ChisqOutliers)
+    assert isinstance(out[1], piff.CentroidOutliers)
+    assert out[0].prob == math.erfc(config['chisq_nsigma'] / 2**0.5)
+    assert out[1].max_offset == config['centroid_limit']
 
     # A null list is fine.  It means there will be no outlier rejections applied.
     out0 = piff.Outliers.process([])
