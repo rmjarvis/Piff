@@ -106,8 +106,9 @@ class Stats(object):
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config)
-        kwargs.pop('type',None)
+        for key in config:
+            if key != 'type' and not key.startswith('_'):
+                kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
         kwargs['logger'] = logger
         return kwargs
 
@@ -339,6 +340,18 @@ class ShapeHistStats(Stats):
     """
     _type_name = 'ShapeHist'
 
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        req = { 'file_name': str }
+        opt = {
+            'nbins': int,
+            'cut_frac': float,
+            'model_properties': dict,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
+
     def __init__(self, file_name=None, nbins=None, cut_frac=0.01, model_properties=None,
                  logger=None):
         self.file_name = file_name
@@ -524,9 +537,26 @@ class RhoStats(Stats):
     :param model_properties: Optionally a dict of properties to use for the model rendering.
                              [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
-    :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
+    :param \**kwargs:   Any additional kwargs are passed on to TreeCorr.
     """
     _type_name = 'Rho'
+
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        opt = {
+            'min_sep': float,
+            'max_sep': float,
+            'bin_size': float,
+            'file_name': str,
+            'model_properties': dict,
+        }
+        # Assume all other params are valid and intended for treecorr.
+        treecorr_kwargs = [key for key in config if key not in opt and key != 'type']
+        kwargs = galsim.config.GetAllParams(config, base, opt=opt, ignore=treecorr_kwargs)[0]
+        for key in treecorr_kwargs:
+            kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
+        kwargs['logger'] = logger
+        return kwargs
 
     def __init__(self, min_sep=0.5, max_sep=300, bin_size=0.1, file_name=None,
                  model_properties=None, logger=None, **kwargs):
@@ -809,6 +839,18 @@ class HSMCatalogStats(Stats):
                              by piff.util.calculate_moments. [default: False]
     """
     _type_name = 'HSMCatalog'
+
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        req = { 'file_name': str }
+        opt = {
+            'model_properties': dict,
+            'fourth_order': bool,
+            'raw_moments': bool,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
 
     def __init__(self, file_name=None, model_properties=None, fourth_order=False,
                  raw_moments=False, logger=None):

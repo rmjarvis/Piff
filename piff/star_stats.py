@@ -50,6 +50,21 @@ class StarStats(Stats):
     """
     _type_name = 'StarImages'
 
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        req = { 'file_name': str }
+        opt = {
+            'nplot': int,
+            'adjust_stars': bool,
+            'include_reserve': bool,
+            'only_reserve': bool,
+            'include_flagged': bool,
+            'include_ave': bool,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
+
     def __init__(self, nplot=10, adjust_stars=False,
                  include_reserve=True, only_reserve=False, include_flagged=False,
                  include_ave=True, file_name=None, logger=None):
