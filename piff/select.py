@@ -46,25 +46,45 @@ class Select(object):
 
     def __init__(self, config, base=None, logger=None):
         base = base if base is not None else {'select': config}
+        opt = {
+            'min_snr': float,
+            'max_snr_weight': float,
+            'max_edge_frac': float,
+            'stamp_center_size': int,
+            'max_mask_pixels': int,
+            'min_sep': float,
+            'hsm_size_reject': float,
+            'max_pixel_cut': float,
+            'reject_where': str,
+            'reserve_frac': float,
+            'nstars': int,
+            'seed': int,
+        }
+        ignore = [key for key in config if key not in opt]
+        params = galsim.config.GetAllParams(config, base, opt=opt, ignore=ignore)[0]
+        # Pop the _get function GalSim created here, since we'll do different parsing later,
+        # and if this is still there, GalSim will assume nothing changed about req, opt, etc.
+        config.pop('_get')
+
         # Read the optional parameters that are used by the base class.
-        self.min_snr = config.get('min_snr', None)
-        self.max_snr_weight = config.get('max_snr_weight', 100)
-        self.max_edge_frac = config.get('max_edge_frac', None)
-        self.stamp_center_size = config.get('stamp_center_size', 13)
-        self.max_mask_pixels = config.get('max_mask_pixels', None)
-        self.min_sep = config.get('min_sep', None)
-        self.hsm_size_reject = config.get('hsm_size_reject', 0.)
-        self.max_pixel_cut = config.get('max_pixel_cut', None)
-        self.reject_where = config.get('reject_where', None)
-        self.reserve_frac = config.get('reserve_frac', 0.)
-        self.nstars = config.get('nstars', None)
-        self.rng = np.random.default_rng(config.get('seed', None))
+        self.min_snr = params.get('min_snr', None)
+        self.max_snr_weight = params.get('max_snr_weight', 100)
+        self.max_edge_frac = params.get('max_edge_frac', None)
+        self.stamp_center_size = params.get('stamp_center_size', 13)
+        self.max_mask_pixels = params.get('max_mask_pixels', None)
+        self.min_sep = params.get('min_sep', None)
+        self.hsm_size_reject = params.get('hsm_size_reject', 0.)
+        self.max_pixel_cut = params.get('max_pixel_cut', None)
+        self.reject_where = params.get('reject_where', None)
+        self.reserve_frac = params.get('reserve_frac', 0.)
+        self.nstars = params.get('nstars', None)
+        self.rng = np.random.default_rng(params.get('seed', None))
 
         if 'max_snr' in config:
             import warnings
             warnings.warn("max_snr has been renamed max_snr_weight as of version 1.7",
                           DeprecationWarning)
-            self.max_snr_weight = config.get('max_snr', 100)
+            self.max_snr_weight = galsim.config.ParseValue(config, 'max_snr', base, float)[0]
 
         if self.hsm_size_reject == 1:
             # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
