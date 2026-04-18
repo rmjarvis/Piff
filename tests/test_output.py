@@ -71,6 +71,21 @@ def test_base_output():
     np.testing.assert_raises(NotImplementedError, out.read)
 
 @timer
+def test_parsekwargs():
+    # Can use GalSim's config parsing if desired to get the values.
+    config = {
+        'base_name': 'model.piff',
+        'dir_name': 'output/test_output_dir',
+        'output': {
+            'file_name': '@base_name',
+            'dir': '$@dir_name',
+        },
+    }
+    kwargs = piff.OutputFile.parseKwargs(config['output'], config)
+    assert kwargs['file_name'] == 'model.piff'
+    assert kwargs['dir'] == 'output/test_output_dir'
+
+@timer
 def test_invalid():
     # Invalid output type
     config = { 'type': 'invalid' }
@@ -98,4 +113,5 @@ def test_invalid():
 if __name__ == '__main__':
     test_ensure_dir()
     test_base_output()
+    test_parsekwargs()
     test_invalid()

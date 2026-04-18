@@ -85,7 +85,15 @@ class Output(object):
 
         :returns: a kwargs dict to pass to the initializer
         """
-        kwargs = config.copy()
+        from .stats import Stats
+
+        kwargs = {}
+        for key in config:
+            if key not in ('type', 'stats') and not key.startswith('_'):
+                kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
+        if 'stats' in config:
+            stats = Stats.process(config['stats'], base, logger=logger)
+            kwargs['stats_list'] = stats
         return kwargs
 
     def write(self, psf, logger=None):
@@ -139,25 +147,6 @@ class OutputFile(Output):
             self.file_name = os.path.join(dir, self.file_name)
             for stats in self.stats_list:
                 stats.file_name = os.path.join(dir, stats.file_name)
-
-    @classmethod
-    def parseKwargs(cls, config, base, logger=None):
-        """Parse the output field of a configuration dict and return the kwargs to use for
-        initializing an instance of the class.
-
-        :param config:      The output field of the configuration dict, config['output']
-        :param base:        The base configuration dict.
-        :param logger:      A logger object for logging debug info. [default: None]
-
-        :returns: a kwargs dict to pass to the initializer
-        """
-        from .stats import Stats
-
-        kwargs = config.copy()
-        if 'stats' in config:
-            stats = Stats.process(kwargs.pop('stats'), base, logger=logger)
-            kwargs['stats_list'] = stats
-        return kwargs
 
     def write(self, psf, logger=None):
         """Write a PSF object to the output file.
