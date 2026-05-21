@@ -126,21 +126,26 @@ class ConvolvePSF(PSF):
         """
         from .outliers import Outliers
 
-        kwargs = {}
-        kwargs.update(config)
-        kwargs.pop('type',None)
+        opt = {
+            'chisq_thresh': float,
+            'min_iter': int,
+            'max_iter': int,
+        }
+        kwargs = galsim.config.GetAllParams(
+            config, base, opt=opt, ignore=['components', 'outliers']
+        )[0]
 
-        if 'components' not in kwargs:
+        if 'components' not in config:
             raise ValueError("components field is required in psf field for type=Convolve")
 
         # make components
-        components = kwargs.pop('components')
+        components = config['components']
         kwargs['components'] = []
         for comp in components:
             kwargs['components'].append(PSF.process(comp, base, logger=logger))
 
-        if 'outliers' in kwargs:
-            outliers = Outliers.process(kwargs.pop('outliers'), base, logger=logger)
+        if 'outliers' in config:
+            outliers = Outliers.process(config['outliers'], base, logger=logger)
             kwargs['outliers'] = outliers
 
         return kwargs

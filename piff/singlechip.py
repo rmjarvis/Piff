@@ -93,11 +93,20 @@ class SingleChipPSF(PSF):
         :returns: a kwargs dict to pass to the initializer
         """
         config = config.copy()  # Don't alter the original dict.
+        opt = {
+            'nproc': int,
+            'single_type': str,
+        }
+        ignore = [key for key in config if key not in ('type', 'nproc', 'single_type')]
+        kwargs = galsim.config.GetAllParams(config, base, opt=opt, ignore=ignore)[0]
+        config.pop('_get')
         config.pop('type', None)
-        nproc = config.pop('nproc', 1)
+        nproc = kwargs.get('nproc', 1)
+        config.pop('nproc', None)
 
         # If there is a "single_type" specified, call that the type for now.
-        config['type'] = config.pop('single_type', 'Simple')
+        config['type'] = kwargs.get('single_type', 'Simple')
+        config.pop('single_type', None)
 
         # Now the regular PSF process function can process the dict.
         single_psf = PSF.process(config, base, logger)

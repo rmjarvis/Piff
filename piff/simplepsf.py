@@ -104,25 +104,31 @@ class SimplePSF(PSF):
         from .interp import Interp
         from .outliers import Outliers
 
-        kwargs = {}
-        kwargs.update(config)
-        kwargs.pop('type',None)
+        req = {}
+        opt = {
+            'chisq_thresh': float,
+            'min_iter': int,
+            'max_iter': int,
+        }
+        kwargs = galsim.config.GetAllParams(
+            config, base, req=req, opt=opt, ignore=['model', 'interp', 'outliers']
+        )[0]
 
         for key in ['model', 'interp']:
-            if key not in kwargs:  # pragma: no cover
+            if key not in config:  # pragma: no cover
                 # This actually is covered, but for some reason, codecov thinks it isn't.
                 raise ValueError("%s field is required in psf field for type=Simple"%key)
 
         # make a Model object to use for the individual stellar fitting
-        model = Model.process(kwargs.pop('model'), base, logger=logger)
+        model = Model.process(config['model'], base, logger=logger)
         kwargs['model'] = model
 
         # make an Interp object to use for the interpolation
-        interp = Interp.process(kwargs.pop('interp'), base, logger=logger)
+        interp = Interp.process(config['interp'], base, logger=logger)
         kwargs['interp'] = interp
 
-        if 'outliers' in kwargs:
-            outliers = Outliers.process(kwargs.pop('outliers'), base, logger=logger)
+        if 'outliers' in config:
+            outliers = Outliers.process(config['outliers'], base, logger=logger)
             kwargs['outliers'] = outliers
 
         return kwargs

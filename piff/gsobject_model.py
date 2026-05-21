@@ -64,6 +64,21 @@ class GSObjectModel(Model):
     _type_name = 'GSObject'
     _model_can_be_offset = False
 
+    @classmethod
+    def parseKwargs(cls, config, base=None, logger=None):
+        opt = {
+            'gsobj': None,
+            'fastfit': bool,
+            'centered': bool,
+            'include_pixel': bool,
+            'init': None,
+            'fit_flux': bool,
+            'scipy_kwargs': dict,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
+
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True, init=None,
                  fit_flux=False, scipy_kwargs=None, logger=None):
         if isinstance(gsobj, str):
@@ -516,6 +531,22 @@ class Moffat(GSObjectModel):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Moffat'
+
+    @classmethod
+    def parseKwargs(cls, config, base=None, logger=None):
+        req = {'beta': float}
+        opt = {
+            'trunc': float,
+            'fastfit': bool,
+            'centered': bool,
+            'include_pixel': bool,
+            'init': None,
+            'fit_flux': bool,
+            'scipy_kwargs': dict,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
 
     def __init__(self, beta, trunc=0., **kwargs):
         gsobj = galsim.Moffat(half_light_radius=1.0, beta=beta, trunc=trunc)

@@ -16,6 +16,8 @@
 .. module:: model
 """
 
+import galsim
+
 from .star import Star
 
 
@@ -93,8 +95,10 @@ class Model(object):
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config)
-        kwargs.pop('type', None)
+        for key in config:
+            if key == 'type':
+                continue
+            kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
         kwargs['logger'] = logger
         return kwargs
 
