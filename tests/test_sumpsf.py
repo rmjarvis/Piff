@@ -81,8 +81,10 @@ def test_trivial_sum1():
                     'interp' : { 'type' : 'Mean' },
                 }
             ],
-            'max_iter' : 10,
-            'chisq_thresh' : 0.2,
+            # Use eval expressions here to check that these values are parsed properly.
+            'min_iter' : '$1 + 1',
+            'max_iter' : '$5 + 5',
+            'chisq_thresh' : '$0.1 + 0.1',
         },
         'output' : { 'file_name' : psf_file },
     }
@@ -97,6 +99,7 @@ def test_trivial_sum1():
     assert type(psf.components[0].interp) is piff.Mean
 
     assert psf.chisq_thresh == 0.2
+    assert psf.min_iter == 2
     assert psf.max_iter == 10
     assert psf.niter > 0
 
@@ -125,6 +128,7 @@ def test_trivial_sum1():
         'nsigma' : 5,
         'max_remove' : 3,
     }
+    config = galsim.config.CleanConfig(config)
     piff.piffify(config)
     psf2 = piff.read(psf_file)
     # This didn't remove anything, so the result is the same.
@@ -138,10 +142,10 @@ def test_trivial_sum1():
     assert test_image2 == test_image
 
     # Error if components is missing
-    config1 = config.copy()
+    config1 = galsim.config.CleanConfig(config)
     del config1['psf']['components']
     with np.testing.assert_raises(ValueError):
-        piff.process(config)
+        piff.process(config1)
 
 @timer
 def test_easy_sum2():

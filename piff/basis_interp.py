@@ -483,6 +483,19 @@ class BasisPolynomial(BasisInterp):
     """
     _type_name = 'BasisPolynomial'
 
+    @classmethod
+    def parseKwargs(cls, config, base=None, logger=None):
+        req = {'order': None}
+        opt = {
+            'keys': list,
+            'max_order': (dict, int),
+            'solver': str,
+            'use_qr': bool,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
+
     def __init__(
             self,
             order,

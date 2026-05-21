@@ -185,10 +185,32 @@ def test_simple():
         fit1 = model.fit(model.initialize(fiducial_star)).fit
         np.testing.assert_array_equal(fit1.params, fit.params)
 
+        # Also check that subclass-specific kwargs are parsed properly.
+        base_config = {
+            'psf': {
+                'type': 'Moffat',
+                'beta': '@beta_value',
+                'trunc': '$1.5',
+                'fastfit': '@use_fastfit',
+                'include_pixel': '$2 < 1',
+                'scipy_kwargs': {'max_nfev': 10},
+            },
+            'beta_value': 2.5,
+            'use_fastfit': True,
+        }
+        model = piff.Model.process(base_config['psf'], base_config)
+        assert isinstance(model, piff.Moffat)
+        assert model.kwargs['beta'] == 2.5
+        assert model.kwargs['trunc'] == 1.5
+        assert model._fastfit is True
+        assert model._method == 'no_pixel'
+        assert model._scipy_kwargs == {'max_nfev': 10}
+
         # With fit_flux=True, not much changes here (this is more relevant to components of
         # a Sum PSF).
         config['model']['type'] = 'GSObject'
         config['model']['fit_flux'] = True
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'])
         psf2 = piff.SimplePSF(model, None)
 
@@ -218,6 +240,7 @@ def test_simple():
 
         print('flux = ',fit.params[0],'*',fit.flux)
         np.testing.assert_allclose(fit.params[0], 0.01, rtol=1e-5)
+
         np.testing.assert_allclose(fit.params[1], scale, rtol=1e-6)
         np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-6)
@@ -267,6 +290,7 @@ def test_simple():
         print('Initializing with zero')
         config['model']['init'] = 'zero'
         config['model']['fit_flux'] = True
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
@@ -287,6 +311,7 @@ def test_simple():
 
         # init=zero forces fit_flux=True
         config['model']['fit_flux'] = False
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         with CaptureLog() as cl:
@@ -296,6 +321,7 @@ def test_simple():
         print('Initializing with delta')
         config['model']['init'] = 'delta'
         config['model']['fit_flux'] = False
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
@@ -316,6 +342,7 @@ def test_simple():
         print('Initializing with (0.2,0.4)')
         config['model']['init'] = '(0.2, 0.4)'
         config['model']['fit_flux'] = True
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
@@ -338,6 +365,7 @@ def test_simple():
         print('Initializing with (0.2,0.4)')
         config['model']['init'] = (0.2, 0.4)
         config['model']['fit_flux'] = True
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         fit = model.fit(model.initialize(fiducial_star)).fit
@@ -358,6 +386,7 @@ def test_simple():
 
         # Can also do this with fastfit, but takes a couple iterations to get decent accuracy.
         config['model']['fastfit'] = True
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         star = model.initialize(fiducial_star)
@@ -381,6 +410,7 @@ def test_simple():
 
         # tuple init also forces fit_flux=True.
         config['model']['fit_flux'] = False
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         psf1 = piff.SimplePSF(model, None)
         with CaptureLog() as cl:
@@ -389,6 +419,7 @@ def test_simple():
 
         # Invalid init method raises an error
         config['model']['init'] = 'invalid'
+        config['model'] = galsim.config.CleanConfig(config['model'])
         model = piff.Model.process(config['model'], logger=logger)
         with np.testing.assert_raises(ValueError):
             model.initialize(fiducial_star)

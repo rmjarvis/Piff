@@ -17,6 +17,7 @@
 """
 
 import numpy as np
+import galsim
 
 class Interp(object):
     """The base class for interpolating a set of data vectors across the field of view.
@@ -106,8 +107,10 @@ class Interp(object):
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config)
-        kwargs.pop('type',None)
+        for key in config:
+            if key == 'type':
+                continue
+            kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
         kwargs['logger'] = logger
         return kwargs
 

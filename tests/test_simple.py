@@ -379,6 +379,7 @@ def test_single_image():
     # this from the command line, which would call parse_variables.
     piff.config.parse_variables(config, ['verbose=0'], logger=logger)
     #config['verbose'] = 0
+    config = galsim.config.CleanConfig(config)
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     config2 = piff.config.read_config('simple.yaml')
@@ -700,6 +701,29 @@ def test_model():
         class ValidModel3(ValidModel1):
             pass
 
+    # Concrete model classes should parse real-valued config fields through GalSim.
+    base = {
+        'grid_size': 25,
+        'use_flux': True,
+        'interp_name': 'Lanczos(5)',
+    }
+    config = {
+        'type': 'PixelGrid',
+        'scale': '$0.1 + 0.2',
+        'size': '@grid_size',
+        'interp': '@interp_name',
+        'centered': '$1 == 0',
+        'fit_flux': '@use_flux',
+    }
+    model = piff.Model.process(config, base)
+    assert isinstance(model, piff.PixelGrid)
+    np.testing.assert_allclose(model.scale, 0.3)
+    assert model.size == 25
+    assert model._fit_flux is True
+    assert model._centered is False
+    assert isinstance(model.interp, galsim.Lanczos)
+    assert 'Lanczos(5,' in model.kwargs['interp']
+
 
 @timer
 def test_interp():
@@ -758,6 +782,27 @@ def test_interp():
     with np.testing.assert_raises(ValueError):
         class ValidInterp3(ValidInterp1):
             pass
+
+    # Concrete interp classes should parse real-valued config fields through GalSim.
+    base = {
+        'n_neighbors': 15,
+        'algorithm': 'ball_tree',
+    }
+    config = {
+        'type': 'KNN',
+        'keys': ['u', 'v'],
+        'n_neighbors': '@n_neighbors',
+        'weights': 'distance',
+        'algorithm': '@algorithm',
+        'p': '$1 + 1',
+    }
+    interp = piff.Interp.process(config, base)
+    assert isinstance(interp, piff.KNNInterp)
+    assert interp.keys == ['u', 'v']
+    assert interp.knr_kwargs['n_neighbors'] == 15
+    assert interp.knr_kwargs['weights'] == 'distance'
+    assert interp.knr_kwargs['algorithm'] == 'ball_tree'
+    assert interp.knr_kwargs['p'] == 2
 
 
 @timer
@@ -834,6 +879,37 @@ def test_psf():
     with np.testing.assert_raises(ValueError):
         class ValidPSF3(ValidPSF1):
             pass
+
+    # Concrete psf classes should parse scalar config fields but leave structural pieces alone.
+    base = {'use_fastfit': True}
+    config = {
+        'type': 'Simple',
+        'model': {'type': 'Gaussian', 'fastfit': '@use_fastfit'},
+        'interp': {'type': 'Mean'},
+        'chisq_thresh': '$0.1 + 0.1',
+        'min_iter': '$1 + 1',
+        'max_iter': '$5 + 5',
+    }
+    psf = piff.PSF.process(config, base)
+    assert isinstance(psf, piff.SimplePSF)
+    assert isinstance(psf.model, piff.Gaussian)
+    assert isinstance(psf.interp, piff.Mean)
+    assert psf.model._fastfit is True
+    assert psf.chisq_thresh == 0.2
+    assert psf.min_iter == 2
+    assert psf.max_iter == 10
+
+    config = {
+        'type': 'SingleChip',
+        'single_type': 'Simple',
+        'model': {'type': 'Gaussian', 'fastfit': '@use_fastfit'},
+        'interp': {'type': 'Mean'},
+        'nproc': '$1 + 1',
+    }
+    psf = piff.PSF.process(config, base)
+    assert isinstance(psf, piff.SingleChipPSF)
+    assert psf.nproc == 2
+    assert isinstance(psf.single_psf, piff.SimplePSF)
 
 @timer
 def test_load_images():
