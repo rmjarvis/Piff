@@ -59,8 +59,21 @@ def test_roman_optics():
         bandpass = galsim.roman.getBandpasses()['H158']
 
         # Check basic construction.
+        # Use config expressions here to check that these values are parsed properly.
         psf = piff.PSF.process(
-            {'type': 'RomanOptics', 'chromatic': False, 'max_zernike': 6}
+            {
+                'type': 'RomanOptics',
+                'filter_name': '@roman_filter',
+                'chromatic': '$2 < 1',
+                'max_zernike': '$3 + 3',
+                'chisq_thresh': '$0.05 + 0.05',
+                'min_iter': '$1 + 1',
+                'max_iter': '$20 + 10',
+                'aberration_prior_sigma': '$0.1 / 2',
+            },
+            {
+                'roman_filter': 'H158',
+            },
         )
         assert isinstance(psf, RomanOpticsPSF)
         logger = piff.config.setup_logger()
@@ -70,15 +83,24 @@ def test_roman_optics():
         assert psf.model.aberration_interp == 'constant'
         assert psf.model.nominal_interp == 'bilinear'
         assert psf.interp.per_sca is True
+        assert psf.chisq_thresh == 0.1
+        assert psf.min_iter == 2
+        assert psf.max_iter == 30
+        np.testing.assert_allclose(psf.model.orig_prior_sigma, [0.05, 0.05, 0.05])
 
         # Global mode uses one aberration vector for full focal plane.
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': "$(@roman_filter).replace('F','H')",
                 'chromatic': False,
                 'max_zernike': 6,
-                'aberration_interp': 'global',
-            }
+                'aberration_interp': '@ab_interp',
+            },
+            {
+                'roman_filter': 'F158',
+                'ab_interp': 'global',
+            },
         )
         assert psf_global.model.aberration_interp == 'constant'
         assert psf_global.interp.per_sca is False
@@ -106,6 +128,7 @@ def test_roman_optics():
         chromatic_psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
                 'chromatic': True,
                 'max_zernike': 6,
             }
@@ -203,6 +226,7 @@ def test_roman_optics():
         psf1 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'outliers': [
@@ -227,6 +251,7 @@ def test_roman_optics():
         psf1 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
                 'chromatic': True,
                 'max_zernike': 6,
             }
@@ -296,7 +321,12 @@ def test_corner_cache():
     with fast_pupil_bin():
         bandpass = galsim.roman.getBandpasses()['H158']
         psf = piff.PSF.process(
-            {'type': 'RomanOptics', 'chromatic': False, 'max_zernike': 6}
+            {
+                'type': 'RomanOptics',
+                'filter_name': 'H158',
+                'chromatic': False,
+                'max_zernike': 6,
+            }
         )
         psf.set_context(None, None, bandpass)
         logger = piff.config.setup_logger()
@@ -332,6 +362,7 @@ def test_corner_cache():
         psf5 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'nominal_interp': 'five_point',
@@ -552,6 +583,7 @@ def test_linear_prior_io():
     psf = piff.PSF.process(
         {
             'type': 'RomanOptics',
+            'filter_name': 'H158',
             'chromatic': False,
             'max_zernike': 6,
             'aberration_interp': 'linear',
@@ -583,6 +615,7 @@ def test_linear_prior_io():
     psf_scalar = piff.PSF.process(
         {
             'type': 'RomanOptics',
+            'filter_name': 'H158',
             'chromatic': False,
             'max_zernike': 6,
             'aberration_interp': 'linear',
@@ -722,6 +755,7 @@ def test_chromatic():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
                 'chromatic': True,
                 'max_zernike': 6,
                 'max_iter': 1,  # Not used until later when we run fit() directly.
@@ -1147,6 +1181,7 @@ def test_optics_convert_funcs():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_prior_sigma': 1.0e6,
@@ -1207,7 +1242,12 @@ def test_sca_interp():
     with fast_pupil_bin():
         # Start with some basic exercises of interp machinery.
         psf = piff.PSF.process(
-            {'type': 'RomanOptics', 'chromatic': False, 'max_zernike': 6}
+            {
+                'type': 'RomanOptics',
+                'filter_name': 'H158',
+                'chromatic': False,
+                'max_zernike': 6
+            }
         )
         assert type(psf.interp).__name__ == 'RomanSCAInterp'
 
@@ -1266,6 +1306,7 @@ def test_sca_interp():
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_interp': 'global',
@@ -1287,6 +1328,7 @@ def test_sca_interp():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
+                'filter_name': 'H158',
             }
         )
         psf.write(fn)

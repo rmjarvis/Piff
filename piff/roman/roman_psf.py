@@ -686,20 +686,47 @@ class RomanOpticsPSF(PSF):
 
     @classmethod
     def parseKwargs(cls, config, base, logger):
-        kwargs = dict(config)
-        kwargs.pop('type', None)
+        req = {
+            'filter_name': str,
+        }
+        opt = {
+            'chisq_thresh': float,
+            'min_iter': int,
+            'max_iter': int,
+            'aberration_interp': str,
+            'chromatic': bool,
+            'max_zernike': int,
+            'nominal_interp': str,
+            'aberration_prior_sigma': None,
+            'nproc': int,
+        }
+        ignore = ['outliers']
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt, ignore=ignore)[0]
 
-        outliers = kwargs.pop('outliers', None)
-        chisq_thresh = kwargs.pop('chisq_thresh', 0.1)
-        min_iter = kwargs.pop('min_iter', 2)
-        max_iter = kwargs.pop('max_iter', 30)
-        aberration_interp = kwargs.pop('aberration_interp', 'constant')
-
+        outliers = config.get('outliers', None)
+        chisq_thresh = kwargs.get('chisq_thresh', 0.1)
+        min_iter = kwargs.get('min_iter', 2)
+        max_iter = kwargs.get('max_iter', 30)
+        aberration_interp = kwargs.get('aberration_interp', 'constant')
         model_interp = 'constant' if aberration_interp == 'global' else aberration_interp
         interp_per_sca = (aberration_interp != 'global')
 
-        model = RomanOpticalModel(aberration_interp=model_interp, logger=logger, **kwargs)
-        interp = RomanSCAInterp(per_sca=interp_per_sca)
+        model_kwargs = {
+            key: kwargs[key]
+            for key in (
+                'filter',
+                'chromatic',
+                'max_zernike',
+                'nominal_interp',
+                'aberration_prior_sigma',
+                'nproc',
+            )
+            if key in kwargs
+        }
+        model_kwargs['aberration_interp'] = model_interp
+        model_kwargs['logger'] = logger
+        model = RomanOpticalModel(**model_kwargs)
+        interp = RomanSCAInterp(per_sca=interp_per_sca, logger=logger)
 
         parsed = {
             'model': model,
