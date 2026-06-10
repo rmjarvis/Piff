@@ -1127,6 +1127,16 @@ def test_fail():
         model3.fit(star3)
     print('7')
 
+    # Non-positive scale values are invalid optimizer probes and should be rejected before
+    # trying to draw them with GalSim.
+    model = piff.Gaussian()
+    star = model.initialize(star1)
+    params = model._get_params(star)
+    params[3] = -0.1
+    resid = model._resid(params, star, convert_func=None, draw_method=None)
+    np.testing.assert_array_equal(resid, np.ones_like(resid) * 1.e300)
+    print('7b')
+
     # reflux is harder to make fail.  Rather than try something even more contrived,
     # just mock np.linalg.solve to simulate the case that AtA ends up singular.
     with mock.patch('numpy.linalg.solve', side_effect=np.linalg.LinAlgError) as raising_solve:

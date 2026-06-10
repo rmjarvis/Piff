@@ -187,9 +187,9 @@ class GSObjectModel(Model):
         image, weight, image_pos = star.data.getImage()
         flux, du, dv, scale, g1, g2 = params
 
-        # Make sure the shear is sane.
+        # Make sure the size and shear are sane.
         g = g1 + 1j * g2
-        if np.abs(g) >= 1.:
+        if scale <= 0. or np.abs(g) >= 1.:
             # Return "infinity"
             return np.ones_like(image.array.ravel(), dtype=np.float64) * 1.e300
 
