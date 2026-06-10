@@ -331,6 +331,18 @@ class Select(object):
 
             good_stars.append(star)
 
+        zero_snr_count = sum(s['raw_snr'] == 0 for s in good_stars)
+        if zero_snr_count > 0 and self.min_snr is None:
+            logger.warning("Found %d candidate stars with S/N <= 0. Consider setting "
+                           "select.min_snr to remove noise-dominated objects.",
+                           zero_snr_count)
+            default_weight = any(getattr(s.data, '_piff_default_weight', False)
+                                 for s in good_stars if s['raw_snr']== 0)
+            if default_weight:
+                logger.warning("Note -- no variance information (either noise value or weight map) "
+                               "was provided, so these estimates are not likely to be accurate. "
+                               "Consider setting input.noise or providing a weight image.")
+
         # Calculate the hsm size for each star and throw out extreme outliers.
         if self.hsm_size_reject != 0:
             sigma = [star.hsm[3] for star in good_stars]

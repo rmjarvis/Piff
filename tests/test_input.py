@@ -1805,6 +1805,26 @@ def test_stars():
     snr0 = piff.util.calculateSNR(star0.data.image, star0.data.orig_weight)
     assert snr0 == 0.
 
+    # raw_snr=0 stars are allowed by default, but warn that they are noise-dominated.
+    image0 = galsim.Image(8, 8, init_value=0., scale=1.)
+    image1 = galsim.Image(8, 8, init_value=10., scale=1.)
+    weight0 = galsim.Image(8, 8, init_value=1., scale=1.)
+    weight1 = galsim.Image(8, 8, init_value=1., scale=1.)
+    zero_snr_star = piff.Star(piff.StarData(image0, image0.true_center, weight0), None)
+    positive_snr_star = piff.Star(piff.StarData(image1, image1.true_center, weight1), None)
+    select = piff.FlagSelect({}, logger=logger)
+    with CaptureLog(1) as cl:
+        stars = select.rejectStars([zero_snr_star, positive_snr_star], logger=cl.logger)
+    assert len(stars) == 2
+    assert stars[0]['raw_snr'] == 0.
+    assert "Found 1 candidate stars with S/N <= 0" in cl.output
+    assert "no variance information" not in cl.output
+
+    zero_snr_star.data._piff_default_weight = True
+    with CaptureLog(1) as cl:
+        select.rejectStars([zero_snr_star, positive_snr_star], logger=cl.logger)
+    assert "no variance information" in cl.output
+
 
 @timer
 def test_select_min_sep():

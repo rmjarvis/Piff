@@ -887,6 +887,9 @@ class InputFiles(Input):
             pos = galsim.PositionD(x,y)
             data = StarData(stamp, pos, weight=wt_stamp, pointing=pointing,
                             properties=props, property_types=prop_types)
+            # Attach an attribute so we can tell later whether the weight is real or
+            # if it's just the default w=1.0.
+            data._piff_default_weight = getattr(wt, '_piff_default_weight', False)
             star = Star(data, None)
 
             objects.append(star)
@@ -955,13 +958,12 @@ class InputFiles(Input):
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
         :param sky_hdu:         The hdu to use in the sky_file_name (if any).
-        :param noise:           Either a float constant noise value to use in lieu of a weight
-                                map or a str keyword to use to read a value from FITS header.
         :param sky:             If this is 'median', then treat the median as the sky level.
                                 Otherwise, the sky level is set to the value passed here,
                                 or to the value in the fits header associated to the
                                 keyword that's passed here.
-        :param noise:           A constant noise value to use in lieu of a weight map.
+        :param noise:           Either a float constant noise value to use in lieu of a weight
+                                map or a str keyword to use to read a value from FITS header.
         :param logger:          A logger object for logging debug info.
 
         :returns: image, weight
@@ -989,6 +991,7 @@ class InputFiles(Input):
                 logger.warning("Warning: weight map has invalid negative-valued pixels. "+
                                "Taking them to be 0.0")
                 weight.array[weight.array < 0] = 0.
+            weight._piff_default_weight = False
         elif noise is not None:
             try:
                 noise = float(noise)
@@ -998,9 +1001,11 @@ class InputFiles(Input):
                 noise = float(image.header[noise])
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
             weight = galsim.ImageF(image.bounds, init_value=1./noise)
+            weight._piff_default_weight = False
         else:
             logger.debug("Making trivial (wt==1) weight image")
             weight = galsim.ImageF(image.bounds, init_value=1)
+            weight._piff_default_weight = True
 
         # Make sure to do this before anything that could modify the input image.
         if badpix_zeros:
