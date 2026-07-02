@@ -23,6 +23,11 @@ import galsim
 from .model import Model
 from .star import Star
 
+# torch is imported lazily by AIPSF.__init__, so that `import piff` works without
+# torch installed (it is an optional dependency).  Once an AIPSF instance exists,
+# the hot methods (_encode, getProfile) use this module-level reference directly.
+torch = None
+
 
 class AIPSF(Model):
     """A PSF model that uses a pre-trained convolutional autoencoder.
@@ -82,14 +87,28 @@ class AIPSF(Model):
         if logger:
             logger.debug("Loading AIPSF model from %s", model_file)
 
-        # This import is delayed until here, so torch stays an optional dependency.
-        # It raises an informative ImportError if torch is not available.
+        # These imports are delayed until here, so torch stays an optional dependency.
+        # The aimodels import raises an informative ImportError if torch is not
+        # available.  Note: torch is deliberately not stored on self (modules cannot
+        # be pickled, and the fitted PSF gets pickled by the LSST middleware).
         from .aimodels import load_autoencoder
+        global torch
+        if torch is None:
+            import torch
         self.net = load_autoencoder(model_file, device=device, logger=logger)
 
         self.grid_size = self.net.grid_size
         self.latent_dim = self.net.latent_dim
         self.set_num(None)
+
+    def __setstate__(self, state):
+        # The fitted PSF gets pickled by the LSST middleware, and unpickling
+        # bypasses __init__, so bind the module-level torch reference here too.
+        # (By this point torch is importable: unpickling self.net required it.)
+        global torch
+        if torch is None:
+            import torch
+        self.__dict__.update(state)
 
     def _encode(self, star):
         """Run the encoder on the star's stamp.
@@ -99,8 +118,6 @@ class AIPSF(Model):
         :returns: (params, flux) where params is the latent vector as a numpy array
                   and flux is the sum of the input stamp.
         """
-        import torch
-
         stamp_data = star.data.image.array
 
         if stamp_data.shape != (self.grid_size, self.grid_size):
@@ -189,8 +206,6 @@ class AIPSF(Model):
 
         :returns:       A galsim.GSObject instance
         """
-        import torch
-
         # Shape (1, latent_dim)
         z = torch.from_numpy(np.asarray(params)).float().unsqueeze(0).to(self.device)
 
