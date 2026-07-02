@@ -17,7 +17,7 @@ except:
 print('Python version = ',sys.version)
 py_version = "%d.%d"%sys.version_info[0:2]  # we check things based on the major.minor version.
 
-scripts = ['piffify', 'plotify', 'meanify']
+scripts = ['piffify', 'plotify', 'meanify', 'trainify']
 scripts = [ os.path.join('scripts',f) for f in scripts ]
 shared_data = glob.glob('share/*')
 
@@ -215,6 +215,8 @@ dist = setup(name="Piff",
       package_data={'piff' : shared_data},
       setup_requires=build_dep,
       install_requires=run_dep,
+      # torch is only needed for the AIPSF model and its training tools (piff.aimodels).
+      extras_require={'aipsf': ['torch']},
       ext_modules=[ext],
       cmdclass = {'build_ext': build_ext},
       scripts=scripts
