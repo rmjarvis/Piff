@@ -148,6 +148,11 @@ def test_train_api():
     mod = piff.AIPSF(scale=0.26, model_file=checkpoint_file)
     assert mod.latent_dim == 4
 
+    # Regression check: after the training submodule has been imported (by the
+    # attribute accesses above), piff.aimodels.train must still resolve to the
+    # config-driven function, not to a submodule shadowing it.
+    assert callable(piff.aimodels.train)
+
 
 @requires_torch
 @timer

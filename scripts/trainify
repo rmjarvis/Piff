@@ -78,7 +78,7 @@ def main():
 
     logger.warning('Using config file %s'%args.config_file)
 
-    # Run the train function.  The import of piff.aimodels.train happens here, so the
+    # Run the train function.  The import of piff.aimodels happens here, so the
     # informative error about the optional torch dependency surfaces cleanly.
     from piff.aimodels import train
     train(config, logger)
