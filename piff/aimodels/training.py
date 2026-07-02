@@ -13,9 +13,13 @@
 #    and/or other materials provided with the distribution.
 
 """
-.. module:: train
+.. module:: training
 
 Training tools for the AIPSF autoencoder.
+
+Note: this module is named ``training`` (not ``train``) so that the
+config-driven entry point can be exposed as ``piff.aimodels.train`` without
+the imported submodule shadowing the function.
 
 The training data are pickle files containing a dict of star records:
 
