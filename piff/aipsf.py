@@ -1,4 +1,3 @@
-
 # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
 # https://github.com/rmjarvis/Piff  All rights reserved.
 #
@@ -17,27 +16,53 @@
 .. module:: aipsf
 """
 
+import os
 import numpy as np
 import galsim
-import torch
-import os
 
 from .model import Model
 from .star import Star
-from .aimodels.models import Conv2dAutoEncoder
+
 
 class AIPSF(Model):
-    """A PSF model that uses a pre-trained Convolutional AutoEncoder.
+    """A PSF model that uses a pre-trained convolutional autoencoder.
 
-    The PSF profile is defined by a latent vector in the autoencoder's latent space.
-    The interpolation is done in this latent space.
+    The PSF at each star is described by the latent vector of the autoencoder:
+    the encoder maps the flux-normalized star stamp to ``star.fit.params``, and
+    the decoder maps a latent vector back to a PSF stamp (normalized to unit
+    flux).  Spatial interpolation of the PSF is done in the latent space by the
+    regular Piff interpolators.
 
-    :param model_file:  The path to the trained PyTorch model file (.pth).
-    :param device:      The device to run the model on ('cpu' or 'cuda'). [default: 'cpu']
+    Notes:
+
+    * This model requires PyTorch, which is an optional dependency of Piff.
+    * The trained network is read from a checkpoint file written by
+      :func:`piff.aimodels.save_checkpoint`, which stores the network weights
+      together with the architecture hyperparameters (grid_size, latent_dim,
+      hidden_channels).  The checkpoint file is *not* embedded in Piff output
+      files; reading a serialized PSF requires the checkpoint file to be
+      available at the same path.
+    * The input stamps must be exactly (grid_size, grid_size) pixels, where
+      grid_size comes from the checkpoint (an odd integer, 25 for the
+      production networks).
+    * The latent parameters can be interpolated by any interpolator that works
+      on ``star.fit.params`` directly (e.g. Polynomial, KNearestNeighbors,
+      GaussianProcess, Mean).  Basis-type interpolators (e.g. BasisPolynomial)
+      are not supported, since this is only for PixelGrid.
+
+    Use type name "AIPSF" in a config field to use this model.
+
+    :param scale:       The pixel scale of the PSF stamps in arcsec.
+    :param model_file:  The path to the trained checkpoint file (.pth), written by
+                        :func:`piff.aimodels.save_checkpoint`.
+    :param device:      The torch device to run the network on ('cpu' or 'cuda').
+                        [default: 'cpu']
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'AIPSF'
     _method = 'no_pixel'
+    # The star position is trusted from the input star; the model does not fit a center.
+    _centered = False
 
     def __init__(self, scale, model_file=None, device='cpu', logger=None):
         self.scale = scale
@@ -49,116 +74,134 @@ class AIPSF(Model):
             'device': device,
         }
 
-        # trust position from input star
-        self._centered = False
-
-        self.logger = logger
-        
-        if self.logger:
-            self.logger.debug(f"Loading AIPSF model from {model_file}")
-        
-        self.net = Conv2dAutoEncoder(latent_dim = 16, grid_size = 25, hidden_channels=16)
-        
+        if model_file is None:
+            raise ValueError("model_file is required for the AIPSF model")
         if not os.path.exists(model_file):
-            raise FileNotFoundError(f"Model file not found: {model_file}")
-            
-        # map_location ensures we can load a cuda model on cpu if needed
-        checkpoint = torch.load(model_file, map_location=torch.device(device))
-        
-        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-            self.net.load_state_dict(checkpoint['model_state_dict'])
-        elif isinstance(checkpoint, dict):
-            self.net.load_state_dict(checkpoint)
-        else:
-            self.net = checkpoint
-             
-        self.net.to(device)
-        self.net.eval()
-        
-        self.grid_size = self.net.grid_size
+            raise FileNotFoundError("Model file not found: %s" % model_file)
 
-                                  
+        if logger:
+            logger.debug("Loading AIPSF model from %s", model_file)
+
+        # This import is delayed until here, so torch stays an optional dependency.
+        # It raises an informative ImportError if torch is not available.
+        from .aimodels import load_autoencoder
+        self.net = load_autoencoder(model_file, device=device, logger=logger)
+
+        self.grid_size = self.net.grid_size
+        self.latent_dim = self.net.latent_dim
+        self.set_num(None)
+
+    def _encode(self, star):
+        """Run the encoder on the star's stamp.
+
+        :param star:    A Star instance with the raw data.
+
+        :returns: (params, flux) where params is the latent vector as a numpy array
+                  and flux is the sum of the input stamp.
+        """
+        import torch
+
+        stamp_data = star.data.image.array
+
+        if stamp_data.shape != (self.grid_size, self.grid_size):
+            raise ValueError("Input star shape %s does not match "
+                             "model expected shape (%d, %d)" %
+                             (stamp_data.shape, self.grid_size, self.grid_size))
+
+        if np.any(~np.isfinite(stamp_data)):
+            raise ValueError("Input star contains non-finite values.")
+
+        flux = np.sum(stamp_data)
+        if flux <= 0:
+            raise ValueError("Input star has non-positive total flux (%s)." % flux)
+        normalized_stamp = stamp_data / flux
+
+        # The network expects (Batch, Channel, Height, Width) -> (1, 1, grid_size, grid_size)
+        input_tensor = torch.from_numpy(normalized_stamp).float()
+        input_tensor = input_tensor.unsqueeze(0).unsqueeze(0).to(self.device)
+
+        with torch.no_grad():
+            z = self.net.encoder(input_tensor)
+
+        # z is (1, latent_dim)
+        params = z.cpu().numpy().flatten()
+        return params, flux
+
     def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model.
 
+        The encoder is run on the star's stamp to get the initial latent vector,
+        and the flux is initialized to the sum of the stamp.
+
         :param star:            A Star instance with the raw data.
         :param logger:          A logger object for logging debug info. [default: None]
-        :param default_init:    The default initilization method if the user doesn't specify one.
-                                [default: None]
+        :param default_init:    The default initialization method if the user doesn't specify
+                                one.  (Ignored by this model.) [default: None]
 
         :returns:       Star instance with the appropriate initial fit values
         """
-        if logger:
-            logger = logger
-        
-        image = star.data.image
-        
-        if image.array.shape != (self.grid_size, self.grid_size):
-            raise ValueError(f"Input star shape {image.array.shape} does not match"
-                             f"model expected shape ({self.grid_size}, {self.grid_size})")
-
-        # Normalize flux to 1
-        stamp_data = image.array.copy()
-        
-        # Handle bad pixels.
-        if np.any(~np.isfinite(stamp_data)):
-             raise ValueError("Input star contains non-finite values.")
-
-        flux = np.sum(stamp_data)     
-        normalized_stamp = stamp_data / flux
-        
-        # Prepare for encoder
-        # Model expects (Batch, Channel, Height, Width) -> (1, 1, grid_size, grid_size)
-        input_tensor = torch.from_numpy(normalized_stamp).float().unsqueeze(0).unsqueeze(0).to(self.device)
-        
-        # Get latent vector
-        with torch.no_grad():
-            z = self.net.encoder(input_tensor)
-            
-        # z is (1, latent_dim)
-        params = z.cpu().numpy().flatten()
-        
-        # Create fit object
-        # PF Note: I don't know if flux needs to be initialized here.
-        # To check. 
-        fit = star.fit.withNew(params=params, flux=flux)
-
+        params, flux = self._encode(star)
+        fit = star.fit.newParams(params, num=self._num, flux=flux)
         return Star(star.data, fit)
 
-    def fit(self, star, logger, convert_func=None, draw_method=None):
-        """Fit the Model to the star's data.
-        
-        For the AutoEncoder model, 'fitting' is just running the encoder again
-        to get the latent vector. Since the encoder is deterministic, 
-        this yields the same result as initialize.
-        
+    def fit(self, star, logger=None, convert_func=None, draw_method=None):
+        """Fit the model to the star's data.
+
+        For this model, "fitting" is running the (deterministic) encoder on the
+        star's stamp, so the resulting latent vector is the same as from
+        `initialize`.  The flux and center are left unchanged; they are updated
+        by the reflux step of the PSF fitting.  The chisq and dof of the fit are
+        computed so outlier rejection and convergence bookkeeping work as usual.
+
         :param star:            A Star instance
-        :param convert_func:    (Ignored for this simple model)
-        :param draw_method:     (Ignored for this simple model)
+        :param logger:          A logger object for logging debug info. [default: None]
+        :param convert_func:    An optional function to apply to the profile being fit.
+                                (Ignored by this model.) [default: None]
+        :param draw_method:     The method to use with drawImage.  (This model requires
+                                'no_pixel'.) [default: None]
+
         :returns:      New Star instance with updated fit information
         """
         assert draw_method in (None, 'no_pixel')
-        return self.initialize(star, logger=logger)
+
+        params, _ = self._encode(star)
+
+        # Compute the chisq of this model prediction, scaled by the current flux estimate.
+        prof = self.getProfile(params).shift(star.fit.center) * star.fit.flux
+        image = star.image.copy()
+        prof.drawImage(image, method=self._method, center=star.image_pos)
+        model = image.array.ravel()
+
+        data, weight, u, v = star.data.getDataVector()
+        chisq = np.sum(weight * (data - model)**2)
+        dof = np.count_nonzero(weight) - self.latent_dim
+
+        fit = star.fit.newParams(params, num=self._num, chisq=chisq, dof=dof)
+        return Star(star.data, fit)
 
     def getProfile(self, params):
-        """Get the GalSim GSObject for the given parameters.
+        """Get a version of the model as a GalSim GSObject.
+
+        The decoder is run on the latent vector to produce a PSF stamp, which is
+        returned as an InterpolatedImage with unit flux.
 
         :param params:  The latent vector (numpy array).
-        :returns:       A GalSim GSObject.
+
+        :returns:       A galsim.GSObject instance
         """
-        # Convert params to tensor
+        import torch
+
         # Shape (1, latent_dim)
-        z = torch.from_numpy(params).float().unsqueeze(0).to(self.device)
-        
+        z = torch.from_numpy(np.asarray(params)).float().unsqueeze(0).to(self.device)
+
         with torch.no_grad():
             output_tensor = self.net.decoder(z)
-            
+
         # Output is (1, 1, H, W) -> (H, W)
         output_image = output_tensor.squeeze().cpu().numpy()
-        
-        # Create GalSim InterpolatedImage
+
         gs_image = galsim.Image(output_image, scale=self.scale)
-        
+
         # The output of the decoder is normalized (SpatialSoftmax), so flux=1.
         prof = galsim.InterpolatedImage(gs_image, normalization='flux', flux=1.0)
         return prof

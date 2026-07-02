@@ -17,6 +17,7 @@ Piff Documentation
    output
    stats
    star
+   trainify
    util
 
    history

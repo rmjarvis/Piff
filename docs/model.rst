@@ -46,3 +46,9 @@ Optical model
 .. autoclass:: piff.Optical
    :members:
 
+
+AI model
+--------
+
+.. autoclass:: piff.AIPSF
+   :members:
