@@ -24,6 +24,9 @@ the imported submodule shadowing the function.
 The training data are pickle files containing a dict of star records:
 
     { star_id: { 'star':     numpy array (N, N), the stamp normalized to sum to 1,
+                 'weight':   numpy array (N, N), inverse variance of the normalized
+                             stamp, zero for masked pixels (None in older
+                             training sets),
                  'starPiff': numpy array (N, N), a reference PSF model prediction
                              at the star position (used as a diagnostic baseline),
                  ... }, ... }
@@ -51,15 +54,26 @@ class PSFDataset(Dataset):
     """A torch Dataset of PSF star stamps.
 
     Each item is a dict with keys 'star' and 'star_piff', both tensors of shape
-    (1, N, N).
+    (1, N, N), plus 'weight' (same shape) if use_weights is True.
 
     :param data_dict:   A dict mapping star_id -> star record (see module docstring).
+    :param use_weights: Whether to include the per-pixel weight maps (inverse
+                        variance of the normalized stamps) in the samples.
+                        [default: False]
     :param transform:   An optional callable to apply to each sample. [default: None]
     """
-    def __init__(self, data_dict, transform=None):
+    def __init__(self, data_dict, use_weights=False, transform=None):
         self.ids = list(data_dict.keys())
         self.data = data_dict
+        self.use_weights = use_weights
         self.transform = transform
+        if use_weights and self.ids:
+            first = self.data[self.ids[0]]
+            if first.get('weight') is None:
+                raise ValueError(
+                    "use_weights=True, but the training data has no weight maps. "
+                    "(Older training sets stored weight=None; re-generate them "
+                    "with a current meas_extensions_piff.)")
 
     def __len__(self):
         return len(self.ids)
@@ -69,6 +83,8 @@ class PSFDataset(Dataset):
         star = torch.from_numpy(entry['star']).float().unsqueeze(0)            # [1, H, W]
         star_piff = torch.from_numpy(entry['starPiff']).float().unsqueeze(0)   # [1, H, W]
         sample = {'star': star, 'star_piff': star_piff}
+        if self.use_weights:
+            sample['weight'] = torch.from_numpy(entry['weight']).float().unsqueeze(0)
         if self.transform:
             sample = self.transform(sample)
         return sample
@@ -116,7 +132,7 @@ def load_training_data(path, logger=None):
 
 
 def create_dataloaders(data, batch_size=8192, val_fraction=0.1, shuffle=True, seed=None,
-                       num_workers=4, logger=None):
+                       num_workers=4, use_weights=False, logger=None):
     """Build training and validation DataLoaders from PSF training data.
 
     :param data:            A training data dict, a pickle file name, or a directory of
@@ -126,6 +142,8 @@ def create_dataloaders(data, batch_size=8192, val_fraction=0.1, shuffle=True, se
     :param shuffle:         Whether to shuffle the training data. [default: True]
     :param seed:            An optional seed for the train/validation split. [default: None]
     :param num_workers:     The number of DataLoader worker processes. [default: 4]
+    :param use_weights:     Whether to include the per-pixel weight maps in the batches
+                            (required for the weighted chi2 loss). [default: False]
     :param logger:          A logger object for logging progress. [default: None]
 
     :returns: (train_loader, val_loader)
@@ -135,7 +153,7 @@ def create_dataloaders(data, batch_size=8192, val_fraction=0.1, shuffle=True, se
     if isinstance(data, str):
         data = load_training_data(data, logger=logger)
 
-    full_ds = PSFDataset(data)
+    full_ds = PSFDataset(data, use_weights=use_weights)
     total = len(full_ds)
     n_val = int(total * val_fraction)
     n_train = total - n_val
@@ -159,14 +177,26 @@ def create_dataloaders(data, batch_size=8192, val_fraction=0.1, shuffle=True, se
 
 
 def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-3,
-                      device=None, scheduler_on_plateau=False,
+                      device=None, scheduler_on_plateau=False, use_weights=False,
                       checkpoint_file='autoencoder.pth', logger=None):
     """Train an autoencoder on PSF stamps and save the result as a checkpoint file.
 
-    The loss is the pixel-level MSE between the autoencoder output and its input,
-    scaled by 1e6 for numerical convenience.  The MSE between the reference PSF
-    model prediction ('starPiff') and the star is also tracked as a diagnostic
-    baseline, but does not enter the training.
+    By default the loss is the pixel-level MSE between the autoencoder output and
+    its input, scaled by 1e6 for numerical convenience.
+
+    With use_weights=True, the loss is instead the mean per-star reduced chi2,
+    using the per-pixel inverse-variance maps from the training data::
+
+        chi2_star = sum_pixels[ w * (model - star)^2 ] / N_good
+
+    where N_good is the number of unmasked (w > 0) pixels of the star.  A model
+    that describes the data at the noise level gives a loss around 1, and masked
+    pixels are naturally excluded.  (The batches must contain weight maps, i.e.
+    the DataLoaders must be built with use_weights=True as well.)
+
+    In both cases, the same loss evaluated for the reference PSF model prediction
+    ('starPiff') is also tracked as a diagnostic baseline, but does not enter the
+    training.
 
     The checkpoint is written with :func:`piff.aimodels.save_checkpoint`, so it can
     be used directly by the AIPSF model.
@@ -181,6 +211,8 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
     :param scheduler_on_plateau:    Whether to use a ReduceLROnPlateau scheduler on the
                                     validation loss (factor=0.1, patience=10, min_lr=1e-6).
                                     [default: False]
+    :param use_weights:             Whether to use the weighted (reduced chi2) loss
+                                    instead of the scaled MSE. [default: False]
     :param checkpoint_file:         The output checkpoint file name. [default: 'autoencoder.pth']
     :param logger:                  A logger object for logging progress. [default: None]
 
@@ -191,15 +223,28 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
 
     if device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    logger.warning("Training on device %s for %d epochs", device, epochs)
+    logger.warning("Training on device %s for %d epochs (use_weights=%s)",
+                   device, epochs, use_weights)
 
     # Scale the MSE loss for numerical convenience: normalized 25x25 stamps have
     # typical pixel values of order 1e-3, so the raw MSE values are tiny.
+    # (Not used for the weighted loss, which is naturally of order 1.)
     k = 1.e6
 
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
     criterion = nn.MSELoss()
+
+    def compute_losses(inputs, outputs, target_piff, batch):
+        if use_weights:
+            w = batch['weight'].to(device)
+            n_good = (w > 0).sum(dim=(1, 2, 3)).clamp(min=1)
+            loss_ae = ((w * (outputs - inputs)**2).sum(dim=(1, 2, 3)) / n_good).mean()
+            loss_piff = ((w * (target_piff - inputs)**2).sum(dim=(1, 2, 3)) / n_good).mean()
+        else:
+            loss_ae = criterion(outputs, inputs) * k
+            loss_piff = criterion(target_piff, inputs) * k
+        return loss_ae, loss_piff
 
     if scheduler_on_plateau:
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -223,8 +268,7 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
 
             optimizer.zero_grad()
             outputs = model(inputs)
-            loss_ae = criterion(outputs, inputs) * k
-            loss_piff = criterion(target_piff, inputs) * k
+            loss_ae, loss_piff = compute_losses(inputs, outputs, target_piff, batch)
             loss_ae.backward()
             optimizer.step()
 
@@ -242,8 +286,7 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
                 target_piff = batch['star_piff'].to(device)
 
                 outputs = model(inputs)
-                loss_ae = criterion(outputs, inputs) * k
-                loss_piff = criterion(target_piff, inputs) * k
+                loss_ae, loss_piff = compute_losses(inputs, outputs, target_piff, batch)
 
                 val_loss_ae += loss_ae.item() * inputs.size(0)
                 history['loss_ae_val'].append(loss_ae.item())
@@ -285,6 +328,8 @@ def train(config, logger=None):
             epochs: 40                  # [default: 10]
             initial_lr: 1.e-3           # [default: 1e-3]
             scheduler_on_plateau: true  # [default: False]
+            use_weights: false          # weighted (reduced chi2) loss; needs weight
+                                        # maps in the training data [default: False]
             device: cuda                # [default: cuda if available, else cpu]
         output:
             file_name: Conv2dAutoEncoder.pth
@@ -320,6 +365,8 @@ def train(config, logger=None):
         raise ValueError("model type %s is not a valid AIPSF model type. "
                          "Only Conv2dAutoEncoder is currently supported." % model_type)
 
+    use_weights = training_config.get('use_weights', False)
+
     train_loader, val_loader = create_dataloaders(
         input_config['file_name'],
         batch_size=input_config.get('batch_size', 8192),
@@ -327,6 +374,7 @@ def train(config, logger=None):
         shuffle=input_config.get('shuffle', True),
         seed=input_config.get('seed', None),
         num_workers=input_config.get('num_workers', 4),
+        use_weights=use_weights,
         logger=logger)
 
     model = Conv2dAutoEncoder(
@@ -344,6 +392,7 @@ def train(config, logger=None):
         initial_lr=training_config.get('initial_lr', 1e-3),
         device=training_config.get('device', None),
         scheduler_on_plateau=training_config.get('scheduler_on_plateau', False),
+        use_weights=use_weights,
         checkpoint_file=output_config['file_name'],
         logger=logger)
 

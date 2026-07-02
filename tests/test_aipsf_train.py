@@ -33,11 +33,13 @@ requires_torch = pytest.mark.skipif(torch is None, reason="torch is not installe
 GRID_SIZE = 25
 
 
-def make_training_dict(nstars=100, noise=0.03, seed=1234):
+def make_training_dict(nstars=100, noise=0.03, seed=1234, with_weights=True):
     """Make a synthetic training data dict of noisy Gaussian stamps.
 
     Follows the schema of the training pickles: each record has a 'star' stamp
-    normalized to sum to 1 and a 'starPiff' reference stamp.
+    normalized to sum to 1, a 'starPiff' reference stamp (here the noiseless
+    truth), and a 'weight' map (the true inverse variance of the added noise,
+    or None if with_weights is False).
     """
     np_rng = np.random.RandomState(seed)
     data = {}
@@ -48,10 +50,16 @@ def make_training_dict(nstars=100, noise=0.03, seed=1234):
                                                         use_true_center=False)
         clean = image.array.copy()
         clean /= np.sum(clean)
-        noisy = clean + noise*np.std(clean)*np_rng.randn(GRID_SIZE, GRID_SIZE)
+        noise_sigma = noise*np.std(clean)
+        noisy = clean + noise_sigma*np_rng.randn(GRID_SIZE, GRID_SIZE)
         noisy /= np.sum(noisy)
+        if with_weights:
+            weight = np.full((GRID_SIZE, GRID_SIZE), 1./noise_sigma**2, dtype=np.float32)
+        else:
+            weight = None
         data['12345_%d_r_%d' % (i % 3, i)] = {
             'star': noisy.astype(np.float32),
+            'weight': weight,
             'starPiff': clean.astype(np.float32),
         }
     return data
@@ -97,6 +105,7 @@ def test_load_training_data():
     for k in data:
         np.testing.assert_array_equal(data1[k]['star'], data2[k]['star'])
         np.testing.assert_array_equal(data1[k]['starPiff'], data2[k]['starPiff'])
+        np.testing.assert_array_equal(data1[k]['weight'], data2[k]['weight'])
 
     # Errors for bad paths.
     with np.testing.assert_raises(FileNotFoundError):
@@ -152,6 +161,67 @@ def test_train_api():
     # attribute accesses above), piff.aimodels.train must still resolve to the
     # config-driven function, not to a submodule shadowing it.
     assert callable(piff.aimodels.train)
+
+
+@requires_torch
+@timer
+def test_train_weighted():
+    """Test the weighted (reduced chi2) loss.
+
+    The synthetic 'starPiff' is the noiseless truth and the weight maps are the
+    true inverse variance of the added noise, so the weighted Piff-baseline loss
+    must come out at ~1 by construction.
+    """
+    os.makedirs('output', exist_ok=True)
+    data = make_training_dict()
+    checkpoint_file = os.path.join('output', 'test_aipsf_weighted.pth')
+
+    torch.manual_seed(1234)
+    train_loader, val_loader = piff.aimodels.create_dataloaders(
+        data, batch_size=32, val_fraction=0.2, seed=42, num_workers=0, use_weights=True)
+
+    model = piff.aimodels.Conv2dAutoEncoder(grid_size=GRID_SIZE, latent_dim=4,
+                                            hidden_channels=2)
+    history = piff.aimodels.train_autoencoder(
+        model, train_loader, val_loader, epochs=2, initial_lr=1e-3, device='cpu',
+        use_weights=True, checkpoint_file=checkpoint_file)
+
+    for key in ['loss_ae_train', 'loss_ae_val', 'loss_piff_train', 'loss_piff_val']:
+        assert len(history[key]) > 0
+        assert np.all(np.isfinite(history[key]))
+
+    # Physics anchor: the reference model is the truth, so its mean reduced chi2
+    # is ~1.  (The unweighted MSE x 1e6 diagnostic would be ~0.02 here, so this
+    # also proves the weighted code path was used.)
+    mean_loss_piff = np.mean(history['loss_piff_train'])
+    print('mean weighted loss_piff = ', mean_loss_piff)
+    assert 0.7 < mean_loss_piff < 1.3
+
+    # The untrained AE is far from the data at the noise level.
+    assert np.mean(history['loss_ae_train'][:3]) > 10.
+
+    # The checkpoint is loadable as usual.
+    net = piff.aimodels.load_autoencoder(checkpoint_file)
+    assert net.latent_dim == 4
+
+    # use_weights=True requires weight maps in the training data.
+    data_noweights = make_training_dict(nstars=10, with_weights=False)
+    with np.testing.assert_raises(ValueError):
+        piff.aimodels.create_dataloaders(data_noweights, batch_size=8, num_workers=0,
+                                         use_weights=True)
+
+    # And the config-driven path passes use_weights through.
+    # (An in-memory data dict is accepted anywhere a path is.)
+    config = {
+        'input': {'file_name': data, 'batch_size': 32, 'val_fraction': 0.2,
+                  'seed': 42, 'num_workers': 0},
+        'model': {'grid_size': GRID_SIZE, 'latent_dim': 4, 'hidden_channels': 2},
+        'training': {'epochs': 1, 'device': 'cpu', 'use_weights': True},
+        'output': {'file_name': checkpoint_file},
+        'verbose': 0,
+    }
+    history2 = piff.aimodels.train(config)
+    assert 0.7 < np.mean(history2['loss_piff_train']) < 1.3
 
 
 @requires_torch
@@ -244,4 +314,5 @@ if __name__ == '__main__':
     else:
         test_load_training_data()
         test_train_api()
+        test_train_weighted()
         test_train_config()
