@@ -28,7 +28,7 @@ _model_attrs = ('Conv2dAutoEncoder', 'ResidualBlockConv', 'SpatialSoftmax',
 # that the submodule, once imported, does not shadow the train() function as
 # the `train` attribute of this package.
 _train_attrs = ('PSFDataset', 'load_training_data', 'create_dataloaders',
-                'train_autoencoder', 'train')
+                'fit_amplitude_background', 'train_autoencoder', 'train')
 
 def __getattr__(name):
     if name in _model_attrs:

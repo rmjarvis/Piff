@@ -38,7 +38,12 @@ For example::
         epochs: 40
         initial_lr: 1.e-3
         scheduler_on_plateau: true
+        scheduler_factor: 0.1
+        scheduler_patience: 5
+        scheduler_threshold: 1.e-3
+        scheduler_min_lr: 1.e-6
         use_weights: false
+        fit_background: false
         device: cuda
     output:
         file_name: Conv2dAutoEncoder.pth
@@ -64,6 +69,24 @@ unmasked pixels.  A model that describes the data at the noise level then has a 
 around 1, and masked pixels are naturally excluded from the fit.  This requires the
 training data to contain the weight maps (older training sets stored ``None``).
 
+With ``fit_background: true``, the per-star model becomes ``a * psf + b``, where the
+amplitude ``a`` and constant background ``b`` are nuisance parameters solved
+analytically per star (a 2x2 weighted linear system, re-evaluated at every step at
+the current network weights, detached from the gradient; see
+:func:`piff.aimodels.fit_amplitude_background`).  This absorbs local background
+over/under-subtraction in the stamps, which the strictly positive SpatialSoftmax
+output could not represent otherwise.  The nuisance fit is applied to the
+autoencoder only, not to the 'starPiff' diagnostic baseline: the PixelGrid model is
+fit per CCD and absorbs local background into its pixel grid by construction, so
+refitting (a, b) on top of it would double-count the correction.
+
+The ``scheduler_*`` options control the ReduceLROnPlateau scheduler used when
+``scheduler_on_plateau`` is true.  Note that the plateau detection uses a *relative*
+improvement threshold: with the default ``scheduler_threshold: 1e-4``, epochs that
+improve the validation loss by more than 0.01% still reset the patience counter, so
+on slowly-improving runs the learning rate may never drop; increase the threshold
+(e.g. ``1e-3``) and/or lower the patience to make it fire.
+
 The output checkpoint file stores the network weights along with the architecture
 hyperparameters, so it can be used directly as the ``model_file`` of an :class:`AIPSF`
 model without repeating the architecture configuration.
@@ -78,6 +101,8 @@ The functionality of the trainify executable is also available from python via
 .. autofunction:: piff.aimodels.create_dataloaders
 
 .. autofunction:: piff.aimodels.load_training_data
+
+.. autofunction:: piff.aimodels.fit_amplitude_background
 
 .. autofunction:: piff.aimodels.save_checkpoint
 

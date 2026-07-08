@@ -33,13 +33,19 @@ requires_torch = pytest.mark.skipif(torch is None, reason="torch is not installe
 GRID_SIZE = 25
 
 
-def make_training_dict(nstars=100, noise=0.03, seed=1234, with_weights=True):
+def make_training_dict(nstars=100, noise=0.03, seed=1234, with_weights=True,
+                       pedestal=0.):
     """Make a synthetic training data dict of noisy Gaussian stamps.
 
     Follows the schema of the training pickles: each record has a 'star' stamp
     normalized to sum to 1, a 'starPiff' reference stamp (here the noiseless
     truth), and a 'weight' map (the true inverse variance of the added noise,
     or None if with_weights is False).
+
+    If pedestal is nonzero, a constant offset of `pedestal * noise_sigma` per
+    pixel is added to the stamps and they are deliberately NOT renormalized:
+    this emulates a local background mis-subtraction (the failure mode the
+    fit_background training option absorbs).
     """
     np_rng = np.random.RandomState(seed)
     data = {}
@@ -52,7 +58,10 @@ def make_training_dict(nstars=100, noise=0.03, seed=1234, with_weights=True):
         clean /= np.sum(clean)
         noise_sigma = noise*np.std(clean)
         noisy = clean + noise_sigma*np_rng.randn(GRID_SIZE, GRID_SIZE)
-        noisy /= np.sum(noisy)
+        if pedestal != 0.:
+            noisy = noisy + pedestal*noise_sigma
+        else:
+            noisy /= np.sum(noisy)
         if with_weights:
             weight = np.full((GRID_SIZE, GRID_SIZE), 1./noise_sigma**2, dtype=np.float32)
         else:
@@ -226,6 +235,68 @@ def test_train_weighted():
 
 @requires_torch
 @timer
+def test_fit_background():
+    """Test the per-star amplitude + background nuisance fit.
+
+    First a direct test of the analytic (a, b) solve, including masked pixels,
+    then an end-to-end training run on stamps with an injected background
+    pedestal, checking that the 'starPiff' baseline is deliberately NOT
+    nuisance-fitted (PixelGrid absorbs background by construction, so the
+    baseline is compared as-is).
+    """
+    # --- Direct test of the analytic solve. ---
+    torch.manual_seed(1234)
+    nstars = 8
+    profile = torch.rand(nstars, 1, GRID_SIZE, GRID_SIZE)
+    profile = profile / profile.sum(dim=(1, 2, 3), keepdim=True)
+    a_true = 0.5 + 2.*torch.rand(nstars)
+    b_true = 1.e-4*torch.randn(nstars)
+    star = a_true.view(-1, 1, 1, 1)*profile + b_true.view(-1, 1, 1, 1)
+    weight = torch.full_like(star, 1.e8)
+
+    a, b = piff.aimodels.fit_amplitude_background(profile, star, weight)
+    np.testing.assert_allclose(a.numpy(), a_true.numpy(), rtol=1.e-5)
+    np.testing.assert_allclose(b.numpy(), b_true.numpy(), rtol=1.e-4, atol=1.e-10)
+
+    # Masked (zero-weight) pixels are ignored by the solve: corrupt them.
+    weight[:, :, :3, :] = 0.
+    star_corrupt = star.clone()
+    star_corrupt[:, :, :3, :] = 1.e3
+    a, b = piff.aimodels.fit_amplitude_background(profile, star_corrupt, weight)
+    np.testing.assert_allclose(a.numpy(), a_true.numpy(), rtol=1.e-5)
+    np.testing.assert_allclose(b.numpy(), b_true.numpy(), rtol=1.e-4, atol=1.e-10)
+
+    # --- End-to-end training on stamps with a 2-sigma background pedestal. ---
+    os.makedirs('output', exist_ok=True)
+    data = make_training_dict(pedestal=2.)
+    checkpoint_file = os.path.join('output', 'test_aipsf_bg.pth')
+
+    # The config-driven path passes fit_background and the scheduler settings
+    # through.
+    torch.manual_seed(1234)
+    config = {
+        'input': {'file_name': data, 'batch_size': 32, 'val_fraction': 0.2,
+                  'seed': 42, 'num_workers': 0},
+        'model': {'grid_size': GRID_SIZE, 'latent_dim': 4, 'hidden_channels': 2},
+        'training': {'epochs': 1, 'device': 'cpu', 'use_weights': True,
+                     'fit_background': True, 'scheduler_on_plateau': True,
+                     'scheduler_patience': 2, 'scheduler_factor': 0.5,
+                     'scheduler_threshold': 1.e-3},
+        'output': {'file_name': checkpoint_file},
+        'verbose': 0,
+    }
+    history = piff.aimodels.train(config)
+    assert np.all(np.isfinite(history['loss_ae_train']))
+
+    # The baseline is compared raw: against the clean truth, the pedestal
+    # inflates its reduced chi2 to ~ 1 + 2^2 = 5, even with fit_background on.
+    loss_piff = np.mean(history['loss_piff_train'])
+    print('raw piff-baseline loss on pedestal data: ', loss_piff)
+    assert loss_piff > 3.
+
+
+@requires_torch
+@timer
 def test_train_config():
     """Test the config-driven train() entry point (what trainify runs), then use the
     resulting checkpoint in a full AIPSF fit.
@@ -315,4 +386,5 @@ if __name__ == '__main__':
         test_load_training_data()
         test_train_api()
         test_train_weighted()
+        test_fit_background()
         test_train_config()

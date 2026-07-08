@@ -176,8 +176,43 @@ def create_dataloaders(data, batch_size=8192, val_fraction=0.1, shuffle=True, se
     return train_loader, val_loader
 
 
+def fit_amplitude_background(profile, star, weight):
+    """Solve, per star, for the amplitude and constant background in
+    star ~ a * profile + b, by weighted least squares.
+
+    The normal equations for chi2 = sum_pixels w * (star - a*profile - b)^2 are::
+
+        [S_pp  S_p] [a]   [S_py]
+        [S_p   S_w] [b] = [S_y ]
+
+    with S_w = sum(w), S_p = sum(w*p), S_pp = sum(w*p^2), S_y = sum(w*y),
+    S_py = sum(w*p*y).  The profile is detached, so (a, b) are constants for
+    a backward pass (envelope theorem: exact at the (a, b) optimum).
+
+    :param profile:     Tensor of shape (B, 1, N, N), the model stamps.
+    :param star:        Tensor of shape (B, 1, N, N), the data stamps.
+    :param weight:      Tensor of shape (B, 1, N, N), the per-pixel weights
+                        (inverse variance; zero for masked pixels).
+
+    :returns: (a, b), tensors of shape (B,).
+    """
+    p = profile.detach()
+    dims = (1, 2, 3)
+    S_w = weight.sum(dim=dims)
+    S_p = (weight * p).sum(dim=dims)
+    S_pp = (weight * p * p).sum(dim=dims)
+    S_y = (weight * star).sum(dim=dims)
+    S_py = (weight * p * star).sum(dim=dims)
+    det = (S_pp * S_w - S_p * S_p).clamp(min=1e-30)
+    a = (S_w * S_py - S_p * S_y) / det
+    b = (S_pp * S_y - S_p * S_py) / det
+    return a, b
+
+
 def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-3,
                       device=None, scheduler_on_plateau=False, use_weights=False,
+                      fit_background=False, scheduler_factor=0.1, scheduler_patience=10,
+                      scheduler_threshold=1e-4, scheduler_min_lr=1e-6,
                       checkpoint_file='autoencoder.pth', logger=None):
     """Train an autoencoder on PSF stamps and save the result as a checkpoint file.
 
@@ -194,9 +229,22 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
     pixels are naturally excluded.  (The batches must contain weight maps, i.e.
     the DataLoaders must be built with use_weights=True as well.)
 
-    In both cases, the same loss evaluated for the reference PSF model prediction
-    ('starPiff') is also tracked as a diagnostic baseline, but does not enter the
-    training.
+    With fit_background=True, the per-star model is a * psf + b, where psf is
+    the decoded stamp and the amplitude a and constant background b are nuisance
+    parameters solved analytically per star (a 2x2 weighted linear system) at
+    the current network weights, re-evaluated at every step.  The solve is
+    detached from the graph: at the (a, b) optimum the gradient with respect to
+    the network equals the fixed-(a, b) gradient (envelope theorem).  This
+    absorbs local background over/under-subtraction, which the strictly
+    positive SpatialSoftmax output cannot represent (an over-subtracted
+    background gives negative wing pixels).
+
+    In all cases, the same loss evaluated for the reference PSF model prediction
+    ('starPiff') is also tracked as a diagnostic baseline, but does not enter
+    the training.  The nuisance fit is NOT applied to the baseline: the
+    PixelGrid model is fit per CCD and absorbs local background into its
+    pixel grid by construction, so refitting (a, b) on top of it would
+    double-count the correction.
 
     The checkpoint is written with :func:`piff.aimodels.save_checkpoint`, so it can
     be used directly by the AIPSF model.
@@ -209,10 +257,21 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
     :param device:                  The torch device to train on.  [default: None, which
                                     means use 'cuda' if available, else 'cpu']
     :param scheduler_on_plateau:    Whether to use a ReduceLROnPlateau scheduler on the
-                                    validation loss (factor=0.1, patience=10, min_lr=1e-6).
-                                    [default: False]
+                                    validation loss. [default: False]
     :param use_weights:             Whether to use the weighted (reduced chi2) loss
                                     instead of the scaled MSE. [default: False]
+    :param fit_background:          Whether to fit a per-star amplitude and constant
+                                    background (model = a * psf + b) as nuisance
+                                    parameters in the loss. [default: False]
+    :param scheduler_factor:        ReduceLROnPlateau lr reduction factor. [default: 0.1]
+    :param scheduler_patience:      ReduceLROnPlateau patience, in epochs without
+                                    sufficient improvement. [default: 10]
+    :param scheduler_threshold:     ReduceLROnPlateau relative improvement threshold;
+                                    an epoch only counts as an improvement if the
+                                    validation loss drops by more than this fraction.
+                                    [default: 1e-4]
+    :param scheduler_min_lr:        ReduceLROnPlateau lower bound on the lr.
+                                    [default: 1e-6]
     :param checkpoint_file:         The output checkpoint file name. [default: 'autoencoder.pth']
     :param logger:                  A logger object for logging progress. [default: None]
 
@@ -223,8 +282,8 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
 
     if device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    logger.warning("Training on device %s for %d epochs (use_weights=%s)",
-                   device, epochs, use_weights)
+    logger.warning("Training on device %s for %d epochs (use_weights=%s, "
+                   "fit_background=%s)", device, epochs, use_weights, fit_background)
 
     # Scale the MSE loss for numerical convenience: normalized 25x25 stamps have
     # typical pixel values of order 1e-3, so the raw MSE values are tiny.
@@ -235,20 +294,37 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
     optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
     criterion = nn.MSELoss()
 
+    def with_nuisance(profile, star, w):
+        """Return the per-star model a * profile + b, with (a, b) from
+        `fit_amplitude_background` at the current network weights.
+        """
+        if not fit_background:
+            return profile
+        a, b = fit_amplitude_background(profile, star, w)
+        return a.view(-1, 1, 1, 1) * profile + b.view(-1, 1, 1, 1)
+
     def compute_losses(inputs, outputs, target_piff, batch):
+        # Note: the nuisance fit is applied to the autoencoder output only.
+        # The 'starPiff' baseline is compared as-is (PixelGrid absorbs local
+        # background into its model by construction).
         if use_weights:
             w = batch['weight'].to(device)
             n_good = (w > 0).sum(dim=(1, 2, 3)).clamp(min=1)
-            loss_ae = ((w * (outputs - inputs)**2).sum(dim=(1, 2, 3)) / n_good).mean()
+            model_ae = with_nuisance(outputs, inputs, w)
+            loss_ae = ((w * (model_ae - inputs)**2).sum(dim=(1, 2, 3)) / n_good).mean()
             loss_piff = ((w * (target_piff - inputs)**2).sum(dim=(1, 2, 3)) / n_good).mean()
         else:
-            loss_ae = criterion(outputs, inputs) * k
+            ones = torch.ones_like(inputs)
+            model_ae = with_nuisance(outputs, inputs, ones)
+            loss_ae = criterion(model_ae, inputs) * k
             loss_piff = criterion(target_piff, inputs) * k
         return loss_ae, loss_piff
 
     if scheduler_on_plateau:
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode='min', factor=0.1, patience=10, min_lr=1e-6)
+            optimizer, mode='min', factor=scheduler_factor,
+            patience=scheduler_patience, threshold=scheduler_threshold,
+            min_lr=scheduler_min_lr)
 
     history = {
         'loss_ae_train': [],
@@ -328,8 +404,17 @@ def train(config, logger=None):
             epochs: 40                  # [default: 10]
             initial_lr: 1.e-3           # [default: 1e-3]
             scheduler_on_plateau: true  # [default: False]
+            scheduler_factor: 0.1       # lr reduction factor [default: 0.1]
+            scheduler_patience: 5       # epochs without improvement before
+                                        # reducing the lr [default: 10]
+            scheduler_threshold: 1.e-3  # relative improvement threshold for the
+                                        # plateau detection [default: 1e-4]
+            scheduler_min_lr: 1.e-6     # [default: 1e-6]
             use_weights: false          # weighted (reduced chi2) loss; needs weight
                                         # maps in the training data [default: False]
+            fit_background: false       # per-star amplitude + constant background
+                                        # nuisance (model = a*psf + b), solved
+                                        # analytically per star [default: False]
             device: cuda                # [default: cuda if available, else cpu]
         output:
             file_name: Conv2dAutoEncoder.pth
@@ -393,6 +478,11 @@ def train(config, logger=None):
         device=training_config.get('device', None),
         scheduler_on_plateau=training_config.get('scheduler_on_plateau', False),
         use_weights=use_weights,
+        fit_background=training_config.get('fit_background', False),
+        scheduler_factor=training_config.get('scheduler_factor', 0.1),
+        scheduler_patience=training_config.get('scheduler_patience', 10),
+        scheduler_threshold=training_config.get('scheduler_threshold', 1e-4),
+        scheduler_min_lr=training_config.get('scheduler_min_lr', 1e-6),
         checkpoint_file=output_config['file_name'],
         logger=logger)
 
