@@ -94,8 +94,37 @@ def test_checkpoint_roundtrip():
         z2 = net2.encoder(stamp).numpy()
     np.testing.assert_array_equal(z1, z2)
 
-    # The decoder output is normalized by the SpatialSoftmax, so it sums to 1.
+    # The decoder output is normalized (SpatialSoftmax + ZeroFloor), so it
+    # sums to 1 and has an exactly zero floor.
     np.testing.assert_allclose(np.sum(image1), 1., rtol=1.e-6)
+    np.testing.assert_allclose(np.min(image1), 0., atol=1.e-12)
+    assert net2.zero_floor is True
+
+    # The zero_floor=False variant has the same state-dict keys (both final
+    # layers are parameterless) and a strictly positive floor (softmax only).
+    file_name2 = os.path.join('output', 'test_aipsf_ckpt_nofloor.pth')
+    torch.manual_seed(1234)
+    net3 = piff.aimodels.Conv2dAutoEncoder(grid_size=GRID_SIZE, latent_dim=latent_dim,
+                                           hidden_channels=hidden_channels,
+                                           zero_floor=False)
+    net3.eval()
+    piff.aimodels.save_checkpoint(net3, file_name2)
+    net4 = piff.aimodels.load_autoencoder(file_name2)
+    assert net4.zero_floor is False
+    with torch.no_grad():
+        image3 = net4.decoder(z).numpy()
+    assert np.min(image3) > 0.
+    np.testing.assert_allclose(np.sum(image3), 1., rtol=1.e-6)
+
+    # A checkpoint without the 'zero_floor' key (written before the projection
+    # existed) loads with zero_floor=False, reproducing its training-time
+    # behavior.
+    legacy = torch.load(file_name, map_location='cpu')
+    del legacy['zero_floor']
+    file_name3 = os.path.join('output', 'test_aipsf_ckpt_legacy.pth')
+    torch.save(legacy, file_name3)
+    net5 = piff.aimodels.load_autoencoder(file_name3)
+    assert net5.zero_floor is False
 
 
 @requires_torch
@@ -124,6 +153,9 @@ def test_grid_sizes():
         assert z.shape == (1, 4)
         assert recon.shape == (1, 1, grid_size, grid_size)
         np.testing.assert_allclose(recon.numpy().sum(), 1., rtol=1.e-6)
+        # Non-negative with an exactly zero floor (ZeroFloor projection).
+        assert recon.min().item() >= 0.
+        np.testing.assert_allclose(recon.numpy().min(), 0., atol=1.e-12)
 
     # And the full AIPSF path works with a non-default grid size.
     grid_size = 19

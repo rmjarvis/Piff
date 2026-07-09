@@ -23,7 +23,7 @@ imported lazily on first attribute access (PEP 562).
 """
 
 _model_attrs = ('Conv2dAutoEncoder', 'ResidualBlockConv', 'SpatialSoftmax',
-                'save_checkpoint', 'load_autoencoder')
+                'ZeroFloor', 'save_checkpoint', 'load_autoencoder')
 # Note: these live in the `training` submodule; it is not called `train` so
 # that the submodule, once imported, does not shadow the train() function as
 # the `train` attribute of this package.

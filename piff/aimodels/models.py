@@ -70,12 +70,39 @@ class SpatialSoftmax(nn.Module):
         return x
 
 
+class ZeroFloor(nn.Module):
+    """Subtract the per-sample minimum and renormalize to unit sum.
+
+    Applied after the SpatialSoftmax, this pins the constant floor of the
+    decoded stamp to zero by construction.  Without it, a uniform pedestal in
+    the decoded PSF is exactly degenerate with the per-star amplitude and
+    background nuisance parameters of the training loss (a decoded stamp
+    p = (1-eps)*q + eps/Npix fits the data identically for any eps, with a and
+    b compensating), so nothing pushes the network toward a clean PSF, and the
+    pedestal would survive into inference where no background term exists.
+
+    The convention adopted is: the PSF model has zero floor at the stamp
+    minimum (in practice a corner), and any constant offset belongs to the
+    background.  This subtracts the (small) true corner surface brightness of
+    the PSF wings along with the pedestal — a far smaller bias than the
+    pedestal it removes.
+    """
+    def forward(self, x):
+        b, c, h, w = x.shape
+        x = x.view(b, -1)
+        x = x - x.min(dim=1, keepdim=True).values
+        x = x / x.sum(dim=1, keepdim=True).clamp(min=1e-12)
+        return x.view(b, c, h, w)
+
+
 class Conv2dAutoEncoder(nn.Module):
     """A convolutional autoencoder for PSF stamps.
 
     The encoder maps a flux-normalized PSF stamp of shape (grid_size, grid_size)
     to a latent vector of dimension latent_dim.  The decoder maps a latent
-    vector back to a stamp, normalized to sum to 1 by a final SpatialSoftmax.
+    vector back to a stamp that is non-negative and sums to 1 (a final
+    SpatialSoftmax), with the constant floor additionally pinned to zero by a
+    ZeroFloor projection when zero_floor is True (recommended; see ZeroFloor).
 
     The two stride-2 stages of the encoder downsample the stamp as
     grid_size -> (grid_size-1)/2 -> ceil((grid_size-1)/4) (e.g. 25 -> 12 -> 6),
@@ -90,8 +117,11 @@ class Conv2dAutoEncoder(nn.Module):
     :param hidden_channels: The number of channels after the first convolution.
                             Subsequent encoder stages use 2x and 4x this number.
                             [default: 32]
+    :param zero_floor:      Whether to end the decoder with the ZeroFloor
+                            projection.  [default: True]
     """
-    def __init__(self, grid_size=25, latent_dim=3, hidden_channels=32):
+    def __init__(self, grid_size=25, latent_dim=3, hidden_channels=32,
+                 zero_floor=True):
         super().__init__()
 
         if grid_size % 2 != 1 or grid_size < 5:
@@ -101,6 +131,7 @@ class Conv2dAutoEncoder(nn.Module):
         self.grid_size = grid_size
         self.latent_dim = latent_dim
         self.hidden_channels = hidden_channels
+        self.zero_floor = zero_floor
 
         # Spatial sizes after the two stride-2 downsampling stages:
         #   down1: Conv2d(k=3, s=2, p=0):  n -> (n-1)/2      (n odd)
@@ -184,7 +215,12 @@ class Conv2dAutoEncoder(nn.Module):
 
             # Final reconstruction
             nn.Conv2d(hidden_channels, 1, kernel_size=3, padding=1),
-            SpatialSoftmax()
+            SpatialSoftmax(),
+            # Pin the constant floor of the stamp to zero (see ZeroFloor):
+            # breaks the degeneracy between a decoded pedestal and the
+            # fit_background nuisance parameters.  (Both options are
+            # parameterless, so the state dict is the same either way.)
+            ZeroFloor() if zero_floor else nn.Identity()
         )
 
     def forward(self, x):
@@ -207,6 +243,7 @@ def save_checkpoint(model, file_name):
         'grid_size': model.grid_size,
         'latent_dim': model.latent_dim,
         'hidden_channels': model.hidden_channels,
+        'zero_floor': model.zero_floor,
         'model_type': 'Conv2dAutoEncoder',
         'piff_version': __version__,
     }, file_name)
@@ -245,15 +282,21 @@ def load_autoencoder(file_name, device='cpu', logger=None):
     if model_type != 'Conv2dAutoEncoder':
         raise ValueError("Checkpoint file %s has unknown model_type %r." % (file_name, model_type))
 
+    # Checkpoints written before the ZeroFloor projection existed have no
+    # 'zero_floor' key; they were trained without it, so default to False to
+    # reproduce their training-time behavior exactly.
+    zero_floor = checkpoint.get('zero_floor', False)
+
     net = Conv2dAutoEncoder(grid_size=checkpoint['grid_size'],
                             latent_dim=checkpoint['latent_dim'],
-                            hidden_channels=checkpoint['hidden_channels'])
+                            hidden_channels=checkpoint['hidden_channels'],
+                            zero_floor=zero_floor)
     net.load_state_dict(checkpoint['model_state_dict'])
     net.to(device)
     net.eval()
 
     if logger:
         logger.debug("Loaded Conv2dAutoEncoder from %s: grid_size=%d, latent_dim=%d, "
-                     "hidden_channels=%d", file_name, net.grid_size, net.latent_dim,
-                     net.hidden_channels)
+                     "hidden_channels=%d, zero_floor=%s", file_name, net.grid_size,
+                     net.latent_dim, net.hidden_channels, net.zero_floor)
     return net
