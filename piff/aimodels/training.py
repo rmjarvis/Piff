@@ -400,6 +400,8 @@ def train(config, logger=None):
             grid_size: 25               # [default: 25]
             latent_dim: 64              # [default: 64]
             hidden_channels: 16         # [default: 16]
+            zero_floor: true            # end the decoder with the ZeroFloor
+                                        # projection [default: True]
         training:
             epochs: 40                  # [default: 10]
             initial_lr: 1.e-3           # [default: 1e-3]
@@ -465,11 +467,13 @@ def train(config, logger=None):
     model = Conv2dAutoEncoder(
         grid_size=model_config.get('grid_size', 25),
         latent_dim=model_config.get('latent_dim', 64),
-        hidden_channels=model_config.get('hidden_channels', 16))
+        hidden_channels=model_config.get('hidden_channels', 16),
+        zero_floor=model_config.get('zero_floor', True))
     n_params = sum(p.numel() for p in model.parameters())
     logger.warning("Built Conv2dAutoEncoder with grid_size=%d, latent_dim=%d, "
-                   "hidden_channels=%d (%d parameters)",
-                   model.grid_size, model.latent_dim, model.hidden_channels, n_params)
+                   "hidden_channels=%d, zero_floor=%s (%d parameters)",
+                   model.grid_size, model.latent_dim, model.hidden_channels,
+                   model.zero_floor, n_params)
 
     history = train_autoencoder(
         model, train_loader, val_loader,

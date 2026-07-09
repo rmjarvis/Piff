@@ -34,6 +34,7 @@ For example::
         grid_size: 25
         latent_dim: 64
         hidden_channels: 16
+        zero_floor: true
     training:
         epochs: 40
         initial_lr: 1.e-3
@@ -78,7 +79,14 @@ over/under-subtraction in the stamps, which the strictly positive SpatialSoftmax
 output could not represent otherwise.  The nuisance fit is applied to the
 autoencoder only, not to the 'starPiff' diagnostic baseline: the PixelGrid model is
 fit per CCD and absorbs local background into its pixel grid by construction, so
-refitting (a, b) on top of it would double-count the correction.
+refitting (a, b) on top of it would double-count the correction.  With
+``zero_floor: true`` (the default), the decoded stamp has a zero floor by
+construction (the decoder ends with a ``ZeroFloor`` projection), which breaks the
+otherwise-exact degeneracy between a constant pedestal in the decoded PSF and the
+(a, b) nuisance parameters.  The flag is stored in the checkpoint, so
+:func:`piff.aimodels.load_autoencoder` (and hence the AIPSF model) rebuilds the
+trained variant; checkpoints written before the flag existed load as
+``zero_floor=False``, reproducing their training-time behavior.
 
 The ``scheduler_*`` options control the ReduceLROnPlateau scheduler used when
 ``scheduler_on_plateau`` is true.  Note that the plateau detection uses a *relative*

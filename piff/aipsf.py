@@ -217,6 +217,7 @@ class AIPSF(Model):
 
         gs_image = galsim.Image(output_image, scale=self.scale)
 
-        # The output of the decoder is normalized (SpatialSoftmax), so flux=1.
+        # The output of the decoder is normalized (SpatialSoftmax + ZeroFloor),
+        # so it has zero floor and flux=1.
         prof = galsim.InterpolatedImage(gs_image, normalization='flux', flux=1.0)
         return prof
