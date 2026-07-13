@@ -170,6 +170,15 @@ class AIPSF(Model):
         by the reflux step of the PSF fitting.  The chisq and dof of the fit are
         computed so outlier rejection and convergence bookkeeping work as usual.
 
+        In addition, the per-star amplitude and local background of the model,
+        i.e. (a, b) in data ~ a * psf + b with psf the unit-flux decoded model,
+        are solved analytically (weighted least squares, same normal equations
+        as :func:`piff.aimodels.fit_amplitude_background`) and stored in
+        ``star.data.properties`` as 'aipsf_a' and 'aipsf_b', in image counts,
+        for downstream diagnostics.  They are recomputed at each fit iteration
+        (the final values persist); reserve stars never go through fit, so they
+        do not get these properties.
+
         :param star:            A Star instance
         :param logger:          A logger object for logging debug info. [default: None]
         :param convert_func:    An optional function to apply to the profile being fit.
@@ -192,6 +201,21 @@ class AIPSF(Model):
         data, weight, u, v = star.data.getDataVector()
         chisq = np.sum(weight * (data - model)**2)
         dof = np.count_nonzero(weight) - self.latent_dim
+
+        # Solve per star for the amplitude and local background in
+        # data ~ a * psf + b, with psf the unit-flux drawn model, by weighted
+        # least squares (same normal equations as
+        # piff.aimodels.fit_amplitude_background).  Stored as star properties
+        # (in image counts) for downstream diagnostics.
+        psf_unit = model / star.fit.flux
+        S_w = np.sum(weight)
+        S_p = np.sum(weight * psf_unit)
+        S_pp = np.sum(weight * psf_unit**2)
+        S_y = np.sum(weight * data)
+        S_py = np.sum(weight * psf_unit * data)
+        det = max(S_pp * S_w - S_p * S_p, 1.e-30)
+        star.data.properties['aipsf_a'] = float((S_w * S_py - S_p * S_y) / det)
+        star.data.properties['aipsf_b'] = float((S_pp * S_y - S_p * S_py) / det)
 
         fit = star.fit.newParams(params, num=self._num, chisq=chisq, dof=dof)
         return Star(star.data, fit)
