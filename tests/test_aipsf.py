@@ -207,6 +207,21 @@ def test_aipsf_model():
     assert star.fit.chisq >= 0.
     assert star.fit.dof == GRID_SIZE**2 - latent_dim
 
+    # fit() stores the per-star amplitude/background nuisance parameters.
+    a = star.data.properties['aipsf_a']
+    b = star.data.properties['aipsf_b']
+    assert np.isfinite(a)
+    assert np.isfinite(b)
+    # They solve the weighted normal equations: the residual of a*psf + b is
+    # orthogonal to the psf and to a constant.
+    drawn = mod.draw(star)
+    psf_unit = drawn.image.array.ravel() / star.fit.flux
+    data, weight, _, _ = star.data.getDataVector()
+    resid = data - a*psf_unit - b
+    scale = np.sqrt(np.sum(weight * data**2) * np.sum(weight * psf_unit**2))
+    assert abs(np.sum(weight * resid * psf_unit)) < 1.e-8 * scale
+    assert abs(np.sum(weight * resid)) < 1.e-8 * np.sqrt(np.sum(weight * data**2) * np.sum(weight))
+
     # The encoder is deterministic, so fit after initialize gives the same params.
     star2 = mod.initialize(star)
     np.testing.assert_array_equal(star.fit.params, star2.fit.params)
