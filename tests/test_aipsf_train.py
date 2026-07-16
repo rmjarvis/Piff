@@ -272,6 +272,23 @@ def test_fit_background():
     # (the absolute error is ~1e-9 counts).
     np.testing.assert_allclose(b.numpy(), b_true.numpy(), rtol=1.e-3, atol=1.e-9)
 
+    # 'normalized' mode: one parameter, the amplitude tied by the stamp sums
+    # (a = S - N*b, with S = sum(star); S = 1 for normalized training stamps).
+    n_pix = GRID_SIZE*GRID_SIZE
+    b_true_c = 1.e-5*torch.randn(nstars)
+    star_c = ((1. - n_pix*b_true_c).view(-1, 1, 1, 1)*profile
+              + b_true_c.view(-1, 1, 1, 1))
+    weight_c = torch.full_like(star_c, 1.e8)
+    a, b = piff.aimodels.fit_amplitude_background(profile, star_c, weight_c,
+                                                  mode='normalized')
+    np.testing.assert_allclose(b.numpy(), b_true_c.numpy(), rtol=1.e-3, atol=1.e-9)
+    S = star_c.sum(dim=(1, 2, 3))
+    np.testing.assert_allclose((a + n_pix*b).numpy(), S.numpy(), rtol=1.e-5)
+
+    with np.testing.assert_raises(ValueError):
+        piff.aimodels.fit_amplitude_background(profile, star_c, weight_c,
+                                               mode='banana')
+
     # --- End-to-end training on stamps with a 2-sigma background pedestal. ---
     os.makedirs('output', exist_ok=True)
     data = make_training_dict(pedestal=2.)
@@ -285,7 +302,8 @@ def test_fit_background():
                   'seed': 42, 'num_workers': 0},
         'model': {'grid_size': GRID_SIZE, 'latent_dim': 4, 'hidden_channels': 2},
         'training': {'epochs': 1, 'device': 'cpu', 'use_weights': True,
-                     'fit_background': True, 'scheduler_on_plateau': True,
+                     'fit_background': True, 'fit_background_mode': 'normalized',
+                     'scheduler_on_plateau': True,
                      'scheduler_patience': 2, 'scheduler_factor': 0.5,
                      'scheduler_threshold': 1.e-3},
         'output': {'file_name': checkpoint_file},

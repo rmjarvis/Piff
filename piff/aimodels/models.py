@@ -119,9 +119,18 @@ class Conv2dAutoEncoder(nn.Module):
                             [default: 32]
     :param zero_floor:      Whether to end the decoder with the ZeroFloor
                             projection.  [default: True]
+    :param latent_norm:     Whether to end the encoder with an affine-free
+                            BatchNorm1d over the latent components.  The latents
+                            are then standardized over the training population
+                            (~sigma units; running statistics at eval time),
+                            which makes them interpretable and keeps the
+                            per-component focal-plane interpolation
+                            well-conditioned.  The decoder's first Linear can
+                            absorb any affine transform, so this costs no
+                            capacity.  [default: True]
     """
     def __init__(self, grid_size=25, latent_dim=3, hidden_channels=32,
-                 zero_floor=True):
+                 zero_floor=True, latent_norm=True):
         super().__init__()
 
         if grid_size % 2 != 1 or grid_size < 5:
@@ -132,6 +141,7 @@ class Conv2dAutoEncoder(nn.Module):
         self.latent_dim = latent_dim
         self.hidden_channels = hidden_channels
         self.zero_floor = zero_floor
+        self.latent_norm = latent_norm
 
         # Spatial sizes after the two stride-2 downsampling stages:
         #   down1: Conv2d(k=3, s=2, p=0):  n -> (n-1)/2      (n odd)
@@ -184,7 +194,12 @@ class Conv2dAutoEncoder(nn.Module):
 
             # Flatten and Linear
             nn.Flatten(),
-            nn.Linear(flatten_dim, latent_dim)
+            nn.Linear(flatten_dim, latent_dim),
+            # Standardize the latent components (affine-free, so the latents
+            # stay in ~sigma units; the decoder's first Linear absorbs any
+            # affine).  Note: unlike ZeroFloor, BatchNorm has buffers, so the
+            # state dicts of the two variants are NOT interchangeable.
+            nn.BatchNorm1d(latent_dim, affine=False) if latent_norm else nn.Identity()
         )
 
         # --- Decoder ---
@@ -244,6 +259,7 @@ def save_checkpoint(model, file_name):
         'latent_dim': model.latent_dim,
         'hidden_channels': model.hidden_channels,
         'zero_floor': model.zero_floor,
+        'latent_norm': model.latent_norm,
         'model_type': 'Conv2dAutoEncoder',
         'piff_version': __version__,
     }, file_name)
@@ -282,21 +298,25 @@ def load_autoencoder(file_name, device='cpu', logger=None):
     if model_type != 'Conv2dAutoEncoder':
         raise ValueError("Checkpoint file %s has unknown model_type %r." % (file_name, model_type))
 
-    # Checkpoints written before the ZeroFloor projection existed have no
-    # 'zero_floor' key; they were trained without it, so default to False to
-    # reproduce their training-time behavior exactly.
+    # Checkpoints written before the ZeroFloor projection / latent BatchNorm
+    # existed have no 'zero_floor' / 'latent_norm' keys; they were trained
+    # without them, so default to False to reproduce their training-time
+    # architecture exactly.
     zero_floor = checkpoint.get('zero_floor', False)
+    latent_norm = checkpoint.get('latent_norm', False)
 
     net = Conv2dAutoEncoder(grid_size=checkpoint['grid_size'],
                             latent_dim=checkpoint['latent_dim'],
                             hidden_channels=checkpoint['hidden_channels'],
-                            zero_floor=zero_floor)
+                            zero_floor=zero_floor,
+                            latent_norm=latent_norm)
     net.load_state_dict(checkpoint['model_state_dict'])
     net.to(device)
     net.eval()
 
     if logger:
         logger.debug("Loaded Conv2dAutoEncoder from %s: grid_size=%d, latent_dim=%d, "
-                     "hidden_channels=%d, zero_floor=%s", file_name, net.grid_size,
-                     net.latent_dim, net.hidden_channels, net.zero_floor)
+                     "hidden_channels=%d, zero_floor=%s, latent_norm=%s", file_name,
+                     net.grid_size, net.latent_dim, net.hidden_channels,
+                     net.zero_floor, net.latent_norm)
     return net
