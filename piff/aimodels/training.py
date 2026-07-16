@@ -176,42 +176,71 @@ def create_dataloaders(data, batch_size=8192, val_fraction=0.1, shuffle=True, se
     return train_loader, val_loader
 
 
-def fit_amplitude_background(profile, star, weight):
+def fit_amplitude_background(profile, star, weight, mode='free'):
     """Solve, per star, for the amplitude and constant background in
     star ~ a * profile + b, by weighted least squares.
 
-    The normal equations for chi2 = sum_pixels w * (star - a*profile - b)^2 are::
+    Two modes:
 
-        [S_pp  S_p] [a]   [S_py]
-        [S_p   S_w] [b] = [S_y ]
+    - 'free': a and b are both free parameters; the normal equations for
+      chi2 = sum_pixels w * (star - a*profile - b)^2 are::
 
-    with S_w = sum(w), S_p = sum(w*p), S_pp = sum(w*p^2), S_y = sum(w*y),
-    S_py = sum(w*p*y).  The profile is detached, so (a, b) are constants for
-    a backward pass (envelope theorem: exact at the (a, b) optimum).
+          [S_pp  S_p] [a]   [S_py]
+          [S_p   S_w] [b] = [S_y ]
 
-    :param profile:     Tensor of shape (B, 1, N, N), the model stamps.
+      with S_w = sum(w), S_p = sum(w*p), S_pp = sum(w*p^2), S_y = sum(w*y),
+      S_py = sum(w*p*y).
+
+    - 'normalized': one free parameter.  If the data stamp is the model stamp
+      plus a constant background, the stamp sums tie the amplitude to the
+      background: sum(star) = a*sum(profile) + N*b with sum(profile) = 1, so
+      a = S - N*b with S = sum(star) and N the number of pixels per stamp
+      (for the sum-normalized training stamps, S = 1 exactly).  Substituting
+      leaves star - S*profile = b*(1 - N*profile), solved by weighted least
+      squares on the basis q = 1 - N*profile::
+
+          b = sum(w*(star - S*profile)*q) / sum(w*q^2),   a = S - N*b
+
+    The profile is detached, so (a, b) are constants for a backward pass
+    (envelope theorem: exact at the (a, b) optimum).
+
+    :param profile:     Tensor of shape (B, 1, N, N), the model stamps
+                        (summing to 1).
     :param star:        Tensor of shape (B, 1, N, N), the data stamps.
     :param weight:      Tensor of shape (B, 1, N, N), the per-pixel weights
                         (inverse variance; zero for masked pixels).
+    :param mode:        'free' or 'normalized'. [default: 'free']
 
     :returns: (a, b), tensors of shape (B,).
     """
     p = profile.detach()
     dims = (1, 2, 3)
-    S_w = weight.sum(dim=dims)
-    S_p = (weight * p).sum(dim=dims)
-    S_pp = (weight * p * p).sum(dim=dims)
-    S_y = (weight * star).sum(dim=dims)
-    S_py = (weight * p * star).sum(dim=dims)
-    det = (S_pp * S_w - S_p * S_p).clamp(min=1e-30)
-    a = (S_w * S_py - S_p * S_y) / det
-    b = (S_pp * S_y - S_p * S_py) / det
+    if mode == 'free':
+        S_w = weight.sum(dim=dims)
+        S_p = (weight * p).sum(dim=dims)
+        S_pp = (weight * p * p).sum(dim=dims)
+        S_y = (weight * star).sum(dim=dims)
+        S_py = (weight * p * star).sum(dim=dims)
+        det = (S_pp * S_w - S_p * S_p).clamp(min=1e-30)
+        a = (S_w * S_py - S_p * S_y) / det
+        b = (S_pp * S_y - S_p * S_py) / det
+    elif mode == 'normalized':
+        n_pix = p[0].numel()
+        S = star.sum(dim=dims)
+        q = 1. - n_pix * p
+        resid = star - S.view(-1, 1, 1, 1) * p
+        b = ((weight * resid * q).sum(dim=dims)
+             / (weight * q * q).sum(dim=dims).clamp(min=1e-30))
+        a = S - n_pix * b
+    else:
+        raise ValueError("mode must be 'free' or 'normalized'; got %r" % (mode,))
     return a, b
 
 
 def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-3,
                       device=None, scheduler_on_plateau=False, use_weights=False,
-                      fit_background=False, scheduler_factor=0.1, scheduler_patience=10,
+                      fit_background=False, fit_background_mode='free',
+                      scheduler_factor=0.1, scheduler_patience=10,
                       scheduler_threshold=1e-4, scheduler_min_lr=1e-6,
                       checkpoint_file='autoencoder.pth', logger=None):
     """Train an autoencoder on PSF stamps and save the result as a checkpoint file.
@@ -263,6 +292,10 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
     :param fit_background:          Whether to fit a per-star amplitude and constant
                                     background (model = a * psf + b) as nuisance
                                     parameters in the loss. [default: False]
+    :param fit_background_mode:     'free' (a and b both free) or 'normalized'
+                                    (one parameter, a = 1 - Npix*b via the stamp-sum
+                                    constraint; see `fit_amplitude_background`).
+                                    [default: 'free']
     :param scheduler_factor:        ReduceLROnPlateau lr reduction factor. [default: 0.1]
     :param scheduler_patience:      ReduceLROnPlateau patience, in epochs without
                                     sufficient improvement. [default: 10]
@@ -283,7 +316,8 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
     if device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logger.warning("Training on device %s for %d epochs (use_weights=%s, "
-                   "fit_background=%s)", device, epochs, use_weights, fit_background)
+                   "fit_background=%s, fit_background_mode=%s)",
+                   device, epochs, use_weights, fit_background, fit_background_mode)
 
     # Scale the MSE loss for numerical convenience: normalized 25x25 stamps have
     # typical pixel values of order 1e-3, so the raw MSE values are tiny.
@@ -300,7 +334,7 @@ def train_autoencoder(model, train_loader, val_loader, epochs=10, initial_lr=1e-
         """
         if not fit_background:
             return profile
-        a, b = fit_amplitude_background(profile, star, w)
+        a, b = fit_amplitude_background(profile, star, w, mode=fit_background_mode)
         return a.view(-1, 1, 1, 1) * profile + b.view(-1, 1, 1, 1)
 
     def compute_losses(inputs, outputs, target_piff, batch):
@@ -402,6 +436,8 @@ def train(config, logger=None):
             hidden_channels: 16         # [default: 16]
             zero_floor: true            # end the decoder with the ZeroFloor
                                         # projection [default: True]
+            latent_norm: true           # end the encoder with an affine-free
+                                        # BatchNorm over the latents [default: True]
         training:
             epochs: 40                  # [default: 10]
             initial_lr: 1.e-3           # [default: 1e-3]
@@ -417,6 +453,9 @@ def train(config, logger=None):
             fit_background: false       # per-star amplitude + constant background
                                         # nuisance (model = a*psf + b), solved
                                         # analytically per star [default: False]
+            fit_background_mode: free   # 'free' (a, b both free) or 'normalized'
+                                        # (one parameter, a = 1 - Npix*b)
+                                        # [default: free]
             device: cuda                # [default: cuda if available, else cpu]
         output:
             file_name: Conv2dAutoEncoder.pth
@@ -468,12 +507,13 @@ def train(config, logger=None):
         grid_size=model_config.get('grid_size', 25),
         latent_dim=model_config.get('latent_dim', 64),
         hidden_channels=model_config.get('hidden_channels', 16),
-        zero_floor=model_config.get('zero_floor', True))
+        zero_floor=model_config.get('zero_floor', True),
+        latent_norm=model_config.get('latent_norm', True))
     n_params = sum(p.numel() for p in model.parameters())
     logger.warning("Built Conv2dAutoEncoder with grid_size=%d, latent_dim=%d, "
-                   "hidden_channels=%d, zero_floor=%s (%d parameters)",
+                   "hidden_channels=%d, zero_floor=%s, latent_norm=%s (%d parameters)",
                    model.grid_size, model.latent_dim, model.hidden_channels,
-                   model.zero_floor, n_params)
+                   model.zero_floor, model.latent_norm, n_params)
 
     history = train_autoencoder(
         model, train_loader, val_loader,
@@ -483,6 +523,7 @@ def train(config, logger=None):
         scheduler_on_plateau=training_config.get('scheduler_on_plateau', False),
         use_weights=use_weights,
         fit_background=training_config.get('fit_background', False),
+        fit_background_mode=training_config.get('fit_background_mode', 'free'),
         scheduler_factor=training_config.get('scheduler_factor', 0.1),
         scheduler_patience=training_config.get('scheduler_patience', 10),
         scheduler_threshold=training_config.get('scheduler_threshold', 1e-4),

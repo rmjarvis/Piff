@@ -62,6 +62,13 @@ class AIPSF(Model):
                         :func:`piff.aimodels.save_checkpoint`.
     :param device:      The torch device to run the network on ('cpu' or 'cuda').
                         [default: 'cpu']
+    :param background_fit_mode:
+                        Mode of the per-star amplitude/background diagnostic fit
+                        stored by `fit` (see there): 'free' fits a and b as two
+                        free parameters; 'normalized' ties the amplitude to the
+                        background through the stamp sum (a = sum(data) - N*b).
+                        Should match the fit_background_mode used at training.
+                        [default: 'free']
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'AIPSF'
@@ -69,20 +76,26 @@ class AIPSF(Model):
     # The star position is trusted from the input star; the model does not fit a center.
     _centered = False
 
-    def __init__(self, scale, model_file=None, device='cpu', logger=None):
+    def __init__(self, scale, model_file=None, device='cpu', background_fit_mode='free',
+                 logger=None):
         self.scale = scale
         self.model_file = model_file
         self.device = device
+        self.background_fit_mode = background_fit_mode
         self.kwargs = {
             'model_file': model_file,
             'scale': scale,
             'device': device,
+            'background_fit_mode': background_fit_mode,
         }
 
         if model_file is None:
             raise ValueError("model_file is required for the AIPSF model")
         if not os.path.exists(model_file):
             raise FileNotFoundError("Model file not found: %s" % model_file)
+        if background_fit_mode not in ('free', 'normalized'):
+            raise ValueError("background_fit_mode must be 'free' or 'normalized'; "
+                             "got %r" % (background_fit_mode,))
 
         if logger:
             logger.debug("Loading AIPSF model from %s", model_file)
@@ -172,10 +185,13 @@ class AIPSF(Model):
 
         In addition, the per-star amplitude and local background of the model,
         i.e. (a, b) in data ~ a * psf + b with psf the unit-flux decoded model,
-        are solved analytically (weighted least squares, same normal equations
-        as :func:`piff.aimodels.fit_amplitude_background`) and stored in
+        are solved analytically (weighted least squares, same math as
+        :func:`piff.aimodels.fit_amplitude_background`) and stored in
         ``star.data.properties`` as 'aipsf_a' and 'aipsf_b', in image counts,
-        for downstream diagnostics.  They are recomputed at each fit iteration
+        for downstream diagnostics.  The fit follows ``background_fit_mode``:
+        'free' (a and b both free) or 'normalized' (one parameter, with the
+        amplitude tied to the background by the stamp sum,
+        a = sum(data) - N*b).  They are recomputed at each fit iteration
         (the final values persist); reserve stars never go through fit, so they
         do not get these properties.
 
@@ -204,18 +220,32 @@ class AIPSF(Model):
 
         # Solve per star for the amplitude and local background in
         # data ~ a * psf + b, with psf the unit-flux drawn model, by weighted
-        # least squares (same normal equations as
-        # piff.aimodels.fit_amplitude_background).  Stored as star properties
-        # (in image counts) for downstream diagnostics.
+        # least squares (same math as piff.aimodels.fit_amplitude_background).
+        # Stored as star properties (in image counts) for downstream
+        # diagnostics.
         psf_unit = model / star.fit.flux
-        S_w = np.sum(weight)
-        S_p = np.sum(weight * psf_unit)
-        S_pp = np.sum(weight * psf_unit**2)
-        S_y = np.sum(weight * data)
-        S_py = np.sum(weight * psf_unit * data)
-        det = max(S_pp * S_w - S_p * S_p, 1.e-30)
-        star.data.properties['aipsf_a'] = float((S_w * S_py - S_p * S_y) / det)
-        star.data.properties['aipsf_b'] = float((S_pp * S_y - S_p * S_py) / det)
+        if self.background_fit_mode == 'normalized':
+            # One-parameter constrained fit: the stamp sums tie the amplitude
+            # to the background, a = sum(data) - N*b (the raw-stamp
+            # generalization of the training-time constraint a = 1 - N*b for
+            # sum-normalized stamps).
+            n_pix = data.size
+            S = np.sum(data)
+            q = 1. - n_pix * psf_unit
+            b = (np.sum(weight * (data - S * psf_unit) * q)
+                 / max(np.sum(weight * q * q), 1.e-30))
+            a = S - n_pix * b
+        else:
+            S_w = np.sum(weight)
+            S_p = np.sum(weight * psf_unit)
+            S_pp = np.sum(weight * psf_unit**2)
+            S_y = np.sum(weight * data)
+            S_py = np.sum(weight * psf_unit * data)
+            det = max(S_pp * S_w - S_p * S_p, 1.e-30)
+            a = (S_w * S_py - S_p * S_y) / det
+            b = (S_pp * S_y - S_p * S_py) / det
+        star.data.properties['aipsf_a'] = float(a)
+        star.data.properties['aipsf_b'] = float(b)
 
         fit = star.fit.newParams(params, num=self._num, chisq=chisq, dof=dof)
         return Star(star.data, fit)

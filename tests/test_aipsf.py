@@ -99,32 +99,35 @@ def test_checkpoint_roundtrip():
     np.testing.assert_allclose(np.sum(image1), 1., rtol=1.e-6)
     np.testing.assert_allclose(np.min(image1), 0., atol=1.e-12)
     assert net2.zero_floor is True
+    assert net2.latent_norm is True
 
-    # The zero_floor=False variant has the same state-dict keys (both final
-    # layers are parameterless) and a strictly positive floor (softmax only).
+    # The zero_floor=False / latent_norm=False variant (the pre-flag
+    # architecture): strictly positive floor (softmax only).
     file_name2 = os.path.join('output', 'test_aipsf_ckpt_nofloor.pth')
     torch.manual_seed(1234)
     net3 = piff.aimodels.Conv2dAutoEncoder(grid_size=GRID_SIZE, latent_dim=latent_dim,
                                            hidden_channels=hidden_channels,
-                                           zero_floor=False)
+                                           zero_floor=False, latent_norm=False)
     net3.eval()
     piff.aimodels.save_checkpoint(net3, file_name2)
     net4 = piff.aimodels.load_autoencoder(file_name2)
     assert net4.zero_floor is False
+    assert net4.latent_norm is False
     with torch.no_grad():
         image3 = net4.decoder(z).numpy()
     assert np.min(image3) > 0.
     np.testing.assert_allclose(np.sum(image3), 1., rtol=1.e-6)
 
-    # A checkpoint without the 'zero_floor' key (written before the projection
-    # existed) loads with zero_floor=False, reproducing its training-time
-    # behavior.
-    legacy = torch.load(file_name, map_location='cpu')
+    # A checkpoint without the 'zero_floor'/'latent_norm' keys (written before
+    # the flags existed) loads as the pre-flag architecture.
+    legacy = torch.load(file_name2, map_location='cpu')
     del legacy['zero_floor']
+    del legacy['latent_norm']
     file_name3 = os.path.join('output', 'test_aipsf_ckpt_legacy.pth')
     torch.save(legacy, file_name3)
     net5 = piff.aimodels.load_autoencoder(file_name3)
     assert net5.zero_floor is False
+    assert net5.latent_norm is False
 
 
 @requires_torch
@@ -238,6 +241,23 @@ def test_aipsf_model():
         image, method='no_pixel', center=star.image_pos)
     np.testing.assert_allclose(star3.image.array, image.array, rtol=1.e-6)
 
+    # background_fit_mode='normalized': one-parameter constrained fit, with
+    # the amplitude tied to the background by the stamp sum.
+    mod2 = piff.AIPSF(scale=du, model_file=file_name, background_fit_mode='normalized')
+    star_n = mod2.initialize(make_gaussian_star(du=du))
+    star_n = mod2.fit(star_n, draw_method='no_pixel')
+    a2 = star_n.data.properties['aipsf_a']
+    b2 = star_n.data.properties['aipsf_b']
+    data_n, weight_n, _, _ = star_n.data.getDataVector()
+    np.testing.assert_allclose(a2 + data_n.size*b2, np.sum(data_n), rtol=1.e-6)
+    # The constrained residual is orthogonal to the basis q = 1 - N*psf.
+    drawn_n = mod2.draw(star_n)
+    psf_unit_n = drawn_n.image.array.ravel() / star_n.fit.flux
+    q = 1. - data_n.size*psf_unit_n
+    resid_n = data_n - a2*psf_unit_n - b2
+    scale_q = np.sqrt(np.sum(weight_n*data_n**2) * np.sum(weight_n*q**2))
+    assert abs(np.sum(weight_n*resid_n*q)) < 1.e-8 * scale_q
+
 
 @requires_torch
 @timer
@@ -305,6 +325,8 @@ def test_single_image():
     test_star2 = psf2.drawStar(target)
     np.testing.assert_allclose(test_star2.fit.params, test_star.fit.params, rtol=1.e-6)
     np.testing.assert_allclose(test_star2.image.array, test_star.image.array, rtol=1.e-6)
+    # The background_fit_mode kwarg survives the write/read roundtrip.
+    assert psf2.model.background_fit_mode == 'free'
 
 
 @requires_torch
@@ -343,6 +365,10 @@ def test_errors():
         piff.aimodels.Conv2dAutoEncoder(grid_size=24, latent_dim=4, hidden_channels=2)
     with np.testing.assert_raises(ValueError):
         piff.aimodels.Conv2dAutoEncoder(grid_size=3, latent_dim=4, hidden_channels=2)
+
+    # Invalid background_fit_mode.
+    with np.testing.assert_raises(ValueError):
+        piff.AIPSF(scale=0.26, model_file=file_name, background_fit_mode='banana')
 
     mod = piff.AIPSF(scale=0.26, model_file=file_name)
 
