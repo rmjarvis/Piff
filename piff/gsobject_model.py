@@ -26,8 +26,8 @@ from .util import estimate_cov_from_jac
 
 # The scipy iterations can get into pathalogical places in parameter space that trigger
 # enormous FFTs. Rather than crash the machine, let GalSim raise an error rather than just
-# a warning for these. The fitting code catches that and calls that parameter try to
-# have a terrible chisq, so it gets rejected by scipy.
+# a warning for these. The fitting code catches that and gives that parameter attempt
+# very large residuals, so it gets rejected by scipy.
 galsim.errors.raise_fft_size_error = True
 
 class GSObjectModel(Model):
