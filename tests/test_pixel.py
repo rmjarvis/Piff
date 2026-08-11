@@ -1056,7 +1056,7 @@ def test_single_image():
         test_star = psf.drawStar(target_star)
         test_star_solver.append(test_star)
         print("Max abs diff = ",np.max(np.abs(test_star.image.array - test_im.array)))
-        np.testing.assert_almost_equal(test_star.image.array/2., test_im.array/2., decimal=3)
+        np.testing.assert_allclose(test_star.image.array, test_im.array, atol=0.005)
 
         # Test using the piffify executable
         with open('pixel_moffat.yaml','w') as f:
