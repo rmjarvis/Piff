@@ -157,11 +157,32 @@ class AIPSF(Model):
         params = z.cpu().numpy().flatten()
         return params, flux
 
+    def _store_measured_latents(self, star, params):
+        """Store the measured (encoder) latent vector in the star's properties.
+
+        The interpolation step of the PSF fit overwrites ``star.fit.params``
+        with the interpolated latent vector, so the measured encoding is kept
+        as scalar properties 'aipsf_zmeas_0' .. 'aipsf_zmeas_{latent_dim-1}'
+        for downstream diagnostics (e.g. comparing the measured vs interpolated
+        latent space).  Scalar properties survive into the Piff output file.
+
+        :param star:    A Star instance (its property dict is updated in place).
+        :param params:  The measured latent vector (numpy array).
+        """
+        for i in range(self.latent_dim):
+            star.data.properties['aipsf_zmeas_%d' % i] = float(params[i])
+
     def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model.
 
         The encoder is run on the star's stamp to get the initial latent vector,
         and the flux is initialized to the sum of the stamp.
+
+        The measured latent vector is also stored in ``star.data.properties``
+        as 'aipsf_zmeas_{i}' (one scalar per component).  Since initialize runs
+        on all stars (including reserve stars, which never go through `fit`),
+        every star carries its measured encoding even after the interpolation
+        step has replaced ``star.fit.params`` with interpolated values.
 
         :param star:            A Star instance with the raw data.
         :param logger:          A logger object for logging debug info. [default: None]
@@ -171,6 +192,7 @@ class AIPSF(Model):
         :returns:       Star instance with the appropriate initial fit values
         """
         params, flux = self._encode(star)
+        self._store_measured_latents(star, params)
         fit = star.fit.newParams(params, num=self._num, flux=flux)
         return Star(star.data, fit)
 
@@ -195,6 +217,12 @@ class AIPSF(Model):
         (the final values persist); reserve stars never go through fit, so they
         do not get these properties.
 
+        The measured latent vector is also stored in ``star.data.properties``
+        as 'aipsf_zmeas_{i}' (one scalar per component; same values as set by
+        `initialize`, since the encoder is deterministic).  This preserves the
+        measured encoding after the interpolation step of the PSF fit replaces
+        ``star.fit.params`` with the interpolated latent vector.
+
         :param star:            A Star instance
         :param logger:          A logger object for logging debug info. [default: None]
         :param convert_func:    An optional function to apply to the profile being fit.
@@ -207,6 +235,7 @@ class AIPSF(Model):
         assert draw_method in (None, 'no_pixel')
 
         params, _ = self._encode(star)
+        self._store_measured_latents(star, params)
 
         # Compute the chisq of this model prediction, scaled by the current flux estimate.
         prof = self.getProfile(params).shift(star.fit.center) * star.fit.flux
