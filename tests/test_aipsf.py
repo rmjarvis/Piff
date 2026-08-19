@@ -204,6 +204,12 @@ def test_aipsf_model():
     assert np.all(np.isfinite(star.fit.params))
     np.testing.assert_allclose(star.fit.flux, input_flux, rtol=1.e-8)
 
+    # initialize stores the measured latents as scalar star properties, equal
+    # to the initial fit params.  (This covers reserve stars, which only go
+    # through initialize, never fit.)
+    zmeas = np.array([star.data.properties['aipsf_zmeas_%d' % i] for i in range(latent_dim)])
+    np.testing.assert_array_equal(zmeas, star.fit.params)
+
     star = mod.fit(star, draw_method='no_pixel')
     assert star.fit.params.shape == (latent_dim,)
     assert np.isfinite(star.fit.chisq)
@@ -304,6 +310,17 @@ def test_single_image():
 
     psf.set_context(wcs={0: galsim.PixelScale(du)})
     psf.fit(stars, logger=None)
+
+    # After the fit, star.fit.params holds the *interpolated* latents (the
+    # interpolation step replaces the measured values), while the measured
+    # (encoder) latents are preserved as the 'aipsf_zmeas_{i}' properties.
+    for s in psf.stars:
+        zmeas = np.array([s.data.properties['aipsf_zmeas_%d' % i] for i in range(latent_dim)])
+        zenc, _ = psf.model._encode(s)
+        np.testing.assert_array_equal(zmeas, zenc)
+        # With noisy stars and a field-varying PSF, the order-1 polynomial
+        # cannot pass exactly through the measured latents of every star.
+        assert not np.array_equal(zmeas, s.fit.params)
 
     # Draw the PSF at a new location.
     target = piff.Star.makeTarget(x=GRID_SIZE/2, y=GRID_SIZE/2, u=0.3, v=-0.2, scale=du,
