@@ -45,22 +45,23 @@ class Stats(object):
     valid_stats_types = {}
 
     @classmethod
-    def process(cls, config_stats, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the stats field of the config dict.
 
-        :param config_stats:    The configuration dict for the stats field.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the stats field.
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a Stats instance
         """
+        base = base if base is not None else {'stats': config}
+
         # If it's not a list, make it one.
-        try:
-            config_stats[0]
-        except KeyError:
-            config_stats = [config_stats]
+        if not isinstance(config, list):
+            config = [config]
 
         stats = []
-        for cfg in config_stats:
+        for cfg in config:
 
             # Get the class to use for the stats
             if 'type' not in cfg:
@@ -74,7 +75,7 @@ class Stats(object):
             stats_class = Stats.valid_stats_types[stats_type]
 
             # Read any other kwargs in the stats field
-            kwargs = stats_class.parseKwargs(cfg, logger)
+            kwargs = stats_class.parseKwargs(cfg, base, logger)
 
             stats.append(stats_class(**kwargs))
 
@@ -91,21 +92,23 @@ class Stats(object):
             Stats.valid_stats_types[cls._type_name] = cls
 
     @classmethod
-    def parseKwargs(cls, config_stats, logger=None):
+    def parseKwargs(cls, config, base, logger=None):
         """Parse the stats field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_stats:    The stats field of the configuration dict, config['stats']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The stats field of the configuration dict, config['stats']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config_stats)
-        kwargs.pop('type',None)
+        for key in config:
+            if key != 'type' and not key.startswith('_'):
+                kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
         kwargs['logger'] = logger
         return kwargs
 
@@ -136,7 +139,7 @@ class Stats(object):
         :param file_name:   The name of the file to write to. [default: Use self.file_name,
                             which is typically read from the config field.]
         :param logger:      A logger object for logging debug info. [default: None]
-        :param \**kwargs:    Optionally, provide extra kwargs for the matplotlib plot command.
+        :param \**kwargs:   Optionally, provide extra kwargs for the matplotlib plot command.
         """
         # Note: don't import matplotlib.pyplot, since that can mess around with the user's
         # pyplot state.  Better to do everything with the matplotlib object oriented API.
@@ -337,6 +340,18 @@ class ShapeHistStats(Stats):
     """
     _type_name = 'ShapeHist'
 
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        req = { 'file_name': str }
+        opt = {
+            'nbins': int,
+            'cut_frac': float,
+            'model_properties': dict,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
+
     def __init__(self, file_name=None, nbins=None, cut_frac=0.01, model_properties=None,
                  logger=None):
         self.file_name = file_name
@@ -522,9 +537,26 @@ class RhoStats(Stats):
     :param model_properties: Optionally a dict of properties to use for the model rendering.
                              [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
-    :param \**kwargs:    Any additional kwargs are passed on to TreeCorr.
+    :param \**kwargs:   Any additional kwargs are passed on to TreeCorr.
     """
     _type_name = 'Rho'
+
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        opt = {
+            'min_sep': float,
+            'max_sep': float,
+            'bin_size': float,
+            'file_name': str,
+            'model_properties': dict,
+        }
+        # Assume all other params are valid and intended for treecorr.
+        treecorr_kwargs = [key for key in config if key not in opt and key != 'type']
+        kwargs = galsim.config.GetAllParams(config, base, opt=opt, ignore=treecorr_kwargs)[0]
+        for key in treecorr_kwargs:
+            kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
+        kwargs['logger'] = logger
+        return kwargs
 
     def __init__(self, min_sep=0.5, max_sep=300, bin_size=0.1, file_name=None,
                  model_properties=None, logger=None, **kwargs):
@@ -807,6 +839,18 @@ class HSMCatalogStats(Stats):
                              by piff.util.calculate_moments. [default: False]
     """
     _type_name = 'HSMCatalog'
+
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        req = { 'file_name': str }
+        opt = {
+            'model_properties': dict,
+            'fourth_order': bool,
+            'raw_moments': bool,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
 
     def __init__(self, file_name=None, model_properties=None, fourth_order=False,
                  raw_moments=False, logger=None):

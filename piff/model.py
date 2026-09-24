@@ -16,6 +16,8 @@
 .. module:: model
 """
 
+import galsim
+
 from .star import Star
 
 
@@ -32,19 +34,22 @@ class Model(object):
     valid_model_types = {}
 
     @classmethod
-    def process(cls, config_model, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the model field of the config dict.
 
-        :param config_model:    The configuration dict for the model field.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the model field.
+        :param base:        The base configuration dict. [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a Model instance
         """
+        base = base if base is not None else {'model' : config}
+
         # Get the class to use for the model
-        if 'type' not in config_model:
+        if 'type' not in config:
             raise ValueError("config['model'] has no type field")
 
-        model_type = config_model['type']
+        model_type = config['type']
         if model_type not in Model.valid_model_types:
             raise ValueError("type %s is not a valid model type. "%model_type +
                              "Expecting one of %s"%list(Model.valid_model_types.keys()))
@@ -52,7 +57,7 @@ class Model(object):
         model_class = Model.valid_model_types[model_type]
 
         # Read any other kwargs in the model field
-        kwargs = model_class.parseKwargs(config_model, logger)
+        kwargs = model_class.parseKwargs(config, base, logger)
 
         # Build model object
         model = model_class(**kwargs)
@@ -76,21 +81,24 @@ class Model(object):
             Model.valid_model_types[cls._type_name] = cls
 
     @classmethod
-    def parseKwargs(cls, config_model, logger=None):
+    def parseKwargs(cls, config, base=None, logger=None):
         """Parse the model field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_model:    The model field of the configuration dict, config['model']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The model field of the configuration dict, config['model']
+        :param base:        The base configuration dict. [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config_model)
-        kwargs.pop('type', None)
+        for key in config:
+            if key == 'type':
+                continue
+            kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
         kwargs['logger'] = logger
         return kwargs
 

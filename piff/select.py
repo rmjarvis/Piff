@@ -44,26 +44,47 @@ class Select(object):
                 'max_edge_frac', 'stamp_center_size', 'max_mask_pixels', 'nstars', 'min_sep',
                 'reserve_frac', 'seed', 'max_snr']
 
-    def __init__(self, config, logger=None):
+    def __init__(self, config, base=None, logger=None):
+        base = base if base is not None else {'select': config}
+        opt = {
+            'min_snr': float,
+            'max_snr_weight': float,
+            'max_edge_frac': float,
+            'stamp_center_size': int,
+            'max_mask_pixels': int,
+            'min_sep': float,
+            'hsm_size_reject': float,
+            'max_pixel_cut': float,
+            'reject_where': str,
+            'reserve_frac': float,
+            'nstars': int,
+            'seed': int,
+        }
+        ignore = [key for key in config if key not in opt]
+        params = galsim.config.GetAllParams(config, base, opt=opt, ignore=ignore)[0]
+        # Pop the _get function GalSim created here, since we'll do different parsing later,
+        # and if this is still there, GalSim will assume nothing changed about req, opt, etc.
+        config.pop('_get')
+
         # Read the optional parameters that are used by the base class.
-        self.min_snr = config.get('min_snr', None)
-        self.max_snr_weight = config.get('max_snr_weight', 100)
-        self.max_edge_frac = config.get('max_edge_frac', None)
-        self.stamp_center_size = config.get('stamp_center_size', 13)
-        self.max_mask_pixels = config.get('max_mask_pixels', None)
-        self.min_sep = config.get('min_sep', None)
-        self.hsm_size_reject = config.get('hsm_size_reject', 0.)
-        self.max_pixel_cut = config.get('max_pixel_cut', None)
-        self.reject_where = config.get('reject_where', None)
-        self.reserve_frac = config.get('reserve_frac', 0.)
-        self.nstars = config.get('nstars', None)
-        self.rng = np.random.default_rng(config.get('seed', None))
+        self.min_snr = params.get('min_snr', None)
+        self.max_snr_weight = params.get('max_snr_weight', 100)
+        self.max_edge_frac = params.get('max_edge_frac', None)
+        self.stamp_center_size = params.get('stamp_center_size', 13)
+        self.max_mask_pixels = params.get('max_mask_pixels', None)
+        self.min_sep = params.get('min_sep', None)
+        self.hsm_size_reject = params.get('hsm_size_reject', 0.)
+        self.max_pixel_cut = params.get('max_pixel_cut', None)
+        self.reject_where = params.get('reject_where', None)
+        self.reserve_frac = params.get('reserve_frac', 0.)
+        self.nstars = params.get('nstars', None)
+        self.rng = np.random.default_rng(params.get('seed', None))
 
         if 'max_snr' in config:
             import warnings
             warnings.warn("max_snr has been renamed max_snr_weight as of version 1.7",
                           DeprecationWarning)
-            self.max_snr_weight = config.get('max_snr', 100)
+            self.max_snr_weight = galsim.config.ParseValue(config, 'max_snr', base, float)[0]
 
         if self.hsm_size_reject == 1:
             # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
@@ -81,7 +102,7 @@ class Select(object):
             Select.valid_select_types[cls._type_name] = cls
 
     @classmethod
-    def process(cls, config_select, objects, logger=None, select_only=False):
+    def process(cls, config, objects, base=None, logger=None, select_only=False):
         """Parse the select field of the config dict.
 
         This stage handles three somewhat separate actions:
@@ -151,17 +172,19 @@ class Select(object):
             change what stars are used.  Rather, it adjusts the relative weight that is given to
             the brightest stars (so that they don't dominate the fit).
 
-        :param config_select:   The configuration dict.
+        :param config:          The configuration dict.
         :param objects:         A list of Star instances, which are at this point all potential
                                 objects to consider as possible stars.
+        :param base:            The base configuration dict. [default: None]
         :param logger:          A logger object for logging debug info. [default: None]
         :param select_only:     Whether to stop after the primary selection step. [default: False]
 
         :returns: stars, the subset of objects which are to be considered stars
         """
+        base = base if base is not None else {'select': config}
         # Get the class to use for handling the selection
         # Default type is 'Flag'
-        select_type = config_select.get('type', 'Flag')
+        select_type = config.get('type', 'Flag')
         if select_type not in Select.valid_select_types:
             raise ValueError("type %s is not a valid select type. "%select_type +
                              "Expecting one of %s"%list(Select.valid_select_types.keys()))
@@ -169,7 +192,7 @@ class Select(object):
         select_class = Select.valid_select_types[select_type]
 
         # Build handler object
-        select_handler = select_class(config_select, logger=logger)
+        select_handler = select_class(config, base, logger=logger)
 
         # Creat a list of Star objects
         stars = select_handler.selectStars(objects, logger)
@@ -438,19 +461,21 @@ class FlagSelect(Select):
 
     :param config:      The configuration dict used to define the above parameters.
                         (Normally the 'select' field in the overall configuration dict).
+    :param base:        The base configuration dict. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Flag'
 
-    def __init__(self, config, logger=None):
-        super(FlagSelect, self).__init__(config, logger)
+    def __init__(self, config, base=None, logger=None):
+        base = base if base is not None else {'select': config}
+        super(FlagSelect, self).__init__(config, base, logger)
 
         opt = {
             'flag_name': str,
             'skip_flag': int,
             'use_flag': int,
         }
-        params = galsim.config.GetAllParams(config, config, opt=opt, ignore=Select.base_keys)[0]
+        params = galsim.config.GetAllParams(config, base, opt=opt, ignore=Select.base_keys)[0]
         self.flag_name = params.get('flag_name', None)
         self.skip_flag = params.get('skip_flag', -1)
         self.use_flag = params.get('use_flag', None)
@@ -502,15 +527,17 @@ class PropertiesSelect(Select):
                     the objects.
 
     :param config:      The configuration dict used to define the above parameters.
+    :param base:        The base configuration dict. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Properties'
 
-    def __init__(self, config, logger=None):
-        super(PropertiesSelect, self).__init__(config, logger)
+    def __init__(self, config, base=None, logger=None):
+        base = base if base is not None else {'select': config}
+        super(PropertiesSelect, self).__init__(config, base, logger)
 
         req = { 'where': str }
-        params = galsim.config.GetAllParams(config, config, req=req, ignore=Select.base_keys)[0]
+        params = galsim.config.GetAllParams(config, base, req=req, ignore=Select.base_keys)[0]
         self.where = params['where']
 
     @classmethod

@@ -1143,7 +1143,7 @@ def test_des_image():
             'stamp_size' : stamp_size,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
-            'gain' : 'GAINA',
+            'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAINA' },
             # Test explicitly specifying the wcs (although it is the same here as what is in the
             # image anyway).
             'wcs' : {
@@ -1313,6 +1313,7 @@ def test_des_image():
     config['psf']['outliers']['max_remove'] = 0.01
     # We used to have an include_reserve=True option, which we got rid of.
     config['psf']['outliers']['include_reserve'] = True
+    config = galsim.config.CleanConfig(config)
     with CaptureLog(1) as cl:
         piff.piffify(config, logger=cl.logger)
     print(cl.output)
@@ -1456,6 +1457,7 @@ def test_des2():
     config['psf']['interp']['use_qr'] = True
     config['psf']['interp']['order'] = order_qr
     config['input']['nstars'] = nstars_qr
+    config = galsim.config.CleanConfig(config)
     t2 = time.time()
     with CaptureLog(1) as cl:
         piff.piffify(config, logger=cl.logger)
@@ -1469,6 +1471,7 @@ def test_des2():
     # Repeat with the new solver usage, rather than the deprecated use_qr=True
     del config['psf']['interp']['use_qr']
     config['psf']['interp']['solver'] = 'qr'
+    config = galsim.config.CleanConfig(config)
     t2 = time.time()
     with CaptureLog(1) as cl:
         piff.piffify(config, logger=cl.logger)
@@ -1482,6 +1485,7 @@ def test_des2():
     # With only 9 stars (or fewer), there are not enough constraints for a 3rd order solution
     config['input']['nstars'] = 9
     config['psf']['interp']['order'] = 3
+    config = galsim.config.CleanConfig(config)
     with np.testing.assert_raises(RuntimeError):
         piff.piffify(config)
 
@@ -1491,6 +1495,7 @@ def test_des2():
     config['input']['cat_file_name'] = 'input/des2_qrp_cat.fits'
     config['psf']['interp']['order'] = order_qrp
     config['input']['nstars'] = nstars_qrp
+    config = galsim.config.CleanConfig(config)
     t4 = time.time()
     piff.piffify(config)
     t5 = time.time()
@@ -1503,6 +1508,7 @@ def test_des2():
 
     # Also exercise the SVD fallback to the non-QR method.
     config['psf']['interp']['solver'] = 'scipy'
+    config = galsim.config.CleanConfig(config)
     t6 = time.time()
     piff.piffify(config)
     t7 = time.time()
@@ -1756,6 +1762,7 @@ def test_color():
 
     # Repeat without the cross-terms between color and u/v.
     config['psf']['interp']['max_order'] = { ('u','v') : 2 }
+    config = galsim.config.CleanConfig(config)
     piff.piffify(config)
     psf = piff.read(psf_file)
 

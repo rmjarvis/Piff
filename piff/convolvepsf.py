@@ -114,32 +114,38 @@ class ConvolvePSF(PSF):
                 comp.set_context(wcs, pointing, bandpass)
 
     @classmethod
-    def parseKwargs(cls, config_psf, logger):
+    def parseKwargs(cls, config, base, logger):
         """Parse the psf field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
-        :param config_psf:      The psf field of the configuration dict, config['psf']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The psf field of the configuration dict, config['psf']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
         from .outliers import Outliers
 
-        kwargs = {}
-        kwargs.update(config_psf)
-        kwargs.pop('type',None)
+        opt = {
+            'chisq_thresh': float,
+            'min_iter': int,
+            'max_iter': int,
+        }
+        kwargs = galsim.config.GetAllParams(
+            config, base, opt=opt, ignore=['components', 'outliers']
+        )[0]
 
-        if 'components' not in kwargs:
+        if 'components' not in config:
             raise ValueError("components field is required in psf field for type=Convolve")
 
         # make components
-        components = kwargs.pop('components')
+        components = config['components']
         kwargs['components'] = []
         for comp in components:
-            kwargs['components'].append(PSF.process(comp, logger=logger))
+            kwargs['components'].append(PSF.process(comp, base, logger=logger))
 
-        if 'outliers' in kwargs:
-            outliers = Outliers.process(kwargs.pop('outliers'), logger=logger)
+        if 'outliers' in config:
+            outliers = Outliers.process(config['outliers'], base, logger=logger)
             kwargs['outliers'] = outliers
 
         return kwargs

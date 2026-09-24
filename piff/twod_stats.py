@@ -51,6 +51,19 @@ class TwoDHistStats(Stats):
     """
     _type_name = 'TwoDHist'
 
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        req = { 'file_name': str }
+        opt = {
+            'nbins_u': int,
+            'nbins_v': int,
+            'reducing_function': str,
+            'model_properties': dict,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
+
     def __init__(self, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  file_name=None, model_properties=None, logger=None):
         self.nbins_u = nbins_u
@@ -427,6 +440,21 @@ class WhiskerStats(Stats):
     :param logger:              A logger object for logging debug info. [default: None]
     """
     _type_name = 'Whisker'
+
+    @classmethod
+    def parseKwargs(cls, config, base, logger=None):
+        req = { 'file_name': str }
+        opt = {
+            'nbins_u': int,
+            'nbins_v': int,
+            'reducing_function': str,
+            'scale': float,
+            'resid_scale': float,
+            'model_properties': dict,
+        }
+        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
+        kwargs['logger'] = logger
+        return kwargs
 
     def __init__(self, file_name=None, nbins_u=20, nbins_v=20, reducing_function='np.median',
                  scale=1, resid_scale=2, model_properties=None, logger=None):

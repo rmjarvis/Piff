@@ -82,24 +82,34 @@ class SingleChipPSF(PSF):
         return self.single_psf.interp_property_names
 
     @classmethod
-    def parseKwargs(cls, config_psf, logger):
+    def parseKwargs(cls, config, base, logger):
         """Parse the psf field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
-        :param config_psf:      The psf field of the configuration dict, config['psf']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The psf field of the configuration dict, config['psf']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
-        config_psf = config_psf.copy()  # Don't alter the original dict.
-        config_psf.pop('type', None)
-        nproc = config_psf.pop('nproc', 1)
+        config = config.copy()  # Don't alter the original dict.
+        opt = {
+            'nproc': int,
+            'single_type': str,
+        }
+        ignore = [key for key in config if key not in ('type', 'nproc', 'single_type')]
+        kwargs = galsim.config.GetAllParams(config, base, opt=opt, ignore=ignore)[0]
+        config.pop('_get')
+        config.pop('type', None)
+        nproc = kwargs.get('nproc', 1)
+        config.pop('nproc', None)
 
         # If there is a "single_type" specified, call that the type for now.
-        config_psf['type'] = config_psf.pop('single_type', 'Simple')
+        config['type'] = kwargs.get('single_type', 'Simple')
+        config.pop('single_type', None)
 
         # Now the regular PSF process function can process the dict.
-        single_psf = PSF.process(config_psf, logger=logger)
+        single_psf = PSF.process(config, base, logger)
 
         return { 'single_psf' : single_psf, 'nproc' : nproc }
 

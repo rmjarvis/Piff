@@ -319,6 +319,7 @@ def test_twodstats_config():
     # repeat with plotify function
     os.remove(twodhist_file)
     os.remove(twodhist_std_file)
+    config = galsim.config.CleanConfig(config)
     piff.plotify(config, logger)
     assert os.path.isfile(twodhist_file)
     assert os.path.isfile(twodhist_std_file)
@@ -368,6 +369,7 @@ def test_rhostats_config():
 
     # repeat with plotify function
     os.remove(rho_file)
+    config = galsim.config.CleanConfig(config)
     piff.plotify(config, logger)
     assert os.path.isfile(rho_file)
 
@@ -376,7 +378,7 @@ def test_rhostats_config():
     max_sep = 100
     bin_size = 0.1
     psf = piff.read(psf_file)
-    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
     stats = piff.RhoStats(min_sep=min_sep, max_sep=max_sep, bin_size=bin_size)
     with np.testing.assert_raises(RuntimeError):
         stats.write('dummy')  # Cannot write before compute
@@ -402,6 +404,7 @@ def test_rhostats_config():
     # Test using the piffify executable
     os.remove(rho_file)
     config['verbose'] = 0
+    config = galsim.config.CleanConfig(config)
     with open('rho.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     piffify_exe = get_script_name('piffify')
@@ -421,6 +424,7 @@ def test_rhostats_config():
     config['output']['dir'] = '.'
     config['modules'] = [ 'custom_wcs' ]
     os.remove(rho_file)
+    config = galsim.config.CleanConfig(config)
     piff.plotify(config)
     assert os.path.isfile(rho_file)
 
@@ -465,13 +469,14 @@ def test_shapestats_config():
 
     # repeat with plotify function
     os.remove(shape_file)
+    config = galsim.config.CleanConfig(config)
     piff.plotify(config, logger)
     assert os.path.isfile(shape_file)
 
     # Test ShapeHistStats directly
     psf = piff.read(psf_file)
     shapeStats = piff.ShapeHistStats(nbins=5)  # default is sqrt(nstars)
-    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
     with np.testing.assert_raises(RuntimeError):
         shapeStats.write()  # Cannot write before compute
     shapeStats.compute(psf, orig_stars)
@@ -539,12 +544,14 @@ def test_starstats_config():
 
     # repeat with plotify function
     os.remove(star_file)
+    config = galsim.config.CleanConfig(config)
     piff.plotify(config, logger)
     assert os.path.isfile(star_file)
 
     # repeat with deprecated name
     os.remove(star_file)
     config['output']['stats'][0]['type'] = 'Star'
+    config = galsim.config.CleanConfig(config)
     with CaptureLog() as cl:
         piff.plotify(config, cl.logger)
     assert os.path.isfile(star_file)
@@ -554,6 +561,7 @@ def test_starstats_config():
     # check default nplot
     psf = piff.read(psf_file)
     starStats = piff.StarStats(include_ave=False)
+    config = galsim.config.CleanConfig(config)
     orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
     orig_stars = piff.Select.process(config['select'], orig_stars, logger=logger)
     with np.testing.assert_raises(RuntimeError):
@@ -654,6 +662,7 @@ def test_starstats_config():
     # do once with adjust_stars = False to graphically demonstrate
     config['output']['stats'][0]['file_name'] = star_noadjust_file
     config['output']['stats'][0]['adjust_stars'] = False
+    config = galsim.config.CleanConfig(config)
     piff.plotify(config, logger)
     assert os.path.isfile(star_noadjust_file)
 
@@ -732,6 +741,7 @@ def test_hsmcatalog():
     # Repeat with non-Celestial WCS
     wcs = galsim.AffineTransform(0.26, 0.05, -0.08, -0.24, galsim.PositionD(1024,1024))
     config['input']['wcs'] = wcs
+    config = galsim.config.CleanConfig(config)
     piff.piffify(config, logger)
     data = fitsio.read(hsm_file)
     np.testing.assert_array_equal(data['ra'], 0.)
@@ -742,6 +752,7 @@ def test_hsmcatalog():
 
     # Use class directly, rather than through config.
     psf = piff.PSF.read(psf_file)
+    config = galsim.config.CleanConfig(config)
     stars, _, _, _ = piff.Input.process(config['input'])
     stars = piff.Select.process(config['select'], stars)
     hsmcat = piff.stats.HSMCatalogStats()
@@ -794,7 +805,7 @@ def test_bad_hsm():
             'stamp_size' : stamp_size,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
-            'gain' : 'GAINA',
+            'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAINA' },
         },
         'output' : {
             'file_name' : psf_file,
@@ -915,6 +926,101 @@ def test_base_stats():
              ]
     with np.testing.assert_raises(ValueError):
         stats = piff.Stats.process(config)
+
+    # Config values for concrete stats classes can use GalSim parsing semantics.
+    config = {
+        'shape_file': 'shape.pdf',
+        'shape_bins': 17,
+        'cut_frac_value': 0.05,
+        'model_props': {'ccdnum': 3},
+        'rho_file': 'rho.pdf',
+        'rho_min_sep': 2.5,
+        'rho_max_sep': 30.0,
+        'rho_sep_units': 'arcsec',
+        'reduce_fn': 'np.mean',
+        'twod_file': 'twod.pdf',
+        'whisker_file': 'whisker.pdf',
+        'star_file': 'stars.pdf',
+        'hsm_file': 'hsm.fits',
+        'sizemag_file': 'sizemag.pdf',
+        'zeropoint_value': 31.5,
+        'stats': [
+            {
+                'type': 'ShapeHist',
+                'file_name': '@shape_file',
+                'nbins': '@shape_bins',
+                'cut_frac': '@cut_frac_value',
+                'model_properties': '@model_props',
+            },
+            {
+                'type': 'Rho',
+                'file_name': '@rho_file',
+                'min_sep': '@rho_min_sep',
+                'max_sep': '$@rho_max_sep',
+                'sep_units': '@rho_sep_units',
+                'bin_size': '$0.2',
+            },
+            {
+                'type': 'TwoDHist',
+                'file_name': '@twod_file',
+                'nbins_u': '$3 + 1',
+                'nbins_v': '$2 + 2',
+                'reducing_function': '@reduce_fn',
+            },
+            {
+                'type': 'Whisker',
+                'file_name': '@whisker_file',
+                'scale': '$1.5',
+                'resid_scale': '$2.5',
+            },
+            {
+                'type': 'StarImages',
+                'file_name': '@star_file',
+                'nplot': '$2 + 3',
+                'adjust_stars': '$1',
+                'include_ave': '$0',
+            },
+            {
+                'type': 'HSMCatalog',
+                'file_name': '@hsm_file',
+                'model_properties': '@model_props',
+                'fourth_order': '$1',
+                'raw_moments': '$0',
+            },
+            {
+                'type': 'SizeMag',
+                'file_name': '@sizemag_file',
+                'zeropoint': '@zeropoint_value',
+            },
+        ],
+    }
+    stats = piff.Stats.process(config['stats'], config)
+    assert stats[0].file_name == 'shape.pdf'
+    assert stats[0].nbins == 17
+    assert stats[0].cut_frac == 0.05
+    assert stats[0].model_properties == {'ccdnum': 3}
+    assert stats[1].file_name == 'rho.pdf'
+    assert stats[1].tckwargs['min_sep'] == 2.5
+    assert stats[1].tckwargs['max_sep'] == 30.0
+    assert stats[1].tckwargs['sep_units'] == 'arcsec'
+    assert stats[1].tckwargs['bin_size'] == 0.2
+    assert stats[2].file_name == 'twod.pdf'
+    assert stats[2].nbins_u == 4
+    assert stats[2].nbins_v == 4
+    assert stats[2].reducing_function is np.mean
+    assert stats[3].file_name == 'whisker.pdf'
+    assert stats[3].scale == 1.5
+    assert stats[3].resid_scale == 2.5
+    assert stats[4].file_name == 'stars.pdf'
+    assert stats[4].nplot == 5
+    assert stats[4].adjust_stars is True
+    assert stats[4].include_ave is False
+    assert stats[5].file_name == 'hsm.fits'
+    assert stats[5].model_properties == {'ccdnum': 3}
+    assert stats[5].fourth_order is True
+    assert stats[5].raw_moments is False
+    assert stats[6].file_name == 'sizemag.pdf'
+    assert stats[6].zeropoint == 31.5
 
     # Can't do much with a base Stats class
     stats = piff.Stats()
@@ -1193,6 +1299,7 @@ def test_fourth_order():
 
     # Repeat, adding in raw_moments
     config['output']['stats'][0]['raw_moments'] = True
+    config = galsim.config.CleanConfig(config)
     piff.piffify(config, logger)
     data = fitsio.read(hsm_file)
 
@@ -1242,6 +1349,7 @@ def test_fourth_order():
 
     # Finally make sure raw_moments works without fourth_order=True
     del config['output']['stats'][0]['fourth_order']
+    config = galsim.config.CleanConfig(config)
     piff.piffify(config, logger)
     data = fitsio.read(hsm_file)
     for i, star in enumerate(stars):
@@ -1283,8 +1391,8 @@ def test_property_cols():
             'stamp_size' : stamp_size,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
-            'gain' : 'GAINA',
-            'satur' : 'SATURATA',
+            'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAINA' },
+            'satur' : { 'type': 'ImageHeaderValue', 'key': 'SATURATA' },
             'chipnum': 1,
             # Select ones with a variety of dtypes.
             'property_cols' : ['SOURCE_ID', 'GI_COLOR', 'FLAGS', 'FLAG_COLOR', 'SPREAD_MODEL'],
@@ -1349,6 +1457,7 @@ def test_property_cols():
 
     # If the input field didn't include chipnum, then it makes no difference for a single chip.
     del config['input']['chipnum']
+    config = galsim.config.CleanConfig(config)
     piff.piffify(config)
     psf = piff.read(psf_file)
     im2 = psf.draw(35, 40, center=True, GI_COLOR=1)

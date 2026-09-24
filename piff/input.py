@@ -48,11 +48,12 @@ class Input(object):
     bandpass = None
 
     @classmethod
-    def process(cls, config_input, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the input field of the config dict.
 
-        :param config_input:    The configuration dict.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the input field.
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: stars, wcs, pointing, bandpass
 
@@ -63,7 +64,8 @@ class Input(object):
         """
         # Get the class to use for handling the input data
         # Default type is 'Files'
-        input_type = config_input.get('type','Files')
+        input_type = config.get('type','Files')
+        base = base if base is not None else {'input' : config}
 
         if input_type not in Input.valid_input_types:
             raise ValueError("type %s is not a valid model type. "%input_type +
@@ -72,7 +74,7 @@ class Input(object):
         input_class = Input.valid_input_types[input_type]
 
         # Build handler object
-        input_handler = input_class(config_input, logger)
+        input_handler = input_class(config, base, logger)
 
         # Creat a lit of StarData objects
         stars = input_handler.makeStars(logger)
@@ -127,7 +129,7 @@ class Input(object):
                       pointing=self.pointing, use_partial=self.use_partial,
                       invert_weight=self.invert_weight,
                       remove_signal_from_weight=self.remove_signal_from_weight,
-                      config=self.config)
+                      config=self.config, base=self.base)
 
         all_stars = run_multi(self._makeStarsFromImage, self.nproc, raise_except=True,
                               args=args, logger=logger, kwargs=kwargs)
@@ -411,12 +413,13 @@ class InputFiles(Input):
                         `setPointing` for details about how this can be specified]
 
     :param config:      The configuration dict used to define the above parameters.
+    :param base:        The base configuration dict if needed for value parsing. [default: None]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'Files'
     _sed_cache = {}
 
-    def __init__(self, config, logger=None):
+    def __init__(self, config, base=None, logger=None):
         import copy
         logger = LoggerWrapper(logger)
 
@@ -459,25 +462,20 @@ class InputFiles(Input):
                 'invert_weight' : bool,
                 'remove_signal_from_weight' : bool,
                 'stamp_size' : int,
-                'gain' : str,
-                'satur' : str,
-                'trust_pos' : bool,
                 'use_partial' : bool,
-                'sky' : str,
-                'noise' : str,
                 'nstars' : int,
               }
-        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs', 'bandpass' ]
+        ignore = [ 'nproc', 'nimages', 'ra', 'dec', 'wcs', 'bandpass',
+                   'sky', 'gain', 'satur', 'noise', 'trust_pos' ]
 
         # We're going to change the config dict a bit. Make a copy so we don't mess up the
         # user's original dict (in case they care).
         config = copy.deepcopy(config)
+        base = copy.deepcopy(base) if base is not None else {'input': config}
 
         # In GalSim, the base dict holds additional parameters that may be of use.
-        # Here, we just make a dict with a few values that could be relevant.
-        base = { 'input' : config,
-                 'index_key' : 'image_num',
-               }
+        # For now, add index_kex, as this will be the only thing we index anything on.
+        base['index_key'] = 'image_num'
 
         # Convert options 2 and 3 above into option 4.  (1 is also parseable by GalSim's config.)
         nimages = None
@@ -487,6 +485,20 @@ class InputFiles(Input):
 
         if 'nproc' in config:
             self.nproc = galsim.config.ParseValue(config, 'nproc', base, int)[0]
+
+        top_level_opt = {
+                'stamp_size' : int,
+                'invert_weight' : bool,
+                'remove_signal_from_weight' : bool,
+                'use_partial' : bool,
+              }
+        top_level_params = galsim.config.GetAllParams(
+                config, base, opt=top_level_opt, ignore=list(req) + list(opt) + ignore)[0]
+        config.pop('_get')
+        self.stamp_size = top_level_params.get('stamp_size', 32)
+        self.invert_weight = top_level_params.get('invert_weight', False)
+        self.remove_signal_from_weight = top_level_params.get('remove_signal_from_weight', False)
+        self.use_partial = top_level_params.get('use_partial', False)
 
         if 'nstars' in config:
             logger.warning("input.nstars is deprecated; use select.nstars for the new global "
@@ -637,19 +649,19 @@ class InputFiles(Input):
 
         self.nimages = nimages
         self.chipnums = list(range(nimages))
-        self.stamp_size = int(config.get('stamp_size', 32))
         self.image_file_name = []
         self.cat_file_name = []
         self.image_kwargs = []
         self.cat_kwargs = []
 
-        self.remove_signal_from_weight = config.get('remove_signal_from_weight', False)
-        self.invert_weight = config.get('invert_weight', False)
+        self.config = galsim.config.CleanConfig(config)
+        self.base = galsim.config.CleanConfig(base)
 
         logger.verbose("Reading in %d images",nimages)
         for image_num in range(nimages):
 
             # This changes for each input image.
+            base['index_key'] = 'image_num'
             base['image_num'] = image_num
 
             logger.debug("config = %s", config)
@@ -670,9 +682,6 @@ class InputFiles(Input):
             badpix_zeros = params.get('badpix_zeros', False)
             sky_file_name = params.get('sky_file_name', None)
             sky_hdu = params.get('sky_hdu', None)
-            sky = params.get('sky', None)
-            noise = params.get('noise', None)
-
             self.image_file_name.append(image_file_name)
             self.image_kwargs.append({
                     'image_file_name' : image_file_name,
@@ -684,8 +693,10 @@ class InputFiles(Input):
                     'badpix_zeros' : badpix_zeros,
                     'sky_file_name' : sky_file_name,
                     'sky_hdu' : sky_hdu,
-                    'sky' : sky,
-                    'noise' : noise})
+                    'image_num' : image_num,
+                    'config' : self.config,
+                    'base' : self.base,
+                })
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
@@ -717,14 +728,11 @@ class InputFiles(Input):
                 bandpass = None
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
-            gain = params.get('gain', None)
-            satur = params.get('satur', None)
-            trust_pos = params.get('trust_pos', None)
             nstars = params.get('nstars', None)
 
-            if sky_col is not None and sky is not None:
+            if sky_col is not None and 'sky' in config:
                 raise ValueError("Cannot provide both sky_col and sky.")
-            if gain_col is not None and gain is not None:
+            if gain_col is not None and 'gain' in config:
                 raise ValueError("Cannot provide both gain_col and gain.")
 
             self.cat_file_name.append(cat_file_name)
@@ -742,7 +750,6 @@ class InputFiles(Input):
                     'use_flag' : use_flag,
                     'property_cols': property_cols,
                     'properties': properties,
-                    'image_num': image_num,
                     'sed_col': sed_col,
                     'sed_file_name': sed_file_name,
                     'sed_wave_type': sed_wave_type,
@@ -754,25 +761,24 @@ class InputFiles(Input):
                     'bandpass': bandpass,
                     'sky_col' : sky_col,
                     'gain_col' : gain_col,
-                    'sky' : sky,
-                    'gain' : gain,
-                    'satur' : satur,
-                    'trust_pos' : trust_pos,
                     'nstars' : nstars,
-                    'stamp_size' : self.stamp_size})
+                    'stamp_size' : self.stamp_size,
+                    'config' : self.config,
+                    'base' : self.base,
+                })
 
         self.use_partial = config.get('use_partial', False)
         self.bandpass = bandpass
 
         # Read all the wcs's, since we'll need this for the pointing, which in turn we'll
         # need for when we make the stars.
-        self.setWCS(config, logger)
+        self.setWCS(config, base, logger)
 
         # Finally, set the pointing coordinate.
-        ra = config.get('ra',None)
-        dec = config.get('dec',None)
+        # Note: setPointing will do the config parsing of these if appropriate.
+        ra = config.get('ra', None)
+        dec = config.get('dec', None)
         self.setPointing(ra, dec, logger)
-        self.config = galsim.config.CleanConfig(config)
 
     def load_images(self, stars, logger=None):
         """Load the image data into a list of Stars.
@@ -809,15 +815,30 @@ class InputFiles(Input):
         return loaded_stars
 
     def getRawImageData(self, image_num, logger=None):
+        self.base['index_key'] = 'image_num'
+        self.base['image_num'] = image_num
         return self._getRawImageData(self.image_kwargs[image_num], self.cat_kwargs[image_num],
                                      self.wcs_list[image_num], self.invert_weight,
                                      self.remove_signal_from_weight,
-                                     config=self.config, logger=logger)
+                                     config=self.config, base=self.base, logger=logger)
+
+    @staticmethod
+    def _handle_depr_image_value(value, image, name, logger):
+        # gain, satur, noise, and sky used to be allowed to be in a FITS header.
+        # Now this functionality should use the ImageHeaderValue type to be more explicit.
+        # The old behavior still works, but is deprecated.
+        if isinstance(value, str) and value[0] not in '@$':
+            logger.error("WARNING: Using a bare FITS header key for %s is deprecated."
+                         "Use { 'type': 'ImageHeaderValue': 'key': %s } instead.",
+                         name, value)
+            value = float(image.header[value])
+        return value
 
     @staticmethod
     def _getRawImageData(image_kwargs, cat_kwargs, wcs,
                          invert_weight, remove_signal_from_weight,
-                         config=None, logger=None):
+                         config, base, logger=None):
+        from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         image, weight = InputFiles.readImage(logger=logger, **image_kwargs)
 
@@ -827,11 +848,8 @@ class InputFiles(Input):
         # Update the wcs
         image.wcs = wcs
 
-        # Don't use mutable as default parameter value.  Convert None -> {} as needed.
-        config = config if config is not None else {}
-
         image_pos, extra_props = InputFiles.readStarCatalog(
-                logger=logger, image=image, config=config, **cat_kwargs)
+                logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
             # Subtract off the mean sky, since this isn't part of the "signal" we want to
@@ -859,12 +877,12 @@ class InputFiles(Input):
     def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, pointing, use_partial,
                             invert_weight, remove_signal_from_weight,
-                            config, logger):
+                            config, base, logger):
         """Make "stars" from a single input image
         """
         image, wt, image_pos, extra_props = InputFiles._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight,
-                config, logger)
+                config, base, logger)
         logger.verbose("Processing catalog %s with %d objects",chipnum,len(image_pos))
 
         objects = []
@@ -938,17 +956,20 @@ class InputFiles(Input):
 
         return objects
 
-    def setWCS(self, config, logger):
+    def setWCS(self, config, base, logger):
         self.wcs_list = []
         self.center_list = []
         for image_num, kwargs in enumerate(self.image_kwargs):
             galsim.config.RemoveCurrent(config) # Makes any @ items work correctly
+            base['image_num'] = image_num
             image_file_name = kwargs['image_file_name']
             image_hdu = kwargs['image_hdu']
-            image = galsim.fits.read(image_file_name, hdu=image_hdu)
+            image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
             if 'wcs' in config:
                 logger.info("Using custom wcs from config for %s",image_file_name)
-                base = { 'input' : config, 'index_key' : 'image_num', 'image_num' : image_num }
+                base['index_key'] = 'image_num'
+                base['image_num'] = image_num
+                base['_current_image'] = image
                 wcs = galsim.config.BuildWCS(config, 'wcs', base, logger)
             else:
                 logger.info("Getting wcs from image file %s",image_file_name)
@@ -986,7 +1007,7 @@ class InputFiles(Input):
     @staticmethod
     def readImage(image_file_name, image_hdu, weight_file_name, weight_hdu,
                   badpix_file_name, badpix_hdu, badpix_zeros, sky_file_name, sky_hdu,
-                  sky, noise, logger):
+                  image_num, config, base, logger):
         """Read in the image and weight map (or make one if no weight information is given
 
         :param image_file_name: The name of the file to read.
@@ -1000,25 +1021,37 @@ class InputFiles(Input):
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
         :param sky_hdu:         The hdu to use in the sky_file_name (if any).
-        :param sky:             If this is 'median', then treat the median as the sky level.
-                                Otherwise, the sky level is set to the value passed here,
-                                or to the value in the fits header associated to the
-                                keyword that's passed here.
-        :param noise:           Either a float constant noise value to use in lieu of a weight
-                                map or a str keyword to use to read a value from FITS header.
+        :param config:          The input section of the config dict.
+        :param base:            The base config dict.
         :param logger:          A logger object for logging debug info.
 
         :returns: image, weight
         """
         # Read in the image
         logger.info("Reading image file %s",image_file_name)
+        base['image_num'] = image_num
         image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
+        base['_current_image'] = image
+
+        noise = None
+        if 'noise' in config:
+            noise = galsim.config.ParseValue(config, 'noise', base, (float, str))[0]
+
+        sky = None
+        if 'sky' in config:
+            sky = galsim.config.ParseValue(config, 'sky', base, (float, str))[0]
 
         # Make sure dtype is at least float32
         if image.dtype not in [np.float32, np.float64]:
             header = image.header  # This doesn't get copied by view()
             image = image.view(dtype=np.float32)
             image.header = header
+
+        config['_current_image'] = image
+
+        if noise is not None:
+            noise = galsim.config.ParseValue(config, 'noise', config, None)[0]
+            noise = InputFiles._handle_depr_image_value(noise, image, 'noise', logger)
 
         # Either read in the weight image, or build a dummy one
         if weight_file_name is not None or weight_hdu is not None:
@@ -1035,12 +1068,6 @@ class InputFiles(Input):
                 weight.array[weight.array < 0] = 0.
             weight._piff_default_weight = False
         elif noise is not None:
-            try:
-                noise = float(noise)
-            except ValueError:
-                if noise not in image.header:
-                    raise KeyError("Key %s not found in FITS header"%noise)
-                noise = float(image.header[noise])
             logger.debug("Making uniform weight image based on noise variance = %f", noise)
             weight = galsim.ImageF(image.bounds, init_value=1./noise)
             weight._piff_default_weight = False
@@ -1372,8 +1399,8 @@ class InputFiles(Input):
                         flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
                         sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
                         sed_tol, sed_max_samples, bandpass,
-                        properties, image_num, sky_col, gain_col, sky, gain, satur,
-                        trust_pos, nstars, stamp_size, config, logger):
+                        properties, sky_col, gain_col, nstars, stamp_size,
+                        config, base, logger):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
@@ -1392,7 +1419,6 @@ class InputFiles(Input):
                                 Items with flag & use_flag == 0 will be skipped.
         :param property_cols:   A list of column names with star properties (e.g. star colors).
         :param properties:      A dict of additional star properties to attach to every star.
-        :param image_num:       The image number of the current input image.
         :param sed_col:         A column with per-star SED file names.
         :param sed_file_name:   A single SED file name for all stars (if sed_col is None).
         :param sed_wave_type:   Wave type for SED files.
@@ -1404,21 +1430,17 @@ class InputFiles(Input):
         :param bandpass:        The galsim.Bandpass for the observation.
         :param sky_col:         A column with sky (background) levels.
         :param gain_col:        A column with gain values.
-        :param sky:             Either a float value for the sky to use for all objects or a str
-                                keyword to read a value from the FITS header.
-        :param gain:            Either a float value for the gain to use for all objects or a str
-                                keyword to read a value from the FITS header.
-        :param satur:           Either a float value for the saturation level to use or a str
-                                keyword to read a value from the FITS header.
-        :param trust_pos:       Optional bool value indicating whether to trust input positions.
         :param nstars:          Optionally a maximum number of stars to use from this catalog.
         :param stamp_size:      The stamp size being used for the star stamps.
         :param config:          The input section of the config dict.
+        :param base:            The base config dict.
         :param logger:          A logger object for logging debug info. [default: None]
 
         :returns: lists image_pos, extra_props
         """
         import fitsio
+
+        base['_current_image'] = image
 
         if cat_file_name is None:
             # This is possible e.g. when loading images into an existing list of star instances.
@@ -1428,6 +1450,22 @@ class InputFiles(Input):
         # Read in the star catalog
         logger.info("Reading input catalog %s.",cat_file_name)
         cat = InputFiles._read_cat(cat_file_name, cat_hdu)
+
+        sky = None
+        if 'sky' in config:
+            sky = galsim.config.ParseValue(config, 'sky', base, (float, str))[0]
+
+        gain = None
+        if 'gain' in config:
+            gain = galsim.config.ParseValue(config, 'gain', base, (float, str))[0]
+
+        satur = None
+        if 'satur' in config:
+            satur = galsim.config.ParseValue(config, 'satur', base, (float, str))[0]
+
+        trust_pos = None
+        if 'trust_pos' in config:
+            trust_pos = galsim.config.ParseValue(config, 'trust_pos', base, bool)[0]
 
         if flag_col is not None:
             if flag_col not in cat.dtype.names:
@@ -1599,12 +1637,8 @@ class InputFiles(Input):
                 raise ValueError("sky_col = %s is not a column in %s"%(sky_col,cat_file_name))
             extra_props['sky'] = np.float32(cat[sky_col])
         elif sky is not None and sky != 'median':
-            try:
-                sky = float(sky)
-            except ValueError:
-                if sky not in image.header:
-                    raise KeyError("Key %s not found in FITS header"%sky)
-                sky = float(image.header[sky])
+            sky = galsim.config.ParseValue(config, 'sky', config, None)[0]
+            sky = InputFiles._handle_depr_image_value(sky, image, 'sky', logger)
             extra_props['sky'] = np.array([sky]*len(cat), dtype=np.float32)
 
         # Make the list of gain values:
@@ -1616,47 +1650,34 @@ class InputFiles(Input):
                 raise ValueError("gain_col = %s is not a column in %s"%(gain_col,cat_file_name))
             extra_props['gain'] = cat[gain_col]
         elif gain is not None:
-            try:
-                gain = float(gain)
-            except ValueError:
-                if gain not in image.header:
-                    raise KeyError("Key %s not found in FITS header"%gain)
-                gain = float(image.header[gain])
+            gain = galsim.config.ParseValue(config, 'gain', config, None)[0]
+            gain = InputFiles._handle_depr_image_value(gain, image, 'gain', logger)
             extra_props['gain'] = np.array([gain]*len(cat), dtype=float)
 
         # Get the saturation level
         if satur is not None:
-            try:
-                satur = float(satur)
-                logger.debug("Using given saturation value: %s",satur)
-            except ValueError:
-                if satur not in image.header:
-                    raise KeyError("Key %s not found in FITS header"%satur)
-                satur = float(image.header[satur])
-                logger.debug("Using saturation from header: %s",satur)
+            satur = galsim.config.ParseValue(config, 'satur', config, None)[0]
+            satur = InputFiles._handle_depr_image_value(satur, image, 'satur', logger)
+            logger.debug("Using saturation value: %s",satur)
             extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
 
         # Check whether we should trust the positions
         if trust_pos is not None:
-            from galsim.config.value import _GetBoolValue
-            # Converts things like 'Yes', 'True', 'TRUE', 1 to True
-            trust_pos = _GetBoolValue(trust_pos)
             extra_props['trust_pos'] = np.array([trust_pos]*len(cat), dtype=bool)
 
         if properties is not None:
             logger.debug('properties = %s', properties)
             extra_props.update(InputFiles._evaluate_properties(
-                properties, extra_props, image_num, len(cat), config, logger))
+                properties, extra_props, len(cat), base, logger))
 
         return image_pos, extra_props
 
     @staticmethod
-    def _evaluate_properties(properties, extra_props, image_num, nstars, config, logger):
+    def _evaluate_properties(properties, extra_props, nstars, base, logger):
         if not isinstance(properties, dict):
             raise ValueError("properties should be a dict")
 
-        base = { 'input' : config, 'index_key' : 'image_num', 'image_num' : image_num,
-                 'eval_variables': {} }
+        base['eval_variables'] = {}
         # Load the existing extra properties into eval_variables so they are available
         # to be used in eval strings.
         for prop_name, value in extra_props.items():
@@ -1701,6 +1722,7 @@ class InputFiles(Input):
         4. None, which will attempt to find the spatial center of all the input images using the
            midpoint of the min/max ra and dec values of the image corners according to their
            individual WCS functions. [Not implemented currently.]
+        5. dict with GalSim-style config types to be parsed.
         """
         import fitsio
         logger = LoggerWrapper(logger)
@@ -1740,6 +1762,19 @@ class InputFiles(Input):
             logger.verbose("Setting pointing to: %.3f h, %.3f d",
                            self.pointing.ra / galsim.hours,
                            self.pointing.dec / galsim.degrees)
+        elif (isinstance(ra, dict) or isinstance(dec, dict) or
+              (isinstance(ra, str) and (ra[0] in ['$','@'])) or
+              (isinstance(dec, str) and (dec[0] in ['$','@']))):
+            image_file_name = self.image_kwargs[0]['image_file_name']
+            image_hdu = self.image_kwargs[0]['image_hdu']
+            image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
+            base = galsim.config.CopyConfig(self.base)
+            base['index_key'] = 'image_num'
+            base['image_num'] = 0
+            base['_current_image'] = image
+            ra = galsim.config.ParseValue({'ra': ra}, 'ra', base, None)[0]
+            dec = galsim.config.ParseValue({'dec': dec}, 'dec', base, None)[0]
+            self.setPointing(ra, dec, logger)
         elif str(ra) != ra:
             raise ValueError("Unable to parse input ra: %s"%ra)
         elif str(dec) != dec:

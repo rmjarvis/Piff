@@ -80,7 +80,7 @@ def test_Gaussian():
         logger = piff.config.setup_logger(verbose=2)
     else:
         logger = piff.config.setup_logger(log_file='output/test_Gaussian.log')
-    model = piff.Model.process(config['model'], logger)
+    model = piff.Model.process(config['model'], logger=logger)
     fit = model.fit(star).fit
 
     # Same tests.
@@ -128,7 +128,7 @@ def test_Mean():
         }
     }
     logger = piff.config.setup_logger()
-    interp = piff.Interp.process(config['interp'], logger)
+    interp = piff.Interp.process(config['interp'], logger=logger)
     interp.solve(stars)
     np.testing.assert_almost_equal(mean, interp.mean)
 
@@ -269,7 +269,7 @@ def test_single_image():
         },
         'output' : { 'file_name' : psf_file },
     }
-    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config['input'], logger=logger)
 
     # Use a SimplePSF to process the stars data this time.
     interp = piff.Mean()
@@ -379,6 +379,7 @@ def test_single_image():
     # this from the command line, which would call parse_variables.
     piff.config.parse_variables(config, ['verbose=0'], logger=logger)
     #config['verbose'] = 0
+    config = galsim.config.CleanConfig(config)
     with open('simple.yaml','w') as f:
         f.write(yaml.dump(config, default_flow_style=False))
     config2 = piff.config.read_config('simple.yaml')
@@ -700,6 +701,29 @@ def test_model():
         class ValidModel3(ValidModel1):
             pass
 
+    # Concrete model classes should parse real-valued config fields through GalSim.
+    base = {
+        'grid_size': 25,
+        'use_flux': True,
+        'interp_name': 'Lanczos(5)',
+    }
+    config = {
+        'type': 'PixelGrid',
+        'scale': '$0.1 + 0.2',
+        'size': '@grid_size',
+        'interp': '@interp_name',
+        'centered': '$1 == 0',
+        'fit_flux': '@use_flux',
+    }
+    model = piff.Model.process(config, base)
+    assert isinstance(model, piff.PixelGrid)
+    np.testing.assert_allclose(model.scale, 0.3)
+    assert model.size == 25
+    assert model._fit_flux is True
+    assert model._centered is False
+    assert isinstance(model.interp, galsim.Lanczos)
+    assert 'Lanczos(5,' in model.kwargs['interp']
+
 
 @timer
 def test_interp():
@@ -759,6 +783,27 @@ def test_interp():
         class ValidInterp3(ValidInterp1):
             pass
 
+    # Concrete interp classes should parse real-valued config fields through GalSim.
+    base = {
+        'n_neighbors': 15,
+        'algorithm': 'ball_tree',
+    }
+    config = {
+        'type': 'KNN',
+        'keys': ['u', 'v'],
+        'n_neighbors': '@n_neighbors',
+        'weights': 'distance',
+        'algorithm': '@algorithm',
+        'p': '$1 + 1',
+    }
+    interp = piff.Interp.process(config, base)
+    assert isinstance(interp, piff.KNNInterp)
+    assert interp.keys == ['u', 'v']
+    assert interp.knr_kwargs['n_neighbors'] == 15
+    assert interp.knr_kwargs['weights'] == 'distance'
+    assert interp.knr_kwargs['algorithm'] == 'ball_tree'
+    assert interp.knr_kwargs['p'] == 2
+
 
 @timer
 def test_psf():
@@ -777,7 +822,7 @@ def test_psf():
     # Can't do much with a base PSF class
     psf = piff.PSF()
     psf.set_num(None)
-    np.testing.assert_raises(NotImplementedError, psf.parseKwargs, None)
+    np.testing.assert_raises(NotImplementedError, psf.parseKwargs, None, None)
     np.testing.assert_raises(NotImplementedError, psf.interpolateStar, star)
     np.testing.assert_raises(NotImplementedError, psf.interpolateStarList, [star])
     np.testing.assert_raises(NotImplementedError, psf.drawStar, star)
@@ -835,6 +880,37 @@ def test_psf():
         class ValidPSF3(ValidPSF1):
             pass
 
+    # Concrete psf classes should parse scalar config fields but leave structural pieces alone.
+    base = {'use_fastfit': True}
+    config = {
+        'type': 'Simple',
+        'model': {'type': 'Gaussian', 'fastfit': '@use_fastfit'},
+        'interp': {'type': 'Mean'},
+        'chisq_thresh': '$0.1 + 0.1',
+        'min_iter': '$1 + 1',
+        'max_iter': '$5 + 5',
+    }
+    psf = piff.PSF.process(config, base)
+    assert isinstance(psf, piff.SimplePSF)
+    assert isinstance(psf.model, piff.Gaussian)
+    assert isinstance(psf.interp, piff.Mean)
+    assert psf.model._fastfit is True
+    assert psf.chisq_thresh == 0.2
+    assert psf.min_iter == 2
+    assert psf.max_iter == 10
+
+    config = {
+        'type': 'SingleChip',
+        'single_type': 'Simple',
+        'model': {'type': 'Gaussian', 'fastfit': '@use_fastfit'},
+        'interp': {'type': 'Mean'},
+        'nproc': '$1 + 1',
+    }
+    psf = piff.PSF.process(config, base)
+    assert isinstance(psf, piff.SingleChipPSF)
+    assert psf.nproc == 2
+    assert isinstance(psf.single_psf, piff.SimplePSF)
+
 @timer
 def test_load_images():
     """Test the load_images function
@@ -873,7 +949,7 @@ def test_load_images():
                'cat_file_name': cat_file,
                'sky': 10
              }
-    orig_stars, wcs, pointing, _ = piff.Input.process(config, logger)
+    orig_stars, wcs, pointing, _ = piff.Input.process(config, logger=logger)
 
     # Fit these with a simple Mean, Gaussian
     model = piff.Gaussian()

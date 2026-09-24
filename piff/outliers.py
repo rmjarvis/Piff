@@ -34,19 +34,22 @@ class Outliers(object):
     valid_outliers_types = {}
 
     @classmethod
-    def process(cls, config_outliers, logger=None):
+    def process(cls, config, base=None, logger=None):
         """Parse the outliers field of the config dict.
 
-        :param config_outliers: The configuration dict for the outliers field.
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The configuration dict for the outliers field.
+        :param base:        The base configuration dict. [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: an Outliers instance
         """
-        if not isinstance(config_outliers, list):
-            config_outliers = [config_outliers]
+        base = base if base is not None else {'outliers': config}
+
+        if not isinstance(config, list):
+            config = [config]
 
         all_outliers = []
-        for spec in config_outliers:
+        for spec in config:
             # Get the class to use for the outliers
             if 'type' not in spec:
                 raise ValueError("config['outliers'] has no type field")
@@ -59,7 +62,7 @@ class Outliers(object):
             outliers_class = Outliers.valid_outliers_types[outliers_type]
 
             # Read any other kwargs in the outliers field
-            kwargs = outliers_class.parseKwargs(spec, logger)
+            kwargs = outliers_class.parseKwargs(spec, base, logger)
 
             # Build outliers object
             outliers = outliers_class(**kwargs)
@@ -76,21 +79,23 @@ class Outliers(object):
             Outliers.valid_outliers_types[cls._type_name] = cls
 
     @classmethod
-    def parseKwargs(cls, config_outliers, logger=None):
+    def parseKwargs(cls, config, base, logger=None):
         """Parse the outliers field of a configuration dict and return the kwargs to use for
         initializing an instance of the class.
 
         The base class implementation just returns the kwargs as they are, but derived classes
         might want to override this if they need to do something more sophisticated with them.
 
-        :param config_outliers: The outliers field of the configuration dict, config['outliers']
-        :param logger:          A logger object for logging debug info. [default: None]
+        :param config:      The outliers field of the configuration dict, config['outliers']
+        :param base:        The base configuration dict.
+        :param logger:      A logger object for logging debug info. [default: None]
 
         :returns: a kwargs dict to pass to the initializer
         """
         kwargs = {}
-        kwargs.update(config_outliers)
-        kwargs.pop('type',None)
+        for key in config:
+            if key != 'type' and not key.startswith('_'):
+                kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
         kwargs['logger'] = logger
         return kwargs
 
