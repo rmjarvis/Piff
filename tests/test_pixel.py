@@ -1143,7 +1143,7 @@ def test_des_image():
             'stamp_size' : stamp_size,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
-            'gain' : 'GAINA',
+            'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAINA' },
             # Test explicitly specifying the wcs (although it is the same here as what is in the
             # image anyway).
             'wcs' : {

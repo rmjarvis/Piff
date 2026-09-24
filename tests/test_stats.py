@@ -805,7 +805,7 @@ def test_bad_hsm():
             'stamp_size' : stamp_size,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
-            'gain' : 'GAINA',
+            'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAINA' },
         },
         'output' : {
             'file_name' : psf_file,
@@ -1391,8 +1391,8 @@ def test_property_cols():
             'stamp_size' : stamp_size,
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
-            'gain' : 'GAINA',
-            'satur' : 'SATURATA',
+            'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAINA' },
+            'satur' : { 'type': 'ImageHeaderValue', 'key': 'SATURATA' },
             'chipnum': 1,
             # Select ones with a variety of dtypes.
             'property_cols' : ['SOURCE_ID', 'GI_COLOR', 'FLAGS', 'FLAG_COLOR', 'SPREAD_MODEL'],

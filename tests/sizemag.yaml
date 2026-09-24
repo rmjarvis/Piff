@@ -18,7 +18,7 @@ input:
 
     ra: TELRA
     dec: TELDEC
-    gain: GAINA
+    gain: { type: ImageHeaderValue, key: GAINA }
 
 select:
     type: SizeMag
