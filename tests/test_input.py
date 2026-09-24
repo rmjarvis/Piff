@@ -598,6 +598,26 @@ def test_cols():
     np.testing.assert_almost_equal(sky_list, sky, decimal=9)
     np.testing.assert_almost_equal(gain_list, gain, decimal=9)
 
+    # sky and gain can be taken from the fits header using the ImageHeaderValue type.
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
+                'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
+             }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, props = input.getRawImageData(0)
+    sky_list = props['sky']
+    gain_list = props['gain']
+    assert len(image_pos) == 100
+    assert len(sky_list) == 100
+    assert len(gain_list) == 100
+    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_almost_equal(gain_list, gain)
+
+    # The old way to do this was to treat strings as header keys.  This still works,
+    # but it's deprecated.
     # sky and gain can also be given as str values, which mean look in the FITS header.
     config = {
                 'dir' : 'input',
@@ -606,8 +626,11 @@ def test_cols():
                 'sky' : 'SKYLEVEL',
                 'gain' : 'GAIN_A',
              }
-    input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
+    input = piff.InputFiles(config)
+    with CaptureLog() as cl:
+        _, _, image_pos, props = input.getRawImageData(0, logger=cl.logger)
+    assert "Using a bare FITS header key for sky is deprecated" in cl.output
+    assert "Using a bare FITS header key for gain is deprecated" in cl.output
     sky_list = props['sky']
     gain_list = props['gain']
     assert len(image_pos) == 100
@@ -647,14 +670,33 @@ def test_cols():
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array[weight.array != 0], [1./5.] * np.count_nonzero(weight.array))
 
+    # gain can also be given explicitly as an ImageHeaderValue.
+    config['gain'] = { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' }
+    input = piff.InputFiles(config, logger=logger)
+    _, _, image_pos, props = input.getRawImageData(0)
+    gain_list = props['gain']
+    assert len(image_pos) == 100
+    assert len(gain_list) == 100
+    np.testing.assert_almost_equal(gain_list, gain)
+
+    # Missing ImageHeaderValue keys should raise a KeyError.
+    config['gain'] = { 'type': 'ImageHeaderValue', 'key': 'BAD_GAIN' }
+    with np.testing.assert_raises(KeyError):
+        piff.InputFiles(config, logger=logger).getRawImageData(0)
+
+    # ImageHeaderValue requires a current image context.
+    with np.testing.assert_raises(ValueError):
+        galsim.config.ParseValue(
+            { 'x': { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' } }, 'x', {}, None)
+
     # including satur will skip stars that are over the given saturation value.
     # (It won't skip them here, just when building the stars list.)
     config = {
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
-                'sky' : 'SKYLEVEL',
-                'gain' : 'GAIN_A',
+                'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
+                'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
                 'satur' : 1890,
              }
     input = piff.InputFiles(config, logger=logger)
@@ -681,12 +723,29 @@ def test_cols():
                 'dir' : 'input',
                 'image_file_name' : 'test_input_image_00.fits',
                 'cat_file_name' : 'test_input_cat_00.fits',
-                'sky' : 'SKYLEVEL',
-                'gain' : 'GAIN_A',
-                'satur' : 'SATURAT',
+                'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
+                'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
+                'satur' : { 'type': 'ImageHeaderValue', 'key': 'SATURAT' },
              }
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, props = input.getRawImageData(0)
+    satur = props['satur'][0]
+    assert satur == 1890
+    assert len(image_pos) == 100
+
+    # saturat also allows the old deprecated form
+    config = {
+                'dir' : 'input',
+                'image_file_name' : 'test_input_image_00.fits',
+                'cat_file_name' : 'test_input_cat_00.fits',
+                'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
+                'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
+                'satur' : 'SATURAT',
+             }
+    input = piff.InputFiles(config)
+    with CaptureLog() as cl:
+        _, _, image_pos, props = input.getRawImageData(0, logger=cl.logger)
+    assert "Using a bare FITS header key for satur is deprecated" in cl.output
     satur = props['satur'][0]
     assert satur == 1890
     assert len(image_pos) == 100
@@ -883,12 +942,20 @@ def test_cols():
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(gain_col='gain', gain=3, **base_config))
 
     # Invalid header keys
-    input = piff.InputFiles(dict(sky='sky', **base_config))
-    np.testing.assert_raises(KeyError, input.getRawImageData, 0)
-    input = piff.InputFiles(dict(gain='gain', **base_config))
-    np.testing.assert_raises(KeyError, input.getRawImageData, 0)
-    input = piff.InputFiles(dict(satur='satur', **base_config))
-    np.testing.assert_raises(KeyError, input.getRawImageData, 0)
+    config = dict(sky={'type': 'ImageHeaderValue', 'key': 'sky'}, **base_config)
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    config = dict(gain={'type': 'ImageHeaderValue', 'key': 'gain'}, **base_config)
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    config = dict(satur={'type': 'ImageHeaderValue', 'key': 'satur'}, **base_config)
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+
+    # Same with the deprecated versions:
+    config = dict(sky='sky', **base_config)
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    config = dict(gain='gain', **base_config)
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    config = dict(satur='satur', **base_config)
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
 
 
 @timer
@@ -901,7 +968,7 @@ def test_eval_properties():
 
     # The helper requires a dict when properties are provided.
     with np.testing.assert_raises(ValueError):
-        piff.InputFiles._evaluate_properties('invalid', {}, 3, {}, {'image_num': 0}, logger)
+        piff.InputFiles._evaluate_properties('invalid', {}, 3, {'image_num': 0}, logger)
 
     # Properties can depend on catalog values and on previous computed properties.
     extra_props = {
@@ -913,7 +980,7 @@ def test_eval_properties():
             'gr_plus_two': '$gr_plus_one + 1',
             'image_id': '$@image_num + 10',
         },
-        extra_props, 3, {}, {'image_num': 2}, logger)
+        extra_props, 3, {'image_num': 2}, logger)
     np.testing.assert_allclose(props['gr_plus_one'], [1.1, 1.2, 1.3])
     np.testing.assert_allclose(props['gr_plus_two'], [2.1, 2.2, 2.3])
     np.testing.assert_array_equal(props['image_id'], [12, 12, 12])
@@ -921,12 +988,12 @@ def test_eval_properties():
     # If a scalar-only function rejects arrays, we fall back to per-row evaluation.
     props = piff.InputFiles._evaluate_properties(
         {'gr_bin': '$int(gr_color * 10)'},
-        extra_props, 3, {}, {'image_num': 0}, logger)
+        extra_props, 3, {'image_num': 0}, logger)
     np.testing.assert_array_equal(props['gr_bin'], [1, 2, 3])
 
     # Invalid property values should raise.
     with np.testing.assert_raises(ValueError):
-        piff.InputFiles._evaluate_properties({'bad': []}, {}, 1, {}, {'image_num': 0}, logger)
+        piff.InputFiles._evaluate_properties({'bad': []}, {}, 1, {'image_num': 0}, logger)
 
 
 @timer
@@ -1386,7 +1453,8 @@ def test_weight():
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
-                'noise' : 'NOISE',  # Set as 34 in fits file
+                'noise' : { 'type': 'ImageHeaderValue', 'key': 'NOISE' }
+                # NOISE is set as 34 in the fits file.
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
@@ -1394,10 +1462,21 @@ def test_weight():
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 34.**-1)
 
+    # Also using the old deprecated syntax:
+    config['noise'] = 'NOISE'
+    input = piff.InputFiles(config)
+    assert input.nimages == 1
+    with CaptureLog() as cl:
+        _, weight, _, _ = input.getRawImageData(0, logger=cl.logger)
+    assert "Using a bare FITS header key for noise is deprecated" in cl.output
+    assert weight.array.shape == (1024, 1024)
+    np.testing.assert_almost_equal(weight.array, 34.**-1)
+
     # Error if specified noise is not found in header.
+    config['noise'] = { 'type': 'ImageHeaderValue', 'key': 'invalid' }
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
     config['noise'] = 'invalid'
-    with np.testing.assert_raises(KeyError):
-        piff.InputFiles(config, logger=logger).getRawImageData(0)
+    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
 
     # Some old versions of fitsio had a bug where the badpix mask could be offset by 32768.
     # We move them back to 0
@@ -1570,8 +1649,8 @@ def test_lsst_weight():
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
                 'weight_hdu' : 10,
-                'sky' : 'SKYLEVEL',
-                'gain' : 'GAIN_A',
+                'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
+                'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
                 'invert_weight' : True,
                 'remove_signal_from_weight' : True,
              }
@@ -1594,7 +1673,7 @@ def test_lsst_weight():
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
                 'weight_hdu' : 10,
-                'sky' : 'SKYLEVEL',
+                'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
                 'invert_weight' : True,
                 'remove_signal_from_weight' : True,
              }
@@ -1610,7 +1689,7 @@ def test_lsst_weight():
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
                 'weight_hdu' : 10,
-                'gain' : 'GAIN_A',
+                'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
                 'invert_weight' : True,
                 'remove_signal_from_weight' : True,
              }
@@ -1632,7 +1711,7 @@ def test_lsst_weight():
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
                 'weight_file_name' : 'input/test_input_weight_00.fits',
-                'gain' : 'GAIN_A',
+                'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
                 'invert_weight' : True,
                 'remove_signal_from_weight' : True,
              }
@@ -1788,7 +1867,7 @@ def test_stars():
 
     # Setting satur will skip any stars with a pixel above that value.
     # Here there is 1 star with a pixel > 1890
-    config['input']['satur'] = 'SATURAT'
+    config['input']['satur'] = { 'type': 'ImageHeaderValue', 'key': 'SATURAT' }
     input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -2067,6 +2146,13 @@ def test_pointing():
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
+    # Can use explicit config type to get the same thing.
+    config['ra'] = { 'type': 'ImageHeaderValue', 'key': 'RA' }
+    config['dec'] = { 'type': 'ImageHeaderValue', 'key': 'DEC' }
+    input = piff.InputFiles(config, logger=logger)
+    np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
+    np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
+
     # Check invalid ra,dec values
     base_config = { 'dir' : dir, 'image_file_name' : image_file, 'cat_file_name' : cat_file }
     np.testing.assert_raises(ValueError, piff.InputFiles,
@@ -2178,7 +2264,7 @@ def test_sky():
                 'image_file_name' : image_file,
                 'cat_file_name' : cat_file,
                 'use_partial' : True,
-                'sky' : 'SKYLEVEL',
+                'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
              }
     input = piff.InputFiles(config, logger=logger)
     image, _, _, extra_props = input.getRawImageData(0)

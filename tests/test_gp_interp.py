@@ -423,7 +423,7 @@ def test_yaml():
             'y_col' : 'YWIN_IMAGE',
             'ra' : 'TELRA',
             'dec' : 'TELDEC',
-            'gain' : 'GAINA',
+            'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAINA' },
             'sky_col' : 'BACKGROUND',
 
             # How large should the postage stamp cutouts of the stars be?
