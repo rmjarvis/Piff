@@ -378,6 +378,7 @@ class ChisqOutliers(Outliers):
         if nremoved == 0:
             # Flag any reserve stars that need it.
             stars = [s.flag_if(s.is_reserve
+                               and not s.is_flagged
                                and not(s.fit.chisq <= self._get_thresh(s.fit.dof) * factor)
                               )
                      for s in stars]
@@ -391,9 +392,11 @@ class ChisqOutliers(Outliers):
             max_remove = int(math.ceil(max_remove * len(use_stars)))
 
         # Remake the chisq, etc. with all the stars now.
-        all_chisq = np.array([s.fit.chisq for s in stars])
+        all_chisq = np.array([0.0 if s.is_flagged else s.fit.chisq for s in stars])
         all_dof = np.array([s.fit.dof for s in stars])
-        all_thresh = np.array([self._get_thresh(d) for d in all_dof]) * factor
+        all_thresh = np.array([
+            np.inf if s.is_flagged else self._get_thresh(s.fit.dof)
+            for s in stars ]) * factor
         good = all_chisq <= all_thresh
 
         if max_remove is None or nremoved <= max_remove:
