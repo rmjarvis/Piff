@@ -297,8 +297,59 @@ def test_centroid():
         out3 = piff.Outliers.read(r, 'outliers')
     assert out3 is None
 
+@timer
+def test_dof_outlier_rejection():
+    """Test rejection of stars that fail reflux due to a singular matrix."""
+    model = piff.PixelGrid(scale=0.05, size=23, init='delta')
+    psf = piff.SimplePSF(model, piff.Mean())
+    logger = piff.config.setup_logger(log_file='output/test_single_image.log')
+
+    # Make a blank stamp whose zero weights produce a singular reflux fit.
+    star = piff.Star.makeTarget(
+        x=20.0, y=20.0, scale=0.039, stamp_size=33,
+        properties={'is_reserve': False},
+    )
+    star.weight.array[:] = 0.0
+    star = model.initialize(star)
+
+    np.testing.assert_raises(np.linalg.LinAlgError, psf.reflux, star)
+
+    # The PSF should flag the star when reflux fails.
+    stars, nremoved = psf.reflux_stars([star], logger=logger)
+    failed = stars[0]
+    assert nremoved == 1
+    assert failed.is_flagged
+    assert failed.fit.dof is None  # The star never completed a fit.
+    assert failed.fit.chisq is None
+
+    # Supply valid fit statistics so ChisqOutliers can calculate thresholds.
+    # The low-chi-square star prevents global threshold scaling from hiding
+    # the high-chi-square outlier.
+    template = piff.Star.makeTarget(x=20.0, y=20.0, scale=0.039, stamp_size=33)
+    low = piff.Star(
+        template.data, piff.StarFit(params=None, chisq=100.0, dof=1086)
+    )
+    high = piff.Star(
+        template.data, piff.StarFit(params=None, chisq=3000.0, dof=1086)
+    )
+    outliers = piff.ChisqOutliers(nsigma=5, max_remove=0.05)
+
+    # The control sample removes the high-chi-square star.
+    checked, nremoved = outliers.removeOutliers([low, high])
+    assert nremoved == 1
+    assert not checked[0].is_flagged
+    assert checked[1].is_flagged
+
+    # Including the failed star does not change the number removed.
+    checked, nremoved = outliers.removeOutliers([low, high, failed])
+    assert nremoved == 1
+    assert not checked[0].is_flagged
+    assert checked[1].is_flagged
+    assert checked[2].is_flagged
+
 
 if __name__ == '__main__':
     test_chisq()
     test_base()
     test_centroid()
+    test_dof_outlier_rejection()
