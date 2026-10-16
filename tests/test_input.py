@@ -670,6 +670,23 @@ def test_cols():
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array[weight.array != 0], [1./5.] * np.count_nonzero(weight.array))
 
+    # Test values that change with image_num to make sure those get parsed correctly.
+    multi_config = {
+        'dir': 'input',
+        'image_file_name': ['test_input_image_00.fits'] * 2,
+        'cat_file_name': 'test_input_cat_00.fits',
+    }
+    for key in ['sky', 'gain', 'noise', 'satur']:
+        multi_config[key] = {'type': 'Sequence', 'first': '@first_value', 'step': 10.}
+    base = {'input': multi_config, 'first_value': 10.}
+    multi_input = piff.InputFiles(multi_config, base=base, logger=logger)
+    for image_num, expected in enumerate([10., 20.]):
+        _, weight, image_pos, props = multi_input.getRawImageData(image_num)
+        assert len(image_pos) == 100
+        np.testing.assert_allclose(weight.array, 1. / expected)
+        for key in ['sky', 'gain', 'satur']:
+            np.testing.assert_allclose(props[key], expected)
+
     # gain can also be given explicitly as an ImageHeaderValue.
     config['gain'] = { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' }
     input = piff.InputFiles(config, logger=logger)
