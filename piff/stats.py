@@ -551,7 +551,8 @@ class RhoStats(Stats):
             'model_properties': dict,
         }
         # Assume all other params are valid and intended for treecorr.
-        treecorr_kwargs = [key for key in config if key not in opt and key != 'type']
+        treecorr_kwargs = [key for key in config
+                           if key not in opt and key != 'type' and not key.startswith('_')]
         kwargs = galsim.config.GetAllParams(config, base, opt=opt, ignore=treecorr_kwargs)[0]
         for key in treecorr_kwargs:
             kwargs[key] = galsim.config.ParseValue(config, key, base, None)[0]
