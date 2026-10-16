@@ -1050,7 +1050,7 @@ class InputFiles(Input):
         config['_current_image'] = image
 
         if noise is not None:
-            noise = galsim.config.ParseValue(config, 'noise', config, None)[0]
+            noise = galsim.config.ParseValue(config, 'noise', base, None)[0]
             noise = InputFiles._handle_depr_image_value(noise, image, 'noise', logger)
 
         # Either read in the weight image, or build a dummy one
@@ -1637,7 +1637,7 @@ class InputFiles(Input):
                 raise ValueError("sky_col = %s is not a column in %s"%(sky_col,cat_file_name))
             extra_props['sky'] = np.float32(cat[sky_col])
         elif sky is not None and sky != 'median':
-            sky = galsim.config.ParseValue(config, 'sky', config, None)[0]
+            sky = galsim.config.ParseValue(config, 'sky', base, None)[0]
             sky = InputFiles._handle_depr_image_value(sky, image, 'sky', logger)
             extra_props['sky'] = np.array([sky]*len(cat), dtype=np.float32)
 
@@ -1650,13 +1650,13 @@ class InputFiles(Input):
                 raise ValueError("gain_col = %s is not a column in %s"%(gain_col,cat_file_name))
             extra_props['gain'] = cat[gain_col]
         elif gain is not None:
-            gain = galsim.config.ParseValue(config, 'gain', config, None)[0]
+            gain = galsim.config.ParseValue(config, 'gain', base, None)[0]
             gain = InputFiles._handle_depr_image_value(gain, image, 'gain', logger)
             extra_props['gain'] = np.array([gain]*len(cat), dtype=float)
 
         # Get the saturation level
         if satur is not None:
-            satur = galsim.config.ParseValue(config, 'satur', config, None)[0]
+            satur = galsim.config.ParseValue(config, 'satur', base, None)[0]
             satur = InputFiles._handle_depr_image_value(satur, image, 'satur', logger)
             logger.debug("Using saturation value: %s",satur)
             extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
