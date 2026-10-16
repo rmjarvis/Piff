@@ -76,6 +76,7 @@ def test_roman_optics():
             },
         )
         assert isinstance(psf, RomanOpticsPSF)
+        assert psf.model.filter_name == 'H158'
         logger = piff.config.setup_logger()
         assert psf.interp_property_names == ('sca',)
         assert psf.fit_center is True
