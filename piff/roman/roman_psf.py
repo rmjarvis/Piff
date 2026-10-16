@@ -714,7 +714,7 @@ class RomanOpticsPSF(PSF):
         model_kwargs = {
             key: kwargs[key]
             for key in (
-                'filter',
+                'filter_name',
                 'chromatic',
                 'max_zernike',
                 'nominal_interp',
