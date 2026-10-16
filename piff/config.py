@@ -223,10 +223,14 @@ def plotify(config, logger=None):
     if 'modules' in config:
         galsim.config.ImportModules(config)
 
-    # load psf by looking at output file
-    file_name = config['output']['file_name']
-    if 'dir' in config['output']:
-        file_name = os.path.join(config['output']['dir'], file_name)
+    # Initialize the input handler before output parsing adds cached values to the config.
+    input_type = config['input'].get('type', 'Files')
+    input_class = Input.valid_input_types[input_type]
+    input_handler = input_class(config['input'], config, logger)
+
+    # Parse the output settings before loading the PSF so config expressions are resolved.
+    output = Output.process(config['output'], config, logger=logger)
+    file_name = output.file_name
     logger.verbose("Looking for PSF at %s", file_name)
     psf = PSF.read(file_name, logger=logger)
 
@@ -236,13 +240,9 @@ def plotify(config, logger=None):
     # removed as outliers, so we don't want to include them here.
     # However, the psf.stars do not have the images loaded (to save space in the output file
     # so it's not enormous).  So we need to load in the images for the stats.
-    input_type = config['input'].get('type', 'Files')
-    input_class = Input.valid_input_types[input_type]
-    input_handler = input_class(config['input'], config, logger)
     stars = input_handler.load_images(psf.stars, logger=logger)
 
     # We don't want to rewrite the PSF to disk, so jump straight to the stats_list
-    output = Output.process(config['output'], config, logger=logger)
     logger.debug("stats_list = %s",output.stats_list)
     for stats in output.stats_list:
         stats.compute(psf,stars,logger=logger)

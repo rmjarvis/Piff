@@ -320,6 +320,17 @@ def test_twodstats_config():
     os.remove(twodhist_file)
     os.remove(twodhist_std_file)
     config = galsim.config.CleanConfig(config)
+    config['psf_file'] = os.path.basename(psf_file)
+    config['output_dir'] = os.path.dirname(psf_file)
+    config['output']['file_name'] = '@psf_file'
+    config['output']['dir'] = '$@output_dir'
+    for stats in config['output']['stats']:
+        stats['file_name'] = os.path.basename(stats['file_name'])
+    config['image_file'] = image_file
+    config['cat_file'] = cat_file
+    config['input']['nimages'] = 1
+    config['input']['image_file_name'] = '@image_file'
+    config['input']['cat_file_name'] = '@cat_file'
     piff.plotify(config, logger)
     assert os.path.isfile(twodhist_file)
     assert os.path.isfile(twodhist_std_file)
