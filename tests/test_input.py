@@ -1868,12 +1868,13 @@ def test_stars():
     assert np.all(snr_list2[hi] <= 100.)
 
     # use_partial=False will skip any stars that are partially off the edge of the image
-    config['input']['use_partial'] = False
-    input = piff.InputFiles(config['input'], logger=logger)
-    stars = input.makeStars(logger=logger)
-    stars = select.rejectStars(stars, logger=logger)
-    print('new len is ',len(stars))
-    assert len(stars) == 90  # skipped 4 additional stars
+    for use_partial in [False, '$False']:
+        config['input']['use_partial'] = use_partial
+        input = piff.InputFiles(config['input'], logger=logger)
+        stars = input.makeStars(logger=logger)
+        stars = select.rejectStars(stars, logger=logger)
+        print('new len is ',len(stars))
+        assert len(stars) == 90  # skipped 4 additional stars
 
     # use_partial=False is the default
     del config['input']['use_partial']

@@ -767,7 +767,6 @@ class InputFiles(Input):
                     'base' : self.base,
                 })
 
-        self.use_partial = config.get('use_partial', False)
         self.bandpass = bandpass
 
         # Read all the wcs's, since we'll need this for the pointing, which in turn we'll
