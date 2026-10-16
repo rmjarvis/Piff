@@ -250,6 +250,44 @@ def test_basic():
         _, _, image_pos, _ = input.getRawImageData(i)
         assert len(image_pos) == 100
 
+    # Filename shorthand must follow the same per-image parsing as explicit dicts.
+    file_keys = ['image_file_name', 'cat_file_name', 'weight_file_name',
+                 'badpix_file_name', 'sky_file_name']
+    base = {
+        'image': {'type': 'List_str', 'items': ['input/test_input_image_%02d.fits' % i
+                                          for i in range(2)]},
+        'cat': {'type': 'List_str', 'items': ['input/test_input_cat_%02d.fits' % i
+                                        for i in range(2)]},
+        'sky': 'input/test_input_sky_00.fits.fz',
+        'pixel_scale': {'type': 'List_float', 'items': [0.2, 0.3]},
+    }
+    targets = ['image', 'cat', 'image', 'image', 'sky']
+    reference_config = {'nimages': 2, 'weight_hdu': 1, 'badpix_hdu': 2}
+    reference_config['wcs'] = {'type': 'PixelScale', 'scale': '$@pixel_scale'}
+    for key, target in zip(file_keys, targets):
+        reference_config[key] = {'type': 'Current', 'key': target}
+    reference = piff.InputFiles(reference_config, base=base, logger=logger)
+    assert reference.wcs_list == [galsim.PixelScale(0.2), galsim.PixelScale(0.3)]
+    for prefix in ['@', '$@']:
+        print('prefix = ',prefix)
+        shorthand_config = reference_config.copy()
+        for key, target in zip(file_keys, targets):
+            shorthand_config[key] = prefix + target
+        print('shorthand_config = ',shorthand_config)
+        shorthand = piff.InputFiles(shorthand_config, base=base, logger=logger)
+        print('shorthand = ',shorthand)
+        print('image_file_name = ',shorthand.image_file_name, reference.image_file_name)
+        assert shorthand.image_file_name == reference.image_file_name
+        assert shorthand.cat_file_name == reference.cat_file_name
+        assert shorthand.image_file_name[0] != shorthand.image_file_name[1]
+        assert shorthand.wcs_list == reference.wcs_list
+        for image_num in range(2):
+            image, weight, positions, _ = shorthand.getRawImageData(image_num)
+            ref_image, ref_weight, ref_positions, _ = reference.getRawImageData(image_num)
+            np.testing.assert_array_equal(image.array, ref_image.array)
+            np.testing.assert_array_equal(weight.array, ref_weight.array)
+            assert positions == ref_positions
+
     # Can limit the number of stars
     # *** The next bit is now deprecated.
     #     input.nstars still works with the old per-catalog behavior, but is deprecated
@@ -683,6 +721,17 @@ def test_cols():
     for image_num, expected in enumerate([10., 20.]):
         _, weight, image_pos, props = multi_input.getRawImageData(image_num)
         assert len(image_pos) == 100
+        np.testing.assert_allclose(weight.array, 1. / expected)
+        for key in ['sky', 'gain', 'satur']:
+            np.testing.assert_allclose(props[key], expected)
+
+    # Eval references must also refresh their targets when moving to another image.
+    base['image_value'] = {'type': 'List_float', 'items': [10., 20.]}
+    for key in ['sky', 'gain', 'noise', 'satur']:
+        multi_config[key] = '$@image_value'
+    multi_input = piff.InputFiles(multi_config, base=base, logger=logger)
+    for image_num, expected in enumerate([10., 20.]):
+        _, weight, _, props = multi_input.getRawImageData(image_num)
         np.testing.assert_allclose(weight.array, 1. / expected)
         for key in ['sky', 'gain', 'satur']:
             np.testing.assert_allclose(props[key], expected)

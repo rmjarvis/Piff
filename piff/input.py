@@ -524,6 +524,15 @@ class InputFiles(Input):
             dir = galsim.config.ParseValue(config, 'dir', base, str)[0]
             del config['dir']
 
+        # Convert Current/Eval shorthand before literal filenames are expanded as glob patterns.
+        for key in ['image_file_name', 'cat_file_name', 'sky_file_name',
+                    'weight_file_name', 'badpix_file_name']:
+            value = config.get(key)
+            if isinstance(value, str) and value.startswith('@'):
+                config[key] = {'type': 'Current', 'key': value[1:]}
+            elif isinstance(value, str) and value.startswith('$'):
+                config[key] = {'type': 'Eval', 'str': value[1:]}
+
         if 'image_file_name' not in config:
             raise TypeError('Parameter image_file_name is required')
         elif isinstance(config['image_file_name'], list):
@@ -661,6 +670,7 @@ class InputFiles(Input):
         for image_num in range(nimages):
 
             # This changes for each input image.
+            galsim.config.RemoveCurrent(base)
             base['index_key'] = 'image_num'
             base['image_num'] = image_num
 
@@ -959,7 +969,7 @@ class InputFiles(Input):
         self.wcs_list = []
         self.center_list = []
         for image_num, kwargs in enumerate(self.image_kwargs):
-            galsim.config.RemoveCurrent(config) # Makes any @ items work correctly
+            galsim.config.RemoveCurrent(base) # Makes any @ items work correctly
             base['image_num'] = image_num
             image_file_name = kwargs['image_file_name']
             image_hdu = kwargs['image_hdu']
@@ -1028,6 +1038,7 @@ class InputFiles(Input):
         """
         # Read in the image
         logger.info("Reading image file %s",image_file_name)
+        galsim.config.RemoveCurrent(base)
         base['image_num'] = image_num
         image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
         base['_current_image'] = image
