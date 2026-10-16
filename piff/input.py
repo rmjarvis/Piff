@@ -1765,13 +1765,6 @@ class InputFiles(Input):
                                    self.pointing.dec / galsim.degrees)
             else:
                 self.pointing = None
-        elif type(ra) in [float, int]:
-            ra = float(ra) * galsim.hours
-            dec = float(dec) * galsim.degrees
-            self.pointing = galsim.CelestialCoord(ra,dec)
-            logger.verbose("Setting pointing to: %.3f h, %.3f d",
-                           self.pointing.ra / galsim.hours,
-                           self.pointing.dec / galsim.degrees)
         elif (isinstance(ra, dict) or isinstance(dec, dict) or
               (isinstance(ra, str) and (ra[0] in ['$','@'])) or
               (isinstance(dec, str) and (dec[0] in ['$','@']))):
@@ -1785,6 +1778,13 @@ class InputFiles(Input):
             ra = galsim.config.ParseValue({'ra': ra}, 'ra', base, None)[0]
             dec = galsim.config.ParseValue({'dec': dec}, 'dec', base, None)[0]
             self.setPointing(ra, dec, logger)
+        elif type(ra) in [float, int]:
+            ra = float(ra) * galsim.hours
+            dec = float(dec) * galsim.degrees
+            self.pointing = galsim.CelestialCoord(ra,dec)
+            logger.verbose("Setting pointing to: %.3f h, %.3f d",
+                           self.pointing.ra / galsim.hours,
+                           self.pointing.dec / galsim.degrees)
         elif str(ra) != ra:
             raise ValueError("Unable to parse input ra: %s"%ra)
         elif str(dec) != dec:
