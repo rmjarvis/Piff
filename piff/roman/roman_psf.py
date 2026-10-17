@@ -35,6 +35,17 @@ from ..util import run_multi
 # Kept module-level so tests can override to faster values (e.g. 8 or 16).
 pupil_bin = 4
 
+_filter_aliases = {
+    'F062': 'R062',
+    'F087': 'Z087',
+    'F106': 'Y106',
+    'F129': 'J129',
+    'F146': 'W146',
+    'F158': 'H158',
+    'F184': 'F184',
+    'F213': 'K213',
+}
+
 
 def _get_sca(star):
     # We allow the SCA to be specified either as an sca property (preferred) or as the
@@ -131,6 +142,11 @@ class RomanSCAInterp(Interp):
 class RomanOpticalModel(Model):
     """Model a Roman PSF using GalSim's built-in Roman optical model.
 
+    ``filter_name`` accepts Roman F names (F062, F087, F106, F129, F146, F158, F184,
+    F213) or GalSim names (R062, Z087, Y106, J129, W146, H158, F184, K213).
+    If omitted, the name is inferred from the bandpass. Roman names are converted to
+    GalSim names internally.
+
     The expensive GalSim Roman PSF construction is approximated across each SCA by evaluating
     PSFs at a small set of fixed sample points and interpolating between them at each star
     position. ``nominal_interp='bilinear'`` uses the four SCA corners; ``'five_point'`` adds
@@ -168,7 +184,7 @@ class RomanOpticalModel(Model):
         self.nproc = int(nproc)
         self.bandpass = None
         self.flat_bandpass = None
-        self.filter_name = filter_name
+        self.filter_name = _filter_aliases.get(filter_name, filter_name)
         self.set_num(None)
 
         if self.max_zernike < 4 or self.max_zernike > 22:
@@ -229,6 +245,7 @@ class RomanOpticalModel(Model):
                 raise ValueError(
                     "RomanOptics requires filter_name when bandpass has no name attribute"
                 )
+            self.filter_name = _filter_aliases.get(self.filter_name, self.filter_name)
         self.bandpass = bandpass
         self.flat_bandpass = make_flat(bandpass)
 
@@ -686,10 +703,8 @@ class RomanOpticsPSF(PSF):
 
     @classmethod
     def parseKwargs(cls, config, base, logger):
-        req = {
-            'filter_name': str,
-        }
         opt = {
+            'filter_name': str,
             'chisq_thresh': float,
             'min_iter': int,
             'max_iter': int,
@@ -701,7 +716,7 @@ class RomanOpticsPSF(PSF):
             'nproc': int,
         }
         ignore = ['outliers']
-        kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt, ignore=ignore)[0]
+        kwargs = galsim.config.GetAllParams(config, base, opt=opt, ignore=ignore)[0]
 
         outliers = config.get('outliers', None)
         chisq_thresh = kwargs.get('chisq_thresh', 0.1)

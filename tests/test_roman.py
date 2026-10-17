@@ -89,11 +89,21 @@ def test_roman_optics():
         assert psf.max_iter == 30
         np.testing.assert_allclose(psf.model.orig_prior_sigma, [0.05, 0.05, 0.05])
 
+        # Accept both Roman F names and GalSim's wavelength-specific names.
+        for roman_name, galsim_name in [('F062', 'R062'), ('F087', 'Z087'),
+                                       ('F106', 'Y106'), ('F129', 'J129'),
+                                       ('F146', 'W146'), ('F158', 'H158'),
+                                       ('F184', 'F184'), ('F213', 'K213')]:
+            for name in [roman_name, galsim_name]:
+                named_psf = piff.PSF.process({'type': 'RomanOptics', 'filter_name': name})
+                assert named_psf.model.filter_name == galsim_name
+                assert named_psf.model.kwargs['filter_name'] == galsim_name
+
         # Global mode uses one aberration vector for full focal plane.
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': "$(@roman_filter).replace('F','H')",
+                'filter_name': '@roman_filter',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_interp': '@ab_interp',
@@ -104,6 +114,7 @@ def test_roman_optics():
             },
         )
         assert psf_global.model.aberration_interp == 'constant'
+        assert psf_global.model.filter_name == 'H158'
         assert psf_global.interp.per_sca is False
 
         # Check the core RomanOptics flow: initialize, draw, and profile retrieval.
@@ -129,11 +140,13 @@ def test_roman_optics():
         chromatic_psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': True,
                 'max_zernike': 6,
             }
         )
+        # If the filter_name is omitted, it infers it from the bandpass (if possible).
+        # Including adjusting the first letter if necessary.
+        bandpass.name = 'F158'
         chromatic_psf.set_context({5: galsim.PixelScale(0.11)}, None, bandpass)
         sed = galsim.SED(lambda w: 1.0, wave_type='nm', flux_type='fphotons')
         chromatic_star = piff.Star.makeTarget(
@@ -146,6 +159,7 @@ def test_roman_optics():
         chromatic_stars, _ = chromatic_psf.initialize_params([chromatic_star], logger=logger)
         chromatic_psf.interp.set_sca_solution({5: np.zeros(chromatic_psf.model.param_len)})
         chromatic_model_star = chromatic_psf.drawStar(chromatic_stars[0])
+        assert chromatic_psf.model.filter_name == 'H158'
         assert np.isfinite(chromatic_model_star.image.array).all()
         assert chromatic_model_star.image.array.sum() > 0.0
         chromatic_psf.drawStar(chromatic_stars[0])
@@ -227,7 +241,6 @@ def test_roman_optics():
         psf1 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'outliers': [
@@ -252,7 +265,6 @@ def test_roman_optics():
         psf1 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': True,
                 'max_zernike': 6,
             }
@@ -286,7 +298,7 @@ def test_roman_optics():
     with pytest.raises(ValueError) as err:
         model.set_bandpass(custom_bandpass)
     assert "requires filter_name" in str(err.value)
-    model.set_bandpass(custom_bandpass, filter_name='H158')
+    model.set_bandpass(custom_bandpass, filter_name='F158')
     assert model.bandpass == custom_bandpass
     assert model.filter_name == 'H158'
 
@@ -324,7 +336,6 @@ def test_corner_cache():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
             }
@@ -363,7 +374,6 @@ def test_corner_cache():
         psf5 = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'nominal_interp': 'five_point',
@@ -584,7 +594,6 @@ def test_linear_prior_io():
     psf = piff.PSF.process(
         {
             'type': 'RomanOptics',
-            'filter_name': 'H158',
             'chromatic': False,
             'max_zernike': 6,
             'aberration_interp': 'linear',
@@ -616,7 +625,6 @@ def test_linear_prior_io():
     psf_scalar = piff.PSF.process(
         {
             'type': 'RomanOptics',
-            'filter_name': 'H158',
             'chromatic': False,
             'max_zernike': 6,
             'aberration_interp': 'linear',
@@ -756,7 +764,6 @@ def test_chromatic():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': True,
                 'max_zernike': 6,
                 'max_iter': 1,  # Not used until later when we run fit() directly.
@@ -1182,7 +1189,6 @@ def test_optics_convert_funcs():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_prior_sigma': 1.0e6,
@@ -1245,7 +1251,6 @@ def test_sca_interp():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6
             }
@@ -1307,7 +1312,6 @@ def test_sca_interp():
         psf_global = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
                 'chromatic': False,
                 'max_zernike': 6,
                 'aberration_interp': 'global',
@@ -1329,7 +1333,6 @@ def test_sca_interp():
         psf = piff.PSF.process(
             {
                 'type': 'RomanOptics',
-                'filter_name': 'H158',
             }
         )
         psf.write(fn)
