@@ -20,10 +20,177 @@ import numpy as np
 import galsim
 import scipy.linalg
 import warnings
+import functools
 
 from galsim import Lanczos
 from .model import Model
 from .star import Star
+
+
+# Pure numpy implementations of the GalSim interpolant kernels and their first derivatives.
+#
+# GalSim exposes Interpolant.xval, but not the derivative of the kernel, which we need for the
+# analytic derivative of the PixelGrid model with respect to the position of its center.
+# The formulas below follow GalSim's src/Interpolant.cpp (GalSim 2.x).  The reimplemented
+# values are checked against galsim's xval in the unit tests, which guards the derivatives.
+
+@functools.lru_cache(maxsize=None)
+def _lanczos_K(n):
+    """The coefficients K_j = uCalcRaw(j), j=1..5, used by GalSim for the conserve_dc correction
+    of the Lanczos(n) kernel.
+    """
+    from scipy.special import sici
+    def si(z):
+        return sici(z)[0]
+    def ucalc_raw(u):
+        vp = n*(2.*u+1.)
+        vm = n*(2.*u-1.)
+        ret = ((vm-1.)*si(np.pi*(vm-1.)) - (vm+1.)*si(np.pi*(vm+1.))
+               - (vp-1.)*si(np.pi*(vp-1.)) + (vp+1.)*si(np.pi*(vp+1.)))
+        return ret / (2.*np.pi)
+    return tuple(ucalc_raw(float(j)) for j in range(1,6))
+
+def _lanczos_xval(x, n, conserve_dc=True, deriv=False):
+    """Evaluate the Lanczos(n) kernel, as implemented in GalSim, or its first derivative.
+
+    :param x:           The argument(s) at which to evaluate the kernel.
+    :param n:           The order of the Lanczos kernel.
+    :param conserve_dc: Whether to apply GalSim's flux-conserving correction. [default: True]
+    :param deriv:       If True, return dK/dx rather than K. [default: False]
+
+    :returns: the kernel value(s) (or derivative) as a numpy array with the same shape as x.
+    """
+    x = np.asarray(x, dtype=float)
+    nd = float(n)
+    a = np.abs(x)
+    ret = np.zeros(a.shape, dtype=float)
+    inside = a < nd
+    a = a[inside]
+    pix = np.pi * a
+
+    # The raw kernel L(a) = n sin(pi a) sin(pi a/n) / (pi a)^2 and its derivative dL/da.
+    # Use a Taylor expansion near a=0 to avoid 0/0, as GalSim does.
+    small = a < 1.e-4
+    L = np.empty_like(a)
+    dL = np.empty_like(a)
+    s = np.sin(pix)
+    sn = np.sin(pix/nd)
+    c = np.cos(pix)
+    cn = np.cos(pix/nd)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        L_big = nd * s * sn / (pix*pix)
+        dL_big = nd * np.pi * (c*sn + s*cn/nd) / (pix*pix) - 2.*L_big/a
+    L[~small] = L_big[~small]
+    dL[~small] = dL_big[~small]
+    temp = pix[small]**2 / 6.
+    L[small] = 1. - temp * (1. + 1./nd**2)
+    dL[small] = -(np.pi**2 * a[small] / 3.) * (1. + 1./nd**2)
+
+    if conserve_dc:
+        # GalSim divides the raw kernel by F(q), q = sin^2(pi a), a truncated series that
+        # makes the interpolation of a constant image exactly constant.
+        K1, K2, K3, K4, K5 = _lanczos_K(n)
+        q = s*s
+        F = (1.
+             - 4.*K1*q
+             - 16.*K2*q*(1.-q)
+             - 4.*K3*q*(9.-q*(24.-16.*q))
+             - 64.*K4*q*(1.-q*(5.-q*(8.-4.*q)))
+             - 4.*K5*q*(25.-q*(200.-q*(560.-q*(640.-256.*q)))))
+        val = L / F
+        if deriv:
+            dF_dq = (- 4.*K1
+                     - 16.*K2*(1.-2.*q)
+                     - 4.*K3*(9.-q*(48.-48.*q))
+                     - 64.*K4*(1.-q*(10.-q*(24.-16.*q)))
+                     - 4.*K5*(25.-q*(400.-q*(1680.-q*(2560.-1280.*q)))))
+            dq_da = 2. * np.pi * s * c
+            dval = dL / F - L * dF_dq * dq_da / (F*F)
+    else:
+        val = L
+        if deriv:
+            dval = dL
+
+    if deriv:
+        # K is even, so dK/dx = sign(x) dK/da.
+        ret[inside] = np.sign(x[inside]) * dval
+    else:
+        ret[inside] = val
+    return ret
+
+def _cubic_xval(x, deriv=False):
+    """Evaluate the GalSim Cubic kernel or its first derivative."""
+    x = np.asarray(x, dtype=float)
+    a = np.abs(x)
+    ret = np.zeros(a.shape, dtype=float)
+    m1 = a < 1.
+    m2 = (a >= 1.) & (a < 2.)
+    a1 = a[m1]
+    a2 = a[m2]
+    if deriv:
+        ret[m1] = a1 * (4.5*a1 - 5.)
+        ret[m2] = -0.5 * (2.-a2) * (4.-3.*a2)
+        ret *= np.sign(x)
+    else:
+        ret[m1] = 1. + a1*a1*(1.5*a1 - 2.5)
+        ret[m2] = -0.5 * (a2-1.) * (2.-a2)**2
+    return ret
+
+# Coefficients (ascending powers of |x|) of the piecewise polynomials used by GalSim's Quintic
+# kernel on [0,1), [1,2), [2,3).
+_quintic_coefs = [
+    np.array([1., 0., 0., -95./12., 23./2., -55./12.]),
+    np.array([-23./2., 185./4., -70., 1205./24., -69./4., 55./24.]),
+    np.array([81./2., -339./4., 70., -685./24., 23./4., -11./24.]),
+]
+_quintic_dcoefs = [np.polynomial.polynomial.polyder(c) for c in _quintic_coefs]
+
+def _quintic_xval(x, deriv=False):
+    """Evaluate the GalSim Quintic kernel or its first derivative."""
+    from numpy.polynomial.polynomial import polyval
+    x = np.asarray(x, dtype=float)
+    a = np.abs(x)
+    ret = np.zeros(a.shape, dtype=float)
+    coefs = _quintic_dcoefs if deriv else _quintic_coefs
+    for k, c in enumerate(coefs):
+        m = (a >= k) & (a < k+1)
+        ret[m] = polyval(a[m], c)
+    if deriv:
+        ret *= np.sign(x)
+    return ret
+
+def _kernel_xval_deriv(interp, x):
+    """Evaluate the first derivative of the kernel of a galsim.Interpolant.
+
+    Analytic formulas are used for galsim.Lanczos, galsim.Cubic and galsim.Quintic.  Other
+    (smooth) interpolants fall back to a central finite difference of interp.xval.  Interpolants
+    whose kernel is not differentiable (Nearest, Linear, Delta) or which have infinite support
+    (SincInterpolant) raise a ValueError.
+
+    :param interp:      A galsim.Interpolant instance.
+    :param x:           The argument(s) at which to evaluate the kernel derivative.
+
+    :returns: dK/dx as a numpy array with the same shape as x.
+    """
+    if isinstance(interp, galsim.Lanczos):
+        return _lanczos_xval(x, interp.n, interp.conserve_dc, deriv=True)
+    elif isinstance(interp, galsim.Cubic):
+        return _cubic_xval(x, deriv=True)
+    elif isinstance(interp, galsim.Quintic):
+        return _quintic_xval(x, deriv=True)
+    elif isinstance(interp, (galsim.Nearest, galsim.Linear, galsim.Delta,
+                             galsim.SincInterpolant)):
+        raise ValueError("Cannot compute the kernel derivative for interpolant %r"%interp)
+    else:
+        return _kernel_xval_deriv_fd(interp, x)
+
+def _kernel_xval_deriv_fd(interp, x, h=1.e-4):
+    """Central finite-difference estimate of the kernel derivative of a galsim.Interpolant."""
+    x = np.asarray(x, dtype=float)
+    shape = x.shape
+    x = np.ascontiguousarray(x.ravel())
+    ret = (interp.xval(x + h) - interp.xval(x - h)) / (2.*h)
+    return ret.reshape(shape)
 
 class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
@@ -523,6 +690,111 @@ class PixelGrid(Model):
         self._maxk = ii.maxk
         self._stepk = ii.stepk
         return ii
+
+    def _kernel_sum(self, star, params, deriv=None):
+        """Evaluate the PixelGrid model, or its derivative with respect to the center, on the
+        pixels of the star's image, without going through GalSim.
+
+        The PixelGrid model drawn with method 'no_pixel' is, for image pixel i at local
+        world coordinates (u_i, v_i) relative to star.image_pos, and with
+        (u0, v0) = star.fit.center, s = self.scale, (origin at grid index self._origin),
+
+            I_i = flux * N * (pixel_area / s^2) * sum_jk P[k,j] K(j - (u_i-u0)/s) K(k - (v_i-v0)/s)
+
+        where K is the interpolant kernel, P the params on the size x size grid,
+        pixel_area the area of an image pixel, and N = 1/sum(P) if fit_flux is False (GalSim
+        normalizes the InterpolatedImage to unit flux in that case), else N = 1.
+        Since d/du0 of the kernel argument is +1/s, the derivative with respect to u0 is
+
+            dI_i/du0 = flux * N * (pixel_area / s^3) * sum_jk P[k,j] K'(j - (u_i-u0)/s) K(...)
+
+        and similarly for v0.  This is the same convention as in `chisq`.
+
+        :param star:        A Star instance with the image/wcs to use as the template and
+                            the fit.center and fit.flux to apply.
+        :param params:      The parameter values on the grid (size*size values).
+        :param deriv:       Which quantity to compute: None for the model image, 'u' or 'v'
+                            for the derivative with respect to u0 or v0, or 'uv' for both.
+                            [default: None]
+
+        :returns: a numpy array with the shape of star.image.array (or a tuple of two such
+                  arrays if deriv == 'uv').
+        """
+        if deriv not in (None, 'u', 'v', 'uv'):
+            raise ValueError("Invalid deriv = %r"%deriv)
+
+        _, _, u, v = star.data.getDataVector()
+        u0, v0 = star.fit.center
+        u = (u - u0) / self.scale
+        v = (v - v0) / self.scale
+        ui, uf = np.divmod(u, 1)
+        vi, vf = np.divmod(v, 1)
+        xr = int(np.ceil(self.interp.xrange))
+        offsets = np.arange(-xr+1, xr+1)
+
+        # The kernel arguments are the basis pixel position minus the image pixel position
+        # (in units of the grid scale), exactly as in chisq.
+        argu = -uf[:,np.newaxis] + offsets[np.newaxis,:]
+        argv = -vf[:,np.newaxis] + offsets[np.newaxis,:]
+        uwt = self.interp.xval(argu.ravel()).reshape(argu.shape)
+        vwt = self.interp.xval(argv.ravel()).reshape(argv.shape)
+        if deriv in ('u', 'uv'):
+            duwt = _kernel_xval_deriv(self.interp, argu)
+        if deriv in ('v', 'uv'):
+            dvwt = _kernel_xval_deriv(self.interp, argv)
+
+        # Grid indices of the basis pixels contributing to each image pixel.
+        ju = ui.astype(int)[:,np.newaxis] + offsets[np.newaxis,:] + self._origin
+        jv = vi.astype(int)[:,np.newaxis] + offsets[np.newaxis,:] + self._origin
+
+        # Zero-pad the grid so that the windows never fall off the edge.  Beyond the grid the
+        # model is zero, which is also what GalSim does.
+        pad = max(0, -ju.min(), -jv.min(), ju.max()-self.size+1, jv.max()-self.size+1)
+        P = np.zeros((self.size+2*pad, self.size+2*pad), dtype=float)
+        P[pad:pad+self.size, pad:pad+self.size] = params.reshape(self.size, self.size)
+        # W[i,k,j] = P at the (k,j) basis pixel of the window of image pixel i.
+        W = P[(jv+pad)[:,:,np.newaxis], (ju+pad)[:,np.newaxis,:]]
+
+        norm = star.fit.flux * star.data.pixel_area / self.pixel_area
+        if not self._fit_flux:
+            norm /= np.sum(params)
+        if deriv is not None:
+            norm /= self.scale
+        shape = star.image.array.shape
+
+        # Contract the window with the u and v weights:  sum_kj W[i,k,j] vwt[i,k] uwt[i,j]
+        def contract(vw, uw):
+            return norm * np.einsum('ik,ik->i', vw, (W @ uw[:,:,np.newaxis])[:,:,0]).reshape(shape)
+
+        if deriv is None:
+            return contract(vwt, uwt)
+        ret = []
+        if deriv in ('u', 'uv'):
+            ret.append(contract(vwt, duwt))
+        if deriv in ('v', 'uv'):
+            ret.append(contract(dvwt, uwt))
+        return ret[0] if deriv != 'uv' else tuple(ret)
+
+    def drawDerivative(self, star):
+        """Draw the derivative of the model with respect to the position of its center.
+
+        The derivative is taken with respect to ``star.fit.center`` in world (u,v) coordinates
+        and is computed analytically from the derivative of the interpolant kernel (see
+        `_kernel_sum`).  Moving the model center by (du, dv) changes the image returned by
+        `draw` by approximately ``du * dI_du + dv * dI_dv``.  The ``star.fit.flux`` factor is
+        included.
+
+        :param star:        A Star instance with the fitted parameters to use for drawing and a
+                            data field that acts as a template image for the drawn model.
+
+        :returns: a tuple (dI_du, dI_dv) of two galsim.Image instances with the same bounds
+                  and wcs as star.image.
+        """
+        params = star.fit.get_params(self._num)
+        dI_du, dI_dv = self._kernel_sum(star, params, deriv='uv')
+        im_u = galsim.Image(dI_du, bounds=star.image.bounds, wcs=star.image.wcs)
+        im_v = galsim.Image(dI_dv, bounds=star.image.bounds, wcs=star.image.wcs)
+        return im_u, im_v
 
     def _getBasisProfile(self):
         if not hasattr(self, '_basis_profile'):

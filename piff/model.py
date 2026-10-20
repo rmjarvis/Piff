@@ -165,6 +165,34 @@ class Model(object):
         prof.drawImage(image, method=self._method, center=star.image_pos)
         return Star(star.data.withNew(image=image), star.fit)
 
+    def drawDerivative(self, star):
+        """Draw the derivative of the model with respect to the position of its center.
+
+        This returns the derivative of the image that `draw` would produce, taken with respect
+        to the center of the model in world (u,v) coordinates, i.e. with respect to
+        ``star.fit.center``.  Moving the model center by (du, dv) changes the drawn image by
+        approximately ``du * dI_du + dv * dI_dv``.
+
+        This is the quantity needed by a scene-modeling photometry code (e.g. Astier et al.
+        2013), where the position of a point source is a parameter of the fit and the
+        minimizer requires the derivative of the model with respect to that position.
+
+        Both derivative images include the ``star.fit.flux`` factor, so they are directly
+        comparable to the image returned by `draw`.  To convert the derivatives to image
+        (x,y) pixel coordinates, use the local Jacobian of the star's WCS (cf.
+        `piff.PSF.draw_derivative`, which does this for you).
+
+        Not all models implement this.  The base class raises NotImplementedError.
+
+        :param star:        A Star instance with the fitted parameters to use for drawing and a
+                            data field that acts as a template image for the drawn model.
+
+        :returns: a tuple (dI_du, dI_dv) of two galsim.Image instances with the same bounds
+                  and wcs as star.image.
+        """
+        raise NotImplementedError("Model type %s does not implement drawDerivative"%(
+                                  self._type_name))
+
     def write(self, writer, name):
         """Write a Model via a Writer object.
 
