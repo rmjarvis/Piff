@@ -93,6 +93,11 @@ def test_chisq():
     psf = piff.SimplePSF(model, interp)
     stars = psf.interpolateStarList(stars)
     stars = [ psf.reflux(s,logger=logger) for s in stars ]
+    # Rejection must use the chi-squared of the returned rendered model, including
+    # nonlinear effects of the fitted position, rather than a linearized residual.
+    for star in stars:
+        residual = star.image.array - psf.drawStar(star).image.array
+        np.testing.assert_allclose(star.fit.chisq, np.sum(residual**2 * star.weight.array))
 
     outliers1 = piff.ChisqOutliers(nsigma=5)
     stars1, nremoved1 = outliers1.removeOutliers(stars,logger=logger)
@@ -128,7 +133,9 @@ def test_chisq():
     assert nremoved4 == nremoved3
 
     # Regression tests.  If these change, make sure we understand why.
-    assert nremoved1 == nremoved2 == 58
+    # Two borderline objects pass with the actual rendered chi-squared; the old
+    # linearized values put them just above the rejection threshold.
+    assert nremoved1 == nremoved2 == 56
     assert nremoved3 == nremoved4 == 16  # Much less, since edge objects aren't being removed
                                          # nearly as often as when they have a custom thresh.
 

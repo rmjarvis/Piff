@@ -268,8 +268,12 @@ class PSF(object):
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
 
         data, weight, u, v = star.data.getDataVector()
-        model_star = self.drawStar(star)
-        model = model_star.image.array.ravel()
+        # Render finite differences in double precision, even for float32 input images.
+        render_data = star.data.withNew(image=galsim.Image(star.image, dtype=float))
+        render_star = Star(render_data, star.fit)
+        # With model parameters fixed, stellar flux is an overall linear scale.
+        dmdf = self.drawStar(render_star.withFlux(1.)).image.array.ravel()
+        model = dmdf * star.fit.flux
 
         # Weight by the current model to avoid being influenced by spurious pixels near the edge
         # of the stamp.
@@ -289,29 +293,16 @@ class PSF(object):
         resid = data - model
 
         if self.fit_center and not star.data.properties.get('trust_pos',False):
-            psf_prof, method = self._getRawProfile(model_star)
-            if isinstance(psf_prof, galsim.ChromaticObject):
-                psf_prof = psf_prof * star.data.sed_eff
-                draw_args = (self.flat_bandpass,)
-            else:
-                draw_args = ()
-
-            # Use finite different to approximate d(model)/duc, d(model)/dvc
+            # Use finite differences to approximate d(model)/duc, d(model)/dvc
+            # Note: Use drawStar to draw, rather than getting the profile and using drawImage,
+            # since the reference model image was drawn that way, and the derivatives will only
+            # be accurate if we use the same draw method for both.
             duv = 1.e-5
-            temp = star.image.copy()
             center = star.fit.center
-            du_prof = psf_prof.shift(center[0] + duv, center[1]) * new_flux
-            du_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
-            dmduc = (temp.array.ravel() - model) / duv
-            dv_prof = psf_prof.shift(center[0], center[1] + duv) * new_flux
-            dv_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
-            dmdvc = (temp.array.ravel() - model) / duv
-
-            # Also dmdflux
-            dflux = 1.e-5 * max(abs(new_flux), 1.e-5)  # Guard against division by 0
-            df_prof = psf_prof.shift(center[0], center[1]) * (new_flux + dflux)
-            df_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
-            dmdf = (temp.array.ravel() - model) / dflux
+            du_star = render_star.withFlux(new_flux, (center[0] + duv, center[1]))
+            dmduc = (self.drawStar(du_star).image.array.ravel() - model) / duv
+            dv_star = render_star.withFlux(new_flux, (center[0], center[1] + duv))
+            dmdvc = (self.drawStar(dv_star).image.array.ravel() - model) / duv
 
             # Now construct the design matrix for this minimization
             #
@@ -340,12 +331,16 @@ class PSF(object):
             logger.debug('    new center = %s', new_center)
             logger.debug('    new flux = %s', new_flux)
 
-            new_chisq = np.sum((resid-At.T.dot(x))**2 * weight)
             new_dof = np.count_nonzero(weight) - 3
         else:
             new_center = star.fit.center
-            new_chisq = np.sum(resid**2 * weight)
             new_dof = np.count_nonzero(weight) - 1
+
+        # Report the likelihood of the returned state, rather than its linear
+        # approximation. This is the statistic used for rejection and convergence.
+        result = star.withFlux(new_flux, new_center)
+        resid = data - self.drawStar(result).image.array.ravel()
+        new_chisq = np.sum(resid**2 * weight)
 
         logger.debug("    new_chisq = %s",new_chisq)
         logger.debug("    new_dof = %s",new_dof)
