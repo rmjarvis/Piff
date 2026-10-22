@@ -23,6 +23,7 @@ from .model import Model
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
+from .config import LoggerWrapper
 
 class SimplePSF(PSF):
     """A PSF class that uses a single model and interpolator.
@@ -134,6 +135,7 @@ class SimplePSF(PSF):
         return kwargs
 
     def initialize_params(self, stars, logger=None, default_init=None):
+        logger = LoggerWrapper(logger)
         nremoved = 0
 
         logger.debug("Initializing models")
@@ -154,7 +156,9 @@ class SimplePSF(PSF):
             logger.verbose("Removed %d stars in initialize", nremoved)
 
         logger.debug("Initializing interpolator")
-        stars = self.interp.initialize(new_stars, logger=logger)
+        stars = self.interp.initialize(new_stars, logger=logger,
+                                       transform_params=self.model.transform_params,
+                                       reconstruct_params=self.model.reconstruct_params)
 
         # For basis models, we can compute a quadratic form for chisq, and if we are using
         # a basis interpolator, then we can use it.  It's kind of ugly to query this, but
@@ -170,6 +174,7 @@ class SimplePSF(PSF):
         return stars, nremoved
 
     def single_iteration(self, stars, logger, convert_funcs, draw_method):
+        logger = LoggerWrapper(logger)
 
         # Perform the fit or compute design matrix as appropriate using just non-reserve stars
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
@@ -199,10 +204,11 @@ class SimplePSF(PSF):
 
         # Perform the interpolation, again using just non-reserve stars
         logger.debug("             Calculating the interpolation")
-        self.interp.solve(use_stars, logger=logger)
+        self.interp.solve(use_stars, logger=logger, transform_params=self.model.transform_params)
 
         # Propagate that solution to all the stars' parameters, including reserve stars.
-        all_stars = self.interp.interpolateList(all_stars)
+        all_stars = self.interp.interpolateList(
+            all_stars, reconstruct_params=self.model.reconstruct_params)
 
         return all_stars, nremoved
 
@@ -216,12 +222,6 @@ class SimplePSF(PSF):
         """
         return self.model._centered
 
-    @property
-    def include_model_centroid(self):
-        """Whether a model that we want to center can have a non-zero centroid during iterations.
-        """
-        return self.model._centered and self.model._model_can_be_offset
-
     def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.
@@ -232,7 +232,8 @@ class SimplePSF(PSF):
 
         :returns:           List of Star instances with their fit parameters updated.
         """
-        stars = self.interp.interpolateList(stars, inplace=inplace)
+        stars = self.interp.interpolateList(
+            stars, inplace=inplace, reconstruct_params=self.model.reconstruct_params)
         for star in stars:
             self.model.normalize(star)
         return stars
@@ -247,7 +248,8 @@ class SimplePSF(PSF):
 
         :returns:           Star instance with its fit parameters updated.
         """
-        star = self.interp.interpolate(star, inplace=inplace)
+        star = self.interp.interpolate(
+            star, inplace=inplace, reconstruct_params=self.model.reconstruct_params)
         self.model.normalize(star)
         return star
 

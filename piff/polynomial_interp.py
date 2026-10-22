@@ -230,7 +230,7 @@ class Polynomial(Interp):
         C[0,0] = parameter.mean() if parameter is not None else 1.0
         return C
 
-    def initialize(self, stars, logger=None):
+    def initialize(self, stars, logger=None, transform_params=None, reconstruct_params=None):
         """Initialization is just solving the interpolator with current stars.
         This then calls interpolateList, which will set the stars to have the
         right type of object in its star.fit.params attribute.
@@ -238,9 +238,18 @@ class Polynomial(Interp):
         :param stars:       A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
 
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
+
         :returns: a new list of Star instances
         """
-        parameters = np.array([s.fit.get_params(self._num) for s in stars]).T
+        parameters = [s.fit.get_params(self._num) for s in stars]
+        self._transformed_params = transform_params is not None
+        if transform_params is not None:
+            parameters = [transform_params(p) for p in parameters]
+        parameters = np.array(parameters).T
         positions = np.array([self.getProperties(s) for s in stars]).T
         nparam = len(parameters)
         self._setup_indices(nparam)
@@ -248,9 +257,9 @@ class Polynomial(Interp):
         for i, parameter in enumerate(parameters):
             p0 = self._pack_coefficients(i, self._initialGuess(positions, parameter, i))
             self.coeffs.append(self._unpack_coefficients(i,p0))
-        return self.interpolateList(stars)
+        return self.interpolateList(stars, reconstruct_params=reconstruct_params)
 
-    def solve(self, stars, logger=None):
+    def solve(self, stars, logger=None, transform_params=None):
         """Solve for the interpolation coefficients given some data,
         using the scipy.optimize.curve_fit routine, which uses Levenberg-Marquardt
         to find the least-squares solution.
@@ -259,6 +268,9 @@ class Polynomial(Interp):
 
         :param stars:       A list of Star instances to use for the interpolation.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
+
         """
         from .config import LoggerWrapper
         import scipy.optimize
@@ -267,7 +279,11 @@ class Polynomial(Interp):
         # We will want to index things later, so useful
         # to convert these to numpy arrays and transpose
         # them to the order we need.
-        parameters = np.array([s.fit.get_params(self._num) for s in stars]).T
+        parameters = [s.fit.get_params(self._num) for s in stars]
+        self._transformed_params = transform_params is not None
+        if transform_params is not None:
+            parameters = [transform_params(p) for p in parameters]
+        parameters = np.array(parameters).T
         positions = np.array([self.getProperties(s) for s in stars]).T
 
         # We should have the same number of parameters as number of polynomial
@@ -396,7 +412,7 @@ class Polynomial(Interp):
             self.coeffs.append(self._unpack_coefficients(p,col))
 
 
-    def interpolate(self, star, logger=None, inplace=False):
+    def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
@@ -404,10 +420,15 @@ class Polynomial(Interp):
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned star is the same object as the input star. [default: False]
 
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
+
         :returns: a Star instance holding the interpolated parameters
         """
         pos = self.getProperties(star)
-        p = [self._interpolationModel(pos, coeff) for coeff in self.coeffs]
+        p = np.array([self._interpolationModel(pos, coeff) for coeff in self.coeffs])
+        if self._transformed_params and reconstruct_params is not None:
+            p = reconstruct_params(p)
         if inplace:
             star.fit.updateParams(p, num=self._num)
         else:

@@ -111,45 +111,62 @@ class KNNInterp(Interp):
         """
         return np.array([star.data[key] for key in self.keys])
 
-    def initialize(self, stars, logger=None):
+    def initialize(self, stars, logger=None, transform_params=None, reconstruct_params=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
         initialize the stars for use with this interpolator.
 
         :param stars:   A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
+
         """
         return stars
 
-    def solve(self, stars, logger=None):
+    def solve(self, stars, logger=None, transform_params=None):
         """Solve for the interpolation coefficients given stars and attributes
 
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
+
         """
         locations = np.array([self.getProperties(star) for star in stars])
-        targets = np.array([star.fit.get_params(self._num) for star in stars])
+        targets = [star.fit.get_params(self._num) for star in stars]
+        self._transformed_params = transform_params is not None
+        if transform_params is not None:
+            targets = [transform_params(p) for p in targets]
+        targets = np.array(targets)
         self._fit(locations, targets)
 
-    def interpolate(self, star, logger=None, inplace=False):
+    def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned star is the same object as the input star. [default: False]
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
 
         :returns: a Star instance with its StarFit member holding the interpolated parameters
         """
         # Just call interpolateList because sklearn prefers list input anyways
-        return self.interpolateList([star], logger=logger, inplace=inplace)[0]
+        return self.interpolateList([star], logger=logger, inplace=inplace,
+                                    reconstruct_params=reconstruct_params)[0]
 
-    def interpolateList(self, stars, logger=None, inplace=False):
+    def interpolateList(self, stars, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation for a list of stars.
 
         :param stars:       A list of Star instances to which to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned stars are the same objects as the input stars. [default: False]
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
 
         :returns: a list of Star instances with interpolated parameters
         """
@@ -159,6 +176,8 @@ class KNNInterp(Interp):
         targets = self._predict(locations)
         stars_fitted = []
         for yi, star in zip(targets, stars):
+            if self._transformed_params and reconstruct_params is not None:
+                yi = reconstruct_params(yi)
             if inplace:
                 star.fit.updateParams(yi, num=self._num)
             else:

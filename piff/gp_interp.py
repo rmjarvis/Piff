@@ -197,13 +197,23 @@ class GPInterp(Interp):
         """
         return np.array([star.data[key] for key in self.keys])
 
-    def initialize(self, stars, logger=None):
+    def initialize(self, stars, logger=None, transform_params=None, reconstruct_params=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
         initialize the stars for use with this interpolator.
 
+        Note: GPInterp does not support currently transforming parameters.
+              Providing values for these will result in a NotImplementedError.
+
         :param stars:   A list of Star instances to interpolate between
         :param logger:  A logger object for logging debug info. [default: None]
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
         """
+        if transform_params is not None or reconstruct_params is not None:
+            raise NotImplementedError("GPInterp does not support parameter transformations.")
+
         if self.rows is None:
             self.nparams = len(stars[0].fit.get_params(self._num))
             self.rows = np.arange(0, self.nparams, 1).astype(int)
@@ -237,12 +247,17 @@ class GPInterp(Interp):
 
         return stars
 
-    def solve(self, stars=None, logger=None):
+    def solve(self, stars=None, logger=None, transform_params=None):
         """Set up this GPInterp object.
 
         :param stars:    A list of Star instances to interpolate between
         :param logger:   A logger object for logging debug info. [default: None]
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
         """
+        if transform_params is not None:
+            raise NotImplementedError("GPInterp does not support parameter transformations.")
+
         X = np.array([self.getProperties(star) for star in stars])
         y = np.array([star.fit.get_params(self._num) for star in stars])
         y_err = np.sqrt(np.array([star.fit.get_params_var(self._num) for star in stars]))
@@ -260,7 +275,7 @@ class GPInterp(Interp):
         self._fit(X, y, y_err=y_err, logger=logger)
         self.kernels = [gp.kernel for gp in self.gps]
 
-    def interpolate(self, star, logger=None, inplace=False):
+    def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
@@ -268,11 +283,15 @@ class GPInterp(Interp):
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned star is the same object as the input star. [default: False]
 
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
+
         :returns: a Star instance with its StarFit member holding the interpolated parameters
         """
-        return self.interpolateList([star], logger=logger, inplace=inplace)[0]
+        return self.interpolateList([star], logger=logger, inplace=inplace,
+                                    reconstruct_params=reconstruct_params)[0]
 
-    def interpolateList(self, stars, logger=None, inplace=False):
+    def interpolateList(self, stars, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation for a list of stars.
 
         :param star_list:   A list of Star instances to which to interpolate.
@@ -280,8 +299,14 @@ class GPInterp(Interp):
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned stars are the same objects as the input stars. [default: False]
 
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
+
         :returns: a list of Star instances with interpolated parameters
         """
+        if reconstruct_params is not None:
+            raise NotImplementedError("GPInterp does not support parameter transformations.")
+
         Xstar = np.array([self.getProperties(star) for star in stars])
         gp_y = self._predict(Xstar)
         fitted_stars = []
