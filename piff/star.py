@@ -1383,18 +1383,19 @@ class StarFit(object):
     :dof:         Degrees of freedom in the fit (will depend on whether last fit had
                   parameters free or just the flux/center).
     :A, b:        matrix, vector, giving design matrix equation for the Taylor expansion of chisq
-                  wrt params about their current values. The alpha matrix, AT A, is also the
-                  inverse covariance matrix of the params.
+                  in the model's fitting coordinates about their current values. These are
+                  normally params, but models may use a reduced parameterization. The alpha
+                  matrix, AT A, is the inverse covariance matrix in fitting coordinates.
 
     :param params: A 1d numpy array holding estimated PSF parameters
     :param params_var: A 1d numpy array holding estimates PSF variance error parameters
     :param flux:   Estimated flux for this star
     :param center: Estimated or fixed center position (u,v) of this star relative to
-                    the StarData.image_pos reference point.
-    :param A:      Design matrix for the quadratic dependence of chi-squared on params about
-                    current values.  Quatratic terms is dpT AT A dp.
+                   the StarData.image_pos reference point.
+    :param A:      Design matrix for the quadratic dependence of chi-squared on fitting
+                   coordinates about current values. Quadratic term is dpT AT A dp.
     :param b:      Vector portion of design equation. Linear term of chi-squared dependence
-                    on params about current values is -2 AT b.
+                   on fitting coordinates about current values is -2 AT b.
     :param chisq:  chi-squared value at current parameters.
     :param dof:    The number of degrees of freedom for the given chisq.
     """

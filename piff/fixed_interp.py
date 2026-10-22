@@ -17,7 +17,7 @@ class Fixed(Mean):
     def property_names(self):
         return ()
 
-    def initialize(self, stars, logger=None):
+    def initialize(self, stars, logger=None, transform_params=None, reconstruct_params=None):
         """Preserve the initial parameter vector for all stars.
 
         The initialed model parameters must match for all stars. This is checked.

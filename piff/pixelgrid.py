@@ -24,6 +24,7 @@ import warnings
 from galsim import Lanczos
 from .model import Model
 from .star import Star
+from .util import HouseholderTransform
 
 class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
@@ -64,9 +65,6 @@ class PixelGrid(Model):
 
     _type_name = 'PixelGrid'
     _method = 'no_pixel'
-    _model_can_be_offset = True  # Indicate that in reflux, the centroid should also move by the
-                                 # current centroid of the model.  This way on later iterations,
-                                 # the model will be close to centered.
 
     def __init__(self, scale, size, interp=None, centered=True, init=None, fit_flux=False,
                  logger=None):
@@ -115,6 +113,21 @@ class PixelGrid(Model):
             raise ValueError("Non-positive PixelGrid size {:d}".format(size))
 
         self._nparams = size*size
+        if centered and size > 1:
+            # Build the constraint matrix to keep the profile centroid = (0,0).
+            # The constraints are sum(u * p) = sum(v * p) = 0.
+            # We cast this as a 2-row matrix C, so C @ p = 0.
+            coords = np.arange(size) - self._origin
+            u, v = np.meshgrid(coords, coords)
+            self._centroid_constraint_matrix = np.array([u.ravel(), v.ravel()], dtype=float)
+
+            # The use of this constraint matrix is handled by HouseholderTransform
+            # which applies the constraints efficiently to A, b, and the fitting parameters.
+            self._centroid_transform = HouseholderTransform(self._centroid_constraint_matrix)
+            self.transform_params = self._centroid_transform.project_parameters
+            self.reconstruct_params = self._centroid_transform.reconstruct_parameters
+        else:
+            self._centroid_transform = None
         logger.debug("nparams = %d",self._nparams)
 
         # Save these to use when making InterpolatedImage.
@@ -223,7 +236,7 @@ class PixelGrid(Model):
 
         # The chisq function calculates A and b where
         #
-        #    chisq = chisq_0 + 2 bT A dp + dpT AT A dp
+        #    chisq = chisq_0 - 2 bT A dp + dpT AT A dp
         #
         # is the linearized variation in chisq with respect to changes in the parameter values.
         # The minimum of this linearized functional form is
@@ -236,7 +249,9 @@ class PixelGrid(Model):
         #
         # Even if the solution is degenerate, gelsy works fine using QRP decomposition.
         # And it's much faster than SVD.
-        dparam = scipy.linalg.lstsq(star1.fit.A, star1.fit.b,
+        params = star.fit.get_params(self._num)
+        A, b = star1.fit.A, star1.fit.b
+        dparam = scipy.linalg.lstsq(A, b,
                                     check_finite=False, cond=1.e-6,
                                     lapack_driver='gelsy')[0]
         logger.debug('dparam = %s',dparam)
@@ -252,14 +267,20 @@ class PixelGrid(Model):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                params_var = np.diagonal(scipy.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
+                covariance = scipy.linalg.inv(A.T.dot(A))
+                if self._centroid_transform is not None:
+                    covariance = self._centroid_transform.reconstruct_covariance(covariance)
+                params_var = np.diagonal(covariance)
         except np.linalg.LinAlgError as e:
             # If we get an error, set the variance to "infinity".
             logger.verbose("Caught error %s making params_var.  Setting all to 1.e100",e)
-            params_var = np.ones_like(dparam) * 1.e100
+            params_var = np.ones_like(params) * 1.e100
 
-        params = star.fit.get_params(self._num)
-        params += dparam
+        if self.transform_params is not None:
+            params = self.transform_params(params)
+        params = params + dparam
+        if self.reconstruct_params is not None:
+            params = self.reconstruct_params(params)
         star = Star(star1.data, star1.fit.newParams(params=params, params_var=params_var,
                                                     num=self._num, chisq=new_chisq))
         self.normalize(star)
@@ -268,9 +289,10 @@ class PixelGrid(Model):
     def chisq(self, star, logger=None, convert_func=None, draw_method=None):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
         as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,
-        where dp is the *shift* from current parameter values.  Returned Star
-        instance has the resultant (A, b, chisq) attributes, but params vector has not have
-        been updated yet (could be degenerate).
+        where dp is the shift in fitting coordinates (the full grid if transform_params is None).
+        The returned Star holds (A, b, chisq), while its full params vector is unchanged.
+        Use transform_params and reconstruct_params when interpolating these fitting
+        coordinates.
 
         :param star:            A Star instance
         :param logger:          A logger object for logging debug info. [default: None]
@@ -507,6 +529,12 @@ class PixelGrid(Model):
         sw = np.sqrt(weight)
         A *= sw[:,np.newaxis]
         b *= sw
+        # If we are constraining the model to be centered (which we usually do),
+        # then restrict the A,b arrays to the null space of the constraint matrix.
+        # We do the fit in that space and then project back when we're done.
+        if self._centroid_transform is not None:
+            A, b = self._centroid_transform.restrict_least_squares(
+                A, b, star.fit.get_params(self._num))
         chisq = np.sum(b**2)
         dof = np.count_nonzero(weight)
         logger.debug('chisq,dof = %s,%s',chisq,dof)

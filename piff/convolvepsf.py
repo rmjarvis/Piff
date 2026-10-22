@@ -244,12 +244,6 @@ class ConvolvePSF(PSF):
         """
         return any([comp.fit_center for comp in self.components])
 
-    @property
-    def include_model_centroid(self):
-        """Whether a model that we want to center can have a non-zero centroid during iterations.
-        """
-        return any([comp.include_model_centroid for comp in self.components])
-
     def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
         current PSF model.

@@ -44,6 +44,7 @@ class Interp(object):
     # appear in a config dict.  These will be the keys of valid_interp_types.
     # The values in this dict will be the Interp sub-classes.
     valid_interp_types = {}
+    _transformed_params = False
 
     # Whether SimplePSF should fit individual model parameter vectors before solve().
     # Fixed sets this to False to skip the model fitting steps.
@@ -136,7 +137,7 @@ class Interp(object):
         """
         return ('u', 'v')
 
-    def initialize(self, stars, logger=None):
+    def initialize(self, stars, logger=None, transform_params=None, reconstruct_params=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
         initialize the stars for use with this interpolator.
 
@@ -147,32 +148,42 @@ class Interp(object):
 
         :param stars:       A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params: Optional function converting model parameters to fitting
+                                 coordinates. Not used by the base implementation.
+                                 [default: None, meaning identity]
+        :param reconstruct_params: Optional function converting fitting coordinates back to
+                                   model parameters. Pass it again when interpolating.
+                                   [default: None, meaning identity]
 
         :returns: a new list of Star instances
         """
-        return self.interpolateList(stars)
+        return self.interpolateList(stars, reconstruct_params=reconstruct_params)
 
-    def solve(self, stars, logger=None):
+    def solve(self, stars, logger=None, transform_params=None):
         """Solve for the interpolation coefficients given some data.
 
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
         """
         raise NotImplementedError("Derived classes must define the solve method.")
 
-    def interpolate(self, star, logger=None, inplace=False):
+    def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned star is the same object as the input star. [default: False]
+        :param reconstruct_params: Optional function converting fitting coordinates to full
+                                   model parameters. [default: None, meaning identity]
 
         :returns: a Star instance holding the interpolated parameters
         """
         raise NotImplementedError("Derived classes must define the interpolate method.")
 
-    def interpolateList(self, stars, logger=None, inplace=False):
+    def interpolateList(self, stars, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation for a list of stars.
 
         The base class just calls interpolate(star) for each star in the list, but in many
@@ -183,10 +194,13 @@ class Interp(object):
         :param logger:      A logger object for logging debug info. [default: None]
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned stars are the same objects as the input stars. [default: False]
+        :param reconstruct_params: Optional fitting-to-model conversion function, forwarded
+                                   to interpolate. [default: None, meaning identity]
 
         :returns: a list of Star instances with interpolated parameters
         """
-        return [ self.interpolate(star, inplace=inplace) for star in stars ]
+        return [self.interpolate(star, inplace=inplace, reconstruct_params=reconstruct_params)
+                for star in stars]
 
     def write(self, writer, name):
         """Write an Interp via a writer object.
@@ -209,6 +223,7 @@ class Interp(object):
         # Now do the class-specific steps.  Typically, this will write out the solution parameters.
         with writer.nested(name) as w:
             self._finish_write(w)
+            w.write_struct('param_coordinates', {'transformed': self._transformed_params})
 
     def _finish_write(self, writer):
         """Finish the writing process with any class-specific steps.
@@ -242,6 +257,9 @@ class Interp(object):
         interp = interp_cls(**kwargs)
         with reader.nested(name) as r:
             interp._finish_read(r)
+            coordinates = r.read_struct('param_coordinates')
+            # Files predating coordinate conversions store full model coefficients.
+            interp._transformed_params = coordinates is not None and coordinates['transformed']
         return interp
 
     def _finish_read(self, reader):

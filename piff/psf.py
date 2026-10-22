@@ -243,12 +243,6 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the fit_center property")
 
-    @property
-    def include_model_centroid(self):
-        """Whether a model that we want to center can have a non-zero centroid during iterations.
-        """
-        raise NotImplementedError("Derived classes must define the include_model_centroid property")
-
     def reflux(self, star, logger=None):
         """Fit the PSF to the star's data, varying only the flux (and
         center, if it is free).  Flux and center are updated in the Star's
@@ -340,16 +334,6 @@ class PSF(object):
 
             # Extract the values we want.
             df, duc, dvc = x
-
-            if self.include_model_centroid:
-                # In addition to shifting to the best fit center location, also shift
-                # by the centroid of the model itself, so the next next pass through the
-                # fit will be closer to centered.  In practice, this converges pretty quickly.
-                model_cenu = np.sum(WM * u) / f_model - star.fit.center[0]
-                model_cenv = np.sum(WM * v) / f_model - star.fit.center[1]
-                logger.debug('    model centroid = %s,%s', model_cenu, model_cenv)
-                duc += model_cenu
-                dvc += model_cenv
 
             new_center = (star.fit.center[0] + duc, star.fit.center[1] + dvc)
             new_flux += df

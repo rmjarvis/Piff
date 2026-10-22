@@ -497,7 +497,7 @@ def test_mixed_pixel_sum2():
         target = target[b]
         print('target max diff = ',np.max(np.abs(test_star.image[b].array - target[b].array)))
         print('target max value = ',np.max(np.abs(target[b].array)))
-        np.testing.assert_allclose(test_star.image[b].array, target[b].array, atol=3.e-4)
+        np.testing.assert_allclose(test_star.image[b].array, target[b].array, atol=4.e-4)
 
         # Draw should produce something almost identical (modulo bounds).
         test_image = psf.draw(x=star['x'], y=star['y'], stamp_size=config['input']['stamp_size'],

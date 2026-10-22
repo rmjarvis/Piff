@@ -17,6 +17,7 @@
 """
 
 import numpy as np
+import scipy.linalg
 import os
 import sys
 import traceback
@@ -856,3 +857,91 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     else:
         return ret
+
+class HouseholderTransform:
+    """Helper class for applying Householder transformations.
+
+    In particular, this implements fitting constraints of the form C @ params = 0.
+    It uses Householder reflectors from a QR factorization to transform between
+    full parameter coordinates and constraint null-space coordinates,
+    without constructing the full orthogonal matrix.
+
+    The Householder matrices I - beta v vT are not constructed explicitly.
+    We use lapack functions to do the updates directly, which is both faster
+    and more memory efficient.
+    cf. https://en.wikipedia.org/wiki/Householder_transformation
+
+    :param matrix:  Full-row-rank constraint matrix C, with one column per parameter.
+    """
+    def __init__(self, matrix):
+        self.nconstraint, self.nparams = matrix.shape
+        (self.qr, self.tau), _ = scipy.linalg.qr(matrix.T, mode='raw')
+
+    def _apply_q(self, array, side, transpose):
+        # Fully masked stamps have zero-row design matrices. LAPACK's workspace
+        # query returns zero for these, which is not a valid execution workspace.
+        if array.size == 0:
+            result = array.copy()
+        else:
+            dormqr = scipy.linalg.lapack.dormqr
+            _, work, _ = dormqr(side, transpose, self.qr, self.tau, array, lwork=-1)
+            result, _, _ = dormqr(side, transpose, self.qr, self.tau, array,
+                                  lwork=int(work[0]))
+        return result
+
+    def restrict_least_squares(self, A, b, params):
+        """Rewrite A @ delta = b using only updates that satisfy the constraints.
+
+        The updated parameters must satisfy C @ (params + delta) = 0.
+        Transform the design matrix into the unconstrained coordinates and
+        adjust the right-hand side to remove any constraint violation in params.
+
+        Return the transformed A and b arrays.
+        """
+        A1 = self._apply_q(A, 'R', 'N')
+        coordinates = self._apply_q(params[:, None], 'L', 'T')[:, 0]
+        b1 = b + A1[:, :self.nconstraint].dot(coordinates[:self.nconstraint])
+        return A1[:, self.nconstraint:], b1
+
+    def project_parameters(self, params):
+        """Project the given parameters onto the orthonormal basis of the constraint null space.
+
+        Discard components perpendicular to that space. Reconstructing the
+        returned coordinates gives the closest parameter vector satisfying
+        C @ params = 0.
+
+        Accepts either a parameter vector or a matrix of parameter vectors as columns.
+
+        Returns the projected coordinates array.
+        """
+        coordinates = self._apply_q(params.reshape(self.nparams, -1), 'L', 'T')
+        return coordinates[self.nconstraint:].reshape(
+            (self.nparams-self.nconstraint,) + params.shape[1:])
+
+    def reconstruct_parameters(self, coordinates):
+        """Reconstruct full parameter vectors from their null-space projection.
+
+        Set the constrained coordinates to zero and apply the Householder
+        transformation. The resulting parameters satisfy C @ params = 0.
+
+        Accepts either a coordinates vector or a matrix of coordinate vectors as columns.
+
+        Returns the reconstructed params array.
+        """
+        full_coordinates = np.zeros(
+            (self.nparams, coordinates.reshape(len(coordinates), -1).shape[1]))
+        full_coordinates[self.nconstraint:] = coordinates.reshape(len(coordinates), -1)
+        params = self._apply_q(full_coordinates, 'L', 'N')
+        return params.reshape((self.nparams,) + coordinates.shape[1:])
+
+    def reconstruct_covariance(self, covariance):
+        """Return full-parameter covariance from a covariance in null-space coordinates.
+
+        Transform the covariance back into the original parameter coordinates,
+        with zero uncertainty in the constrained directions.
+        """
+        full_covariance = np.zeros((self.nparams, self.nparams))
+        full_covariance[self.nconstraint:, self.nconstraint:] = covariance
+        full_covariance = self._apply_q(full_covariance, 'L', 'N')
+        full_covariance = self._apply_q(full_covariance, 'R', 'T')
+        return full_covariance

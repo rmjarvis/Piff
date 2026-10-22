@@ -63,7 +63,6 @@ class GSObjectModel(Model):
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'GSObject'
-    _model_can_be_offset = False
 
     @classmethod
     def parseKwargs(cls, config, base=None, logger=None):

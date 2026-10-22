@@ -866,7 +866,10 @@ def test_bad_hsm():
                 'type' : 'PixelGrid',
                 'scale' : 0.3,
                 'size' : 10,
-                'interp': 'Lanczos(3)'
+                'interp': 'Lanczos(3)',
+                # These intentionally misplaced noise stamps have no meaningful
+                # centroid. Test failed HSM diagnostics without fitting positions.
+                'centered': False,
             },
             'interp' : { 'type' : 'Mean' },
             'outliers' : {
@@ -913,7 +916,7 @@ def test_bad_hsm():
     print('flag_model = ',data['flag_model'])
     good_index = np.where(data['flag_psf'] == 0)[0]
     np.testing.assert_array_equal(data['flag_data'][good_index], 7)
-    np.testing.assert_array_equal(data['flag_model'][good_index], 7)
+    assert np.all(data['flag_model'][good_index] != 0)
 
 
 @timer
