@@ -75,8 +75,12 @@ class RomanSCAInterp(Interp):
     def property_names(self):
         return ('sca',)
 
-    def solve(self, stars, logger=None):
-        params = np.array([star.fit.get_params(self._num) for star in stars])
+    def solve(self, stars, logger=None, transform_params=None):
+        params = [star.fit.get_params(self._num) for star in stars]
+        self._transformed_params = transform_params is not None
+        if transform_params is not None:
+            params = [transform_params(p) for p in params]
+        params = np.array(params)
         sca = np.array([_get_sca(star) for star in stars], dtype=int)
         self.global_mean = np.mean(params, axis=0)
         self.sca_mean = {}
@@ -88,7 +92,7 @@ class RomanSCAInterp(Interp):
         self.global_mean = np.mean(list(sca_mean.values()), axis=0)
         self.sca_mean = dict(sca_mean) if self.per_sca else {}
 
-    def interpolate(self, star, logger=None, inplace=False):
+    def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         sca = _get_sca(star)
         if self.per_sca and sca in self.sca_mean:
             # The second clause should rarely be false.
@@ -102,6 +106,8 @@ class RomanSCAInterp(Interp):
             # This can happen during initialization.  sca_mean/global_mean are not set yet.
             return star
 
+        if self._transformed_params and reconstruct_params is not None:
+            params = reconstruct_params(params)
         if inplace:
             star.fit.updateParams(params, num=self._num)
             return star
@@ -163,7 +169,6 @@ class RomanOpticalModel(Model):
     _type_name = 'Roman'
     _method = 'auto'
     _centered = True
-    _model_can_be_offset = False
 
     def __init__(
         self,
@@ -806,10 +811,6 @@ class RomanOpticsPSF(PSF):
     @property
     def fit_center(self):
         return self.model._centered
-
-    @property
-    def include_model_centroid(self):
-        return self.model._centered and self.model._model_can_be_offset
 
     def interpolateStarList(self, stars, inplace=False):
         return self.interp.interpolateList(stars, inplace=inplace)

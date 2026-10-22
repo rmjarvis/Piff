@@ -33,6 +33,12 @@ class Model(object):
     # The values in this dict will be the Model sub-classes.
     valid_model_types = {}
 
+    # Some models (e.g. PixelGrid) need additional transformations of the parameters
+    # when solving the fits. They will supply these two attributes as real functions.
+    # Most models don't use them, so these defaults to None in those cases.
+    transform_params = None
+    reconstruct_params = None
+
     @classmethod
     def process(cls, config, base=None, logger=None):
         """Parse the model field of the config dict.

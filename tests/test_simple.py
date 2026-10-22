@@ -832,8 +832,6 @@ def test_psf():
     np.testing.assert_raises(NotImplementedError, psf.single_iteration, [star], None, None, None)
     with np.testing.assert_raises(NotImplementedError):
         psf.fit_center
-    with np.testing.assert_raises(NotImplementedError):
-        psf.include_model_centroid
 
     # initialize_params doesn't do anything, but works
     stars, nremove = psf.initialize_params([star], None)
@@ -1249,6 +1247,7 @@ if __name__ == '__main__':
     test_Gaussian()
     test_Mean()
     test_single_image()
+    test_trust_pos()
     test_invalid_config()
     test_reserve()
     test_model()
@@ -1256,3 +1255,4 @@ if __name__ == '__main__':
     test_psf()
     test_load_images()
     test_draw()
+    test_depr_select()

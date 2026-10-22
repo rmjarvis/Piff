@@ -454,6 +454,19 @@ def test_yaml():
     test_star = psf.interp.interpolate(piff.Star(target.data,None))
     np.testing.assert_almost_equal(test_star.fit.params, target.fit.params, decimal=3)
 
+    # GP does not support fitting-coordinate conversions, even identity functions.
+    identity = lambda p: p
+    with np.testing.assert_raises(NotImplementedError):
+        psf.interp.initialize(psf.stars, transform_params=identity)
+    with np.testing.assert_raises(NotImplementedError):
+        psf.interp.initialize(psf.stars, reconstruct_params=identity)
+    with np.testing.assert_raises(NotImplementedError):
+        psf.interp.solve(psf.stars, transform_params=identity)
+    with np.testing.assert_raises(NotImplementedError):
+        psf.interp.interpolate(target, reconstruct_params=identity)
+    with np.testing.assert_raises(NotImplementedError):
+        psf.interp.interpolateList([target], reconstruct_params=identity)
+
     # Check alternate config name
     config['psf']['interp']['type'] = 'GaussianProcess'
     psf1 = piff.process(config)
