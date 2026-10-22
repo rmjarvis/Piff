@@ -506,6 +506,40 @@ def test_mixed_pixel_sum2():
         print('image max diff = ',np.max(np.abs(test_image[b].array - test_star.image[b].array)))
         np.testing.assert_allclose(test_image[b].array, test_star.image[b].array, atol=1.e-7)
 
+    # Reflux must differentiate the same component-wise rendering used for the model.
+    # Use an undersampled Gaussian plus a PixelGrid: drawing their combined raw
+    # profile uses an FFT for the grid, whereas drawStar samples it in real space.
+    # A small position error keeps a single reflux update in the linear regime.
+    grid = piff.PixelGrid(scale=0.055, size=11, centered=False, fit_flux=True)
+    x = (np.arange(11)-5)*grid.scale
+    u, v = np.meshgrid(x, x)
+    params = np.exp(-(u*u+v*v)/(2*0.06**2))
+    params = (0.35*params/params.sum()).ravel()
+    psf = piff.SumPSF([piff.SimplePSF(piff.Gaussian(), piff.Mean()),
+                       piff.SimplePSF(grid, piff.Mean())])
+    star = piff.Star.makeTarget(x=25.23, y=25.37, scale=0.11,
+                                stamp_size=25).withFlux(400.)
+    star, = psf.setup_params([star])
+    star = piff.Star(star.data, star.fit.newParams(np.array([0.07, 0.1, -0.06]), num=0))
+    star = piff.Star(star.data, star.fit.newParams(params, num=1))
+    truth = psf.drawStar(star)
+    for dtype in [np.float32, np.float64]:
+        # Float32 inputs must not lose precision in the finite-difference derivatives.
+        image = galsim.Image(truth.image, dtype=dtype)
+        observed = piff.Star(truth.data.withNew(image=image), truth.fit)
+        guess = observed.withFlux(380., center=(0.0001, -0.00008))
+        result = psf.reflux(guess)
+        rendered = psf.drawStar(result)
+        np.testing.assert_allclose(result.fit.center, (0., 0.), atol=3.e-7)
+        np.testing.assert_allclose(result.fit.flux, 400., rtol=1.e-5)
+        np.testing.assert_allclose(rendered.image.array/image.array.max(),
+                                   image.array/image.array.max(), atol=3.e-6, rtol=0)
+        # Report the actual rendered residual after the update, not its linearization.
+        residual = image.array-rendered.image.array
+        np.testing.assert_allclose(result.fit.chisq,
+                                   np.sum(residual**2*observed.weight.array), atol=1.e-10)
+
+
 @timer
 def test_atmpsf():
     # Let reality be atmospheric + optical PSF with realistic variation.
