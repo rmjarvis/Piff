@@ -363,6 +363,28 @@ def test_dof_outlier_rejection():
     assert checked[1].is_flagged
     assert checked[2].is_flagged
 
+    # Now check flagged reserve stars in outlier rejection --
+    
+    # Turn the failed fit into a reserve star.  It is already flagged and has
+    # no valid chisq/dof, so ChisqOutliers must not try to evaluate it.
+    failed_reserve = failed.withProperties(is_reserve=True)
+
+    # With no usable outliers, the special nremoved == 0 branch runs.
+    # It must leave the already-flagged reserve star alone without trying
+    # to compare its None chisq/dof values to the threshold.
+    checked, nremoved = outliers.removeOutliers([low, failed_reserve])
+    assert nremoved == 0
+    assert not checked[0].is_flagged
+    assert checked[1].is_flagged
+
+    # With a usable outlier, the ordinary rejection branch runs.  The
+    # flagged reserve star still does not count as a newly removed star.
+    checked, nremoved = outliers.removeOutliers([low, high, failed_reserve])
+    assert nremoved == 1
+    assert not checked[0].is_flagged
+    assert checked[1].is_flagged
+    assert checked[2].is_flagged
+  
 
 if __name__ == '__main__':
     test_chisq()
