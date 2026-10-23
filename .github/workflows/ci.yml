@@ -21,7 +21,7 @@ jobs:
             matrix:
                 # First all python versions in basic linux
                 os: [ ubuntu-latest ]
-                py: [ "3.10", 3.11, 3.12, 3.13, 3.14 ]
+                py: [ "3.10", 3.11, 3.12, 3.13, 3.14, 3.15 ]
                 CC: [ gcc ]
                 CXX: [ g++ ]
                 FFTW_DIR: [ "/usr/local/lib/" ]
@@ -30,14 +30,14 @@ jobs:
                 include:
                     # MacOS
                     - os: macos-latest
-                      py: "3.10"
+                      py: "3.14"
                       CC: cc
                       CXX: c++
                       FFTW_DIR: "/opt/homebrew/lib/"
 
                     # Check one with clang compiler
                     - os: ubuntu-latest
-                      py: 3.11
+                      py: 3.14
                       CC: clang
                       CXX: clang++
                       FFTW_DIR: "/usr/local/lib/"
