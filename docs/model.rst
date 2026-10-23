@@ -39,6 +39,8 @@ Pixel grid model
 .. autoclass:: piff.PixelGrid
    :members:
 
+    .. automethod:: piff.PixelGrid._kernel_sum
+
 
 Optical model
 -------------

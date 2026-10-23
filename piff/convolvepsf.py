@@ -271,6 +271,9 @@ class ConvolvePSF(PSF):
         image = prof.drawImage(image=star.image.copy(), method=method, center=star.image_pos)
         return Star(star.data.withNew(image=image), star.fit)
 
+    def _drawStarDerivative(self, star):
+        raise NotImplementedError("drawStarDerivative is not implemented for Convolve PSFs")
+
     def _getRawProfile(self, star, skip=None):
         # Get each component profile
         profiles = []

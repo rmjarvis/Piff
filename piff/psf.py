@@ -571,6 +571,17 @@ class PSF(object):
 
         logger.debug("Drawing star at (%s,%s) on chip %s", x, y, chipnum)
 
+        image, center = self._setup_draw_image(x, y, chipnum, center, offset, stamp_size, image)
+
+        prof.drawImage(image, method=method, center=center)
+
+        return image
+
+    def _setup_draw_image(self, x, y, chipnum, center, offset, stamp_size, image):
+        """Build the image and resolve the center position for `draw` and `draw_derivative`.
+
+        :returns: image, center (as a tuple (xc,yc) in image coordinates)
+        """
         # Make the image if necessary
         if image is None:
             image = galsim.Image(stamp_size, stamp_size, dtype=float)
@@ -597,9 +608,92 @@ class PSF(object):
         if offset is not None:
             center = (center[0] + offset[0], center[1] + offset[1])
 
-        prof.drawImage(image, method=method, center=center)
+        return image, center
 
-        return image
+    def draw_derivative(self, x, y, chipnum=None, flux=1.0, center=None, offset=None,
+                        stamp_size=48, image=None, logger=None, **kwargs):
+        r"""Draws the derivative of the PSF image with respect to the position of the PSF.
+
+        This is the derivative of the image that `draw` would produce (with the same arguments)
+        with respect to the position at which the PSF profile is centered, in image pixel
+        coordinates.  I.e. if I(xc, yc) is the image returned by `draw` with the profile
+        centered at (xc, yc), this returns dI/dxc and dI/dyc.  Moving the PSF by (dx, dy) pixels
+        changes the drawn image by approximately ``dx * dI_dx + dy * dI_dy``.
+
+        This is the quantity required by scene-modeling photometry codes (e.g. Astier et al.
+        2013), where the position of a point source is one of the fitted parameters.
+
+            >>> image = psf.draw(chipnum=4, x=103.3, y=592.0, stamp_size=48)
+            >>> dI_dx, dI_dy = psf.draw_derivative(chipnum=4, x=103.3, y=592.0, stamp_size=48)
+
+        The arguments have the same meaning as for `draw`: the PSF model is interpolated at
+        the nominal position (x,y) (with any extra interpolation properties given as kwargs),
+        and the profile is centered at ``center`` (plus ``offset``), which defaults to (x,y).
+        The derivative images have the same bounds and WCS as the image `draw` would return.
+
+        The derivative is computed analytically by the underlying model, which is currently
+        only implemented for the PixelGrid model (cf. `piff.PixelGrid.drawDerivative`).  Other
+        models raise NotImplementedError.
+
+        If you want the derivative with respect to the position in world (u,v) coordinates
+        instead, use `drawStarDerivative` on a target star (cf. `piff.Star.makeTarget`).
+
+        .. note::
+
+            The conversion from world to image coordinates uses the local Jacobian of the
+            WCS at the center position, which is held fixed when taking the derivative.
+            (This is also the local approximation that `draw` uses when rendering the image.)
+
+        :param x:           The x position of the desired PSF in the original image coordinates.
+        :param y:           The y position of the desired PSF in the original image coordinates.
+        :param chipnum:     Which chip to use for WCS information. [required if the psf model
+                            covers more than a single chip]
+        :param flux:        Flux of PSF to be drawn [default: 1.0]
+        :param center:      (xc,yc) tuple giving the location on the image where you want the
+                            nominal center of the profile to be drawn.  Also allowed is the
+                            value center=True to place in the center of the image.
+                            [default: None, which means draw at the position (x,y) of the PSF.]
+        :param offset:      Optional (dx,dy) tuple giving an additional offset relative to the
+                            center. [default: None]
+        :param stamp_size:  The size of the image to construct if no image is provided.
+                            [default: 48]
+        :param image:       An existing image to use as a template for the bounds and wcs of the
+                            derivative images, if desired.  (Its contents are not modified.)
+                            [default: None]
+        :param logger:      A logger object for logging debug info. [default: None]
+        :param \**kwargs:   Any additional properties required for the interpolation.
+
+        :returns:           A tuple (dI_dx, dI_dy) of two GalSim Images.
+        """
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
+
+        chipnum = self._check_chipnum(chipnum)
+
+        # Interpolate the PSF at the nominal position (x,y).
+        star = self._make_target(x, y, chipnum, flux, logger=logger, **kwargs)
+
+        logger.debug("Drawing derivative of star at (%s,%s) on chip %s", x, y, chipnum)
+
+        image, center = self._setup_draw_image(x, y, chipnum, center, offset, stamp_size, image)
+
+        # The model is drawn relative to the resolved center position, using the local wcs
+        # there (which is what drawImage(..., center=center) does), so make a star with that as
+        # its image_pos.  The fit (interpolated parameters, flux) is the one from the nominal
+        # position.  Keep the properties, so composite PSFs can dispatch (e.g. on chipnum).
+        image_pos = galsim.PositionD(*center)
+        data = StarData(image, image_pos, properties=star.data.properties.copy(),
+                        pointing=self.pointing, _xyuv_set=True)
+        dstar = Star(data, star.fit)
+
+        dI_du, dI_dv = self._drawStarDerivative(dstar)
+
+        # Convert from world (u,v) to image (x,y) coordinates using the local Jacobian.
+        jac = dstar.data.local_wcs.jacobian()
+        dI_dx = dI_du * jac.dudx + dI_dv * jac.dvdx
+        dI_dy = dI_du * jac.dudy + dI_dv * jac.dvdy
+
+        return dI_dx, dI_dy
 
     def get_profile(self, x, y, chipnum=None, flux=1.0, logger=None, **kwargs):
         r"""Get the PSF profile at the given position as a GalSim GSObject.
@@ -642,6 +736,27 @@ class PSF(object):
 
         chipnum = self._check_chipnum(chipnum)
 
+        star = self._make_target(x, y, chipnum, flux, logger=logger, **kwargs)
+        logger.debug("Getting PSF profile at (%s,%s) on chip %s", x, y, chipnum)
+
+        # The last step is implementd in the derived classes.
+        prof, method = self._getProfile(star)
+        return prof, method
+
+    def _make_target(self, x, y, chipnum, flux, logger=None, **kwargs):
+        """Make a target star at the given position with the PSF parameters interpolated there.
+
+        This is the common part of `get_profile` and `draw_derivative`.
+
+        :param x:           The x position of the desired PSF in the original image coordinates.
+        :param y:           The y position of the desired PSF in the original image coordinates.
+        :param chipnum:     Which chip to use for WCS information.
+        :param flux:        Flux of PSF model.
+        :param logger:      A logger object for logging debug info. [default: None]
+        :param \**kwargs:   Any additional properties required for the interpolation.
+
+        :returns:           A Star instance with its fit parameters interpolated.
+        """
         properties = {'chipnum' : chipnum}
         for key in self.interp_property_names:
             if key in ['x','y','u','v']: continue
@@ -658,15 +773,11 @@ class PSF(object):
 
         star = Star.makeTarget(x=x, y=y, u=u, v=v, wcs=wcs, properties=properties,
                                pointing=self.pointing)
-        logger.debug("Getting PSF profile at (%s,%s) on chip %s", x, y, chipnum)
 
         # Interpolate and adjust the flux of the star.
         self.interpolateStar(star, inplace=True)
         star.fit.flux = flux  # Modify in place, rather than use withFlux for efficiency.
-
-        # The last step is implementd in the derived classes.
-        prof, method = self._getProfile(star)
-        return prof, method
+        return star
 
     def _check_chipnum(self, chipnum):
         chipnums = list(self.wcs.keys())
@@ -768,6 +879,39 @@ class PSF(object):
         # But they have to at least override this one and interpolateStar to implement
         # their actual PSF model.
         raise NotImplementedError("Derived classes must define the _drawStar function")
+
+    def drawStarDerivative(self, star):
+        """Generate the derivative of the PSF image for a given star with respect to the
+        position of the PSF.
+
+        The derivative is taken with respect to the center of the PSF profile in world (u,v)
+        coordinates, i.e. with respect to ``star.fit.center``, and includes the ``star.fit.flux``
+        factor, so the derivative images are directly comparable to the image returned by
+        `drawStar`.  Moving the center by (du, dv) changes the drawn image by approximately
+        ``du * dI_du + dv * dI_dv``.  See `draw_derivative` for the equivalent in image (x,y)
+        pixel coordinates.
+
+        .. note::
+
+            As for `drawStar`, if the star already has the fit parameters calculated, then this
+            will trust those values and not redo the interpolation.
+
+        The derivative is computed analytically by the underlying model.  This is currently
+        only implemented for the PixelGrid model; other models raise NotImplementedError.
+
+        :param star:        Star instance holding information needed for interpolation as
+                            well as an image/WCS into which the derivatives will be rendered.
+
+        :returns:           A tuple (dI_du, dI_dv) of two GalSim Images with the same bounds
+                            and wcs as star.image.
+        """
+        # Interpolate parameters to this position/properties (if not already done):
+        if star.fit is None or star.fit.get_params(self._num) is None:
+            star = self.interpolateStar(star)
+        return self._drawStarDerivative(star)
+
+    def _drawStarDerivative(self, star):
+        raise NotImplementedError("Derived classes may define the _drawStarDerivative function")
 
     def _getProfile(self, star):
         prof, method = self._getRawProfile(star)

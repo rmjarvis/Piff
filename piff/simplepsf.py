@@ -254,6 +254,9 @@ class SimplePSF(PSF):
     def _drawStar(self, star):
         return self.model.draw(star)
 
+    def _drawStarDerivative(self, star):
+        return self.model.drawDerivative(star)
+
     def _getRawProfile(self, star):
         return self.model.getProfile(star.fit.get_params(self._num)), self.model._method
 

@@ -10,6 +10,7 @@ more complicated combinations of these.
 
     .. automethod:: piff.PSF._write
     .. automethod:: piff.PSF._read
+    .. automethod:: piff.PSF._drawStarDerivative
 
 The simple case of one model/interp
 -----------------------------------
