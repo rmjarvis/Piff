@@ -1582,6 +1582,16 @@ def test_var():
     print('mean ratio = ',np.mean(star.fit.params_var/var))
     np.testing.assert_allclose(star.fit.params_var, var, rtol=0.2)
 
+    # Mask half the stamp so some grid pixels have no data within the interpolant's
+    # support. With centered=False these give exactly zero columns in the design matrix:
+    # least squares still works, but the covariance is singular.
+    star.weight.array[:, :16] = 0
+    with CaptureLog(2) as cl:
+        masked_star = mod.fit(star, logger=cl.logger)
+    assert 'Setting all to 1.e100' in cl.output
+    np.testing.assert_array_equal(masked_star.fit.params_var, np.full(20**2, 1.e100))
+    assert np.all(np.isfinite(masked_star.fit.params))
+
 @timer
 def test_color():
     """Test having a color-dependent size.
