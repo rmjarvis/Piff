@@ -1352,6 +1352,14 @@ def test_sca_interp():
         global_mean = np.mean([p1,p2], axis=0)
         np.testing.assert_equal(psf.interp.global_mean, global_mean)
 
+        # RomanOptics does not need fitting-coordinate conversions, but RomanSCAInterp
+        # supports them. Scaling makes a skipped forward or reverse conversion observable.
+        interp = RomanSCAInterp()
+        interp.solve(stars, transform_params=lambda x: x / 2)
+        np.testing.assert_equal(interp.sca_mean[2], p1 / 2)
+        np.testing.assert_equal(interp.sca_mean[5], p2 / 2)
+        np.testing.assert_equal(interp.global_mean, global_mean / 2)
+
         # interpolate assigns the corresponding sca_mean to the params,
         # or the global mean if the sca wasn't used in the fit (e.g. no stars on an SCA)
         t1 = piff.Star.makeTarget(x=12.0, y=126.0, stamp_size=25, scale=0.11, properties={'sca': 2})
@@ -1365,6 +1373,11 @@ def test_sca_interp():
         np.testing.assert_allclose(tstars[0].fit.params, p1)
         np.testing.assert_allclose(tstars[1].fit.params, p2)
         np.testing.assert_allclose(tstars[2].fit.params, global_mean)
+
+        # Reconstruct both per-SCA means and the global fallback for an unseen SCA.
+        tstars_transformed = interp.interpolateList(tstars, reconstruct_params=lambda x: x * 2)
+        for original, reconstructed in zip(tstars, tstars_transformed):
+            np.testing.assert_allclose(reconstructed.fit.params, original.fit.params)
 
         # Check round trip through file.
         fn = os.path.join('output', 'roman_sca_test.piff')
