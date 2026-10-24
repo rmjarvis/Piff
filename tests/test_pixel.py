@@ -1924,6 +1924,10 @@ def test_too_small():
     # This test comes directly from the bug report in issue #131
     import pickle
     stars = pickle.load(open("input/stars_131.pickle", "rb"))
+    # This historical fixture predates the SED fields initialized by StarData.__init__.
+    for star in stars:
+        star.data.bandpass = None
+        star.data._sed_eff = None
 
     piffConfig = {
         'type': "Simple",

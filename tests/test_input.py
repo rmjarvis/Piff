@@ -1608,7 +1608,7 @@ def test_weight():
     config['weight_hdu'] = 4
     input = piff.InputFiles(config)
     with CaptureLog() as cl:
-        _, weight, _, _  = input.getRawImageData(0, logger=cl.logger)
+        _, weight, _, _ = input.getRawImageData(0, logger=cl.logger)
     assert 'Warning: weight map has invalid negative-valued pixels.' in cl.output
 
     # If some input values are zero, they can be treated as bad pixels with badpix_zeros
@@ -1745,7 +1745,7 @@ def test_lsst_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, props  = input.getRawImageData(0)
+    image, weight, image_pos, props = input.getRawImageData(0)
     np.testing.assert_allclose(props['gain'], gain, rtol=1.e-6)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-6)
 
@@ -2455,29 +2455,37 @@ def test_sed_col():
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
         'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
+    piff.StarData._sed_cache = {}
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, extra_props = input.getRawImageData(0)
+    assert not piff.StarData._sed_cache
+    stars = input.makeStars(logger=logger)
+    assert not piff.StarData._sed_cache
+    seds = [star.data.sed_eff for star in stars]
     bandpass = galsim.roman.getBandpasses()['H158']
     flat_bandpass = make_flat(bandpass)
     assert len(image_pos) == 100
-    assert len(extra_props['sed_eff']) == 100
+    assert len(seds) == 95  # Five catalog positions do not produce usable image stamps.
+    assert 'sed_eff' not in extra_props
 
-    stars = input.makeStars(logger=logger)
     assert len(stars) > 0
     for star in stars[:8]:
-        assert isinstance(star['sed_eff'], galsim.SED)
+        assert isinstance(star.data.sed_eff, galsim.SED)
+        assert 'sed_eff' not in star.data.property_types
+        with np.testing.assert_raises(KeyError):
+            star['sed_eff']
         np.testing.assert_allclose(
-            star['sed_eff'].calculateFlux(flat_bandpass), 1.0, rtol=1.0e-12, atol=0.0
+            star.data.sed_eff.calculateFlux(flat_bandpass), 1.0, rtol=1.0e-12, atol=0.0
         )
         assert star['sed_tol'] == 0.0
 
     # Repeated file names should reuse the same cached SED object.
-    assert extra_props['sed_eff'][0] is extra_props['sed_eff'][4]
-    assert extra_props['sed_eff'][1] is extra_props['sed_eff'][5]
-    assert extra_props['sed_eff'][0] is not extra_props['sed_eff'][1]
+    assert seds[0] is seds[4]
+    assert seds[1] is seds[5]
+    assert seds[0] is not seds[1]
 
     # Distinct template spectra should have different flux at a representative wavelength.
-    sed_vals = [float(extra_props['sed_eff'][i](1500.0)) for i in range(4)]
+    sed_vals = [float(seds[i](1500.0)) for i in range(4)]
     assert len(np.unique(np.round(sed_vals, 12))) > 1
 
     # Invalid sed_col should raise.
@@ -2487,19 +2495,22 @@ def test_sed_col():
 
     # With a sed_file_name dict, sed_col entries act as labels into the mapping.
     config3 = dict(config, sed_col='sed_label', sed_file_name='test_sed_map.yaml')
-    _, _, _, extra_props2 = piff.InputFiles(config3, logger=logger).getRawImageData(0)
-    assert extra_props2['sed_eff'][0] is extra_props2['sed_eff'][4]
-    assert extra_props2['sed_eff'][1] is extra_props2['sed_eff'][5]
-    assert extra_props2['sed_eff'][0] is not extra_props2['sed_eff'][1]
+    input = piff.InputFiles(config3, logger=logger)
+    _, _, _, extra_props2 = input.getRawImageData(0)
+    seds2 = [star.data.sed_eff for star in input.makeStars(logger=logger)]
+    assert 'sed_eff' not in extra_props2
+    assert seds2[0] is seds2[4]
+    assert seds2[1] is seds2[5]
+    assert seds2[0] is not seds2[1]
     np.testing.assert_allclose(
-        float(extra_props2['sed_eff'][0](1500.0)),
-        float(extra_props['sed_eff'][0](1500.0)),
+        float(seds2[0](1500.0)),
+        float(seds[0](1500.0)),
         rtol=1.0e-12,
         atol=0.0,
     )
     np.testing.assert_allclose(
-        float(extra_props2['sed_eff'][1](1500.0)),
-        float(extra_props['sed_eff'][1](1500.0)),
+        float(seds2[1](1500.0)),
+        float(seds[1](1500.0)),
         rtol=1.0e-12,
         atol=0.0,
     )
@@ -2547,14 +2558,15 @@ def test_single_sed():
     }
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, extra_props = input.getRawImageData(0)
+    seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     assert len(image_pos) == 100
-    assert len(extra_props['sed_eff']) == 100
+    assert len(seds) == 95
 
     bandpass = galsim.Bandpass(lambda wave: 1.0, 'Angstrom', blue_limit=1000, red_limit=2000)
     ref_sed = galsim.SED('vega.txt', wave_type='Angstrom', flux_type='flambda')
     ref_sed = ref_sed.withFlux(1.0, bandpass)
     np.testing.assert_allclose(
-        float(extra_props['sed_eff'][0](100.0)),
+        float(seds[0](100.0)),
         float(ref_sed(100.0)),
         rtol=1.0e-12,
         atol=0.0,
@@ -2565,10 +2577,11 @@ def test_single_sed():
     config['sed_file_name'] = '1./wave'
     input = piff.InputFiles(config, logger=logger)
     _, _, image_pos, extra_props = input.getRawImageData(0)
+    seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     assert len(image_pos) == 100
-    assert len(extra_props['sed_eff']) == 100
-    assert extra_props['sed_eff'][0] is extra_props['sed_eff'][1]
-    assert len(extra_props['sed_eff'][0].wave_list) == 0
+    assert len(seds) == 95
+    assert seds[0] is seds[1]
+    assert len(seds[0].wave_list) == 0
 
     # A single XSL SED file can be applied to all stars.
     config = {
@@ -2582,15 +2595,16 @@ def test_single_sed():
         'sed_flux_type': 'erg cm**(-2) s**(-1) angstrom**(-1)',
         'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
-    piff.InputFiles._sed_cache = {}
+    piff.StarData._sed_cache = {}
     input = piff.InputFiles(config, logger=logger)
     _, _, _, props = input.getRawImageData(0)
-    assert len(props['sed_eff']) == 100
-    assert props['sed_eff'][0] is props['sed_eff'][1]
+    seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
+    assert len(seds) == 95
+    assert seds[0] is seds[1]
     assert props['sed_tol'][0] == 0.0
     np.testing.assert_allclose(
-        float(props['sed_eff'][0](1500.0)),
-        float(props['sed_eff'][37](1500.0)),
+        float(seds[0](1500.0)),
+        float(seds[37](1500.0)),
         rtol=0.0,
         atol=0.0,
     )
@@ -2608,75 +2622,80 @@ def test_single_sed():
 
     config4 = dict(config, sed_file_name='missing_sed_file_for_test.fits')
     input = piff.InputFiles(config4, logger=logger)
-    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+    piff.StarData._sed_cache = {}
+    missing_stars = input.makeStars(logger=logger)
+    assert not piff.StarData._sed_cache
+    with np.testing.assert_raises(ValueError):
+        missing_stars[0].data.sed_eff
 
     # Invalid wave-type strings should raise when SED parsing is used.
     config5 = dict(config, sed_wave_type='nm/s')
     input = piff.InputFiles(config5, logger=logger)
-    np.testing.assert_raises(ValueError, input.getRawImageData, 0)
+    with np.testing.assert_raises(ValueError):
+        input.makeStars(logger=logger)[0].data.sed_eff
 
     # Absolute path for sed_file_name also works.
     test_dir = os.path.dirname(os.path.realpath(__file__))
     abs_sed = os.path.join(test_dir, 'input', 'xsl_spectrum_X0203_merged.fits')
     input = piff.InputFiles(dict(config, sed_file_name=abs_sed), logger=logger)
-    input.getRawImageData(0)
+    assert isinstance(input.makeStars(logger=logger)[0].data.sed_eff, galsim.SED)
 
     # Missing/invalid unit specifications raise clear errors.
     input = piff.InputFiles(dict(config, sed_wave_type=None), logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "wave_type is required" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "wave_type is required" in str(e.exception)
 
     input = piff.InputFiles(dict(config, sed_flux_type=None), logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "flux_type is required" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "flux_type is required" in str(e.exception)
 
     input = piff.InputFiles(dict(config, sed_wave_type='bad_wave'), logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "Invalid sed_wave_type" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "Invalid sed_wave_type" in str(e.exception)
 
     input = piff.InputFiles(dict(config, sed_flux_type='bad_flux'), logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "Invalid sed_flux_type" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "Invalid sed_flux_type" in str(e.exception)
 
     # Existing non-FITS file fails when forced through FITS fallback.
     input = piff.InputFiles(dict(config, sed_file_name='table_xsl_dr3.dat'), logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "Could not read SED file" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "Could not read SED file" in str(e.exception)
 
     # FITS image HDU that is not a table fails table parsing.
     input = piff.InputFiles(dict(config, sed_file_name='test_input_image_00.fits'),
                             logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "Could not parse SED file" in str(e.value)
-    assert "as a FITS table" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "Could not parse SED file" in str(e.exception)
+    assert "as a FITS table" in str(e.exception)
 
     # Invalid FITS keys raise errors.
     input = piff.InputFiles(dict(config, sed_wave_key='NO_WAVE'), logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "sed_wave_key" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "sed_wave_key" in str(e.exception)
 
     input = piff.InputFiles(dict(config, sed_flux_key='NO_FLUX'), logger=logger)
-    with pytest.raises(ValueError) as e:
-        input.getRawImageData(0)
-    assert "sed_flux_key" in str(e.value)
+    with np.testing.assert_raises(ValueError) as e:
+        input.makeStars(logger=logger)[0].data.sed_eff
+    assert "sed_flux_key" in str(e.exception)
 
     config6 = dict(config)
     del config6['bandpass']
-    with pytest.raises(ValueError) as e:
+    with np.testing.assert_raises(ValueError) as e:
         piff.InputFiles(config6, logger=logger)
-    assert "bandpass is required" in str(e.value)
+    assert "bandpass is required" in str(e.exception)
 
 
 @timer
 def test_sed_thin():
-    """Test optional input-time SED reduction (sed_tol, sed_max_samples)."""
+    """Test SED reduction on first access (sed_tol, sed_max_samples)."""
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
     else:
@@ -2708,10 +2727,12 @@ def test_sed_thin():
         return np.linalg.lstsq(Xw, yw, rcond=None)[0]
 
     # First default is no thinning.
-    piff.InputFiles._sed_cache = {}
-    _, _, _, props = piff.InputFiles(config, logger=logger).getRawImageData(0)
-    sed = props['sed_eff'][0]
-    assert props['sed_eff'][0] is props['sed_eff'][1]
+    piff.StarData._sed_cache = {}
+    input = piff.InputFiles(config, logger=logger)
+    _, _, _, props = input.getRawImageData(0)
+    seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
+    sed = seds[0]
+    assert seds[0] is seds[1]
     assert props['sed_tol'][0] == 0.0
     assert props['sed_max_samples'][0] == 0
     np.testing.assert_allclose(
@@ -2722,11 +2743,13 @@ def test_sed_thin():
     )
 
     # Now test with a non-trivial thinning value.
-    piff.InputFiles._sed_cache = {}
+    piff.StarData._sed_cache = {}
     thin_config = dict(config, sed_tol=0.1)
-    _, _, _, thin_props = piff.InputFiles(thin_config, logger=logger).getRawImageData(0)
-    thin_sed = thin_props['sed_eff'][0]
-    assert thin_props['sed_eff'][0] is thin_props['sed_eff'][1]
+    input = piff.InputFiles(thin_config, logger=logger)
+    _, _, _, thin_props = input.getRawImageData(0)
+    thin_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
+    thin_sed = thin_seds[0]
+    assert thin_seds[0] is thin_seds[1]
     assert thin_props['sed_tol'][0] == 0.1
     assert thin_props['sed_max_samples'][0] == 0
     assert thin_sed is not sed
@@ -2739,11 +2762,13 @@ def test_sed_thin():
 
     # Hard cap the number of samples and refit their values for the best piecewise-linear
     # approximation of the original effective SED.
-    piff.InputFiles._sed_cache = {}
+    piff.StarData._sed_cache = {}
     sample_config = dict(config, sed_max_samples=2)
-    _, _, _, sample_props = piff.InputFiles(sample_config, logger=logger).getRawImageData(0)
-    sample_sed = sample_props['sed_eff'][0]
-    assert sample_props['sed_eff'][0] is sample_props['sed_eff'][1]
+    input = piff.InputFiles(sample_config, logger=logger)
+    _, _, _, sample_props = input.getRawImageData(0)
+    sample_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
+    sample_sed = sample_seds[0]
+    assert sample_seds[0] is sample_seds[1]
     assert sample_props['sed_tol'][0] == 0.0
     assert sample_props['sed_max_samples'][0] == 2
     assert len(sample_sed.wave_list) == 2
@@ -2760,10 +2785,12 @@ def test_sed_thin():
 
     # The two options can be used together: first use sed_tol to choose candidate samples,
     # then trim to a maximum count and refit their values.
-    piff.InputFiles._sed_cache = {}
+    piff.StarData._sed_cache = {}
     combo_config = dict(config, sed_tol=0.1, sed_max_samples=4)
-    _, _, _, combo_props = piff.InputFiles(combo_config, logger=logger).getRawImageData(0)
-    combo_sed = combo_props['sed_eff'][0]
+    input = piff.InputFiles(combo_config, logger=logger)
+    _, _, _, combo_props = input.getRawImageData(0)
+    combo_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
+    combo_sed = combo_seds[0]
     assert combo_props['sed_tol'][0] == 0.1
     assert combo_props['sed_max_samples'][0] == 4
     assert len(combo_sed.wave_list) == 4
@@ -2772,10 +2799,12 @@ def test_sed_thin():
     )
 
     # A large enough sed_max_samples should be a no-op after the sed_tol thinning stage.
-    piff.InputFiles._sed_cache = {}
+    piff.StarData._sed_cache = {}
     no_op_config = dict(config, sed_tol=0.1, sed_max_samples=100)
-    _, _, _, no_op_props = piff.InputFiles(no_op_config, logger=logger).getRawImageData(0)
-    no_op_sed = no_op_props['sed_eff'][0]
+    input = piff.InputFiles(no_op_config, logger=logger)
+    _, _, _, no_op_props = input.getRawImageData(0)
+    no_op_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
+    no_op_sed = no_op_seds[0]
     assert no_op_props['sed_tol'][0] == 0.1
     assert no_op_props['sed_max_samples'][0] == 100
     assert len(no_op_sed.wave_list) == len(thin_sed.wave_list)
@@ -2785,14 +2814,14 @@ def test_sed_thin():
     )
 
     # sed_max_samples must be >= 2 if provided.
-    piff.InputFiles._sed_cache = {}
+    piff.StarData._sed_cache = {}
     bad_config = dict(config, sed_max_samples=1)
     with np.testing.assert_raises(ValueError):
-        piff.InputFiles(bad_config, logger=logger).getRawImageData(0)
+        piff.InputFiles(bad_config, logger=logger).makeStars(logger=logger)[0].data.sed_eff
 
 @timer
 def test_sed_star_io():
-    """Test that star serialization stores SED metadata and reconstructs sed on read.
+    """Test that star serialization stores SED metadata without requiring the SED files on read.
     """
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
@@ -2812,10 +2841,11 @@ def test_sed_star_io():
         'sed_max_samples': 6,
         'bandpass': {'type': 'RomanBandpass', 'name': 'H158'},
     }
-    piff.InputFiles._sed_cache = {}
+    piff.StarData._sed_cache = {}
     stars = piff.InputFiles(config, logger=logger).makeStars(logger=logger)
     assert len(stars) > 10
-    assert 'sed_eff' in stars[0].data.properties
+    assert isinstance(stars[0].data.sed_eff, galsim.SED)
+    assert 'sed_eff' not in stars[0].data.properties
     assert 'sed_file_name' in stars[0].data.properties
     assert 'sed_wave_type' in stars[0].data.properties
     assert 'sed_flux_type' in stars[0].data.properties
@@ -2840,14 +2870,20 @@ def test_sed_star_io():
     assert 'sed_max_samples' in cols
 
     bandpass = galsim.roman.getBandpasses()['H158']
+    piff.StarData._sed_cache = {}
     with piff.readers.FitsReader.open(file_name) as r:
-        with pytest.raises(ValueError) as e:
-            piff.Star.read(r, 'stars')
-    assert "bandpass is required" in str(e.value)
+        stars_no_bandpass = piff.Star.read(r, 'stars')
+    assert stars_no_bandpass[0]['sed_file_name'] == stars[0]['sed_file_name']
+    assert not piff.StarData._sed_cache
+    with np.testing.assert_raises(ValueError):
+        stars_no_bandpass[0].data.sed_eff
     with piff.readers.FitsReader.open(file_name) as r:
         stars2 = piff.Star.read(r, 'stars', bandpass=bandpass)
+    assert not piff.StarData._sed_cache
     for s1, s2 in zip(stars, stars2):
-        assert isinstance(s2['sed_eff'], galsim.SED)
+        assert isinstance(s2.data.sed_eff, galsim.SED)
+        with np.testing.assert_raises(KeyError):
+            s2['sed_eff']
         assert s1['sed_file_name'] == s2['sed_file_name']
         assert s1['sed_wave_type'] == s2['sed_wave_type']
         assert s1['sed_flux_type'] == s2['sed_flux_type']
@@ -2856,14 +2892,20 @@ def test_sed_star_io():
         assert s1['sed_tol'] == s2['sed_tol'] == 0.1
         assert s1['sed_max_samples'] == s2['sed_max_samples'] == 6
         np.testing.assert_allclose(
-            float(s2['sed_eff'](1500.0)),
-            float(s1['sed_eff'](1500.0)),
+            float(s2.data.sed_eff(1500.0)),
+            float(s1.data.sed_eff(1500.0)),
             rtol=1.0e-12,
             atol=0.0,
         )
     # Same file names should still share one cached SED after deserialization.
-    assert stars2[0]['sed_eff'] is stars2[4]['sed_eff']
-    assert stars2[1]['sed_eff'] is stars2[5]['sed_eff']
+    assert stars2[0].data.sed_eff is stars2[4].data.sed_eff
+    assert stars2[1].data.sed_eff is stars2[5].data.sed_eff
+
+    # With no SED metadata, the optional attribute is None and unknown keys still fail.
+    plain_star = piff.Star.makeTarget(x=0, y=0, scale=0.2)
+    assert plain_star.data.sed_eff is None
+    with np.testing.assert_raises(KeyError):
+        plain_star['sed_eff']
 
 
 @timer

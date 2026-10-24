@@ -297,7 +297,7 @@ class PSF(object):
         if self.fit_center and not star.data.properties.get('trust_pos',False):
             psf_prof, method = self._getRawProfile(model_star)
             if isinstance(psf_prof, galsim.ChromaticObject):
-                psf_prof = psf_prof * star.data.properties['sed_eff']
+                psf_prof = psf_prof * star.data.sed_eff
                 draw_args = (self.flat_bandpass,)
             else:
                 draw_args = ()

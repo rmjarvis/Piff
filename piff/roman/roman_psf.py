@@ -255,10 +255,10 @@ class RomanOpticalModel(Model):
         return self.bandpass
 
     def _get_sed_eff(self, star):
-        sed_eff = star.data.properties.get('sed_eff')
+        sed_eff = star.data.sed_eff
         if sed_eff is None:
             raise ValueError(
-                "RomanOptics with chromatic=True requires each star to have an 'sed_eff' property"
+                "RomanOptics with chromatic=True requires each star to have an effective SED"
             )
         return sed_eff
 

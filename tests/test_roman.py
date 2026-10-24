@@ -16,6 +16,7 @@ from __future__ import print_function
 
 from contextlib import contextmanager
 import os
+import shutil
 import tempfile
 from unittest import mock
 
@@ -148,14 +149,17 @@ def test_roman_optics():
         # Including adjusting the first letter if necessary.
         bandpass.name = 'F158'
         chromatic_psf.set_context({5: galsim.PixelScale(0.11)}, None, bandpass)
-        sed = galsim.SED(lambda w: 1.0, wave_type='nm', flux_type='fphotons')
         chromatic_star = piff.Star.makeTarget(
             x=123.4,
             y=456.7,
             stamp_size=25,
             scale=0.11,
-            properties={'sca': 5, 'sed_eff': sed},
+            properties={'sca': 5}, bandpass=bandpass,
+            sed_file_name='1', sed_wave_type='nm', sed_flux_type='fphotons',
         ).withFlux(1.0, (0.0, 0.0))
+        assert chromatic_star['sed_file_name'] == '1'
+        sed = chromatic_star.data.sed_eff
+        np.testing.assert_allclose(sed.calculateFlux(make_flat(bandpass)), 1.0, rtol=1.e-12)
         chromatic_stars, _ = chromatic_psf.initialize_params([chromatic_star], logger=logger)
         chromatic_psf.interp.set_sca_solution({5: np.zeros(chromatic_psf.model.param_len)})
         chromatic_model_star = chromatic_psf.drawStar(chromatic_stars[0])
@@ -163,7 +167,7 @@ def test_roman_optics():
         assert np.isfinite(chromatic_model_star.image.array).all()
         assert chromatic_model_star.image.array.sum() > 0.0
         chromatic_psf.drawStar(chromatic_stars[0])
-        assert chromatic_stars[0].data.properties['sed_eff'] is sed
+        assert chromatic_stars[0].data.sed_eff is sed
 
         missing_sed_star = piff.Star.makeTarget(
             x=123.4,
@@ -175,7 +179,7 @@ def test_roman_optics():
         missing_sed_stars, _ = chromatic_psf.initialize_params([missing_sed_star], logger=logger)
         with pytest.raises(ValueError) as err:
             chromatic_psf.drawStar(missing_sed_stars[0])
-        assert "requires each star to have an 'sed_eff' property" in str(err.value)
+        assert "requires each star to have an effective SED" in str(err.value)
 
         # Helper function to use as a side-effect of getPSF to record what sca argument is used.
         used_sca = [] # Use a list so we can modify in place.
@@ -758,6 +762,7 @@ def test_fit_many_nproc():
 def test_chromatic():
     """Check realistic chromatic RomanOptics fitting with different stellar SEDs.
     """
+    piff.StarData._sed_cache = {}
     with fast_pupil_bin():
         bandpass = galsim.roman.getBandpasses()['H158']
         flat_bandpass = make_flat(bandpass)
@@ -769,7 +774,7 @@ def test_chromatic():
                 'max_iter': 1,  # Not used until later when we run fit() directly.
             }
         )
-        psf.set_context(galsim.PixelScale(0.11), None, bandpass)
+        psf.set_context({5: galsim.PixelScale(0.11)}, None, bandpass)
         logger = piff.config.setup_logger()
 
         def read_xsl_sed(file_name):
@@ -782,8 +787,7 @@ def test_chromatic():
                 flux_type=u.Unit('erg cm**(-2) s**(-1) angstrom**(-1)'),
             )
 
-        # The Piff input process will make effective sed's (sed*bp) and thin them.
-        # Do that here for the purpose of this test.
+        # Build independent effective SEDs for comparison with the lazy-loading targets.
         sed_blue = read_xsl_sed('xsl_spectrum_X0529_merged.fits')
         sed_red = read_xsl_sed('xsl_spectrum_X0066_merged_scl.fits')
         sed_eff_blue = (sed_blue * bandpass).thin(rel_err=0.1).withFlux(1.0, flat_bandpass)
@@ -796,13 +800,32 @@ def test_chromatic():
         flux = 1.e5
         truth_params = np.array([0.004, -0.003, 0.005])
 
+        # Fit with disposable copies so we can remove the actual training SEDs before readback.
+        sed_files = [os.path.join('output', name) for name in
+                     ['chromatic_blue.fits', 'chromatic_red.fits']]
+        for source, target in zip(['xsl_spectrum_X0529_merged.fits',
+                                   'xsl_spectrum_X0066_merged_scl.fits'], sed_files):
+            shutil.copyfile(os.path.join(os.path.dirname(__file__), 'input', source), target)
+
         # Make the stars with images using a less-thinned sed and bandpass.
         stars = [
             piff.Star.makeTarget(x=64.2, y=64.1, stamp_size=25, scale=0.11,
-                                 properties={'sca': 5, 'sed_eff': sed_eff_blue}).withFlux(flux),
+                                 properties={'sca': 5}, bandpass=bandpass,
+                                 sed_file_name=sed_files[0],
+                                 sed_wave_type='nm',
+                                 sed_flux_type='erg cm**(-2) s**(-1) angstrom**(-1)',
+                                 sed_tol=0.1).withFlux(flux),
             piff.Star.makeTarget(x=171.8, y=162.7, stamp_size=25, scale=0.11,
-                                 properties={'sca': 5, 'sed_eff': sed_eff_red}).withFlux(flux),
+                                 properties={'sca': 5}, bandpass=bandpass,
+                                 sed_file_name=sed_files[1],
+                                 sed_wave_type='nm',
+                                 sed_flux_type='erg cm**(-2) s**(-1) angstrom**(-1)',
+                                 sed_tol=0.1).withFlux(flux),
         ]
+        # These targets bypass InputFiles, so specify their string-column types for PSF I/O.
+        for star in stars:
+            star.data.property_types.update(sed_file_name=object, sed_wave_type=object,
+                                            sed_flux_type=object)
         bp = bandpass.thin(rel_err=0.05)
         for star, sed in zip(stars, [sed_blue, sed_red]):
             prof = galsim.roman.getPSF(
@@ -847,7 +870,53 @@ def test_chromatic():
             assert frac_l2 < 0.01
             assert frac_peak < 0.01
 
-        # Exercise the chromatic reflux branch through a real fit() call.
+        # Save the solution to a file. The saved file does not include the SED objects, which
+        # would take rather a lot of space. But this is ok, since normally users wouldn't need
+        # them to use the fitted PSF. To test this, we delete the input SED files before
+        # reading the psf back in.
+        psf.stars = stars
+        psf_file = os.path.join('output', 'chromatic_missing_seds.piff')
+        psf.write(psf_file)
+        for file_name in sed_files:
+            os.remove(file_name)
+            assert not os.path.exists(file_name)
+        piff.StarData._sed_cache = {}
+        restored = piff.read(psf_file)
+        assert not piff.StarData._sed_cache
+
+        # Use the restored PSF as a user would, with some specific SED and position,
+        # which in general would not have anything directly to do with the stars' data.
+        target_sed = galsim.SED('wave', wave_type='nm', flux_type='fphotons')
+        target_sed = target_sed.withFlux(1.0, restored.bandpass)
+        profile, method = restored.get_profile(x=1234.5, y=2345.6, chipnum=5, sca=5)
+        assert isinstance(profile, galsim.ChromaticObject)
+        actual = (profile * target_sed).drawImage(
+            restored.bandpass, nx=32, ny=32, scale=0.11, method=method)
+
+        # Compare the reloaded PSF's image with direct optics at the known simulation truth,
+        # independently of Piff's corner interpolation and fitted parameters. Use the same
+        # 1% image-accuracy requirement as for the training positions above.
+        truth_profile = galsim.roman.getPSF(
+            5, 'H158', SCA_pos=galsim.PositionD(1234.5, 2345.6),
+            pupil_bin=piff.roman.roman_psf.pupil_bin, wcs=galsim.PixelScale(0.11),
+            extra_aberrations=np.concatenate(([0, 0, 0, 0], truth_params)), wavelength=None)
+        truth_image = (truth_profile * target_sed).drawImage(
+            restored.bandpass, nx=32, ny=32, scale=0.11, method=method)
+        diff = actual.array - truth_image.array
+        assert np.linalg.norm(diff) / np.linalg.norm(truth_image.array) < 0.01
+        assert np.max(np.abs(diff)) / np.max(truth_image.array) < 0.01
+        assert not piff.StarData._sed_cache
+
+        # Rewriting and copying the saved stars also leave their SEDs uninstantiated.
+        restored.write(os.path.join('output', 'chromatic_missing_seds_copy.piff'))
+        copied_star = restored.stars[0].withProperties(test_property=1).addPoisson(gain=2)
+        assert copied_star.data.bandpass == bandpass
+        for star in restored.stars + [copied_star]:
+            with np.testing.assert_raises(galsim.GalSimValueError):
+                star.data.sed_eff
+
+        # Exercise the chromatic reflux branch through a real fit() call. The original
+        # training stars retain their already-loaded SEDs after the files are removed.
         psf.fit(stars, logger=logger)
         assert psf.niter == 1
         assert psf.nremoved == 0

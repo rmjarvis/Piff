@@ -18,7 +18,11 @@
 
 import numpy as np
 import copy
+import os
+import bisect
 import galsim
+
+from .util import make_flat
 
 class Star(object):
     """Information about a "star", which may be either a real star or an interpolated star
@@ -235,7 +239,8 @@ class Star(object):
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
-                   stamp_size=48, image=None, weight=None, pointing=None, flux=1.0, **kwargs):
+                   stamp_size=48, image=None, weight=None, pointing=None, flux=1.0,
+                   bandpass=None, **kwargs):
         r"""
         Make a target Star object with the requested properties.
 
@@ -265,6 +270,7 @@ class Star(object):
         :param weight:      An existing image to use for the weight. [default: None]
         :param pointing:    The pointing direction to use. [default: None]
         :param flux:        The flux of the target star. [default: 1]
+        :param bandpass:    The observing bandpass for loading an SED on demand. [default: None]
         :param \*\*kwargs:  Additional properties can also be given as keyword arguments if that
                             is more convenient than populating the properties dict.
 
@@ -327,7 +333,7 @@ class Star(object):
 
         # Build the StarData instance
         data = StarData(image, image_pos, field_pos=field_pos, properties=properties,
-                        pointing=pointing, weight=weight)
+                        pointing=pointing, weight=weight, bandpass=bandpass)
         fit = StarFit(None, flux=flux, center=(0.,0.))
         return cls(data, fit)
 
@@ -346,8 +352,6 @@ class Star(object):
 
         # Start with the data properties
         prop_keys = list(stars[0].data.properties)
-        # SED objects are large and not directly serializable; persist SED metadata only.
-        prop_keys = [key for key in prop_keys if key != 'sed_eff']
         # Do the position ones first
         for key in [ 'x', 'y', 'u', 'v' ]:
             dtypes.append( (key, float) )
@@ -444,6 +448,7 @@ class Star(object):
         :param reader:      A reader object that encapsulates the serialization format.
         :param name:        Name associated with the stars in the serialized output.
         :param bandpass:    galsim.Bandpass to use when reconstructing stored SEDs.
+
         :returns: a list of Star instances, or None if there aren't any
         """
         metadata = {}
@@ -519,12 +524,12 @@ class Star(object):
 
         # The rest of the columns are the data properties
         prop_list = [ { c : row[c] for c in colnames } for row in data ]
+        property_types = {c: data.dtype[c] for c in colnames}
         for i, row in enumerate(data):
             if 'reserve' in data.dtype.names and row['reserve']:
                 prop_list[i]['is_reserve'] = True
             if 'flag_psf' in data.dtype.names and row['flag_psf']:
                 prop_list[i]['is_flagged'] = True
-        cls._restore_seds(prop_list, bandpass)
 
         wcs_list = [ galsim.JacobianWCS(*jac) for jac in zip(dudx,dudy,dvdx,dvdy) ]
         pos_list = [ galsim.PositionD(*pos) for pos in zip(x_list,y_list) ]
@@ -534,40 +539,13 @@ class Star(object):
         image_list = [ galsim.Image(bounds=b, wcs=w) for b,w in zip(bounds_list, wcs_list) ]
         weight_list = [ galsim.Image(init_value=1.0, bounds=b, wcs=w)
                         for b,w in zip(bounds_list, wcs_list) ]
-        data_list = [ StarData(im, pos, weight=w, properties=prop, pointing=point)
+        data_list = [ StarData(im, pos, weight=w, properties=prop, pointing=point,
+                               bandpass=bandpass, property_types=property_types)
                       for im,pos,w,prop,point in zip(image_list, pos_list, weight_list,
                                                      prop_list, pointing_list) ]
 
         stars = [ Star(d,f) for (d,f) in zip(data_list, fit_list) ]
         return stars
-
-    @classmethod
-    def _restore_seds(cls, prop_list, bandpass):
-        from .input import InputFiles
-
-        for prop in prop_list:
-            if 'sed_eff' in prop or 'sed_file_name' not in prop:
-                continue
-            if bandpass is None:
-                raise ValueError("bandpass is required to restore stars with serialized SEDs")
-            sed_file_name = prop['sed_file_name']
-            sed_wave_key = prop.get('sed_wave_key', 'WAVE')
-            sed_flux_key = prop.get('sed_flux_key', 'FLUX')
-            sed_wave_type = prop.get('sed_wave_type')
-            sed_flux_type = prop.get('sed_flux_type')
-            sed_tol = prop.get('sed_tol', 0.0)
-            sed_max_samples = prop.get('sed_max_samples', 0)
-            prop['sed_eff'] = InputFiles._read_sed_file(
-                sed_file_name,
-                sed_wave_type=sed_wave_type,
-                sed_flux_type=sed_flux_type,
-                sed_wave_key=sed_wave_key,
-                sed_flux_key=sed_flux_key,
-                sed_tol=sed_tol,
-                sed_max_samples=sed_max_samples,
-                bandpass=bandpass,
-                logger=None
-            )
 
     @staticmethod
     def load_images(stars, file_name, pointing=None,
@@ -622,6 +600,8 @@ class Star(object):
                                    weight=s.data.weight,
                                    orig_weight=s.data.orig_weight,
                                    pointing=s.data.pointing,
+                                   bandpass=s.data.bandpass,
+                                   sed_eff=s.data._sed_eff,
                                    properties=dict(s.data.properties, sky=sky),
                                    property_types=s.data.property_types,
                                    _xyuv_set = True),
@@ -750,10 +730,16 @@ class StarData(object):
     :param orig_weight: The original weight map prior to any additional Poisson variance being
                         added.  [default: None, which means use orig_weight=weight]
     :param logger:      A logger object for logging debug info. [default: None]
+    :param bandpass:    Observing bandpass used to reconstruct a serialized SED on access.
+                        [default: None]
+    :param sed_eff:     The unit-flux SED multiplied by the observing bandpass.
+                        [default: None]
     """
+    _sed_cache = {}
+
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
                  properties=None, property_types=None, orig_weight=None, logger=None,
-                 _xyuv_set=False):
+                 _xyuv_set=False, bandpass=None, sed_eff=None):
         # Save all of these as attributes.
         self.image = image
         self.image_pos = image_pos
@@ -783,6 +769,8 @@ class StarData(object):
             self.property_types = property_types
 
         self.pointing = pointing
+        self.bandpass = bandpass
+        self._sed_eff = sed_eff
         if field_pos is None:
             self.field_pos = self.calculateFieldPos(image_pos, image.wcs, pointing, self.properties)
         else:
@@ -857,6 +845,240 @@ class StarData(object):
         :returns: the value of the given property.
         """
         return self.properties[key]
+
+    @property
+    def sed_eff(self):
+        """The effective SED given the observing bandpass.
+
+        We only need the SED information over the range of the observing bandpass, and
+        only in the combination sed * bandpass. So this combined quantity is built once
+        and saved as sed_eff. It includes thinning the combined result used sed_tol
+        if given.
+
+        This is both a lazy property and a cached quantity. SEDs are only built once per
+        sed file, so multiple stars that use the same file have the same SED instance.
+
+        Returns None when no SED was supplied. Missing SED files or bandpass metadata
+        raise an error when sed_file_name is given.
+        """
+        prop = self.properties
+        if self._sed_eff is None and 'sed_file_name' in prop:
+            if self.bandpass is None:
+                raise ValueError("bandpass is required to restore stars with serialized SEDs")
+            self._sed_eff = StarData._read_sed_file(
+                prop['sed_file_name'],
+                sed_wave_type=prop.get('sed_wave_type'),
+                sed_flux_type=prop.get('sed_flux_type'),
+                sed_wave_key=prop.get('sed_wave_key', 'WAVE'),
+                sed_flux_key=prop.get('sed_flux_key', 'FLUX'),
+                sed_tol=prop.get('sed_tol', 0.0),
+                sed_max_samples=prop.get('sed_max_samples', 0),
+                bandpass=self.bandpass)
+        return self._sed_eff
+
+    @staticmethod
+    def _read_sed_file(sed_file_name, sed_wave_type, sed_flux_type,
+                       sed_wave_key, sed_flux_key, sed_tol, sed_max_samples, bandpass):
+        cache_key = (sed_file_name, sed_wave_type, sed_flux_type, sed_wave_key, sed_flux_key)
+        if cache_key in StarData._sed_cache:
+            return StarData._sed_cache[cache_key]
+
+        wave_type = StarData._parse_wave_type(sed_wave_type)
+        flux_type = StarData._parse_flux_type(sed_flux_type)
+        try:
+            # If GalSim can read the file directly, let it do so.
+            sed = galsim.SED(sed_file_name, wave_type=wave_type, flux_type=flux_type)
+        except Exception as e:
+            # If GalSim failed because the file doesn't exist, just raise this error.
+            if not os.path.isfile(sed_file_name):
+                raise
+            # Otherwise, try to read it ourselves.  In particular, handle FITS tables,
+            # which GalSim currently cannot read directly.
+            import fitsio
+            try:
+                with fitsio.FITS(sed_file_name) as f:
+                    data = f[1].read()
+            except Exception:
+                raise ValueError("Could not read SED file %r as a FITS file"%(
+                                 sed_file_name,)) from None
+            if data.dtype.names is None:
+                raise ValueError("Could not parse SED file %r as a FITS table"%(
+                                 sed_file_name,)) from None
+
+            if sed_wave_key in data.dtype.names:
+                wave = np.array(data[sed_wave_key], dtype=float)
+            else:
+                raise ValueError("sed_wave_key = %r not found in the FITS table"%(
+                                 sed_wave_key,)) from None
+            if sed_flux_key in data.dtype.names:
+                flux = np.array(data[sed_flux_key], dtype=float)
+            else:
+                raise ValueError("sed_flux_key = %r not found in the FITS table"%(
+                                 sed_flux_key,)) from None
+
+            table = galsim.LookupTable(wave, flux, interpolant='linear')
+            sed = galsim.SED(table, wave_type=wave_type, flux_type=flux_type)
+
+        # We will only ever use the sed in combination with the bandpass, so we make
+        # that combination here and then possibly thin the result.
+        sed = sed * bandpass
+
+        # This means that the bandpass for drawing needs to be a flat bandpass with the same
+        # limits as the original, which we call flat_bandpass.
+        flat_bandpass = make_flat(bandpass)
+
+        wave = np.array(sed.wave_list, dtype=float)
+        if len(wave) == 0:
+            # If the sed doesn't have a wave_list, we can't thin it.  (This is very rare!)
+            sed = sed.withFlux(1.0, flat_bandpass)
+            StarData._sed_cache[cache_key] = sed
+            return sed
+
+        if sed_tol > 0 or sed_max_samples > 0:
+            flux = np.array([sed(w) for w in wave], dtype=float)
+            sample_wave = wave
+            if sed_tol > 0:
+                # sed_tol means use GalSim's thin function.
+                sample_wave = np.array(sed.thin(rel_err=sed_tol).wave_list, dtype=float)
+            if sed_max_samples > 0:
+                # If requested, reduce the number of samples down to the given maximum.
+                if sed_max_samples == 1:
+                    raise ValueError("sed_max_samples must be >= 2")
+                sample_wave = StarData._select_greedy_samples(
+                    wave, flux, sample_wave, sed_max_samples
+                )
+
+            # Either version of thinning ends with adjusting the flux values to optimize the
+            # piecewise-linear approximation (the LookupTable).
+            sample_flux = StarData._fit_piecewise_linear_values(wave, flux, sample_wave)
+            table = galsim.LookupTable(sample_wave, sample_flux, interpolant='linear')
+            sed = galsim.SED(table, wave_type='nm', flux_type='fphotons')
+
+        # Normalize to unit flux.
+        sed = sed.withFlux(1.0, flat_bandpass)
+
+        StarData._sed_cache[cache_key] = sed
+        return sed
+
+    @staticmethod
+    def _parse_wave_type(wave_type):
+        if wave_type is None:
+            raise ValueError("wave_type is required for reading sed files.")
+        wt = wave_type.lower().strip()
+        try:
+            from astropy import units as u
+            return u.Unit(wt)
+        except Exception:
+            raise ValueError("Invalid sed_wave_type %r" % (wave_type,))
+
+    @staticmethod
+    def _parse_flux_type(flux_type):
+        if flux_type is None:
+            raise ValueError("flux_type is required for reading sed files.")
+        ft = flux_type.lower().strip()
+        if ft in ('flambda', 'fnu', 'fphotons'):
+            return ft
+        else:
+            try:
+                from astropy import units as u
+                return u.Unit(ft)
+            except Exception:
+                raise ValueError("Invalid sed_flux_type %r" % (flux_type,))
+
+    @staticmethod
+    def _trapezoid_weights(wave):
+        weights = np.empty_like(wave)
+        weights[0] = 0.5 * (wave[1] - wave[0])
+        weights[-1] = 0.5 * (wave[-1] - wave[-2])
+        weights[1:-1] = 0.5 * (wave[2:] - wave[:-2])
+        return weights
+
+    @staticmethod
+    def _fit_piecewise_linear_values(wave, flux, sample_wave):
+        # Given an original piecewise linear function defined by (wave, flux) pairs and a
+        # (smaller) set of target sample locations, sample_wave, this function solves for flux
+        # values at those sample locations which give a good approximation to the original.
+        #
+        # More specifically, it solves for the sample values whose linearly interpolated
+        # LookupTable is the best weighted least-squares approximation to the original SED.
+        # This is a standard linear least-squares projection onto the space of piecewise-linear
+        # functions spanned by the hat-function basis on sample_wave.
+
+        # Make the design matrix A which gives the new piecewise linear approximation at the
+        # location of each original flux value.
+        # If (w,f) are the original pairs, and (s,g) are the samples, then there is a row in A
+        # for each w, and a column for each s.
+        #    A @ g = f'
+        # gives the approximate flux values, which we want to be close to the original f.
+        n = len(wave)
+        m = len(sample_wave)
+        A = np.zeros((n, m), dtype=float)
+        idx = np.searchsorted(sample_wave, wave, side='right') - 1
+        idx = np.clip(idx, 0, m-2)
+        s0 = sample_wave[idx]
+        s1 = sample_wave[idx+1]
+        # Each dense sample depends only on the two neighboring retained samples.
+        # The coefficient is the barycentric weight of the linear interpolation on the interval.
+        # i.e. the fraction of the interval to each neighboring sample.
+        t = (wave - s0) / (s1 - s0)
+        A[np.arange(n), idx] = 1.0 - t
+        A[np.arange(n), idx+1] = t
+        A[wave == sample_wave[0], :] = 0.0    # These 4 should already be computed correctly,
+        A[wave == sample_wave[0], 0] = 1.0    # but this makes them exact without any possible
+        A[wave == sample_wave[-1], :] = 0.0   # numerical rounding errors.
+        A[wave == sample_wave[-1], -1] = 1.0
+        # Weight by the local wavelength interval so the fit roughly respects the integral
+        # over wavelength rather than just pointwise errors on a nonuniform grid.
+        sqrt_w = np.sqrt(StarData._trapezoid_weights(wave))
+        Aw = A * sqrt_w[:, np.newaxis]
+        fw = flux * sqrt_w
+        g = np.linalg.lstsq(Aw, fw, rcond=None)[0]
+
+        # g is now the vector that gives the best least squares approximation f'.
+        return g
+
+    @staticmethod
+    def _select_greedy_samples(wave, flux, candidate_wave, sed_max_samples):
+        # This function selects a subset of candidate_wave locations that would be most
+        # effective for making a piecewise-linear approximation to the SED defined by
+        # (wave, flux).
+
+        if len(candidate_wave) <= sed_max_samples:
+            return candidate_wave
+
+        # Greedy knot placement for piecewise-linear approximation:
+        # keep the endpoints, repeatedly refit the current piecewise-linear model, then add the
+        # candidate wavelength with the largest weighted residual.  This is the same general idea
+        # as orthogonal matching pursuit / greedy basis selection, specialized to a linear spline
+        # basis with fixed candidate knot locations.
+
+        # Start with just the two end points.  We always want these.
+        selected = [0, len(candidate_wave)-1]
+
+        # Use the original dense SED definition for the target values of our fit.
+        # This is piecewise interpolated values using all the candidate waves.
+        target = np.array([np.interp(w, wave, flux) for w in candidate_wave], dtype=float)
+
+        # Get the weights that would be used in the approximation using all candidates.
+        # These will stay fixed throughout.  The selection process will use the combination
+        # of the residual at each point and the weight.
+        cand_weights = StarData._trapezoid_weights(candidate_wave)
+
+        # Add candidate waves to our selection list, refitting each time.
+        while len(selected) < sed_max_samples:
+            sample_wave = candidate_wave[selected]
+            sample_flux = StarData._fit_piecewise_linear_values(wave, flux, sample_wave)
+            approx = np.interp(candidate_wave, sample_wave, sample_flux)
+
+            # Use weighted residuals so the chosen samples target the integral-relevant
+            # approximation error, not just the largest pointwise deviation on the candidate grid.
+            resid = np.abs(target - approx) * np.sqrt(cand_weights)
+
+            # Add the item with the highest weighted residual
+            resid[selected] = -1.0  # Don't reselect something we already have.
+            bisect.insort(selected, np.argmax(resid))
+
+        return candidate_wave[selected]
 
     def getImage(self):
         """Get the pixel data as a galsim.Image.
@@ -944,6 +1166,8 @@ class StarData(object):
                         weight=newweight,
                         orig_weight=self.orig_weight,
                         pointing=self.pointing,
+                        bandpass=self.bandpass,
+                        sed_eff=self._sed_eff,
                         properties=dict(self.properties, gain=gain),
                         property_types=self.property_types,
                         _xyuv_set = True)
