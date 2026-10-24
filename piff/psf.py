@@ -46,6 +46,7 @@ class PSF(object):
     pointing = None
     bandpass = None
     flat_bandpass = None
+    include_model_centroid = False # Not used anymore. Present for backwards compatibility
 
     @classmethod
     def process(cls, config, base=None, logger=None):
