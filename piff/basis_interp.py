@@ -106,7 +106,7 @@ class BasisInterp(Interp):
         self.q = None
         self.set_num(None)
 
-    def initialize(self, stars, logger=None):
+    def initialize(self, stars, logger=None, transform_params=None, reconstruct_params=None):
         """Initialize both the interpolator to some state prefatory to any solve iterations and
         initialize the stars for use with this interpolator.
 
@@ -115,15 +115,23 @@ class BasisInterp(Interp):
 
         :param stars:       A list of Star instances to use to initialize.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params:    Optional function converting model parameters to fitting
+                                    coordinates. [default: None, meaning identity]
+        :param reconstruct_params:  Optional function converting fitting coordinates back to
+                                    model parameters. Pass it again when interpolating.
+                                    [default: None, meaning identity]
 
         :returns:           A new list of Stars which have their parameters initialized.
         """
         params = [s.fit.get_params(self._num) for s in stars if not s.is_flagged]
         if len(params) == 0:
             raise RuntimeError("All stars are flagged.  Cannot initialize BasisPolynomial.")
+        self._transformed_params = transform_params is not None
+        if transform_params is not None:
+            params = [transform_params(p) for p in params]
         c = np.mean(params, axis=0)
         self.q = c[:,np.newaxis] * self.constant(1.)[np.newaxis,:]
-        stars = self.interpolateList(stars)
+        stars = self.interpolateList(stars, reconstruct_params=reconstruct_params)
         return stars
 
     def basis(self, star):
@@ -146,14 +154,16 @@ class BasisInterp(Interp):
         raise NotImplementedError("Cannot call `constant` for abstract base class BasisInterp. "
                                   "You probably want to use BasisPolynomial.")
 
-    def solve(self, stars, logger=None):
+    def solve(self, stars, logger=None, transform_params=None):
         """Solve for the interpolation coefficients given some data.
         The StarFit element of each Star in the list is assumed to hold valid
         alpha and beta members specifying depending of chisq on differential
-        changes to its parameter vector.
+        changes in the fitting coordinates used during initialize().
 
         :param stars:       A list of Star instances to interpolate between
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params: Optional function converting model parameters to fitting
+                                 coordinates. [default: None, meaning identity]
         """
         logger = LoggerWrapper(logger)
         if self.q is None:
@@ -211,7 +221,6 @@ class BasisInterp(Interp):
         # QR method often has fewer numerical problems than the direct method for large matrices.
         # It just requires a lot of memory.
 
-        logger = LoggerWrapper(logger)
         if self.solver == "qr":
             self._solve_qr(stars, logger)
         else:
@@ -408,13 +417,17 @@ class BasisInterp(Interp):
         # Reshape dq back into a 2d array and add it to the current solution.
         self.q += dq.reshape(self.q.shape)
 
-    def interpolate(self, star, logger=None, inplace=False):
+    def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned star is the same object as the input star. [default: False]
+        :param reconstruct_params:  Optional function converting fitting coordinates to full
+                                    model parameters. Used for solutions initialized with
+                                    transform_params; full-coordinate solutions are unchanged.
+                                    [default: None, meaning identity]
 
         :returns: a Star instance holding the interpolated parameters
         """
@@ -423,6 +436,14 @@ class BasisInterp(Interp):
 
         K = self.basis(star)
         p = np.dot(self.q,K)
+        # Be careful not to apply the reconstruct function if the parameters weren't transformed.
+        # Current code will always supply paired transform_params and reconstruct_params
+        # functions. But old files may not have done the transformation, and so still keep all
+        # the original parameters.
+        # In that case, self._transformed_params is False, even in cases where reconstruct_params
+        # is not None. This means we shouldn't call reconstruct_params here.
+        if self._transformed_params and reconstruct_params is not None:
+            p = reconstruct_params(p)
         if inplace:
             star.fit.updateParams(p, num=self._num)
         else:

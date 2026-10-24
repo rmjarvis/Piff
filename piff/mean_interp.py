@@ -36,31 +36,42 @@ class Mean(Interp):
         self.mean = None
         self.set_num(None)
 
-    def solve(self, stars, logger=None):
+    def solve(self, stars, logger=None, transform_params=None):
         """Solve for the interpolation coefficients given some data.
 
         Here the "solution" is just the mean.
 
         :param stars:       A list of stars with fitted parameters to interpolate.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param transform_params: Optional model-to-fitting coordinate conversion.
+                                 [default: None, meaning identity]
         """
-        self.mean = np.mean([star.fit.get_params(self._num) for star in stars], axis=0)
+        params = [star.fit.get_params(self._num) for star in stars]
+        self._transformed_params = transform_params is not None
+        if transform_params is not None:
+            params = [transform_params(p) for p in params]
+        self.mean = np.mean(params, axis=0)
 
-    def interpolate(self, star, logger=None, inplace=False):
+    def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
         :param star:        A Star instance to which one wants to interpolate
         :param logger:      A logger object for logging debug info. [default: None]
         :param inplace:     Whether to update the parameters in place, in which case the
                             returned star is the same object as the input star. [default: False]
+        :param reconstruct_params: Optional fitting-to-model coordinate conversion.
+                                   [default: None, meaning identity]
 
         :returns: a Star instance holding the interpolated parameters
         """
         if self.mean is not None:
+            params = self.mean
+            if self._transformed_params and reconstruct_params is not None:
+                params = reconstruct_params(params)
             if inplace:
-                star.fit.updateParams(self.mean, num=self._num)
+                star.fit.updateParams(params, num=self._num)
             else:
-                star = Star(star.data, star.fit.newParams(self.mean, num=self._num))
+                star = Star(star.data, star.fit.newParams(params, num=self._num))
         return star
 
     def _finish_write(self, writer):

@@ -46,6 +46,7 @@ class PSF(object):
     pointing = None
     bandpass = None
     flat_bandpass = None
+    include_model_centroid = False # Not used anymore. Present for backwards compatibility
 
     @classmethod
     def process(cls, config, base=None, logger=None):
@@ -243,12 +244,6 @@ class PSF(object):
         """
         raise NotImplementedError("Derived classes must define the fit_center property")
 
-    @property
-    def include_model_centroid(self):
-        """Whether a model that we want to center can have a non-zero centroid during iterations.
-        """
-        raise NotImplementedError("Derived classes must define the include_model_centroid property")
-
     def reflux(self, star, logger=None):
         """Fit the PSF to the star's data, varying only the flux (and
         center, if it is free).  Flux and center are updated in the Star's
@@ -274,8 +269,12 @@ class PSF(object):
         logger.debug("    weight center = %s",star.data.weight(star.data.weight.center))
 
         data, weight, u, v = star.data.getDataVector()
-        model_star = self.drawStar(star)
-        model = model_star.image.array.ravel()
+        # Render finite differences in double precision, even for float32 input images.
+        render_data = star.data.withNew(image=galsim.Image(star.image, dtype=float))
+        render_star = Star(render_data, star.fit)
+        # With model parameters fixed, stellar flux is an overall linear scale.
+        dmdf = self.drawStar(render_star.withFlux(1.)).image.array.ravel()
+        model = dmdf * star.fit.flux
 
         # Weight by the current model to avoid being influenced by spurious pixels near the edge
         # of the stamp.
@@ -295,29 +294,15 @@ class PSF(object):
         resid = data - model
 
         if self.fit_center and not star.data.properties.get('trust_pos',False):
-            psf_prof, method = self._getRawProfile(model_star)
-            if isinstance(psf_prof, galsim.ChromaticObject):
-                psf_prof = psf_prof * star.data.properties['sed_eff']
-                draw_args = (self.flat_bandpass,)
-            else:
-                draw_args = ()
-
-            # Use finite different to approximate d(model)/duc, d(model)/dvc
+            # Use the same drawing path for the baseline and every perturbation.
+            # In particular, drawing a composite profile in one FFT need not match
+            # drawStar's component-wise rendering closely enough for differentiation.
             duv = 1.e-5
-            temp = star.image.copy()
             center = star.fit.center
-            du_prof = psf_prof.shift(center[0] + duv, center[1]) * new_flux
-            du_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
-            dmduc = (temp.array.ravel() - model) / duv
-            dv_prof = psf_prof.shift(center[0], center[1] + duv) * new_flux
-            dv_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
-            dmdvc = (temp.array.ravel() - model) / duv
-
-            # Also dmdflux
-            dflux = 1.e-5 * max(abs(new_flux), 1.e-5)  # Guard against division by 0
-            df_prof = psf_prof.shift(center[0], center[1]) * (new_flux + dflux)
-            df_prof.drawImage(*draw_args, image=temp, method=method, center=star.image_pos)
-            dmdf = (temp.array.ravel() - model) / dflux
+            du_star = render_star.withFlux(new_flux, (center[0] + duv, center[1]))
+            dmduc = (self.drawStar(du_star).image.array.ravel() - model) / duv
+            dv_star = render_star.withFlux(new_flux, (center[0], center[1] + duv))
+            dmdvc = (self.drawStar(dv_star).image.array.ravel() - model) / duv
 
             # Now construct the design matrix for this minimization
             #
@@ -341,27 +326,21 @@ class PSF(object):
             # Extract the values we want.
             df, duc, dvc = x
 
-            if self.include_model_centroid:
-                # In addition to shifting to the best fit center location, also shift
-                # by the centroid of the model itself, so the next next pass through the
-                # fit will be closer to centered.  In practice, this converges pretty quickly.
-                model_cenu = np.sum(WM * u) / f_model - star.fit.center[0]
-                model_cenv = np.sum(WM * v) / f_model - star.fit.center[1]
-                logger.debug('    model centroid = %s,%s', model_cenu, model_cenv)
-                duc += model_cenu
-                dvc += model_cenv
-
             new_center = (star.fit.center[0] + duc, star.fit.center[1] + dvc)
             new_flux += df
             logger.debug('    new center = %s', new_center)
             logger.debug('    new flux = %s', new_flux)
 
-            new_chisq = np.sum((resid-At.T.dot(x))**2 * weight)
             new_dof = np.count_nonzero(weight) - 3
         else:
             new_center = star.fit.center
-            new_chisq = np.sum(resid**2 * weight)
             new_dof = np.count_nonzero(weight) - 1
+
+        # Report the likelihood of the returned state, rather than its linear
+        # approximation. This is the statistic used for rejection and convergence.
+        result = star.withFlux(new_flux, new_center)
+        resid = data - self.drawStar(result).image.array.ravel()
+        new_chisq = np.sum(resid**2 * weight)
 
         logger.debug("    new_chisq = %s",new_chisq)
         logger.debug("    new_dof = %s",new_dof)

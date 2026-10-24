@@ -166,12 +166,6 @@ class SingleChipPSF(PSF):
         """
         return self.single_psf.fit_center
 
-    @property
-    def include_model_centroid(self):
-        """Whether a model that we want to center can have a non-zero centroid during iterations.
-        """
-        return self.single_psf.include_model_centroid
-
     def interpolateStar(self, star, inplace=False):
         """Update the star to have the current interpolated fit parameters according to the
         current PSF model.

@@ -80,7 +80,6 @@ def test_roman_optics():
         logger = piff.config.setup_logger()
         assert psf.interp_property_names == ('sca',)
         assert psf.fit_center is True
-        assert psf.include_model_centroid is False
         assert psf.model.aberration_interp == 'constant'
         assert psf.model.nominal_interp == 'bilinear'
         assert psf.interp.per_sca is True
@@ -1284,6 +1283,14 @@ def test_sca_interp():
         global_mean = np.mean([p1,p2], axis=0)
         np.testing.assert_equal(psf.interp.global_mean, global_mean)
 
+        # RomanOptics does not need fitting-coordinate conversions, but RomanSCAInterp
+        # supports them. Scaling makes a skipped forward or reverse conversion observable.
+        interp = RomanSCAInterp()
+        interp.solve(stars, transform_params=lambda x: x / 2)
+        np.testing.assert_equal(interp.sca_mean[2], p1 / 2)
+        np.testing.assert_equal(interp.sca_mean[5], p2 / 2)
+        np.testing.assert_equal(interp.global_mean, global_mean / 2)
+
         # interpolate assigns the corresponding sca_mean to the params,
         # or the global mean if the sca wasn't used in the fit (e.g. no stars on an SCA)
         t1 = piff.Star.makeTarget(x=12.0, y=126.0, stamp_size=25, scale=0.11, properties={'sca': 2})
@@ -1297,6 +1304,11 @@ def test_sca_interp():
         np.testing.assert_allclose(tstars[0].fit.params, p1)
         np.testing.assert_allclose(tstars[1].fit.params, p2)
         np.testing.assert_allclose(tstars[2].fit.params, global_mean)
+
+        # Reconstruct both per-SCA means and the global fallback for an unseen SCA.
+        tstars_transformed = interp.interpolateList(tstars, reconstruct_params=lambda x: x * 2)
+        for original, reconstructed in zip(tstars, tstars_transformed):
+            np.testing.assert_allclose(reconstructed.fit.params, original.fit.params)
 
         # Check round trip through file.
         fn = os.path.join('output', 'roman_sca_test.piff')
@@ -1342,12 +1354,43 @@ def test_sca_interp():
         assert psf2.interp.sca_mean == {}
 
 
+@timer
+def test_pixelgrid_sum_io():
+    """A fitted RomanOptics + PixelGrid sum must render identically after I/O.
+    """
+    # Use the commissioning model combination, so the round trip exercises both
+    # RomanSCA interpolation and reconstruction of the PixelGrid fitting coordinates.
+    with fast_pupil_bin():
+        optics = piff.PSF.process({'type': 'RomanOptics', 'chromatic': False,
+                                   'max_zernike': 6})
+        pixel = piff.SimplePSF(piff.PixelGrid(scale=0.11, size=5, init='zero'),
+                               piff.BasisPolynomial(order=0))
+        psf = piff.SumPSF([optics, pixel], max_iter=2)
+        psf.set_context({0: galsim.PixelScale(0.11)}, None,
+                        galsim.roman.getBandpasses()['H158'])
+        star = piff.Star.makeTarget(x=64.2, y=64.1, stamp_size=25, scale=0.11,
+                                    properties={'sca': 5, 'chipnum': 0, 'trust_pos': True})
+        # Inject an optical PSF with a small extra component for the grid to absorb.
+        profile = optics.model.getProfile(np.array([0.004, -0.003, 0.005]), star=star)
+        optics.model._draw_profile_to_image(profile, star.image, star.image_pos, star)
+        galsim.Gaussian(sigma=0.15, flux=0.03).drawImage(
+            image=star.image, method='no_pixel', center=star.image_pos, add_to_image=True)
+        psf.fit([star])
+        expected = psf.draw(x=64.2, y=64.1, stamp_size=25, sca=5)
+        path = os.path.join('output', 'roman_pixelgrid_sum.piff')
+        psf.write(path)
+        restored = piff.read(path)
+        result = restored.draw(x=64.2, y=64.1, stamp_size=25, sca=5)
+        np.testing.assert_allclose(result.array, expected.array, atol=1.e-12)
+
+
 if __name__ == '__main__':
     test_roman_optics()
     test_corner_cache()
     test_five_point_weights()
     test_fit()
     test_aberration_prior()
+    test_linear_prior_io()
     test_fit_many()
     test_fit_many_nproc()
     test_chromatic()
@@ -1357,3 +1400,4 @@ if __name__ == '__main__':
     test_fit_linear_nproc()
     test_optics_convert_funcs()
     test_sca_interp()
+    test_pixelgrid_sum_io()
