@@ -14,6 +14,8 @@ Dependency Changes
   if you attempt to read a parquet file. (#188)
 - Removed support for Python 3.8, 3.9.
 - Added support for Python 3.14, 3.15.
+- Stopped making wheels for MacOS Intel architecture, since GitHub's Mac Intel runners
+  have been disabled.
 
 API Changes
 -----------
