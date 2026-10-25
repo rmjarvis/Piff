@@ -1411,6 +1411,119 @@ def test_sca_interp():
         assert psf2.interp.sca_mean == {}
 
 
+@timer
+def test_roman_diffusion():
+    """Test using GaussianMixture for the Roman diffusion component
+    """
+    # The principal intended use case for adding the GaussianMixture class (and the
+    # Fixed interpolation class) is to model diffusion in the Roman sensors.
+    # We have lab measurements of the diffusion from MacBeth et al, 2026, where they
+    # found that a sech function was a good fit to the diffusion pattern.
+    # That profile can be converted rather accurately into a sum of 3 Gaussians with
+    # the following weights and sigmas:
+    # cf. https://github.com/Roman-HLIS-Cosmology-PIT/pyimcom/blob/main/historical/OpenUniverse2024/genpsf.py
+    _MTF_WEIGHTS = (0.17519, 0.53146, 0.29335)
+    _MTF_REL_SIGMAS = (0.4522, 0.8050, 1.4329)
+    _MTF_BASE_SIGMA = 0.3279  # in native pixels
+
+    # Piff wants these converted to arcsec, which is our standard units for all size measures.
+    weights = _MTF_WEIGHTS
+    sigmas_arcsec = np.array(_MTF_REL_SIGMAS) * _MTF_BASE_SIGMA * galsim.roman.pixel_scale
+
+    config = {
+        'type': 'Sum',
+        'max_iter': 10,
+        'min_iter': 10,
+        'chisq_thresh': 1.e-8,
+        'components': [
+        {
+            'type': 'Convolve',
+            'components': [
+            {
+                'type': 'RomanOptics',
+                'filter_name': 'F106',
+                'chromatic': False,
+                'max_zernike': 6,
+                'aberration_interp': 'constant',
+            },
+            {
+                'type': 'Simple',
+                'model': {
+                    'type': 'GaussianMixture',
+                    'weights': weights,
+                    'sigmas': sigmas_arcsec,
+                },
+                'interp': {'type': 'Fixed'}
+            }]
+        },
+        {
+            'type': 'Simple',
+            'model': {
+                'type': 'PixelGrid',
+                'scale': .08,
+                'size': 3
+            },
+            'interp': {'type': 'Mean'}
+        }]
+    }
+    with fast_pupil_bin():
+        psf = piff.PSF.process(config)
+        bandpass = galsim.roman.getBandpasses()['Y106']
+        psf.set_context({0: galsim.PixelScale(0.11)}, None, bandpass)
+        roman = psf.components[0].components[0].model
+        mixture = psf.components[0].components[1].model
+
+        # The mixture model should have the input weights, sigmas as given in the config dict.
+        np.testing.assert_allclose(mixture.sigmas, sigmas_arcsec)
+        np.testing.assert_allclose(mixture.weights, weights)
+
+        # Make some stars with this model to fit.
+        kernel = galsim.Sum([w * galsim.Gaussian(sigma=s)
+                            for w, s in zip(weights, sigmas_arcsec)])
+        stars = []
+        for x, y in [(800., 800.), (2044., 2044.), (3300., 2900.)]:
+            star = piff.Star.makeTarget(
+                x=x, y=y, scale=.11, stamp_size=25,
+                properties={'sca': 10, 'chipnum': 0, 'trust_pos': True}).withFlux(100)
+            optical = roman.getProfile(np.zeros(3), star=star)
+            galsim.Convolve(optical, kernel).withFlux(100).drawImage(
+                image=star.image, center=star.image_pos)
+            stars.append(star)
+
+        # Before fitting, the initialized model should exactly match what was drawn.
+        logger = piff.config.LoggerWrapper(None)
+        initialized, _ = psf.initialize_params(stars, logger)
+        for star in initialized:
+            np.testing.assert_allclose(psf.drawStar(star).image.array, star.image.array,
+                                       atol=1.e-7)
+
+        # After fitting, the fitted model should be a good match to the data, although it's
+        # not guaranteed the the parameters match.
+        psf.fit(stars)
+        expected = np.concatenate([mixture.weights, mixture.sigmas, np.zeros(12)])
+        for star in psf.stars:
+            assert not star.is_flagged
+            np.testing.assert_array_equal(star.fit.get_params(1), expected)
+            drawn = psf.drawStar(star)
+            # Should match to within 1% of the peak value.
+            peak = np.max(star.image.array)
+            np.testing.assert_allclose(drawn.image.array / peak, star.image.array / peak,
+                                       atol=.01)
+
+        # Check a serialization round trip.
+        path = os.path.join('output', 'roman_diffusion.piff')
+        psf.write(path)
+        restored = piff.read(path)
+        for star in psf.stars:
+            np.testing.assert_allclose(restored.drawStar(star).image.array,
+                                       psf.drawStar(star).image.array, atol=1.e-10)
+
+        # Also check at a different position to make sure there is no cache influencing this.
+        kwargs = dict(x=1700., y=2300., chipnum=0, sca=10, flux=100., stamp_size=25)
+        np.testing.assert_allclose(restored.draw(**kwargs).array, psf.draw(**kwargs).array,
+                                   atol=1.e-10)
+
+
 if __name__ == '__main__':
     test_roman_optics()
     test_corner_cache()
@@ -1426,3 +1539,4 @@ if __name__ == '__main__':
     test_fit_linear_nproc()
     test_optics_convert_funcs()
     test_sca_interp()
+    test_roman_diffusion()
