@@ -136,9 +136,8 @@ class Select(object):
                             [default 13].
             :max_mask_pixels: If given, reject stars with more than this many masked pixels
                             (i.e. those with w=0). [default: None]
-            :min_sep:       If given, reject stars that have any other selected star within
-                            this separation (in arcsec) on the same chip.  Any star in such a
-                            close pair/group is rejected. [default: None]
+            :min_sep:       If given, reject stars that have any other input object within
+                            this separation (in arcsec). [default: None]
             :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than
                             the other stars in the input catalog.  (Used to reject objects with
                             neighbors or other junk in the postage stamp.) [default: False]
@@ -204,7 +203,7 @@ class Select(object):
             return stars
 
         # Reject bad stars
-        stars = select_handler.rejectStars(stars, logger)
+        stars = select_handler.rejectStars(stars, logger, objects=objects)
 
         if len(stars) == 0:
             raise RuntimeError("All stars were rejected.")
@@ -257,17 +256,21 @@ class Select(object):
                 star.data.properties['is_reserve'] = i in reserve_list
         logger.info("Reserved %s of %s total stars", nreserve_all, len(stars))
 
-    def rejectStars(self, stars, logger=None):
+    def rejectStars(self, stars, logger=None, *, objects=None):
         """Reject some nominal stars that may not be good exemplars of the PSF.
 
         :param stars:       A list of Star instances.
         :param logger:      A logger object for logging debug info. [default: None]
+        :param objects:     The full input object list for min_sep neighbor checks.
+                            [default: None, which uses stars]
 
         :returns: The subset of the input list that passed the rejection cuts.
         """
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         logger.verbose('start rejectStars: %s',len(stars))
+        if objects is None:
+            objects = stars
 
         if self.max_edge_frac is not None and len(stars) > 0:
             stamp_size = stars[0].image.array.shape[0]
@@ -405,23 +408,16 @@ class Select(object):
                                np.sum(flux>=flux_cut), flux_cut, self.max_pixel_cut)
                 good_stars = [s for f,s in zip(flux,good_stars) if f < flux_cut]
 
-        if self.min_sep is not None and len(good_stars) > 1:
+        if self.min_sep is not None and len(good_stars) > 0:
             if self.min_sep <= 0.:
                 raise ValueError("min_sep must be positive")
-            # Reject all stars that have a near neighbor within min_sep on the same chip.
+            # Reject all stars that have a near neighbor within min_sep.
             # Use (u,v), which are in arcsec, so min_sep is in natural angular units.
-            remove = np.zeros(len(good_stars), dtype=bool)
-            chipnums = np.array([int(star['chipnum']) for star in good_stars], dtype=int)
-            for chipnum in np.unique(chipnums):
-                chip_idx = np.where(chipnums == chipnum)[0]
-                if len(chip_idx) < 2:
-                    continue
-                uv = np.array([(good_stars[k]['u'], good_stars[k]['v']) for k in chip_idx])
-                tree = scipy.spatial.cKDTree(uv)
-                pairs = tree.query_pairs(self.min_sep)
-                for i, j in pairs:
-                    remove[chip_idx[i]] = True
-                    remove[chip_idx[j]] = True
+            object_uv = np.array([(obj['u'], obj['v']) for obj in objects])
+            star_uv = np.array([(star['u'], star['v']) for star in good_stars])
+            tree = scipy.spatial.cKDTree(object_uv)
+            counts = tree.query_ball_point(star_uv, self.min_sep, return_length=True)
+            remove = counts > 1  # The star itself counts as 1.
             nremove = int(np.sum(remove))
             if nremove > 0:
                 logger.verbose("Rejected %d stars for having neighbors within min_sep=%s arcsec",

@@ -2113,8 +2113,8 @@ def test_select_min_sep():
         piff.Star.makeTarget(x=30, y=10, scale=0.1, properties={'chipnum': 0}).withFlux(
             1.0, (0.0, 0.0)
         ),
-        # Same position as first star, but different chip; should not be compared.
-        piff.Star.makeTarget(x=10, y=10, scale=0.1, properties={'chipnum': 1}).withFlux(
+        # Another chip, but only 0.1 arcsec from the second star; still a neighbor.
+        piff.Star.makeTarget(x=14, y=10, scale=0.1, properties={'chipnum': 1}).withFlux(
             1.0, (0.0, 0.0)
         ),
     ]
@@ -2122,12 +2122,15 @@ def test_select_min_sep():
     # Disable SNR clipping so this test only exercises min_sep neighbor rejection behavior.
     select = piff.FlagSelect({'max_snr_weight': 0, 'min_sep': 0.5}, logger=logger)
     kept = select.rejectStars(stars, logger=logger)
-    assert len(kept) == 2
-    assert sorted(int(s['chipnum']) for s in kept) == [0, 1]
-    assert any(np.isclose(s['x'], 30.0) and np.isclose(s['y'], 10.0) for s in kept)
+    assert [(s['chipnum'], s.x, s.y) for s in kept] == [(0, 30., 10.)]
 
-    # Smaller threshold should keep all stars.
+    # A smaller threshold removes only the closest pair, which straddles two chips.
     select = piff.FlagSelect({'max_snr_weight': 0, 'min_sep': 0.2}, logger=logger)
+    kept = select.rejectStars(stars, logger=logger)
+    assert [(s['chipnum'], s.x, s.y) for s in kept] == [(0, 10., 10.), (0, 30., 10.)]
+
+    # A threshold smaller than any separation should keep all stars.
+    select = piff.FlagSelect({'max_snr_weight': 0, 'min_sep': 0.05}, logger=logger)
     kept = select.rejectStars(stars, logger=logger)
     assert len(kept) == 4
 
@@ -2141,7 +2144,33 @@ def test_select_min_sep():
     }
     select = piff.FlagSelect(config['select'], base=config, logger=logger)
     kept = select.rejectStars(stars, logger=logger)
-    assert len(kept) == 2
+    assert len(kept) == 1
+
+    # A nonstellar neighbor must still veto a candidate. Primary selection removes
+    # the second object, but its position remains relevant to isolation.
+    objects = [s.withProperties(candidate=(i != 1)) for i, s in enumerate(stars)]
+    config = {'type': 'Properties', 'where': 'candidate',
+              'max_snr_weight': 0, 'min_sep': 0.5}
+    kept = piff.Select.process(config, objects)
+    assert [(s['chipnum'], s.x, s.y) for s in kept] == [(0, 30., 10.)]
+
+    # The same applies to neighbors dropped by a later rejection cut.
+    kept = piff.Select.process({'max_snr_weight': 0, 'min_sep': 0.5,
+                                'reject_where': 'x == 13'}, stars)
+    assert [(s['chipnum'], s.x, s.y) for s in kept] == [(0, 30., 10.)]
+
+    # A lone candidate is not necessarily isolated: its sole neighbor can be a galaxy.
+    with np.testing.assert_raises(RuntimeError) as e:
+        piff.Select.process(galsim.config.CleanConfig(config), objects[:2])
+    assert 'All stars were rejected' in str(e.exception)
+    kept = piff.Select.process(galsim.config.CleanConfig(config), objects[2:3])
+    assert len(kept) == 1
+
+    # Coincident catalog entries are distinct neighbors, rather than both being self.
+    duplicate = objects[0].withProperties(candidate=False)
+    with np.testing.assert_raises(RuntimeError) as e:
+        piff.Select.process(galsim.config.CleanConfig(config), [objects[0], duplicate])
+    assert 'All stars were rejected' in str(e.exception)
 
     # Invalid negative min_sep should raise when min_sep logic is used.
     with np.testing.assert_raises(ValueError):
@@ -3015,6 +3044,7 @@ if __name__ == '__main__':
     test_weight()
     test_lsst_weight()
     test_stars()
+    test_select_min_sep()
     test_pointing()
     test_sed_col()
     test_single_sed()
