@@ -203,6 +203,7 @@ ext = Pybind11Extension(
       )
 
 dist = setup(name="Piff",
+      python_requires=">=3.10",
       version=piff_version,
       author="Mike Jarvis",
       author_email="michael@jarvis.net",

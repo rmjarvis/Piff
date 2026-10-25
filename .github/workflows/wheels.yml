@@ -12,16 +12,15 @@ jobs:
     name: Build wheels on standard linux
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.22.0
+        uses: pypa/cibuildwheel@v4.3.4
         env:
           CIBW_BUILD: "*manylinux*"
           CIBW_ARCHS: auto64
-          CIBW_SKIP: cp36* cp37* pp*
 
       - name: Upload manylinux wheels
         uses: actions/upload-artifact@v4
@@ -33,14 +32,13 @@ jobs:
     name: Build wheels on musl linux
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.22.0
+        uses: pypa/cibuildwheel@v4.3.4
         env:
           CIBW_BUILD: "*musllinux*"
           CIBW_ARCHS: auto64
-          CIBW_SKIP: cp36* cp37* pp*
 
       - name: Upload musllinux wheels
         uses: actions/upload-artifact@v4
@@ -52,14 +50,13 @@ jobs:
     name: Build wheels on MacOS Intel
     runs-on: macos-13
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.22.0
+        uses: pypa/cibuildwheel@v4.3.4
         env:
           CIBW_BUILD: "*macosx*"
           CIBW_ARCHS: auto64
-          CIBW_SKIP: cp36* cp37* pp*
 
       - name: Upload macosx wheels
         uses: actions/upload-artifact@v4
@@ -71,16 +68,15 @@ jobs:
     name: Build wheels on MacOS ARM
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.22.0
+        uses: pypa/cibuildwheel@v4.3.4
         env:
           CIBW_BUILD: "*macosx*"
           CIBW_ARCHS: arm64
-          CIBW_SKIP: cp36* cp37* pp*
           CIBW_BEFORE_ALL: brew install llvm libomp eigen
           CIBW_ENVIRONMENT: >-
             CC=/opt/homebrew/opt/llvm/bin/clang
@@ -107,7 +103,7 @@ jobs:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
