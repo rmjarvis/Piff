@@ -3,8 +3,9 @@ Changes from version 1.6 to 1.7
 
 This version mostly adds a bunch of things we needed to enable running Piff on Roman
 Space Telescope images using an optical model based on the galSim.roman PSF model.
-The new PSF type is called `RomanOptics`. See the docstring for details about the new
-type. You can also see some example configurations that use it in the devel/roman directory.
+The new PSF type is called ``RomanOptics``. See the `RomanOpticsPSF` docstring for details
+about the new type. You can also see some example configurations that use it in the
+devel/roman directory.
 
 Dependency Changes
 ------------------
@@ -66,7 +67,7 @@ New features
   specify a specific spectrum for each star separately (using ``input.sed_col``).
   There are additional parameters that can control how these files are used. See docs
   for `InputFiles` for more details. (#194, #198)
-- Added the ``RomanOptics`` PSF type, based on GalSim's Roman optical model, with
+- Added the ``RomanOpticsPSF`` class, based on GalSim's Roman optical model, with
   fitted Zernike aberrations and Gaussian priors. (#195, #196, #197, #198)
 - Changed ``StarImages`` plots to include chip number and image coordinates for each star. (#196)
 - Expanded support for GalSim-style config value types in the config file, including

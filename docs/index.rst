@@ -16,6 +16,7 @@ Piff Documentation
    outliers
    output
    stats
+   roman
    star
    util
 
