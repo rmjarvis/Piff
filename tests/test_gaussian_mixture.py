@@ -351,8 +351,6 @@ def test_fixed_psf():
             'dv': dv,
         },
         'interp': {'type': 'Fixed'},
-        'max_iter': 15,
-        'chisq_thresh': 1.e-8,
     }
     psf = piff.PSF.process(config)
 
@@ -360,14 +358,19 @@ def test_fixed_psf():
     kernel = galsim.Sum(
         0.3 * galsim.Gaussian(sigma=0.25).shear(g1=0.1, g2=0.05).shift(0.03, -0.04),
         0.7 * galsim.Gaussian(sigma=0.5).shear(g1=-0.2, g2=0.1).shift(-0.02, 0.01))
-    stars = []
+    true_stars = []
     star_pos = [(30.1, 40.3), (60.4, 80.2), (90.2, 50.6)]
     truths = [(100., (0.03, -0.04)), (250., (-0.05, 0.02)), (80., (0.01, 0.06))]
     for (x, y), (flux, center) in zip(star_pos, truths):
         star = piff.Star.makeTarget(x=x, y=y, scale=pixel_scale, stamp_size=stamp_size,
                                     properties={'chipnum': 0})
         kernel.withFlux(flux).shift(center).drawImage(image=star.image, center=star.image_pos)
-        stars.append(star)
+        true_stars.append(star)
+
+    # Simulate input estimates with incorrect fluxes and offsets but the same observed images.
+    stars = [star.withFlux(0.8 * star.fit.flux,
+                           center=(star.fit.center[0] + 0.1, star.fit.center[1] - 0.08))
+             for star in true_stars]
 
     # The Fixed interp doesn't call the model fit (which would raise an exception for
     # GaussianMixture). Instead it just preserves the initial parameters.
@@ -377,14 +380,15 @@ def test_fixed_psf():
         assert not star.is_flagged
         np.testing.assert_array_equal(star.fit.params, expected)
 
-    # With no noise here, reflux should keep the flux and center where it is.
+    # With no noise here, reflux should find the true flux and center values to very good accuracy.
     for star, (flux, center) in zip(psf.stars, truths):
         np.testing.assert_allclose(star.fit.flux, flux, rtol=1.e-5)
         np.testing.assert_allclose(star.fit.center, center, atol=1.e-5)
 
-    # Drawing the profile should match the data image.
-    for star in psf.stars:
-        np.testing.assert_allclose(psf.drawStar(star).image.array, star.image.array, atol=1.e-12)
+    # Drawing the profile for each star should match the true_stars's data image.
+    for star, true_star in zip(psf.stars, true_stars):
+        np.testing.assert_allclose(psf.drawStar(star).image.array, true_star.image.array,
+                                   atol=1.e-12)
 
     # Check serialization round-trip.
     file_name = os.path.join('output', 'gaussian_mixture_psf.piff')
@@ -393,9 +397,89 @@ def test_fixed_psf():
     kwargs = dict(x=70.2, y=65.3, chipnum=0, flux=140., stamp_size=stamp_size)
     np.testing.assert_allclose(restored.draw(**kwargs).array, psf.draw(**kwargs).array, atol=1.e-12)
 
+@timer
+def test_fixed_component_convolution():
+    """Test a fixed psf as a component of a convolution.
+    """
+    # Configure a spatially varying Gaussian convolved with a fixed, shifted mixture.
+    pixel_scale = 0.2
+    stamp_size = 31
+    weights = [0.2, 0.5, 0.3]
+    sigmas = [0.08, 0.15, 0.3]
+    du = [0.02, -0.04, 0.06]
+    dv = [-0.03, 0.05, 0.01]
+    config = {
+        'type': 'Convolve',
+        'components': [
+            {
+                'type': 'Simple',
+                'model': {
+                    'type': 'Gaussian',
+                    'fastfit': False,
+                },
+                'interp': {
+                    'type': 'Polynomial',
+                    'order': 1,
+                },
+            },
+            {
+                'type': 'Simple',
+                'model': {
+                    'type': 'GaussianMixture',
+                    'weights': weights,
+                    'sigmas': sigmas,
+                    'du': du,
+                    'dv': dv,
+                },
+                'interp': {'type': 'Fixed'},
+            },
+        ],
+    }
+    psf = piff.PSF.process(config)
+
+    # This is our fixed Gaussian mixture component.
+    kernel = galsim.Sum([w * galsim.Gaussian(sigma=s).shift(u, v)
+                        for w, s, u, v in zip(weights, sigmas, du, dv)])
+
+    # Generate independent images with a Gaussian width that varies linearly with position.
+    stars = []
+    for x, y in [(50, 50), (50, 100), (100, 50), (100, 100), (75, 75)]:
+        sigma = 0.3 + 0.0006 * x + 0.0004 * y
+        star = piff.Star.makeTarget(x=x, y=y, scale=pixel_scale, stamp_size=stamp_size,
+                                    properties={'chipnum': 0}).withFlux(100)
+        truth = galsim.Convolve(galsim.Gaussian(sigma=sigma), kernel) * 100
+        truth.drawImage(image=star.image, center=star.image_pos)
+        stars.append(star)
+
+    # Fitting the varying component leaves the fixed mixture parameters unchanged.
+    psf.fit(stars, wcs={0: galsim.PixelScale(pixel_scale)})
+    expected = np.concatenate([weights, sigmas, np.zeros(6), du, dv])
+    for star in psf.stars:
+        assert not star.is_flagged
+        np.testing.assert_array_equal(star.fit.get_params(1), expected)
+
+    # The fitted Gaussian sigmas should recover the true spatial variation.
+    # There is no noise, so the solution here is very close to the truth.
+    for star in psf.stars:
+        np.testing.assert_allclose(star.fit.get_params(0)[0],
+                                   0.3 + 0.0006 * star.x + 0.0004 * star.y, atol=1.e-5)
+
+    # Check the rendered images of the final fitted profile.
+    for star in psf.stars:
+        np.testing.assert_allclose(psf.drawStar(star).image.array, star.image.array, atol=1.e-5)
+
+    # Check serialization round trip
+    file_name = os.path.join('output', 'gaussian_mixture_convolve.piff')
+    psf.write(file_name)
+    restored = piff.read(file_name)
+    for star in psf.stars:
+        np.testing.assert_allclose(restored.drawStar(star).image.array,
+                                   psf.drawStar(star).image.array, atol=1.e-10)
+
 if __name__ == '__main__':
     test_mixture_basic()
     test_mixture_elliptical()
     test_mixture_shift()
     test_fixed()
     test_fixed_psf()
+    test_fixed_component_convolution()
