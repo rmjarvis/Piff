@@ -45,6 +45,10 @@ class Interp(object):
     # The values in this dict will be the Interp sub-classes.
     valid_interp_types = {}
 
+    # Whether SimplePSF should fit individual model parameter vectors before solve().
+    # Fixed sets this to False to skip the model fitting steps.
+    fit_parameters = True
+
     @classmethod
     def process(cls, config, base=None, logger=None):
         """Parse the interp field of the config dict.

@@ -73,3 +73,9 @@ Gaussian process interpolation
     .. automethod:: piff.GPInterp._predict
     .. automethod:: piff.GPInterp._finish_write
     .. automethod:: piff.GPInterp._finish_read
+
+Fixed parameters
+----------------
+
+.. autoclass:: piff.Fixed
+   :members:
