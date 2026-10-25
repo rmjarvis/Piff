@@ -77,6 +77,7 @@ from .config import plotify, process, meanify
 from .model import Model
 from .pixelgrid import PixelGrid, Lanczos
 from .gsobject_model import GSObjectModel, Gaussian, Kolmogorov, Moffat
+from .gaussian_mixture_model import GaussianMixture
 
 # Interpolators -- Class names here match what they are called in the config file
 from .interp import Interp

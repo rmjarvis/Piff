@@ -13,7 +13,6 @@ The Model base class
     .. automethod:: piff.Model._finish_read
     .. automethod:: piff.Model._fix_kwargs
 
-
 Models based on GalSim objects
 ------------------------------
 
@@ -32,6 +31,11 @@ Models based on GalSim objects
 .. autoclass:: piff.Moffat
    :members:
 
+Gaussian mixture kernels
+------------------------
+
+.. autoclass:: piff.GaussianMixture
+   :members:
 
 Pixel grid model
 ----------------
@@ -39,10 +43,8 @@ Pixel grid model
 .. autoclass:: piff.PixelGrid
    :members:
 
-
 Optical model
 -------------
 
 .. autoclass:: piff.Optical
    :members:
-
