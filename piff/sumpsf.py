@@ -285,6 +285,17 @@ class SumPSF(PSF):
             image += comp_star.image
         return Star(star.data.withNew(image=image), star.fit)
 
+    def _drawStarDerivative(self, star):
+        # The derivative of a sum is the sum of the derivatives of the components.
+        dI_du = star.image.copy()
+        dI_du.setZero()
+        dI_dv = dI_du.copy()
+        for comp in self.components:
+            comp_du, comp_dv = comp._drawStarDerivative(star)
+            dI_du += comp_du
+            dI_dv += comp_dv
+        return dI_du, dI_dv
+
     def _getRawProfile(self, star):
         # Get each component profile
         profiles = []
