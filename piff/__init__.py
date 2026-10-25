@@ -86,6 +86,7 @@ from .polynomial_interp import Polynomial, polynomial_types
 from .basis_interp import BasisInterp, BasisPolynomial
 from .knn_interp import KNNInterp, KNearestNeighbors
 from .gp_interp import GPInterp, GaussianProcess
+from .fixed_interp import Fixed
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
 from .outliers import Outliers, ChisqOutliers, CentroidOutliers

@@ -171,6 +171,9 @@ class SimplePSF(PSF):
 
     def single_iteration(self, stars, logger, convert_funcs, draw_method):
 
+        if not self.interp.fit_parameters:
+            return self.interp.interpolateList(stars), 0
+
         # Perform the fit or compute design matrix as appropriate using just non-reserve stars
         fit_fn = self.model.chisq if self.quadratic_chisq else self.model.fit
 
