@@ -46,24 +46,6 @@ jobs:
           path: ./wheelhouse/*.whl
           name: whl-musllinux
 
-  build_macosx_intel_wheels:
-    name: Build wheels on MacOS Intel
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v4.3.4
-        env:
-          CIBW_BUILD: "*macosx*"
-          CIBW_ARCHS: auto64
-
-      - name: Upload macosx wheels
-        uses: actions/upload-artifact@v4
-        with:
-          path: ./wheelhouse/*.whl
-          name: whl-macosx
-
   build_macosx_arm_wheels:
     name: Build wheels on MacOS ARM
     runs-on: macos-latest
