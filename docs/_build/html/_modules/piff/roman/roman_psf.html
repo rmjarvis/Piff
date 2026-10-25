@@ -1,0 +1,1016 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>piff.roman.roman_psf &mdash; Piff 1.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=030dc6f6"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Piff
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roman.html">Roman PSF module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../util.html">Utility Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../history.html">Revision History</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">piff.roman.roman_psf</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for piff.roman.roman_psf</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (c) 2026 by Mike Jarvis and the other collaborators on GitHub at</span>
+<span class="c1"># https://github.com/rmjarvis/Piff  All rights reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Piff is free software: Redistribution and use in source and binary forms</span>
+<span class="c1"># with or without modification, are permitted provided that the following</span>
+<span class="c1"># conditions are met:</span>
+<span class="c1">#</span>
+<span class="c1"># 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="c1">#    list of conditions and the disclaimer given in the accompanying LICENSE</span>
+<span class="c1">#    file.</span>
+<span class="c1"># 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="c1">#    this list of conditions and the disclaimer given in the documentation</span>
+<span class="c1">#    and/or other materials provided with the distribution.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: roman_psf</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">galsim</span>
+<span class="kn">import</span> <span class="nn">galsim.roman</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.linalg</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+
+<span class="kn">from</span> <span class="nn">..interp</span> <span class="kn">import</span> <span class="n">Interp</span>
+<span class="kn">from</span> <span class="nn">..model</span> <span class="kn">import</span> <span class="n">Model</span>
+<span class="kn">from</span> <span class="nn">..outliers</span> <span class="kn">import</span> <span class="n">Outliers</span>
+<span class="kn">from</span> <span class="nn">..psf</span> <span class="kn">import</span> <span class="n">PSF</span>
+<span class="kn">from</span> <span class="nn">..star</span> <span class="kn">import</span> <span class="n">Star</span>
+<span class="kn">from</span> <span class="nn">..config</span> <span class="kn">import</span> <span class="n">LoggerWrapper</span>
+<span class="kn">from</span> <span class="nn">..util</span> <span class="kn">import</span> <span class="n">make_flat</span>
+<span class="kn">from</span> <span class="nn">..util</span> <span class="kn">import</span> <span class="n">run_multi</span>
+
+<span class="c1"># Global control of GalSim Roman pupil-plane resolution in getPSF calls.</span>
+<span class="c1"># Kept module-level so tests can override to faster values (e.g. 8 or 16).</span>
+<span class="n">pupil_bin</span> <span class="o">=</span> <span class="mi">4</span>
+
+<span class="n">_filter_aliases</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;F062&#39;</span><span class="p">:</span> <span class="s1">&#39;R062&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;F087&#39;</span><span class="p">:</span> <span class="s1">&#39;Z087&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;F106&#39;</span><span class="p">:</span> <span class="s1">&#39;Y106&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;F129&#39;</span><span class="p">:</span> <span class="s1">&#39;J129&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;F146&#39;</span><span class="p">:</span> <span class="s1">&#39;W146&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;F158&#39;</span><span class="p">:</span> <span class="s1">&#39;H158&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;F184&#39;</span><span class="p">:</span> <span class="s1">&#39;F184&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;F213&#39;</span><span class="p">:</span> <span class="s1">&#39;K213&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span> <span class="nf">_get_sca</span><span class="p">(</span><span class="n">star</span><span class="p">):</span>
+    <span class="c1"># We allow the SCA to be specified either as an sca property (preferred) or as the</span>
+    <span class="c1"># more generic chipnum property.  This helper function encapsulates that for the</span>
+    <span class="c1"># several places we access this information about a star.</span>
+    <span class="k">if</span> <span class="s1">&#39;sca&#39;</span> <span class="ow">in</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;sca&#39;</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="s1">&#39;chipnum&#39;</span> <span class="ow">in</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;chipnum&#39;</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;RomanOptics requires an explicit &#39;sca&#39; property for each star&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="RomanSCAInterp">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanSCAInterp">[docs]</a>
+<span class="k">class</span> <span class="nc">RomanSCAInterp</span><span class="p">(</span><span class="n">Interp</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Interpolate Roman aberration vectors as constants per SCA.&quot;&quot;&quot;</span>
+    <span class="n">_type_name</span> <span class="o">=</span> <span class="s1">&#39;RomanSCA&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">per_sca</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">per_sca</span> <span class="o">=</span> <span class="n">per_sca</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">degenerate_points</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;per_sca&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_sca</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;sca&#39;</span><span class="p">,)</span>
+
+<div class="viewcode-block" id="RomanSCAInterp.solve">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanSCAInterp.solve">[docs]</a>
+    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">])</span>
+        <span class="n">sca</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">_get_sca</span><span class="p">(</span><span class="n">star</span><span class="p">)</span> <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_sca</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">sca</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">sca</span> <span class="o">==</span> <span class="n">s</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">set_sca_solution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sca_mean</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">sca_mean</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">sca_mean</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_sca</span> <span class="k">else</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="RomanSCAInterp.interpolate">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanSCAInterp.interpolate">[docs]</a>
+    <span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">sca</span> <span class="o">=</span> <span class="n">_get_sca</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_sca</span> <span class="ow">and</span> <span class="n">sca</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span><span class="p">:</span>
+            <span class="c1"># The second clause should rarely be false.</span>
+            <span class="c1"># But if we need to interpolate onto an SCA that did not have any PSF stars,</span>
+            <span class="c1"># this prevents a runtime error.  Using the global mean is probably as good</span>
+            <span class="c1"># as anything for that case.</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># This can happen during initialization.  sca_mean/global_mean are not set yet.</span>
+            <span class="k">return</span> <span class="n">star</span>
+
+        <span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
+            <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">updateParams</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">star</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">))</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">sca</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sca</span><span class="p">])</span>
+        <span class="c1"># Writes an n_param length array &#39;mean&#39; for each &#39;sca&#39;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">sca</span><span class="p">,</span> <span class="n">mean</span><span class="p">)),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;sca&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span><span class="p">),))],</span>
+        <span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="s1">&#39;solution&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span>
+            <span class="s1">&#39;global&#39;</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span><span class="p">,)],</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span><span class="p">),))],</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reader</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="s1">&#39;solution&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sca_mean</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;sca&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">global_data</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="s1">&#39;global&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_mean</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="kc">None</span> <span class="k">if</span> <span class="n">global_data</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">global_data</span><span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="RomanOpticalModel">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticalModel">[docs]</a>
+<span class="k">class</span> <span class="nc">RomanOpticalModel</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Model a Roman PSF using GalSim&#39;s built-in Roman optical model.</span>
+
+<span class="sd">    ``filter_name`` accepts Roman F names (F062, F087, F106, F129, F146, F158, F184,</span>
+<span class="sd">    F213) or GalSim names (R062, Z087, Y106, J129, W146, H158, F184, K213).</span>
+<span class="sd">    If omitted, the name is inferred from the bandpass. Roman names are converted to</span>
+<span class="sd">    GalSim names internally.</span>
+
+<span class="sd">    The expensive GalSim Roman PSF construction is approximated across each SCA by evaluating</span>
+<span class="sd">    PSFs at a small set of fixed sample points and interpolating between them at each star</span>
+<span class="sd">    position. ``nominal_interp=&#39;bilinear&#39;`` uses the four SCA corners; ``&#39;five_point&#39;`` adds</span>
+<span class="sd">    the SCA center and uses a five-term basis ``[1, x, y, x*y, (x^2+y^2)]`` in normalized</span>
+<span class="sd">    coordinates.</span>
+
+<span class="sd">    The ``aberration_interp`` option controls how the fitted extra aberrations vary across an</span>
+<span class="sd">    SCA. ``&#39;global&#39;`` and ``&#39;constant&#39;`` both use one fitted aberration vector per SCA in the</span>
+<span class="sd">    model, with ``&#39;global&#39;`` only changing how the outer interpolator shares those vectors across</span>
+<span class="sd">    SCAs. ``&#39;linear&#39;`` fits a planar extra-aberration field on each SCA, modeled as</span>
+<span class="sd">    ``a + b x + c y`` in normalized SCA coordinates.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_type_name</span> <span class="o">=</span> <span class="s1">&#39;Roman&#39;</span>
+    <span class="n">_method</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span>
+    <span class="n">_centered</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">_model_can_be_offset</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">chromatic</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">filter_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_zernike</span><span class="o">=</span><span class="mi">22</span><span class="p">,</span>
+        <span class="n">aberration_interp</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span>
+        <span class="n">nominal_interp</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">,</span>
+        <span class="n">aberration_prior_sigma</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">nproc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chromatic</span> <span class="o">=</span> <span class="n">chromatic</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_zernike</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aberration_interp</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">aberration_interp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nominal_interp</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">nominal_interp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nproc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flat_bandpass</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span> <span class="o">=</span> <span class="n">_filter_aliases</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">filter_name</span><span class="p">,</span> <span class="n">filter_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span> <span class="o">&lt;</span> <span class="mi">4</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span> <span class="o">&gt;</span> <span class="mi">22</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;max_zernike must be in the range 4..22&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberration_interp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;global&#39;</span><span class="p">,</span> <span class="s1">&#39;constant&#39;</span><span class="p">,</span> <span class="s1">&#39;linear&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;aberration_interp must be one of &#39;global&#39;, &#39;constant&#39;, &#39;linear&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nominal_interp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;bilinear&#39;</span><span class="p">,</span> <span class="s1">&#39;five_point&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;nominal_interp must be one of &#39;bilinear&#39;, &#39;five_point&#39;&quot;</span><span class="p">)</span>
+        <span class="c1"># Save the original for serialization.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">orig_prior_sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_prior_sigma</span><span class="p">(</span><span class="n">aberration_prior_sigma</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior_sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expand_prior_sigma</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">orig_prior_sigma</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prior_invsigsq</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_sigma</span><span class="o">**</span><span class="mi">2</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_sigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;chromatic&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromatic</span><span class="p">,</span>
+            <span class="s1">&#39;filter_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span><span class="p">,</span>
+            <span class="s1">&#39;max_zernike&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span><span class="p">,</span>
+            <span class="s1">&#39;aberration_interp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberration_interp</span><span class="p">,</span>
+            <span class="s1">&#39;nominal_interp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nominal_interp</span><span class="p">,</span>
+            <span class="s1">&#39;aberration_prior_sigma&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_prior_sigma</span><span class="p">,</span>
+            <span class="s1">&#39;nproc&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">galsim</span><span class="o">.</span><span class="n">roman</span><span class="o">.</span><span class="n">n_pix</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_roman_five_point_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Do not pickle logger instances for multiprocessing jobs.</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+        <span class="n">state</span><span class="p">[</span><span class="s1">&#39;logger&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">state</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">param_len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberration_interp</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_point_param_len</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_point_param_len</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_single_point_param_len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span> <span class="o">-</span> <span class="mi">3</span>
+
+<div class="viewcode-block" id="RomanOpticalModel.initialize_iteration">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticalModel.initialize_iteration">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># No per-iteration setup needed for Roman currently.</span>
+        <span class="k">pass</span></div>
+
+
+    <span class="k">def</span> <span class="nf">clear_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_corner_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">set_bandpass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bandpass</span><span class="p">,</span> <span class="n">filter_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">filter_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span> <span class="o">=</span> <span class="n">filter_name</span>
+            <span class="k">elif</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">bandpass</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span> <span class="o">=</span> <span class="n">bandpass</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;RomanOptics requires filter_name when bandpass has no name attribute&quot;</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span> <span class="o">=</span> <span class="n">_filter_aliases</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span> <span class="o">=</span> <span class="n">bandpass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flat_bandpass</span> <span class="o">=</span> <span class="n">make_flat</span><span class="p">(</span><span class="n">bandpass</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_require_bandpass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;RomanOptics requires bandpass to be set before use&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span>
+
+    <span class="k">def</span> <span class="nf">_get_sed_eff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="n">sed_eff</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">sed_eff</span>
+        <span class="k">if</span> <span class="n">sed_eff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;RomanOptics with chromatic=True requires each star to have an effective SED&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">sed_eff</span>
+
+    <span class="k">def</span> <span class="nf">_get_roman_five_point_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sca</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">sca</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roman_five_point_data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_roman_five_point_data</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span>
+
+        <span class="n">aberrations</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">y_pos</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">roman</span><span class="o">.</span><span class="n">roman_psfs</span><span class="o">.</span><span class="n">_read_aberrations</span><span class="p">(</span><span class="n">sca</span><span class="p">)</span>
+        <span class="n">center</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">x_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">y_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># The project aberrations data has aberration values at 5 points on each SCA:</span>
+        <span class="c1"># the four corners plus the center.  The center is always at position 0, but</span>
+        <span class="c1"># the others aren&#39;t necessarily in the same order each time.  So figure out</span>
+        <span class="c1"># which one is which.</span>
+        <span class="c1"># cf. _interp_aberrations_bilinear in galsim.roman.roman_psfs.py</span>
+        <span class="n">ll</span> <span class="o">=</span> <span class="n">ul</span> <span class="o">=</span> <span class="n">lr</span> <span class="o">=</span> <span class="n">ur</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">x_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">x_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">y_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">y_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">ll</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">if</span> <span class="n">x_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">x_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">y_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">y_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">ul</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">if</span> <span class="n">x_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">x_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">y_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">y_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">lr</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">if</span> <span class="n">x_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">x_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">y_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">y_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">ur</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="k">assert</span> <span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">ll</span><span class="p">,</span> <span class="n">ul</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">ur</span><span class="p">)</span>
+
+        <span class="c1"># Order as (ll, lr, ul, ur, center) to match the rest of this class.</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">ll</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">ul</span><span class="p">,</span> <span class="n">ur</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="n">x_pos</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y_pos</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">)</span>
+
+        <span class="c1"># Build the solver matrix for basis [1, x, y, xy, x^2+y^2].</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">px</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">py</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">y_pos</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">basis</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">basis</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">px</span>
+        <span class="n">basis</span><span class="p">[</span><span class="mi">2</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">py</span>
+        <span class="n">basis</span><span class="p">[</span><span class="mi">3</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">px</span> <span class="o">*</span> <span class="n">py</span>
+        <span class="n">basis</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">px</span> <span class="o">*</span> <span class="n">px</span> <span class="o">+</span> <span class="n">py</span> <span class="o">*</span> <span class="n">py</span>
+        <span class="c1"># If f(x,y) = c·phi(x,y), where phi(x,y) = [1, x, y, xy, x^2+y^2],</span>
+        <span class="c1"># then sampled values satisfy s = B c, where B[:,k] = phi(x_k,y_k).</span>
+        <span class="c1"># For any target point, weights w that interpolate from</span>
+        <span class="c1"># sample values are w = B^{-1} phi(target), so that f(target) = w·s.</span>
+        <span class="n">solver</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">basis</span><span class="p">)</span>
+
+        <span class="c1"># GalSim uses bilinear nominal interpolation, so correct center by adding this delta.</span>
+        <span class="n">bilinear_center</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">roman</span><span class="o">.</span><span class="n">roman_psfs</span><span class="o">.</span><span class="n">_interp_aberrations_bilinear</span><span class="p">(</span>
+            <span class="n">aberrations</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">y_pos</span><span class="p">,</span> <span class="n">center</span>
+        <span class="p">)</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">aberrations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">bilinear_center</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">center_delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">center_delta</span><span class="p">[</span><span class="mi">4</span><span class="p">:]</span> <span class="o">=</span> <span class="n">delta</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;points&#39;</span><span class="p">:</span> <span class="n">points</span><span class="p">,</span> <span class="s1">&#39;solver&#39;</span><span class="p">:</span> <span class="n">solver</span><span class="p">,</span> <span class="s1">&#39;center_delta&#39;</span><span class="p">:</span> <span class="n">center_delta</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_roman_five_point_data</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">_make_extra_aberrations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="c1"># GalSim expects extra_aberrations indexed by Zernike number.  Our parameter vector</span>
+        <span class="c1"># corresponds to z4..z_max, so pad indices 0..3.</span>
+        <span class="n">extra_aberrations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_zernike</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">extra_aberrations</span><span class="p">[</span><span class="mi">4</span><span class="p">:]</span> <span class="o">=</span> <span class="n">params</span>
+        <span class="k">return</span> <span class="n">extra_aberrations</span>
+
+    <span class="k">def</span> <span class="nf">_draw_profile_to_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prof</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromatic</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">prof</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sed_eff</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flat_bandpass</span><span class="p">,</span> <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prof</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_solve_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aw</span><span class="p">,</span> <span class="n">bw</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="n">ata</span> <span class="o">=</span> <span class="n">aw</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">aw</span><span class="p">)</span>
+        <span class="n">atb</span> <span class="o">=</span> <span class="n">aw</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">bw</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solve_normal_equations</span><span class="p">(</span><span class="n">ata</span><span class="p">,</span> <span class="n">atb</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_solve_normal_equations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ata</span><span class="p">,</span> <span class="n">atb</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">ridge</span><span class="o">=</span><span class="mf">1.0e-6</span><span class="p">):</span>
+        <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="c1"># Mild ridge regression for regularization</span>
+        <span class="n">ata</span><span class="o">.</span><span class="n">flat</span><span class="p">[::</span><span class="n">nparam</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">ridge</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_apply_prior</span><span class="p">(</span><span class="n">ata</span><span class="p">,</span> <span class="n">atb</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">dparams</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">ata</span><span class="p">,</span> <span class="n">atb</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">new_params</span> <span class="o">=</span> <span class="n">params</span> <span class="o">+</span> <span class="n">dparams</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">pinv</span><span class="p">(</span><span class="n">ata</span><span class="p">)</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">cov</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_params</span><span class="p">,</span> <span class="n">var</span>
+
+    <span class="k">def</span> <span class="nf">_parse_prior_sigma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aberration_prior_sigma</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">aberration_prior_sigma</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">aberration_prior_sigma</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+        <span class="n">nprior</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_point_param_len</span>
+        <span class="k">if</span> <span class="n">sigma</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">nprior</span><span class="p">,</span> <span class="n">sigma</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">sigma</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">nprior</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;aberration_prior_sigma must be a scalar or length </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">nprior</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">sigma</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;aberration_prior_sigma values must all be &gt; 0&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sigma</span>
+
+    <span class="k">def</span> <span class="nf">_expand_prior_sigma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prior_sigma</span><span class="p">):</span>
+        <span class="c1"># Possibly tile the prior_sigma array for the (a, b, c) coefficient blocks.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberration_interp</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span> <span class="ow">and</span> <span class="n">prior_sigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">prior_sigma</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">prior_sigma</span>
+
+    <span class="k">def</span> <span class="nf">_evaluate_linear_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">points</span><span class="p">):</span>
+        <span class="n">coeffs</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_point_param_len</span><span class="p">)</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">coeffs</span>
+        <span class="n">sample_params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_point_param_len</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">pt</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">points</span><span class="p">):</span>
+            <span class="n">xh</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">x</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span>
+            <span class="n">yh</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">y</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span>
+            <span class="n">sample_params</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span> <span class="o">*</span> <span class="n">xh</span> <span class="o">+</span> <span class="n">c</span> <span class="o">*</span> <span class="n">yh</span>
+        <span class="k">return</span> <span class="n">sample_params</span>
+
+    <span class="k">def</span> <span class="nf">_apply_prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ata</span><span class="p">,</span> <span class="n">atb</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_invsigsq</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">ata</span><span class="o">.</span><span class="n">flat</span><span class="p">[::</span><span class="n">nparam</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_invsigsq</span>
+        <span class="n">atb</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_invsigsq</span> <span class="o">*</span> <span class="n">params</span>
+
+<div class="viewcode-block" id="RomanOpticalModel.initialize">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticalModel.initialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param_len</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">params_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">fit</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">params_var</span><span class="o">=</span><span class="n">params_var</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">fit</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RomanOpticalModel.fit">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticalModel.fit">[docs]</a>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># We usually batch the stars in groups by SCA and do the fitting calculation</span>
+        <span class="c1"># together for efficiency of building the adjusted sample-point profiles.  So this</span>
+        <span class="c1"># function is rarely used.  However, it&#39;s part of the Interp API, so just</span>
+        <span class="c1"># farm this out to the fit_many function with a list of one star.</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_many</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">star</span><span class="p">],</span>
+            <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
+            <span class="n">convert_funcs</span><span class="o">=</span><span class="p">[</span><span class="n">convert_func</span><span class="p">],</span>
+            <span class="n">draw_method</span><span class="o">=</span><span class="n">draw_method</span><span class="p">,</span>
+        <span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_fit_sca_group_worker</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">sca</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="p">,</span> <span class="n">draw_method</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="n">fit_group</span><span class="p">,</span> <span class="n">mean_params</span><span class="p">,</span> <span class="n">sample_profiles</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_fit_sca_group</span><span class="p">(</span>
+            <span class="n">sca</span><span class="p">,</span>
+            <span class="n">stars</span><span class="p">,</span>
+            <span class="n">convert_funcs</span><span class="o">=</span><span class="n">convert_funcs</span><span class="p">,</span>
+            <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
+            <span class="n">draw_method</span><span class="o">=</span><span class="n">draw_method</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">sca</span><span class="p">,</span> <span class="n">fit_group</span><span class="p">,</span> <span class="n">mean_params</span><span class="p">,</span> <span class="n">sample_profiles</span>
+
+    <span class="k">def</span> <span class="nf">fit_many</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_sca_mean</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">convert_funcs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">convert_funcs</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">convert_funcs</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;len(convert_funcs) must match len(stars)&quot;</span><span class="p">)</span>
+
+        <span class="n">grouped</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="p">)):</span>
+            <span class="n">sca</span> <span class="o">=</span> <span class="n">_get_sca</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sca</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">grouped</span><span class="p">:</span>
+                <span class="n">grouped</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;indices&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;stars&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;convert_funcs&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+            <span class="n">grouped</span><span class="p">[</span><span class="n">sca</span><span class="p">][</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">grouped</span><span class="p">[</span><span class="n">sca</span><span class="p">][</span><span class="s1">&#39;stars&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">grouped</span><span class="p">[</span><span class="n">sca</span><span class="p">][</span><span class="s1">&#39;convert_funcs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">convert_func</span><span class="p">)</span>
+
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sca</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">grouped</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Keep multiprocessing payload small by only sending the relevant cache entry</span>
+            <span class="c1"># for this SCA to each worker.</span>
+            <span class="n">worker_model</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">worker_model</span><span class="o">.</span><span class="n">_corner_cache</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">{</span><span class="n">sca</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_corner_cache</span><span class="p">[</span><span class="n">sca</span><span class="p">]}</span> <span class="k">if</span> <span class="n">sca</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_corner_cache</span> <span class="k">else</span> <span class="p">{}</span>
+            <span class="p">)</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">worker_model</span><span class="p">,</span> <span class="n">sca</span><span class="p">,</span> <span class="n">group</span><span class="p">[</span><span class="s1">&#39;stars&#39;</span><span class="p">],</span> <span class="n">group</span><span class="p">[</span><span class="s1">&#39;convert_funcs&#39;</span><span class="p">],</span> <span class="n">draw_method</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">fit_results</span> <span class="o">=</span> <span class="n">run_multi</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_sca_group_worker</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nproc</span><span class="p">,</span>
+            <span class="n">raise_except</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">,</span>
+            <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+        <span class="n">sca_mean</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">fit_result</span> <span class="ow">in</span> <span class="n">fit_results</span><span class="p">:</span>
+            <span class="n">sca</span><span class="p">,</span> <span class="n">fit_group</span><span class="p">,</span> <span class="n">mean_params</span><span class="p">,</span> <span class="n">sample_profiles</span> <span class="o">=</span> <span class="n">fit_result</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">grouped</span><span class="p">[</span><span class="n">sca</span><span class="p">][</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span>
+            <span class="n">sca_mean</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span> <span class="o">=</span> <span class="n">mean_params</span>
+            <span class="n">wcs</span> <span class="o">=</span> <span class="n">stars</span><span class="p">[</span><span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_corner_cache</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mean_params</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">sample_profiles</span><span class="p">)</span>
+            <span class="c1"># Output the stars in the same order as input, so they stay matched with</span>
+            <span class="c1"># convert_funcs array if there is one.</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">fit_group</span><span class="p">):</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">star</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_sca_mean</span> <span class="o">=</span> <span class="n">sca_mean</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">_fit_sca_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sca</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">draw_method</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="n">stars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span>
+
+        <span class="c1"># We&#39;re about to change params, so if the sample profiles aren&#39;t yet in the cache,</span>
+        <span class="c1"># there is not reason now to add them.</span>
+        <span class="n">sample_base_profiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sample_profiles</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sca</span><span class="o">=</span><span class="n">sca</span><span class="p">)</span>
+
+        <span class="c1"># First draw the base image for each star.</span>
+        <span class="c1"># Also set up an empty Jacobian array for each to be filled in below.</span>
+        <span class="n">nparam</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">group_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="p">):</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span>
+            <span class="n">weight</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">array</span>
+            <span class="n">base_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_model_image_from_samples</span><span class="p">(</span>
+                    <span class="n">star</span><span class="p">,</span> <span class="n">sample_base_profiles</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">)</span>
+            <span class="n">resid</span> <span class="o">=</span> <span class="n">image</span> <span class="o">-</span> <span class="n">base_image</span>
+            <span class="n">sw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+            <span class="n">bw</span> <span class="o">=</span> <span class="n">resid</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">*</span> <span class="n">sw</span>
+            <span class="n">jac</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">image</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">nparam</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">group_data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">sw</span><span class="p">,</span> <span class="n">bw</span><span class="p">,</span> <span class="n">jac</span><span class="p">,</span> <span class="n">base_image</span><span class="p">))</span>
+
+        <span class="c1"># Build the Jacobians using finite differences.</span>
+        <span class="n">steps</span> <span class="o">=</span> <span class="mf">0.05</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">params</span><span class="p">),</span> <span class="mf">0.02</span><span class="p">)</span>  <span class="c1"># min step = 1.e-3</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">steps</span><span class="p">):</span>
+            <span class="n">p1</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">p1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">step</span>
+            <span class="n">sample_plus_profiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sample_profiles</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">p1</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sca</span><span class="o">=</span><span class="n">sca</span><span class="p">)</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">step</span>
+            <span class="c1"># Use these adjusted sample profiles for all stars on the SCA.</span>
+            <span class="k">for</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">jac</span><span class="p">,</span> <span class="n">base_image</span> <span class="ow">in</span> <span class="n">group_data</span><span class="p">:</span>
+                <span class="n">im1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_model_image_from_samples</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">sample_plus_profiles</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">)</span>
+                <span class="n">jac</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">im1</span> <span class="o">-</span> <span class="n">base_image</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+        <span class="c1"># Build one SCA-level normal equation from all stars.</span>
+        <span class="n">ata_sum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nparam</span><span class="p">,</span> <span class="n">nparam</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">atb_sum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nparam</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">solved</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">sw</span><span class="p">,</span> <span class="n">bw</span><span class="p">,</span> <span class="n">jac</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">group_data</span><span class="p">:</span>
+            <span class="n">aw</span> <span class="o">=</span> <span class="n">jac</span> <span class="o">*</span> <span class="n">sw</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="n">ata_sum</span> <span class="o">+=</span> <span class="n">aw</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">aw</span><span class="p">)</span>
+            <span class="n">atb_sum</span> <span class="o">+=</span> <span class="n">aw</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">bw</span><span class="p">)</span>
+            <span class="n">solved</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">,</span> <span class="n">weight</span><span class="p">))</span>
+
+        <span class="c1"># Solve once for a single SCA parameter vector.</span>
+        <span class="n">sca_params</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solve_normal_equations</span><span class="p">(</span><span class="n">ata_sum</span><span class="p">,</span> <span class="n">atb_sum</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">sample_sca_profiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sample_profiles</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">sca_params</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sca</span><span class="o">=</span><span class="n">sca</span><span class="p">)</span>
+
+        <span class="c1"># Compute the final model and chisq for each star.</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">star</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">solved</span><span class="p">:</span>
+            <span class="n">model_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_model_image_from_samples</span><span class="p">(</span>
+                    <span class="n">star</span><span class="p">,</span> <span class="n">sample_sca_profiles</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">)</span>
+            <span class="n">chisq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">array</span> <span class="o">-</span> <span class="n">model_image</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">dof</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span> <span class="o">-</span> <span class="mi">3</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">Star</span><span class="p">(</span>
+                    <span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                    <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">newParams</span><span class="p">(</span>
+                        <span class="n">sca_params</span><span class="p">,</span> <span class="n">params_var</span><span class="o">=</span><span class="n">var</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">,</span> <span class="n">chisq</span><span class="o">=</span><span class="n">chisq</span><span class="p">,</span> <span class="n">dof</span><span class="o">=</span><span class="n">dof</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span><span class="p">,</span> <span class="n">sca_params</span><span class="p">,</span> <span class="n">sample_sca_profiles</span>
+
+<div class="viewcode-block" id="RomanOpticalModel.draw">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticalModel.draw">[docs]</a>
+    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">copy_image</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="o">=</span><span class="n">star</span><span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">if</span> <span class="n">copy_image</span> <span class="k">else</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_draw_profile_to_image</span><span class="p">(</span><span class="n">prof</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Star</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">withNew</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">),</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">getProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">star</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">star</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Roman.getProfile requires the star argument&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param_len</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_len</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Roman params must have length </span><span class="si">%d</span><span class="s2"> (got </span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param_len</span><span class="p">,</span> <span class="n">params</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+                <span class="p">)</span>
+        <span class="n">sample_profiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sample_profiles</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="n">cache</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interpolate_samples</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">sample_profiles</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_draw_model_image_from_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">sample_profiles</span><span class="p">,</span> <span class="n">convert_func</span><span class="p">):</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interpolate_samples</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">sample_profiles</span><span class="p">)</span>
+        <span class="n">prof</span> <span class="o">=</span> <span class="n">prof</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">center</span><span class="p">)</span> <span class="o">*</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">flux</span>
+        <span class="k">if</span> <span class="n">convert_func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">prof</span> <span class="o">=</span> <span class="n">convert_func</span><span class="p">(</span><span class="n">prof</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_draw_profile_to_image</span><span class="p">(</span><span class="n">prof</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="p">,</span> <span class="n">star</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span>
+
+    <span class="k">def</span> <span class="nf">_get_sample_profiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sca</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">sca</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sca</span> <span class="o">=</span> <span class="n">_get_sca</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="n">wcs</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">wcs</span>
+        <span class="k">if</span> <span class="n">sca</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_corner_cache</span><span class="p">:</span>
+            <span class="n">cached_params</span><span class="p">,</span> <span class="n">cached_wcs</span><span class="p">,</span> <span class="n">cached_profiles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_corner_cache</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span>
+            <span class="n">same_wcs</span> <span class="o">=</span> <span class="n">cached_wcs</span> <span class="ow">is</span> <span class="n">wcs</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">same_wcs</span><span class="p">:</span>
+                <span class="n">same_wcs</span> <span class="o">=</span> <span class="p">(</span><span class="n">cached_wcs</span> <span class="o">==</span> <span class="n">wcs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">same_wcs</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">cached_params</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">cached_profiles</span>
+
+        <span class="n">bandpass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_require_bandpass</span><span class="p">()</span>
+        <span class="n">wavelength</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromatic</span> <span class="k">else</span> <span class="n">bandpass</span><span class="o">.</span><span class="n">effective_wavelength</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nominal_interp</span> <span class="o">==</span> <span class="s1">&#39;five_point&#39;</span><span class="p">:</span>
+            <span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_roman_five_point_data</span><span class="p">(</span><span class="n">sca</span><span class="p">)[</span><span class="s1">&#39;points&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">points</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span><span class="p">),</span>
+                <span class="n">galsim</span><span class="o">.</span><span class="n">PositionD</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aberration_interp</span> <span class="o">==</span> <span class="s1">&#39;linear&#39;</span><span class="p">:</span>
+            <span class="n">sample_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluate_linear_params</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">points</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">npts</span> <span class="o">=</span> <span class="mi">5</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nominal_interp</span> <span class="o">==</span> <span class="s1">&#39;five_point&#39;</span> <span class="k">else</span> <span class="mi">4</span>
+            <span class="c1"># In constant/global mode, the same per-SCA vector applies everywhere.</span>
+            <span class="n">sample_params</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">npts</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">npts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_point_param_len</span><span class="p">)</span>
+        <span class="n">profiles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">pt</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">sample_params</span><span class="p">)):</span>
+            <span class="n">extra</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_extra_aberrations</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nominal_interp</span> <span class="o">==</span> <span class="s1">&#39;five_point&#39;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">extra</span> <span class="o">=</span> <span class="n">extra</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_roman_five_point_data</span><span class="p">(</span><span class="n">sca</span><span class="p">)[</span><span class="s1">&#39;center_delta&#39;</span><span class="p">]</span>
+            <span class="n">profiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">galsim</span><span class="o">.</span><span class="n">roman</span><span class="o">.</span><span class="n">getPSF</span><span class="p">(</span>
+                    <span class="n">sca</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">filter_name</span><span class="p">,</span>
+                    <span class="n">SCA_pos</span><span class="o">=</span><span class="n">pt</span><span class="p">,</span>
+                    <span class="n">pupil_bin</span><span class="o">=</span><span class="n">pupil_bin</span><span class="p">,</span>
+                    <span class="n">wcs</span><span class="o">=</span><span class="n">wcs</span><span class="p">,</span>
+                    <span class="n">extra_aberrations</span><span class="o">=</span><span class="n">extra</span><span class="p">,</span>
+                    <span class="n">wavelength</span><span class="o">=</span><span class="n">wavelength</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">profiles</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">profiles</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cache</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_corner_cache</span><span class="p">[</span><span class="n">sca</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">profiles</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">profiles</span>
+
+    <span class="k">def</span> <span class="nf">_interpolate_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">sample_profiles</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nominal_interp</span> <span class="o">==</span> <span class="s1">&#39;five_point&#39;</span><span class="p">:</span>
+            <span class="n">w_ll</span><span class="p">,</span> <span class="n">w_lr</span><span class="p">,</span> <span class="n">w_ul</span><span class="p">,</span> <span class="n">w_ur</span><span class="p">,</span> <span class="n">w_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_five_point_weights</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">ll</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">ul</span><span class="p">,</span> <span class="n">ur</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">sample_profiles</span>
+            <span class="k">return</span> <span class="n">w_ll</span> <span class="o">*</span> <span class="n">ll</span> <span class="o">+</span> <span class="n">w_lr</span> <span class="o">*</span> <span class="n">lr</span> <span class="o">+</span> <span class="n">w_ul</span> <span class="o">*</span> <span class="n">ul</span> <span class="o">+</span> <span class="n">w_ur</span> <span class="o">*</span> <span class="n">ur</span> <span class="o">+</span> <span class="n">w_c</span> <span class="o">*</span> <span class="n">c</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">w_ll</span><span class="p">,</span> <span class="n">w_lr</span><span class="p">,</span> <span class="n">w_ul</span><span class="p">,</span> <span class="n">w_ur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_corner_weights</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+            <span class="n">ll</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">ul</span><span class="p">,</span> <span class="n">ur</span> <span class="o">=</span> <span class="n">sample_profiles</span>
+            <span class="k">return</span> <span class="n">w_ll</span> <span class="o">*</span> <span class="n">ll</span> <span class="o">+</span> <span class="n">w_lr</span> <span class="o">*</span> <span class="n">lr</span> <span class="o">+</span> <span class="n">w_ul</span> <span class="o">*</span> <span class="n">ul</span> <span class="o">+</span> <span class="n">w_ur</span> <span class="o">*</span> <span class="n">ur</span>
+
+    <span class="k">def</span> <span class="nf">_corner_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span><span class="p">)</span>
+        <span class="n">fx</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span>
+        <span class="n">fy</span> <span class="o">=</span> <span class="n">y</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">sca_size</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">fx</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">fy</span><span class="p">),</span>
+            <span class="n">fx</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">fy</span><span class="p">),</span>
+            <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">fx</span><span class="p">)</span> <span class="o">*</span> <span class="n">fy</span><span class="p">,</span>
+            <span class="n">fx</span> <span class="o">*</span> <span class="n">fy</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_five_point_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="n">sca</span> <span class="o">=</span> <span class="n">_get_sca</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+        <span class="n">solver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_roman_five_point_data</span><span class="p">(</span><span class="n">sca</span><span class="p">)[</span><span class="s1">&#39;solver&#39;</span><span class="p">]</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">x</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">image_pos</span><span class="o">.</span><span class="n">y</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="o">*</span> <span class="n">y</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="c1"># Convert basis values at this star position into interpolation weights on the</span>
+        <span class="c1"># 5 sample locations (LL, LR, UL, UR, C).</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">solver</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">phi</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="RomanOpticsPSF">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF">[docs]</a>
+<span class="k">class</span> <span class="nc">RomanOpticsPSF</span><span class="p">(</span><span class="n">PSF</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A PSF wrapper for Roman optical fits with configurable aberration interpolation.&quot;&quot;&quot;</span>
+
+    <span class="n">_type_name</span> <span class="o">=</span> <span class="s1">&#39;RomanOptics&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">interp</span><span class="p">,</span> <span class="n">outliers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chisq_thresh</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">min_iter</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span> <span class="o">=</span> <span class="n">interp</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">Model</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">bandpass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># During read, model is temporarily a placeholder integer until _finish_read.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="n">outliers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chisq_thresh</span> <span class="o">=</span> <span class="n">chisq_thresh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_iter</span> <span class="o">=</span> <span class="n">min_iter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span> <span class="o">=</span> <span class="n">max_iter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;interp&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;outliers&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;chisq_thresh&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq_thresh</span><span class="p">,</span>
+            <span class="s1">&#39;min_iter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_iter</span><span class="p">,</span>
+            <span class="s1">&#39;max_iter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_iter</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_delta_chisq</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dof</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">niter</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">degenerate_points</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RomanOpticsPSF.set_num">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF.set_num">[docs]</a>
+    <span class="k">def</span> <span class="nf">set_num</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_num</span> <span class="o">=</span> <span class="n">num</span>
+        <span class="c1"># During read, model and interp might not be real.</span>
+        <span class="c1"># Only call set_num if they are actually built.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">Model</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">set_num</span><span class="p">(</span><span class="n">num</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RomanOpticsPSF.set_context">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF.set_context">[docs]</a>
+    <span class="k">def</span> <span class="nf">set_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bandpass</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="n">wcs</span><span class="p">,</span> <span class="n">pointing</span><span class="p">,</span> <span class="n">bandpass</span><span class="p">)</span>
+        <span class="c1"># During read, model is temporarily a placeholder integer until _finish_read.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">Model</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_bandpass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">interp_property_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">property_names</span>
+
+<div class="viewcode-block" id="RomanOpticsPSF.parseKwargs">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF.parseKwargs">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">parseKwargs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="n">opt</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;filter_name&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="s1">&#39;chisq_thresh&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+            <span class="s1">&#39;min_iter&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="s1">&#39;max_iter&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="s1">&#39;aberration_interp&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="s1">&#39;chromatic&#39;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+            <span class="s1">&#39;max_zernike&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="s1">&#39;nominal_interp&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="s1">&#39;aberration_prior_sigma&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;nproc&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">ignore</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;outliers&#39;</span><span class="p">]</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">galsim</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GetAllParams</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">opt</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="n">ignore</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">outliers</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;outliers&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">chisq_thresh</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chisq_thresh&#39;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">min_iter</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;min_iter&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">max_iter</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;max_iter&#39;</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
+        <span class="n">aberration_interp</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;aberration_interp&#39;</span><span class="p">,</span> <span class="s1">&#39;constant&#39;</span><span class="p">)</span>
+        <span class="n">model_interp</span> <span class="o">=</span> <span class="s1">&#39;constant&#39;</span> <span class="k">if</span> <span class="n">aberration_interp</span> <span class="o">==</span> <span class="s1">&#39;global&#39;</span> <span class="k">else</span> <span class="n">aberration_interp</span>
+        <span class="n">interp_per_sca</span> <span class="o">=</span> <span class="p">(</span><span class="n">aberration_interp</span> <span class="o">!=</span> <span class="s1">&#39;global&#39;</span><span class="p">)</span>
+
+        <span class="n">model_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">key</span><span class="p">:</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="s1">&#39;filter_name&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;chromatic&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;max_zernike&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;nominal_interp&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;aberration_prior_sigma&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;nproc&#39;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">kwargs</span>
+        <span class="p">}</span>
+        <span class="n">model_kwargs</span><span class="p">[</span><span class="s1">&#39;aberration_interp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_interp</span>
+        <span class="n">model_kwargs</span><span class="p">[</span><span class="s1">&#39;logger&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">RomanOpticalModel</span><span class="p">(</span><span class="o">**</span><span class="n">model_kwargs</span><span class="p">)</span>
+        <span class="n">interp</span> <span class="o">=</span> <span class="n">RomanSCAInterp</span><span class="p">(</span><span class="n">per_sca</span><span class="o">=</span><span class="n">interp_per_sca</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="n">parsed</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span>
+            <span class="s1">&#39;interp&#39;</span><span class="p">:</span> <span class="n">interp</span><span class="p">,</span>
+            <span class="s1">&#39;chisq_thresh&#39;</span><span class="p">:</span> <span class="n">chisq_thresh</span><span class="p">,</span>
+            <span class="s1">&#39;min_iter&#39;</span><span class="p">:</span> <span class="n">min_iter</span><span class="p">,</span>
+            <span class="s1">&#39;max_iter&#39;</span><span class="p">:</span> <span class="n">max_iter</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">outliers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">parsed</span><span class="p">[</span><span class="s1">&#39;outliers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Outliers</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">outliers</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">parsed</span></div>
+
+
+<div class="viewcode-block" id="RomanOpticsPSF.initialize_params">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF.initialize_params">[docs]</a>
+    <span class="k">def</span> <span class="nf">initialize_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">nremoved</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Start each new fit with a fresh sample-profile cache.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initializing models&quot;</span><span class="p">)</span>
+        <span class="n">new_stars</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span> <span class="n">default_init</span><span class="o">=</span><span class="n">default_init</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">star</span> <span class="ow">in</span> <span class="n">stars</span>
+        <span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;No stars removed in initialize step&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Initializing interpolator&quot;</span><span class="p">)</span>
+        <span class="n">stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">new_stars</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">stars</span><span class="p">,</span> <span class="n">nremoved</span></div>
+
+
+<div class="viewcode-block" id="RomanOpticsPSF.single_iteration">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF.single_iteration">[docs]</a>
+    <span class="k">def</span> <span class="nf">single_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">convert_funcs</span><span class="p">,</span> <span class="n">draw_method</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">initialize_iteration</span><span class="p">()</span>
+        <span class="n">all_stars</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span>
+
+        <span class="n">fit_indices</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">star</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stars</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">star</span><span class="o">.</span><span class="n">is_flagged</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">star</span><span class="o">.</span><span class="n">is_reserve</span>
+        <span class="p">]</span>
+        <span class="n">fit_stars</span> <span class="o">=</span> <span class="p">[</span><span class="n">stars</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fit_indices</span><span class="p">]</span>
+        <span class="n">fit_convert_funcs</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">fit_stars</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">convert_funcs</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="p">[</span><span class="n">convert_funcs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">fit_indices</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">new_fit_stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit_many</span><span class="p">(</span>
+            <span class="n">fit_stars</span><span class="p">,</span>
+            <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
+            <span class="n">draw_method</span><span class="o">=</span><span class="n">draw_method</span><span class="p">,</span>
+            <span class="n">convert_funcs</span><span class="o">=</span><span class="n">fit_convert_funcs</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">new_star</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fit_indices</span><span class="p">,</span> <span class="n">new_fit_stars</span><span class="p">):</span>
+            <span class="n">all_stars</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_star</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">new_fit_stars</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No stars left to fit.  Cannot find PSF model.&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;             Calculating the interpolation&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">set_sca_solution</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_last_sca_mean</span><span class="p">)</span>
+        <span class="n">all_stars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="n">all_stars</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">all_stars</span><span class="p">,</span> <span class="mi">0</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fit_center</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_centered</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">include_model_centroid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_centered</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_model_can_be_offset</span>
+
+<div class="viewcode-block" id="RomanOpticsPSF.interpolateStarList">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF.interpolateStarList">[docs]</a>
+    <span class="k">def</span> <span class="nf">interpolateStarList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stars</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">interpolateList</span><span class="p">(</span><span class="n">stars</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="n">inplace</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RomanOpticsPSF.interpolateStar">
+<a class="viewcode-back" href="../../../roman.html#piff.roman.RomanOpticsPSF.interpolateStar">[docs]</a>
+    <span class="k">def</span> <span class="nf">interpolateStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">star</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="n">inplace</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_drawStar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">star</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_getRawProfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">star</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">star</span><span class="o">.</span><span class="n">fit</span><span class="o">.</span><span class="n">get_params</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_num</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">getProfile</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">star</span><span class="o">=</span><span class="n">star</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_method</span>
+
+    <span class="k">def</span> <span class="nf">_finish_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">LoggerWrapper</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="n">chisq_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;chisq&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chisq</span><span class="p">,</span>
+            <span class="s1">&#39;last_delta_chisq&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_delta_chisq</span><span class="p">,</span>
+            <span class="s1">&#39;dof&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dof</span><span class="p">,</span>
+            <span class="s1">&#39;nremoved&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nremoved</span><span class="p">,</span>
+            <span class="s1">&#39;niter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">niter</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">write_struct</span><span class="p">(</span><span class="s1">&#39;chisq&#39;</span><span class="p">,</span> <span class="n">chisq_dict</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the chisq info to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">writer</span><span class="o">.</span><span class="n">get_full_name</span><span class="p">(</span><span class="s1">&#39;chisq&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF model to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">writer</span><span class="o">.</span><span class="n">get_full_name</span><span class="p">(</span><span class="s1">&#39;model&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="s1">&#39;interp&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF interp to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">writer</span><span class="o">.</span><span class="n">get_full_name</span><span class="p">(</span><span class="s1">&#39;interp&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span><span class="p">:</span>
+            <span class="n">Outliers</span><span class="o">.</span><span class="n">write_all</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="s1">&#39;outliers&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wrote the PSF outliers to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">writer</span><span class="o">.</span><span class="n">get_full_name</span><span class="p">(</span><span class="s1">&#39;outliers&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_finish_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reader</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="n">chisq_dict</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read_struct</span><span class="p">(</span><span class="s1">&#39;chisq&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">chisq_dict</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">chisq_dict</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Now that model is built, we can update its bandpass to the correct value.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">set_bandpass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bandpass</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interp</span> <span class="o">=</span> <span class="n">Interp</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span> <span class="s1">&#39;interp&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outliers</span> <span class="o">=</span> <span class="n">Outliers</span><span class="o">.</span><span class="n">read_all</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span> <span class="s1">&#39;outliers&#39;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,252 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Revision History &mdash; Piff 1.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=030dc6f6"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="v1.6" href="older.html" />
+    <link rel="prev" title="Utility Functions" href="util.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Piff
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="roman.html">Roman PSF module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">Utility Functions</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Revision History</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#changes-from-version-1-6-to-1-7">Changes from version 1.6 to 1.7</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#dependency-changes">Dependency Changes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#api-changes">API Changes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#output-file-changes">Output file changes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#new-features">New features</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bug-fixes">Bug fixes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#older-versions">Older Versions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="older.html">v1.6</a></li>
+<li class="toctree-l3"><a class="reference internal" href="older.html#v1-5">v1.5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="older.html#v1-4">v1.4</a></li>
+<li class="toctree-l3"><a class="reference internal" href="older.html#v1-3">v1.3</a></li>
+<li class="toctree-l3"><a class="reference internal" href="older.html#v1-2">v1.2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="older.html#v1-1">v1.1</a></li>
+<li class="toctree-l3"><a class="reference internal" href="older.html#v1-0">v1.0</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Revision History</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/history.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="revision-history">
+<h1>Revision History<a class="headerlink" href="#revision-history" title="Link to this heading"></a></h1>
+<section id="changes-from-version-1-6-to-1-7">
+<h2>Changes from version 1.6 to 1.7<a class="headerlink" href="#changes-from-version-1-6-to-1-7" title="Link to this heading"></a></h2>
+<p>This version mostly adds a bunch of things we needed to enable running Piff on Roman
+Space Telescope images using an optical model based on the galSim.roman PSF model.
+The new PSF type is called <code class="docutils literal notranslate"><span class="pre">RomanOptics</span></code>. See the <a class="reference internal" href="roman.html#piff.roman.RomanOpticsPSF" title="piff.roman.RomanOpticsPSF"><code class="xref any py py-class docutils literal notranslate"><span class="pre">RomanOpticsPSF</span></code></a> docstring for details
+about the new type. You can also see some example configurations that use it in the
+devel/roman directory.</p>
+<section id="dependency-changes">
+<h3>Dependency Changes<a class="headerlink" href="#dependency-changes" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code> dependency for reading Parquet input catalogs. It is only required
+if you attempt to read a parquet file. (#188)</p></li>
+<li><p>Removed support for Python 3.8, 3.9.</p></li>
+<li><p>Added support for Python 3.14, 3.15.</p></li>
+</ul>
+</section>
+<section id="api-changes">
+<h3>API Changes<a class="headerlink" href="#api-changes" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Deprecated <code class="docutils literal notranslate"><span class="pre">input.nstars</span></code> in favor of <code class="docutils literal notranslate"><span class="pre">select.nstars</span></code>, which now works across all
+input files. The old option is deprecated and retains the per-image behavior. (#190)</p></li>
+<li><p>Renamed <code class="docutils literal notranslate"><span class="pre">select.max_snr</span></code> to <code class="docutils literal notranslate"><span class="pre">select.max_snr_weight</span></code> to clarify that this caps
+a star’s effective fitting weight, rather than rejecting bright stars. The old
+name is still works but is deprecated. (#195)</p></li>
+<li><p>Deprecated the use of strings to mean FITS-header keywords for <code class="docutils literal notranslate"><span class="pre">noise</span></code>, <code class="docutils literal notranslate"><span class="pre">gain</span></code>,
+<code class="docutils literal notranslate"><span class="pre">satur</span></code> and <code class="docutils literal notranslate"><span class="pre">sky</span></code> in the <code class="docutils literal notranslate"><span class="pre">input</span></code> section. You should now use the new
+<code class="docutils literal notranslate"><span class="pre">ImageHeaderValue</span></code> type instead. (#207)</p></li>
+<li><p>Various minor signature changes to Python functions. If you are using the Python
+interface rather than config files, you may need to check the doc strings for changes
+to return values or parameter names.</p></li>
+</ul>
+</section>
+<section id="output-file-changes">
+<h3>Output file changes<a class="headerlink" href="#output-file-changes" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Added the number of fitting iterations, <code class="docutils literal notranslate"><span class="pre">niter</span></code>, to the saved fit diagnostics. (#196)</p></li>
+<li><p>Added the observing bandpass when one is supplied. (#194)</p></li>
+<li><p>Star SEDs are saved as file names and reconstruction metadata, rather than embedding
+the full spectra. If you do something that needs the SEDs after reading the psf from a
+file, those SED files must be accessible. (#194, #198)</p></li>
+<li><p>Renamed the WCS table’s <code class="docutils literal notranslate"><span class="pre">nchunks</span></code> column to <code class="docutils literal notranslate"><span class="pre">wcs_nchunks</span></code>. Files with the old name
+should continue to work properly. (#198)</p></li>
+</ul>
+</section>
+<section id="new-features">
+<h3>New features<a class="headerlink" href="#new-features" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">input.badpix_zeros</span></code> to mask zero-valued science pixels. (#185)</p></li>
+<li><p>Added support for reading the noise variance from the FITS header. (#186)</p></li>
+<li><p>Added an option to compute the sky level from the median of the input image.
+Use <code class="docutils literal notranslate"><span class="pre">input.sky:</span> <span class="pre">median</span></code>. (#187)</p></li>
+<li><p>Added support for Parquet input catalogs, using <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code>. (#188)</p></li>
+<li><p>Added the ability to read multiple image HDUs from a single FITS file to be processed as
+separate images. (#189)</p></li>
+<li><p>Changed <code class="docutils literal notranslate"><span class="pre">nstars</span></code> to mean the total number of stars to use across all input images when there
+are more than one, rather than each image separately. Also moved this to <code class="docutils literal notranslate"><span class="pre">select</span></code> where
+it fits more naturally. (#190)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">raw_snr</span></code> attribute for stars to keep track of their real snr, rather than the
+possibly adjusted value in <code class="docutils literal notranslate"><span class="pre">snr</span></code> due to <code class="docutils literal notranslate"><span class="pre">select.max_snr_weight</span></code>. (#190)</p></li>
+<li><p>Added the ability to compute star <code class="docutils literal notranslate"><span class="pre">properties</span></code> derived from one or more columns in the
+input catalog. (#191)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">Centroid</span></code> outlier rejection with a <code class="docutils literal notranslate"><span class="pre">max_offset</span></code> threshold, and allow
+<code class="docutils literal notranslate"><span class="pre">outliers</span></code> to be a list combining multiple rejection criteria. (#192)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">select.min_sep</span></code> to reject objects with a nearby neighbor. (#193)</p></li>
+<li><p>Added <code class="docutils literal notranslate"><span class="pre">input.bandpass</span></code> for specifying the bandpass used for the observations. (#194)</p></li>
+<li><p>Added support stellar SEDs in the input field for chromatic fitting. You can either
+specify a single spectrum to use for all stars (using <code class="docutils literal notranslate"><span class="pre">input.sed_file_name</span></code>) or
+specify a specific spectrum for each star separately (using <code class="docutils literal notranslate"><span class="pre">input.sed_col</span></code>).
+There are additional parameters that can control how these files are used. See docs
+for <a class="reference internal" href="input.html#piff.InputFiles" title="piff.InputFiles"><code class="xref any py py-class docutils literal notranslate"><span class="pre">InputFiles</span></code></a> for more details. (#194, #198)</p></li>
+<li><p>Added the <code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF</span></code> class, based on GalSim’s Roman optical model, with
+fitted Zernike aberrations and Gaussian priors. (#195, #196, #197, #198)</p></li>
+<li><p>Changed <code class="docutils literal notranslate"><span class="pre">StarImages</span></code> plots to include chip number and image coordinates for each star. (#196)</p></li>
+<li><p>Expanded support for GalSim-style config value types in the config file, including
+<code class="docutils literal notranslate"><span class="pre">Eval</span></code> and <code class="docutils literal notranslate"><span class="pre">Current</span></code> expressions and their <code class="docutils literal notranslate"><span class="pre">$</span></code> and <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> shortcuts. (#207)</p></li>
+</ul>
+</section>
+<section id="bug-fixes">
+<h3>Bug fixes<a class="headerlink" href="#bug-fixes" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Ensure input stamps use floating-point data, so sky subtraction and other
+processing work with integer-valued source images. (#187)</p></li>
+<li><p>Fixed composite PSF serialization when components have parameter-variance arrays
+of different sizes. (#195)</p></li>
+<li><p>Reject failed HSM measurements when using <code class="docutils literal notranslate"><span class="pre">hsm_size_reject</span></code> or <code class="docutils literal notranslate"><span class="pre">max_pixel_cut</span></code>. (#196)</p></li>
+<li><p>Fixed <code class="docutils literal notranslate"><span class="pre">StarImages</span></code> when fewer eligible stars are available than requested. (#196)</p></li>
+<li><p>Fixed GSObject fitting to avoid nonpositive sizes. (#200)</p></li>
+<li><p>Added checks for excessively large FFTs when fitting and reject them rather than
+risking huge memory allocations or crashes. (#205)</p></li>
+<li><p>Fixed the <code class="docutils literal notranslate"><span class="pre">TwoDHist</span></code> model-size panel, which previously repeated the measured
+star sizes instead of showing model sizes. (#205)</p></li>
+<li><p>Added warning about zero-S/N candidates when no <code class="docutils literal notranslate"><span class="pre">min_snr</span></code> cut is set, with an additional
+suggestion to supply noise information when it is missing. (#200)</p></li>
+<li><p>Fixed chi-squared outlier rejection for already-flagged stars. (#208)</p></li>
+</ul>
+</section>
+</section>
+<section id="older-versions">
+<h2>Older Versions<a class="headerlink" href="#older-versions" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="older.html">v1.6</a></li>
+<li class="toctree-l1"><a class="reference internal" href="older.html#v1-5">v1.5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="older.html#v1-4">v1.4</a></li>
+<li class="toctree-l1"><a class="reference internal" href="older.html#v1-3">v1.3</a></li>
+<li class="toctree-l1"><a class="reference internal" href="older.html#v1-2">v1.2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="older.html#v1-1">v1.1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="older.html#v1-0">v1.0</a></li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="util.html" class="btn btn-neutral float-left" title="Utility Functions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="older.html" class="btn btn-neutral float-right" title="v1.6" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

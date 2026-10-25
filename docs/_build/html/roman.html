@@ -1,0 +1,434 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roman PSF module &mdash; Piff 1.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=030dc6f6"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Stars" href="star.html" />
+    <link rel="prev" title="Output statistics" href="stats.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Piff
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">PIFF: PSFs In the Full FOV</a></li>
+<li class="toctree-l1"><a class="reference internal" href="piffify.html">The piffify executable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="input.html">Reading in Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="select.html">Selecting Good PSF Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interp.html">Interpolation Schemes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="psf.html">PSF classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outliers.html">Removing Outliers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Writing the output file</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stats.html">Output statistics</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Roman PSF module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#piff.roman.RomanOpticsPSF"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.fit_center"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.fit_center</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.include_model_centroid"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.include_model_centroid</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.initialize_params"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.initialize_params()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.interpolateStar"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.interpolateStar()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.interpolateStarList"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.interpolateStarList()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.parseKwargs"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.parseKwargs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.set_context"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.set_context()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.set_num"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.set_num()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticsPSF.single_iteration"><code class="docutils literal notranslate"><span class="pre">RomanOpticsPSF.single_iteration()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#piff.roman.RomanOpticalModel"><code class="docutils literal notranslate"><span class="pre">RomanOpticalModel</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticalModel.draw"><code class="docutils literal notranslate"><span class="pre">RomanOpticalModel.draw()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticalModel.fit"><code class="docutils literal notranslate"><span class="pre">RomanOpticalModel.fit()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticalModel.initialize"><code class="docutils literal notranslate"><span class="pre">RomanOpticalModel.initialize()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanOpticalModel.initialize_iteration"><code class="docutils literal notranslate"><span class="pre">RomanOpticalModel.initialize_iteration()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#piff.roman.RomanSCAInterp"><code class="docutils literal notranslate"><span class="pre">RomanSCAInterp</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanSCAInterp.interpolate"><code class="docutils literal notranslate"><span class="pre">RomanSCAInterp.interpolate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanSCAInterp.property_names"><code class="docutils literal notranslate"><span class="pre">RomanSCAInterp.property_names</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#piff.roman.RomanSCAInterp.solve"><code class="docutils literal notranslate"><span class="pre">RomanSCAInterp.solve()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="star.html">Stars</a></li>
+<li class="toctree-l1"><a class="reference internal" href="util.html">Utility Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="history.html">Revision History</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Piff</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Roman PSF module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/roman.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="roman-psf-module">
+<h1>Roman PSF module<a class="headerlink" href="#roman-psf-module" title="Link to this heading"></a></h1>
+<p>Classes and functions that are specific to the Nancy Grace Roman Space Telescope
+live in the sub-module piff.roman. They include the following:</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.roman.</span></span><span class="sig-name descname"><span class="pre">RomanOpticsPSF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chisq_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF" title="Link to this definition"></a></dt>
+<dd><p>A PSF wrapper for Roman optical fits with configurable aberration interpolation.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.fit_center">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fit_center</span></span><a class="headerlink" href="#piff.roman.RomanOpticsPSF.fit_center" title="Link to this definition"></a></dt>
+<dd><p>Whether to fit the center of the star in reflux.</p>
+<p>This is generally set in the model specifications.
+If all component models includes a shift, then this is False.
+Otherwise it is True.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.include_model_centroid">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">include_model_centroid</span></span><a class="headerlink" href="#piff.roman.RomanOpticsPSF.include_model_centroid" title="Link to this definition"></a></dt>
+<dd><p>Whether a model that we want to center can have a non-zero centroid during iterations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.initialize_params">
+<span class="sig-name descname"><span class="pre">initialize_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF.initialize_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF.initialize_params" title="Link to this definition"></a></dt>
+<dd><p>Initialize the psf solver to begin an iterative solution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – The initial list of Star instances that will be used to constrain
+the PSF.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging progress. [default: None]</p></li>
+<li><p><strong>default_init</strong> – The default initilization method if the user doesn’t specify one.
+[default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the initialized stars, nremoved</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.interpolateStar">
+<span class="sig-name descname"><span class="pre">interpolateStar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF.interpolateStar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF.interpolateStar" title="Link to this definition"></a></dt>
+<dd><p>Update the star to have the current interpolated fit parameters according to the
+current PSF model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – Star instance to update.</p></li>
+<li><p><strong>inplace</strong> – Whether to update the parameters in place, in which case the
+returned star is the same object as the input star. [default: False]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Star instance with its fit parameters updated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.interpolateStarList">
+<span class="sig-name descname"><span class="pre">interpolateStarList</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF.interpolateStarList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF.interpolateStarList" title="Link to this definition"></a></dt>
+<dd><p>Update the stars to have the current interpolated fit parameters according to the
+current PSF model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – List of Star instances to update.</p></li>
+<li><p><strong>inplace</strong> – Whether to update the parameters in place, in which case the
+returned stars are the same objects as the input stars. [default: False]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of Star instances with their fit parameters updated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.parseKwargs">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">parseKwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF.parseKwargs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF.parseKwargs" title="Link to this definition"></a></dt>
+<dd><p>Parse the psf field of a configuration dict and return the kwargs to use for
+initializing an instance of the class.</p>
+<p>The base class implementation just returns the kwargs as they are, but derived classes
+might want to override this if they need to do something more sophisticated with them.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – The psf field of the configuration dict, config[‘psf’]</p></li>
+<li><p><strong>base</strong> – The base configuration dict.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a kwargs dict to pass to the initializer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.set_context">
+<span class="sig-name descname"><span class="pre">set_context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pointing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandpass</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF.set_context"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF.set_context" title="Link to this definition"></a></dt>
+<dd><p>Attach shared runtime context to this PSF instance.</p>
+<p>It is permissible for pointing to be None if the WCS is not Celestial.
+Also, bandpass may be None if the psf to be fit is not chromatic.
+If pointing or bandpass is None, the existing value is left unchanged.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>wcs</strong> – A dict of WCS solutions indexed by chipnum.</p></li>
+<li><p><strong>pointing</strong> – A galsim.CelestialCoord object giving the telescope pointing.
+[default: None]</p></li>
+<li><p><strong>bandpass</strong> – A galsim.Bandpass giving the observing bandpass. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.set_num">
+<span class="sig-name descname"><span class="pre">set_num</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF.set_num"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF.set_num" title="Link to this definition"></a></dt>
+<dd><p>If there are multiple components involved in the fit, set the number to use
+for this model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticsPSF.single_iteration">
+<span class="sig-name descname"><span class="pre">single_iteration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_funcs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticsPSF.single_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticsPSF.single_iteration" title="Link to this definition"></a></dt>
+<dd><p>Perform a single iteration of the solver.</p>
+<p>Note that some object might fail at some point in the fitting, so some objects can be
+flagged as bad during this step, prior to the outlier rejection step.  This information
+is reported in the return tuple as nremoved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – The list of stars to use for constraining the PSF.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging progress.</p></li>
+<li><p><strong>convert_funcs</strong> – An optional list of function to apply to the profiles being fit
+before drawing it onto the image.  If not None, it should be the
+same length as stars.</p></li>
+<li><p><strong>draw_method</strong> – The method to use with the GalSim drawImage command. If None,
+use the default method for the PSF model being fit.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>an updated list of all_stars, nremoved</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticalModel">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.roman.</span></span><span class="sig-name descname"><span class="pre">RomanOpticalModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chromatic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_zernike</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">22</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aberration_interp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'constant'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nominal_interp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'bilinear'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aberration_prior_sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nproc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticalModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticalModel" title="Link to this definition"></a></dt>
+<dd><p>Model a Roman PSF using GalSim’s built-in Roman optical model.</p>
+<p><code class="docutils literal notranslate"><span class="pre">filter_name</span></code> accepts Roman F names (F062, F087, F106, F129, F146, F158, F184,
+F213) or GalSim names (R062, Z087, Y106, J129, W146, H158, F184, K213).
+If omitted, the name is inferred from the bandpass. Roman names are converted to
+GalSim names internally.</p>
+<p>The expensive GalSim Roman PSF construction is approximated across each SCA by evaluating
+PSFs at a small set of fixed sample points and interpolating between them at each star
+position. <code class="docutils literal notranslate"><span class="pre">nominal_interp='bilinear'</span></code> uses the four SCA corners; <code class="docutils literal notranslate"><span class="pre">'five_point'</span></code> adds
+the SCA center and uses a five-term basis <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">x,</span> <span class="pre">y,</span> <span class="pre">x*y,</span> <span class="pre">(x^2+y^2)]</span></code> in normalized
+coordinates.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">aberration_interp</span></code> option controls how the fitted extra aberrations vary across an
+SCA. <code class="docutils literal notranslate"><span class="pre">'global'</span></code> and <code class="docutils literal notranslate"><span class="pre">'constant'</span></code> both use one fitted aberration vector per SCA in the
+model, with <code class="docutils literal notranslate"><span class="pre">'global'</span></code> only changing how the outer interpolator shares those vectors across
+SCAs. <code class="docutils literal notranslate"><span class="pre">'linear'</span></code> fits a planar extra-aberration field on each SCA, modeled as
+<code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">+</span> <span class="pre">b</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">c</span> <span class="pre">y</span></code> in normalized SCA coordinates.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticalModel.draw">
+<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticalModel.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticalModel.draw" title="Link to this definition"></a></dt>
+<dd><p>Draw the model on the given image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance with the fitted parameters to use for drawing and a
+data field that acts as a template image for the drawn model.</p></li>
+<li><p><strong>copy_image</strong> – If False, will use the same image object.
+If True, will copy the image and then overwrite it.
+[default: True]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a new Star instance with the data field having an image of the drawn model.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticalModel.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticalModel.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticalModel.fit" title="Link to this definition"></a></dt>
+<dd><p>Fit the Model to the star’s data to yield iterative improvement on
+its PSF parameters, their uncertainties, and flux (and center, if free).
+The returned star.fit.alpha will be inverse covariance of solution if
+it is estimated, else is None.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance</p></li>
+<li><p><strong>convert_func</strong> – An optional function to apply to the profile being fit before
+drawing it onto the image.  This is used by composite PSFs to
+isolate the effect of just this model component. [default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>New Star instance with updated fit information</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticalModel.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_init</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticalModel.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticalModel.initialize" title="Link to this definition"></a></dt>
+<dd><p>Initialize a star to work with the current model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance with the raw data.</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>default_init</strong> – The default initilization method if the user doesn’t specify one.
+[default: None]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Star instance with the appropriate initial fit values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanOpticalModel.initialize_iteration">
+<span class="sig-name descname"><span class="pre">initialize_iteration</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanOpticalModel.initialize_iteration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanOpticalModel.initialize_iteration" title="Link to this definition"></a></dt>
+<dd><p>Do any required initialization at the start of an iteration of fitting.</p>
+<p>Usually a no op.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="piff.roman.RomanSCAInterp">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">piff.roman.</span></span><span class="sig-name descname"><span class="pre">RomanSCAInterp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">per_sca</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanSCAInterp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanSCAInterp" title="Link to this definition"></a></dt>
+<dd><p>Interpolate Roman aberration vectors as constants per SCA.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanSCAInterp.interpolate">
+<span class="sig-name descname"><span class="pre">interpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">star</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanSCAInterp.interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanSCAInterp.interpolate" title="Link to this definition"></a></dt>
+<dd><p>Perform the interpolation to find the interpolated parameter vector at some position.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>star</strong> – A Star instance to which one wants to interpolate</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+<li><p><strong>inplace</strong> – Whether to update the parameters in place, in which case the
+returned star is the same object as the input star. [default: False]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a Star instance holding the interpolated parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="piff.roman.RomanSCAInterp.property_names">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">property_names</span></span><a class="headerlink" href="#piff.roman.RomanSCAInterp.property_names" title="Link to this definition"></a></dt>
+<dd><p>List of properties used by this interpolant.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="piff.roman.RomanSCAInterp.solve">
+<span class="sig-name descname"><span class="pre">solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stars</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/piff/roman/roman_psf.html#RomanSCAInterp.solve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#piff.roman.RomanSCAInterp.solve" title="Link to this definition"></a></dt>
+<dd><p>Solve for the interpolation coefficients given some data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stars</strong> – A list of Star instances to interpolate between</p></li>
+<li><p><strong>logger</strong> – A logger object for logging debug info. [default: None]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="stats.html" class="btn btn-neutral float-left" title="Output statistics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="star.html" class="btn btn-neutral float-right" title="Stars" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2019.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
