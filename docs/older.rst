@@ -4,6 +4,59 @@ Each version may also include various other minor changes and bug fixes not
 listed here for brevity.  See the CHANGELOG files associates with each version
 for a more complete list.  Issue numbers related to each change are given in parentheses.
 
+v1.7
+----
+
+*Dependency Changes*
+
+- Added optional ``pyarrow`` dependency for reading Parquet input catalogs. (#188)
+- Removed support for Python 3.8, 3.9.
+- Added support for Python 3.14, 3.15.
+- Stopped building wheels for Mac Intel architectures.
+
+*API Changes*
+
+- Deprecated ``input.nstars`` in favor of ``select.nstars``. (#190)
+- Renamed ``select.max_snr`` to ``select.max_snr_weight``. (#195)
+- Deprecated the use of strings to mean FITS-header keywords. (#207)
+
+*Output file changes*
+
+- Added the number of fitting iterations, ``niter``, to the saved fit diagnostics. (#196)
+- Added the observing bandpass when one is supplied. (#194)
+- Star SEDs are saved as file names and reconstruction metadata. (#194, #198)
+- Renamed the WCS table's ``nchunks`` column to ``wcs_nchunks``. (#198)
+
+*New features*
+
+- Added ``input.badpix_zeros`` to mask zero-valued science pixels. (#185)
+- Added support for reading the noise variance from the FITS header. (#186)
+- Added ``input.sky: median`` to compute the sky level from the image median. (#187)
+- Added support for Parquet input catalogs, using ``pyarrow``. (#188)
+- Added the ability to read multiple image HDUs from a single FITS file. (#189)
+- Changed ``nstars`` to mean the total number of stars on all input images. (#190)
+- Added ``raw_snr`` attribute for stars. (#190)
+- Added the ability to compute derived star ``properties``. (#191)
+- Added ``Centroid`` outlier rejection. (#192)
+- Added ``select.min_sep`` to reject objects with a nearby neighbor. (#193)
+- Added ``input.bandpass`` for specifying the bandpass used for the observations. (#194)
+- Added support for stellar SEDs in the input field. (#194, #198)
+- Added the ``RomanOpticsPSF`` class. (#195, #196, #197, #198)
+- Changed ``StarImages`` plots to include chip number and image coordinates for each star. (#196)
+- Expanded support for GalSim-style config value types. (#207)
+
+*Bug fixes*
+
+- Ensure input stamps use floating-point data. (#187)
+- Fixed bug in composite PSF serialization. (#195)
+- Reject failed HSM measurements when using ``hsm_size_reject`` or ``max_pixel_cut``. (#196)
+- Fixed ``StarImages`` when fewer eligible stars are available than requested. (#196)
+- Fixed GSObject fitting to avoid nonpositive sizes. (#200)
+- Added warning about zero-S/N candidates when no ``min_snr`` cut is set. (#200)
+- Added checks for excessively large FFTs. (#205)
+- Fixed the model size in ``TwoDHist``. (#205)
+- Fixed chi-squared outlier rejection for already-flagged stars. (#208)
+
 v1.6
 ----
 
