@@ -385,7 +385,7 @@ class InputFiles(Input):
         :use_partial:   Whether to use stars whose postage stamps are only partially on the
                         full image.  [default: False]
         :nstars:        Stop reading each input catalog at this many stars. This legacy option
-                        is deprecated; prefer `select.nstars`, which applies globally after the
+                        is deprecated; prefer ``select.nstars``, which applies globally after the
                         selection cuts and keeps the highest-S/N stars. [default: None]
         :nproc:         How many multiprocessing processes to use for reading in data from
                         multiple files at once. [default: 1]
