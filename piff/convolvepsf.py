@@ -23,6 +23,24 @@ from .psf import PSF
 from .star import Star, StarFit
 from .outliers import Outliers
 
+
+# A helper class used to convolve a single component's profile with the other
+# profiles in a full Convolve context.
+# It is callable, so it acts as a convert_func, which first applies the component's
+# own convert_func (if any), and then convolves it with the other components.
+class _ConvolveProfile:
+    def __init__(self, others, convert_func):
+        self.others = others
+        self.convert_func = convert_func
+
+    def __call__(self, prof):
+        # Apply the profile's own convert_func if necessary.
+        if self.convert_func is not None:
+            prof = self.convert_func(prof)
+        # Now convolve with others.
+        return galsim.Convolve(prof, self.others)
+
+
 class ConvolvePSF(PSF):
     """A PSF class that is the Convolution of two or more other PSF types.
 
@@ -200,12 +218,12 @@ class ConvolvePSF(PSF):
             for k, star in enumerate(stars):
                 others, method = self._getRawProfile(star, skip=comp)
 
-                if others is None:
-                    cf = convert_funcs[k] if convert_funcs is not None else None
-                elif convert_funcs is None:
-                    cf = lambda prof: galsim.Convolve(prof, others)
-                else:
-                    cf = lambda prof: galsim.Convolve(convert_funcs[k](prof), others)
+                cf = convert_funcs[k] if convert_funcs is not None else None
+                if others is not None:
+                    # Note: we used to use a lambda for this, but it doesn't work here, since
+                    # the closure doesn't keep the value of others for each star. It just
+                    # ends up using the others for the last star in the loop.
+                    cf = _ConvolveProfile(others, cf)
                 new_convert_funcs.append(cf)
 
             stars, nremoved1 = comp.single_iteration(stars, logger, new_convert_funcs, method)
