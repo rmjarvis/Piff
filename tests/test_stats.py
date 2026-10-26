@@ -22,7 +22,7 @@ import yaml
 import subprocess
 import pytest
 
-from piff_test_helper import get_script_name, timer, CaptureLog
+from piff_test_helper import get_script_name, timer, CaptureLog, make_gaussian_data
 
 
 @timer
@@ -1474,9 +1474,134 @@ def test_property_cols():
     im2 = psf.draw(35, 40, center=True, GI_COLOR=1)
     assert im1 == im2
 
+@timer
+def test_alternate_shape_stats():
+    """Check that Stats runs correctly with alternate shape measurement methods.
+    """
+    pytest.importorskip('ngmix')
+
+    # Use one valid star and one fully masked copy to exercise success and failure together.
+    star = make_gaussian_data(0.3, 0.015, -0.012, 1000, du=0.11,
+                              g1=0.12, g2=-0.08, draw_method='no_pixel')
+    failed = piff.Star(star.data.withNew(weight=star.weight * 0), star.fit)
+    try:
+        # All methods support higher-order statistics without losing the failure flag.
+        for method in ['gauss', 'wmom']:
+            piff.set_shape_method(method, weight_fwhm=0.6)
+            _, shapes, _ = piff.Stats().measureShapes(None, [star, failed], fourth_order=True)
+            assert shapes.shape == (2, 12)  # Seven basic values plus five fourth-order statistics.
+            assert shapes[0, 6] == 0
+            assert shapes[1, 6] != 0
+    finally:
+        # Restore the default for other tests.
+        piff.set_shape_method('hsm')
+
+@timer
+def test_alternate_shape_config():
+    """Check that stats respect the specified shape measurement method in the config dict.
+    """
+    pytest.importorskip('ngmix')
+
+    # Four isolated Gaussians provide a noiseless image and catalog with known covariance.
+    image = galsim.ImageD(128, 128, scale=0.2)
+    positions = [(32.2, 32.4), (95.1, 32.3), (32.4, 95.1), (95.2, 95.4)]
+    for x, y in positions:
+        profile = galsim.Gaussian(sigma=0.3, flux=1000).shear(g1=0.05, g2=-0.02)
+        stamp = profile.drawImage(nx=25, ny=25, scale=0.2, method='no_pixel',
+                                  offset=(x-round(x), y-round(y)))
+        stamp.setCenter(round(x), round(y))
+        image[stamp.bounds] += stamp
+    image.write(os.path.join('output', 'alternate_shape_image.fits'))
+    catalog = np.array(positions, dtype=[('x', float), ('y', float)])
+    fitsio.write(os.path.join('output', 'alternate_shape_cat.fits'), catalog, clobber=True)
+
+    # Both methods fit the same image and end up with different sizes.
+    try:
+        for method in ['gauss', 'wmom']:
+            config = {
+                'modules': ['piff'],
+                'shape_method': method,
+                'shape_weight_fwhm': 0.6,
+                'verbose': 0,
+                'input': {
+                    'dir': 'output',
+                    'image_file_name': 'alternate_shape_image.fits',
+                    'cat_file_name': 'alternate_shape_cat.fits',
+                    'noise': 0.01,
+                    'stamp_size': 25,
+                },
+                'psf': {
+                    'type': 'Simple',
+                    'model': {
+                        'type': 'Gaussian',
+                        'include_pixel': False,
+                    },
+                    'interp': {'type': 'Mean'},
+                },
+                'output': {
+                    'dir': 'output',
+                    'file_name': 'alternate_shape.piff"',
+                    'stats': [
+                        {
+                            'type': 'SizeMag',
+                            'file_name': (
+                                '$f"alternate_shape_{piff.get_shape_method()}_sizes.png"'
+                            ),
+                        },
+                        {
+                            'type': 'HSMCatalog',
+                            'file_name': (
+                                '$f"alternate_shape_{piff.get_shape_method()}_shapes.fits"'
+                            ),
+                            'fourth_order': True,
+                        },
+                    ],
+                },
+            }
+            piff.piffify(config)
+            assert piff.get_shape_method() == method
+            assert os.path.exists(os.path.join('output', f'alternate_shape_{method}_sizes.png'))
+
+            # Catalog metadata identifies the method and, for wmom, its explicit window width.
+            path = os.path.join('output', f'alternate_shape_{method}_shapes.fits')
+            catalog = fitsio.read(path)
+            header = fitsio.read_header(path, ext=1)
+            assert header['shape_method'] == method
+            np.testing.assert_array_equal(catalog['flag_data'], 0)
+            np.testing.assert_array_equal(catalog['flag_model'], 0)
+            shear = galsim.Shear(g1=0.05, g2=-0.02).getMatrix()
+            covariance = 0.3**2 * shear @ shear.T
+            if method == 'wmom':
+                assert header['shape_weight_fwhm'] == 0.6
+                window_variance = 0.6**2 / (8*np.log(2))
+                covariance = np.linalg.inv(np.linalg.inv(covariance) + np.eye(2)/window_variance)
+            np.testing.assert_allclose(catalog['T_data'], np.trace(covariance), rtol=2.e-4)
+            np.testing.assert_allclose(catalog['T_model'], np.trace(covariance), rtol=2.e-4)
+
+            # plotify restores the configured method after an explicit switch back to HSM.
+            piff.set_shape_method('hsm')
+            config = galsim.config.CleanConfig(config)
+            piff.plotify(config)
+            assert piff.get_shape_method() == method
+            if method == 'wmom':
+                assert piff.get_shape_weight_fwhm() == 0.6
+
+            # Omitting the setting resets the default even after a previous run with it set.
+            config.pop('shape_method')
+            # Re-evaluate the filename expressions after changing the config.
+            config = galsim.config.CleanConfig(config)
+            piff.plotify(config)
+            assert piff.get_shape_method() == 'hsm'
+            hsm_path = os.path.join('output', 'alternate_shape_hsm_shapes.fits')
+            assert fitsio.read_header(hsm_path, ext=1)['shape_method'] == 'hsm'
+            assert os.path.exists(os.path.join('output', 'alternate_shape_hsm_sizes.png'))
+            assert fitsio.read_header(path, ext=1)['shape_method'] == method
+    finally:
+        # Restore the default for other tests.
+        piff.set_shape_method('hsm')
+
 
 if __name__ == '__main__':
-    setup()
     test_twodstats()
     test_shift_cmap()
     test_twodstats_config()
@@ -1489,3 +1614,5 @@ if __name__ == '__main__':
     test_model_properties()
     test_fourth_order()
     test_property_cols()
+    test_alternate_shape_stats()
+    test_alternate_shape_config()

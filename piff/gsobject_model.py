@@ -23,6 +23,7 @@ import scipy
 from .model import Model
 from .star import Star
 from .util import estimate_cov_from_jac
+from .star import get_shape_method
 
 # The scipy iterations can get into pathalogical places in parameter space that trigger
 # enormous FFTs. Rather than crash the machine, let GalSim raise an error rather than just
@@ -81,8 +82,15 @@ class GSObjectModel(Model):
 
     def __init__(self, gsobj, fastfit=False, centered=True, include_pixel=True, init=None,
                  fit_flux=False, scipy_kwargs=None, logger=None):
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
         if isinstance(gsobj, str):
             gsobj = eval(gsobj)
+
+        if get_shape_method() == 'wmom' and fastfit:
+            logger.warning("fastfit is not supported for the wmom shape measurement algorithm. " +
+                           "Using the LM fitter instead.")
+            fastfit = False
 
         self.kwargs = {'gsobj': repr(gsobj),
                        'fastfit': fastfit,
@@ -105,12 +113,12 @@ class GSObjectModel(Model):
 
     def moment_fit(self, star, logger=None):
         """Estimate transformations needed to bring self.gsobj towards given star."""
-        flux, cenu, cenv, size, g1, g2, flag = star.hsm
+        flux, cenu, cenv, size, g1, g2, flag = star.measure_size_shape()
         if flag != 0:
-            raise RuntimeError("Error initializing star fit values using hsm.")
+            raise RuntimeError("Error initializing star fit values using shape measurements.")
         shape = galsim.Shear(g1=g1, g2=g2)
 
-        ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = self.draw(star).hsm
+        ref_flux, ref_cenu, ref_cenv, ref_size, ref_g1, ref_g2, flag = self.draw(star).measure_size_shape()
         ref_shape = galsim.Shear(g1=ref_g1, g2=ref_g2)
         if flag != 0:
             raise RuntimeError("Error calculating model moments for this star.")
@@ -308,13 +316,19 @@ class GSObjectModel(Model):
         return flux, du, dv, scale, g1, g2, var
 
     def fit(self, star, fastfit=None, logger=None, convert_func=None, draw_method=None):
-        """Fit the image either using HSM or least-squares minimization.
+        """Fit the image using measured shapes or least-squares minimization.
 
-        If ``fastfit`` is True, then the galsim.hsm module will be used to estimate the
-        transformation parameters that take the fiducial moments into the data moments.
+        If ``fastfit`` is True, then the measured size and shape based on second moments will
+        be used to estimate the transformation parameters that take the fiducial moments into
+        the data moments.
         If ``fastfit`` is False, then the Levenberg-Marquardt minimization algorithm will be used
         instead.  The latter should generally be more accurate, but slower due to the need to
         iteratively propose model improvements.
+
+        .. note::
+
+            The ``fastfit`` shortcut is not supported when the backend size/shape algorithm is
+            set to **wmom**.
 
         :param star:            A Star to fit.
         :param fastfit:         Use fast HSM moments to fit? [default: None, which means use
@@ -340,6 +354,10 @@ class GSObjectModel(Model):
             # is a need, but it seems hard.
             fastfit = False
 
+        if get_shape_method() == 'wmom' and fastfit:
+            logger.warning("fastfit is not supported for the wmom shape measurement algorithm. " +
+                           "Using the LM fitter instead.")
+            fastfit = False
         if fastfit:
             flux, du, dv, scale, g1, g2, var = self.moment_fit(star, logger=logger)
         else:
@@ -401,7 +419,7 @@ class GSObjectModel(Model):
         if init is None: init = 'hsm'
         logger.debug("initializing GSObject with method %s",init)
 
-        flux, cenu, cenv, size, g1, g2, flag = star.hsm
+        flux, cenu, cenv, size, g1, g2, flag = star.measure_size_shape()
         if not self._raw_size > 0:
             raise RuntimeError("Error computing the size of the reference object")
         size /= self._raw_size

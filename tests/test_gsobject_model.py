@@ -21,7 +21,7 @@ import fitsio
 import pytest
 from unittest import mock
 
-from piff_test_helper import timer, CaptureLog
+from piff_test_helper import timer, CaptureLog, make_gaussian_data
 
 fiducial_kolmogorov = galsim.Kolmogorov(half_light_radius=1.0)
 fiducial_gaussian = galsim.Gaussian(half_light_radius=1.0)
@@ -1207,10 +1207,59 @@ def test_fail():
     print('9')
 
 
+@timer
+def test_wmom_fastfit():
+    """Test trying to use fastfit=True with wmom shape method.
+    """
+    pytest.importorskip('ngmix')
+    piff.set_shape_method('wmom', weight_fwhm=0.6)
+    try:
+        star = make_gaussian_data(0.3, 0.015, -0.012, 1000, du=0.2,
+                                  g1=0.12, g2=-0.08, draw_method='no_pixel')
+
+        # We cannot use the wmom shapes with fastfit, because the measured moments don't scale
+        # properly when changing the size/shape of the profile.
+        # So whenever the user has wmom shapes enabled, the GSObjectModel class automatically
+        # sets fastfit=False, emitting a warning if the user had it set to True.
+        # First check this when fastfit is set in the constructor.
+        with CaptureLog() as cl:
+            model = piff.Gaussian(fastfit=True, include_pixel=False, logger=cl.logger)
+        assert 'fastfit is not supported' in cl.output
+        assert not model._fastfit
+        assert not model.kwargs['fastfit']
+        star, = piff.SimplePSF(model, None).initialize_flux_center([star])
+        initialized = model.initialize(star)
+        fitted_stars = [model.fit(initialized)]
+
+        # The user can also set fastfit during at the fit call, so check there too.
+        with CaptureLog() as cl:
+            fitted_stars.append(model.fit(initialized, fastfit=True, logger=cl.logger))
+        assert 'fastfit is not supported' in cl.output
+
+        # Switching to wmom after construction catches a model that still has fastfit enabled.
+        piff.set_shape_method('hsm')
+        model = piff.Gaussian(fastfit=True, include_pixel=False)
+        piff.set_shape_method('wmom', weight_fwhm=0.6)
+        with CaptureLog() as cl:
+            fitted_stars.append(model.fit(model.initialize(star), logger=cl.logger))
+        assert 'fastfit is not supported' in cl.output
+
+        # Every fallback recovers intrinsic Gaussian truth, rather than its windowed moments.
+        for fitted in fitted_stars:
+            np.testing.assert_allclose(fitted.fit.params, [0.3, 0.12, -0.08],
+                                       rtol=1.e-4, atol=1.e-5)
+            np.testing.assert_allclose(fitted.fit.flux, 1000, rtol=1.e-4)
+            np.testing.assert_allclose(fitted.fit.center, [0.015, -0.012], atol=1.e-5)
+    finally:
+        # Subsequent GSObjectModel tests must retain their normal HSM fitting behavior.
+        piff.set_shape_method('hsm')
+
+
 if __name__ == '__main__':
     with galsim.utilities.single_threaded():
         test_simple()
         test_center()
+        test_uncentered()
         test_interp()
         test_missing()
         test_gradient()
@@ -1218,3 +1267,4 @@ if __name__ == '__main__':
         test_direct()
         test_var()
         test_fail()
+        test_wmom_fastfit()

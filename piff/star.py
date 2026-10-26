@@ -24,6 +24,38 @@ import galsim
 
 from .util import make_flat
 
+_shape_method = 'hsm'
+_shape_weight_fwhm = None
+
+def set_shape_method(method, weight_fwhm=None):
+    """Set the process-wide measurement method: ``hsm``, ``gauss``, or ``wmom``.
+
+    The Gaussian and wmom backends require the optional ngmix package. Existing Star caches
+    remain valid: measurements are cached separately for each method and weight size.
+
+    :param method:      Measurement backend. HSM is the initial default.
+    :param weight_fwhm: Required for wmom: circular Gaussian weight FWHM in local world
+                        units (normally arcsec), shared by all objects. Ignored otherwise.
+    """
+    if method not in ('hsm', 'gauss', 'wmom'):
+        raise ValueError("shape_method must be 'hsm', 'gauss', or 'wmom'")
+    if method == 'wmom' and (weight_fwhm is None or
+                             not np.isfinite(weight_fwhm) or weight_fwhm <= 0):
+        raise ValueError('wmom requires a finite positive shape_weight_fwhm')
+    if method != 'hsm':
+        import ngmix  # Import only when explicitly requested.
+    global _shape_method, _shape_weight_fwhm
+    _shape_method = method
+    _shape_weight_fwhm = weight_fwhm if method == 'wmom' else None
+
+def get_shape_method():
+    """Return the active size/shape measurement method."""
+    return _shape_method
+
+def get_shape_weight_fwhm():
+    """Return the fixed wmom weight FWHM, or None for the other backends."""
+    return _shape_weight_fwhm
+
 class Star(object):
     """Information about a "star", which may be either a real star or an interpolated star
     at some target location.
@@ -186,10 +218,14 @@ class Star(object):
             return self
 
     def run_hsm(self):
-        """Use HSM to measure moments of star image.
+        """Use HSM (as implemented by GalSim) to measure moments of star image.
 
         This usually isn't called directly.  The results are accessible as star.hsm,
         which caches the results, so repeated access is efficient.
+
+        When the global measurement algorithm is set to 'hsm' (which is the default),
+        this function is responsible for all size/shape measurements using in Piff.
+        cf. `set_shape_method`.
 
         :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
         """
@@ -230,12 +266,127 @@ class Star(object):
 
         return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
 
+    def _make_ngmix_observation(self):
+        """Build an ngmix observation, or return None when no usable pixels remain."""
+        import ngmix
+
+        image, weight, image_pos = self.data.getImage()
+        valid = np.isfinite(image.array) & np.isfinite(weight.array) & (weight.array > 0)
+        if not np.any(valid):
+            return None
+        data = np.where(valid, image.array, 0.).astype(float)
+        weights = np.where(valid, weight.array, 0.).astype(float)
+        jac = image.wcs.jacobian(image_pos=image_pos)
+        # ngmix uses zero-based array coordinates, not GalSim image bounds. Anchor
+        # the Jacobian at the catalog position so fitted centroids are offsets from it.
+        ngjac = ngmix.Jacobian(row=image_pos.y - image.ymin,
+                            col=image_pos.x - image.xmin, wcs=jac)
+        return ngmix.Observation(data, weight=weights, jacobian=ngjac)
+
+    def measure_gauss(self):
+        """Fit an elliptical Gaussian to the star image.
+
+        This usually isn't called directly.  The results are accessible as star.gauss,
+        which caches the results, so repeated access is efficient.
+
+        When the global measurement algorithm is set to 'gauss', this function is responsible
+        for all size/shape measurements using in Piff. cf. `set_shape_method`.
+
+        :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
+        """
+        import ngmix
+
+        obs = self._make_ngmix_observation()
+        if obs is None:
+            return (0., 0., 0., 0., 0., 0., 1)
+        # Start with a circular one-pixel Gaussian, without using adaptive moments.
+        guess = np.array([0., 0., 0., 0., 2 * obs.jacobian.area, obs.image.sum()])
+        result = ngmix.fitting.Fitter(model='gauss').go(obs, guess)
+        if result['flags'] != 0:
+            return (0., 0., 0., 0., 0., 0., 1)
+        v, u, g1, g2, T, flux = result['pars']
+        # Match HSM's determinant-radius convention: sigma = det(covariance)**(1/4).
+        gsq = g1*g1 + g2*g2
+        sigma = np.sqrt(T / 2 * (1 - gsq) / (1 + gsq))
+        flag = 0
+        if flux < 0:
+            flag |= 2
+        if u*u + v*v > 1:
+            flag |= 4
+        return flux, u, v, sigma, g1, g2, flag
+
+    def measure_wmom(self, weight_fwhm):
+        """Measure fixed, circular Gaussian-weighted moments about the catalog position.
+
+        This usually isn't called directly.  The results are accessible as star.wmom(fwhm),
+        which caches the results for each fwhm value, so repeated access is efficient.
+
+        When the global measurement algorithm is set to 'wmom', this function is responsible
+        for all size/shape measurements using in Piff. cf. `set_shape_method`.
+
+        :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
+        """
+        import ngmix
+
+        obs = self._make_ngmix_observation()
+        if obs is None:
+            return (0., 0., 0., 0., 0., 0., 1)
+        result = ngmix.gaussmom.GaussMom(fwhm=weight_fwhm).go(obs)
+        if result['flags'] != 0:
+            return (0., 0., 0., 0., 0., 0., 1)
+        e1, e2 = result['e']
+        esq = e1*e1 + e2*e2
+        # Noise can yield an unphysical moment matrix even when ngmix reports success.
+        if esq >= 1:
+            return (0., 0., 0., 0., 0., 0., 1)
+        denom = 1 + np.sqrt(1 - esq)
+        g1, g2 = e1 / denom, e2 / denom
+        sigma = np.sqrt(result['T'] / 2 * np.sqrt(1 - esq))
+        v, u = result['sums'][:2] / result['sums'][5]
+        flag = 4 if u*u + v*v > 1 else 0
+        return result['flux'], u, v, sigma, g1, g2, flag
+
     @property
     def hsm(self):
         if not hasattr(self, '_hsm'):
-            flux, cenu, cenv, size, g1, g2, flag = self.run_hsm()
-            self._hsm = flux, cenu, cenv, size, g1, g2, flag
+            # flux, cenu, cenv, size, g1, g2, flag
+            self._hsm = self.run_hsm()
         return self._hsm
+
+    @property
+    def gauss(self):
+        if not hasattr(self, '_gauss'):
+            # flux, cenu, cenv, size, g1, g2, flag
+            self._gauss = self.measure_gauss()
+        return self._gauss
+
+    def wmom(self, fwhm):
+        if not hasattr(self, '_wmom'):
+            # flux, cenu, cenv, size, g1, g2, flag
+            self._wmom = {}
+        if fwhm not in self._wmom:
+            self._wmom[fwhm] = self.measure_wmom(fwhm)
+        return self._wmom[fwhm]
+
+    def measure_size_shape(self):
+        """Measure flux, centroid, size and shape using whatever algorithm is currently
+        selected for size/shape measurements. (Default is HSM, but see
+        `Size and shape measurements` for details.)
+
+        Returns ``(flux, cenu, cenv, sigma, g1, g2, flag)`` in local world coordinates.
+        ``sigma`` is the determinant radius, ``g1/g2`` are reduced shear, and a nonzero
+        flag marks a failed or suspect measurement.
+
+        The **wmom** algorithm returns weighted flux and raw second moments about the
+        catalog position, without deweighting.
+        """
+        method = get_shape_method()
+        if method == 'hsm':
+            return self.hsm
+        elif method == 'gauss':
+            return self.gauss
+        else:
+            return self.wmom(get_shape_weight_fwhm())
 
     @classmethod
     def makeTarget(cls, x=None, y=None, u=None, v=None, properties={}, wcs=None, scale=None,
