@@ -1430,15 +1430,25 @@ def test_roman_diffusion():
     weights = _MTF_WEIGHTS
     sigmas_arcsec = np.array(_MTF_REL_SIGMAS) * _MTF_BASE_SIGMA * galsim.roman.pixel_scale
 
+    # Include a jitter component, modeled as an elliptical Gaussian.
+    jitter_sigma = 0.05
+    jitter_g1 = 0.1
+    jitter_g2 = -0.05
+
     config = {
-        'type': 'Sum',
-        'max_iter': 10,
+        'type': 'Convolve',
+        'max_iter': 30,
         'min_iter': 10,
         'chisq_thresh': 1.e-8,
         'components': [
-        {
-            'type': 'Convolve',
-            'components': [
+            {
+                'type': 'Simple',
+                'model': {
+                    'type': 'Gaussian',
+                    'init': 'delta',
+                },
+                'interp': {'type': 'Mean'}
+            },
             {
                 'type': 'RomanOptics',
                 'filter_name': 'F106',
@@ -1454,24 +1464,15 @@ def test_roman_diffusion():
                     'sigmas': sigmas_arcsec,
                 },
                 'interp': {'type': 'Fixed'}
-            }]
-        },
-        {
-            'type': 'Simple',
-            'model': {
-                'type': 'PixelGrid',
-                'scale': .08,
-                'size': 3
             },
-            'interp': {'type': 'Mean'}
-        }]
+        ]
     }
     with fast_pupil_bin():
         psf = piff.PSF.process(config)
         bandpass = galsim.roman.getBandpasses()['Y106']
         psf.set_context({0: galsim.PixelScale(0.11)}, None, bandpass)
-        roman = psf.components[0].components[0].model
-        mixture = psf.components[0].components[1].model
+        roman = psf.components[1].model
+        mixture = psf.components[2].model
 
         # The mixture model should have the input weights, sigmas as given in the config dict.
         np.testing.assert_allclose(mixture.sigmas, sigmas_arcsec)
@@ -1480,35 +1481,29 @@ def test_roman_diffusion():
         # Make some stars with this model to fit.
         kernel = galsim.Sum([w * galsim.Gaussian(sigma=s)
                             for w, s in zip(weights, sigmas_arcsec)])
+        jitter = galsim.Gaussian(sigma=jitter_sigma).shear(g1=jitter_g1, g2=jitter_g2)
         stars = []
         for x, y in [(800., 800.), (2044., 2044.), (3300., 2900.)]:
             star = piff.Star.makeTarget(
-                x=x, y=y, scale=.11, stamp_size=25,
+                x=x, y=y, scale=0.11, stamp_size=25,
                 properties={'sca': 10, 'chipnum': 0, 'trust_pos': True}).withFlux(100)
             optical = roman.getProfile(np.zeros(3), star=star)
-            galsim.Convolve(optical, kernel).withFlux(100).drawImage(
+            galsim.Convolve(optical, kernel, jitter).withFlux(100).drawImage(
                 image=star.image, center=star.image_pos)
             stars.append(star)
 
-        # Before fitting, the initialized model should exactly match what was drawn.
-        logger = piff.config.LoggerWrapper(None)
-        initialized, _ = psf.initialize_params(stars, logger)
-        for star in initialized:
-            np.testing.assert_allclose(psf.drawStar(star).image.array, star.image.array,
-                                       atol=1.e-7)
-
         # After fitting, the fitted model should be a good match to the data, although it's
-        # not guaranteed the the parameters match.
+        # not guaranteed that the parameters match.
         psf.fit(stars)
-        expected = np.concatenate([mixture.weights, mixture.sigmas, np.zeros(12)])
+        expected = np.concatenate([weights, sigmas_arcsec, np.zeros(12)])
         for star in psf.stars:
             assert not star.is_flagged
-            np.testing.assert_array_equal(star.fit.get_params(1), expected)
+            np.testing.assert_array_equal(star.fit.get_params(2), expected)
             drawn = psf.drawStar(star)
-            # Should match to within 1% of the peak value.
+            # Noiseless images should match to within 0.1% of the peak value.
             peak = np.max(star.image.array)
             np.testing.assert_allclose(drawn.image.array / peak, star.image.array / peak,
-                                       atol=.01)
+                                       atol=0.001)
 
         # Check a serialization round trip.
         path = os.path.join('output', 'roman_diffusion.piff')
