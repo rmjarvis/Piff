@@ -44,7 +44,7 @@ class SizeMagStats(Stats):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
 
-        # measure everything with hsm
+        # Measure the sizes of the stars and psf models.
         logger.verbose("Measuring Star and Model Shapes")
         _, star_shapes, psf_shapes = self.measureShapes(psf, stars, logger=logger)
 
@@ -221,8 +221,8 @@ class SmallBrightSelect(Select):
                            "" if len(objects) == 1 else "s")
             return []
 
-        # Get size, flux from hsm
-        obj_shapes = np.array([ obj.hsm for obj in objects ])
+        # Measure the size and flux.
+        obj_shapes = np.array([ obj.measure_size_shape() for obj in objects ])
         flag_obj = obj_shapes[:, 6]
         f_obj = obj_shapes[:, 0]
         T_obj = 2*obj_shapes[:, 3]**2
@@ -314,8 +314,8 @@ class SmallBrightSelect(Select):
         select_index = orig_index[select]
         logger.debug("select_index = %s",select_index)
         stars = [objects[i] for i in select_index]
-        logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
-        logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
+        logger.debug("sizes of stars = %s",[2*s.measure_size_shape()[3]**2 for s in stars])
+        logger.debug("fluxs of stars = %s",[s.measure_size_shape()[0] for s in stars])
         logger.info("Bright/small selection found %d likely stars",len(stars))
 
         return stars
@@ -426,8 +426,8 @@ class SizeMagSelect(Select):
         logger.debug("N objects = %s", len(objects))
         logger.debug("N initial stars = %s", len(stars))
 
-        # Get size, flux from hsm
-        obj_shapes = np.array([ obj.hsm for obj in objects ])
+        # Measure the size and flux.
+        obj_shapes = np.array([ obj.measure_size_shape() for obj in objects ])
         flag_obj = obj_shapes[:, 6]
         f_obj = obj_shapes[:, 0]
         T_obj = 2*obj_shapes[:, 3]**2
@@ -459,7 +459,7 @@ class SizeMagSelect(Select):
         orig_index = orig_index[sort_index]
 
         # Get the size, flux of the initial candidate stars
-        star_shapes = np.array([ star.hsm for star in stars ])
+        star_shapes = np.array([ star.measure_size_shape() for star in stars ])
         mask = star_shapes[:, 6] == 0
         logf_star = np.log(star_shapes[mask, 0])
         logT_star = np.log(2*star_shapes[mask, 3]**2)
@@ -560,8 +560,8 @@ class SizeMagSelect(Select):
         select_index = orig_index[select]
         logger.debug("select_index = %s",select_index)
         stars = [objects[i] for i in select_index]
-        logger.debug("sizes of stars = %s",[2*s.hsm[3]**2 for s in stars])
-        logger.debug("fluxs of stars = %s",[s.hsm[0] for s in stars])
+        logger.debug("sizes of stars = %s",[2*s.measure_size_shape()[3]**2 for s in stars])
+        logger.debug("fluxs of stars = %s",[s.measure_size_shape()[0] for s in stars])
         logger.info("SizeMag selection found %d likely stars",len(stars))
 
         return stars

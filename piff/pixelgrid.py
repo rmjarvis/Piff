@@ -39,9 +39,9 @@ class PixelGrid(Model):
 
     The following initialization methods are available for the ``init`` parameter.
 
-    * hsm           Start with flux and size values that match the hsm moments of the star.
-    * zero          Start with flux = 1.e-6 x the hsm flux.
-    * delta         Start with size = 1.e-6 x the hsm size.
+    * hsm           Start with a Gaussian based on the measured flux and size.
+    * zero          Start with a Gaussian, but with flux = 1.e-10 x the measured flux.
+    * delta         Start with just a single flux=1 pixel at the center.
 
     All initialization methods start with zero shear and zero centroid offset.
 
@@ -157,8 +157,8 @@ class PixelGrid(Model):
 
         if init == 'hsm' or init == 'zero':
             # Calculate the second moment to initialize an initial Gaussian profile.
-            # hsm returns: flux, x, y, sigma, g1, g2, flag
-            sigma = star.hsm[3]
+            # Measurements return: flux, x, y, sigma, g1, g2, flag.
+            sigma = star.measure_size_shape()[3]
 
             # Create an initial parameter array using a Gaussian profile.
             u = np.arange( -self._origin, self.size-self._origin) * self.scale

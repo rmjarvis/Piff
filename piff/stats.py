@@ -166,7 +166,7 @@ class Stats(object):
 
     def measureShapes(self, psf, stars, model_properties=None, fourth_order=False,
                       raw_moments=False, logger=None):
-        """Compare PSF and true star shapes with HSM algorithm
+        """Measure the size and shapes of the PSF profiles and the stars.
 
         :param psf:              A PSF Object
         :param stars:            A list of Star instances.
@@ -193,7 +193,7 @@ class Stats(object):
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
 
-        shapes_data = [ list(star.hsm) for star in stars ]
+        shapes_data = [ list(star.measure_size_shape()) for star in stars ]
         nshapes = 7
 
         if fourth_order or raw_moments:
@@ -210,10 +210,10 @@ class Stats(object):
                     m = calculate_moments(star, **kwargs)
                 except RuntimeError as e:
                     # Make sure the flag is set.
-                    if 'HSM failed' in e.args[0]:
+                    if 'Shape measurement failed' in e.args[0]:
                         d[6] = int(e.args[0].split()[-1])
                     else: # pragma: no cover
-                        # The HSM failed error is the only one we expect, but just in case...
+                        # The measurement failure is the only one we expect, but just in case...
                         d[6] = 1
                     d.extend([0] * (nshapes - 7))
                 else:
@@ -225,7 +225,7 @@ class Stats(object):
                         # Subtract off 3e from the 4th order shapes to remove the leading order
                         # term from the overall ellipticity, which is already captured in the
                         # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
-                        shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                        shape = galsim.Shear(g1=star.measure_size_shape()[4], g2=star.measure_size_shape()[5])
                         d[8] -= 3*shape.e1
                         d[9] -= 3*shape.e2
                     if raw_moments:
@@ -270,7 +270,7 @@ class Stats(object):
                 stars = [star.withProperties(**model_properties) for star in stars]
                 psf.interpolateStarList(stars, inplace=True)
             model_stars = psf.drawStarList(stars)
-            shapes_model = [list(star.hsm) for star in model_stars]
+            shapes_model = [list(star.measure_size_shape()) for star in model_stars]
 
             if fourth_order or raw_moments:
                 for i, star in enumerate(model_stars):
@@ -278,7 +278,7 @@ class Stats(object):
                     try:
                         m = calculate_moments(star, **kwargs)
                     except RuntimeError as e:
-                        if 'HSM failed' in e.args[0]:
+                        if 'Shape measurement failed' in e.args[0]:
                             d[6] = int(e.args[0].split()[-1])
                         else: # pragma: no cover
                             d[6] = 1
@@ -288,7 +288,7 @@ class Stats(object):
                             d.extend([m['M22']/m['M11'],
                                     m['M31']/m['M11']**2, m['M13']/m['M11']**2,
                                     m['M40']/m['M11']**2, m['M04']/m['M11']**2])
-                            shape = galsim.Shear(g1=star.hsm[4], g2=star.hsm[5])
+                            shape = galsim.Shear(g1=star.measure_size_shape()[4], g2=star.measure_size_shape()[5])
                             d[8] -= 3*shape.e1
                             d[9] -= 3*shape.e2
                         if raw_moments:
@@ -765,9 +765,11 @@ class HSMCatalogStats(Stats):
     r"""Stats class for writing the shape information to an output file.
 
     This will compute the size and shapes of the observed stars and the PSF models
-    and write these data to a file.
+    and write these data to a file. It uses whichever shape measurement method is currently
+    set (with `set_shape_method`) despite the fact that the class and config type retain their
+    historical HSM names.
 
-    The HSM adaptive momemnt measurements sometimes fail in various ways.  When it does,
+    Shape measurements sometimes fail in various ways. When they do,
     we still output the information that we have for a star, but mark the failure with
     a flag: flag_data for errors in the data measurement, flag_model for errors in the
     model measurement.  The meaning of these flags are (treated as a bit mask):
@@ -775,9 +777,9 @@ class HSMCatalogStats(Stats):
     Flags:
 
     * 0 = Success
-    * 1 = HSM returned a non-zero moments_status.
-    * 2 = HSM returned a negative flux.
-    * 4 = HSM's centroid moved by more than 1 pixel from the input position.
+    * 1 = The measurement routine reported a failed fit.
+    * 2 = The measured flux is negative.
+    * 4 = The centroid moved by more than 1 arcsec from the input position.
 
     The output file will include the following columns:
 
@@ -870,6 +872,9 @@ class HSMCatalogStats(Stats):
         logger = LoggerWrapper(logger)
         # get the shapes
         logger.info("Calculating shape histograms for %d stars",len(stars))
+        from .star import get_shape_method, get_shape_weight_fwhm
+        self.shape_method = get_shape_method()
+        self.shape_weight_fwhm = get_shape_weight_fwhm()
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties,
                 fourth_order=self.fourth_order, raw_moments=self.raw_moments,
@@ -978,6 +983,8 @@ class HSMCatalogStats(Stats):
         logger.info("Writing HSM catalog to file %s",file_name)
 
         data = np.array(list(zip(*self.cols)), dtype=self.dtypes)
-        header = {'piff_version': piff_version}
+        header = {'piff_version': piff_version, 'shape_method': self.shape_method}
+        if self.shape_method == 'wmom':
+            header['shape_weight_fwhm'] = self.shape_weight_fwhm
         with fitsio.FITS(file_name, 'rw', clobber=True) as f:
             f.write_table(data, header=header)

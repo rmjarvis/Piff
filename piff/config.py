@@ -132,6 +132,9 @@ def process(config, logger=None):
     from .input import Input
     from .select import Select
     from .psf import PSF
+    from .star import set_shape_method
+
+    set_shape_method(config.get('shape_method', 'hsm'), config.get('shape_weight_fwhm'))
 
     if logger is None:
         verbose = config.get('verbose', 1)
@@ -207,6 +210,9 @@ def plotify(config, logger=None):
     from .input import Input
     from .output import Output
     from .star import Star
+    from .star import set_shape_method
+
+    set_shape_method(config.get('shape_method', 'hsm'), config.get('shape_weight_fwhm'))
 
     if logger is None:
         verbose = config.get('verbose', 1)
