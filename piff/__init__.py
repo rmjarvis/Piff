@@ -95,6 +95,7 @@ from .outliers import Outliers, ChisqOutliers, CentroidOutliers
 from .input import Input, InputFiles
 from .select import Select, FlagSelect, PropertiesSelect
 from .star import Star, StarData, StarFit
+from .star import set_shape_method, get_shape_method, get_shape_weight_fwhm
 
 # Output handlers are named OutputBlah where Blah is what they are called in the config file
 from .output import Output, OutputFile

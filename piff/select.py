@@ -138,7 +138,7 @@ class Select(object):
                             (i.e. those with w=0). [default: None]
             :min_sep:       If given, reject stars that have any other input object within
                             this separation (in arcsec). [default: None]
-            :hsm_size_reject: Whether to reject stars with a very different hsm-measured size than
+            :hsm_size_reject: Whether to reject stars with a very different measured size than
                             the other stars in the input catalog.  (Used to reject objects with
                             neighbors or other junk in the postage stamp.) [default: False]
                             If this is a float value, it gives the number of inter-quartile-ranges
@@ -343,7 +343,7 @@ class Select(object):
 
             # If doing any selections that rely on hsm, reject any that fail hsm measurement.
             if self.hsm_size_reject != 0 or self.max_pixel_cut is not None:
-                flag = star.hsm[6]
+                flag = star.measure_size_shape()[6]
                 if flag != 0:
                     logger.verbose("Skipping star at position %f,%f because hsm failed",
                                    star.image_pos.x, star.image_pos.y)
@@ -371,7 +371,7 @@ class Select(object):
 
         # Calculate the hsm size for each star and throw out extreme outliers.
         if self.hsm_size_reject != 0:
-            sigma = [star.hsm[3] for star in good_stars]
+            sigma = [star.measure_size_shape()[3] for star in good_stars]
             med_sigma = np.median(sigma)
             iqr_sigma = scipy.stats.iqr(sigma)
             logger.debug("Doing hsm sigma rejection.")
@@ -393,7 +393,7 @@ class Select(object):
             max_pixel = np.array([np.max(star.data.image.array) for star in good_stars])
             # If subtracted sky, need to add it back.
             max_pixel += np.array([star.data.properties.get('sky',0) for star in good_stars])
-            flux = np.array([star.hsm[0] for star in good_stars])
+            flux = np.array([star.measure_size_shape()[0] for star in good_stars])
             # Low S/N stars have a max_pixel that is more due to noise than signal.
             # Exclude S/N < 40 and also use a median of the bright ones to be more robust
             # to noisy max pixel values.

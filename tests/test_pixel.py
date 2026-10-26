@@ -22,42 +22,7 @@ import time
 import os
 import fitsio
 
-from piff_test_helper import get_script_name, timer, CaptureLog
-
-def make_gaussian_data(sigma, u0, v0, flux, noise=0., du=1., fpu=0., fpv=0., nside=32,
-                       nom_u0=0., nom_v0=0., rng=None):
-    """Make a Star instance filled with a Gaussian profile
-
-    :param sigma:       The sigma of the Gaussian
-    :param u0, v0:      The sub-pixel offset to apply.
-    :param flux:        The flux of the star
-    :param noise:       RMS Gaussian noise to be added to each pixel [default: 0]
-    :param du:          pixel size in "wcs" units [default: 1.]
-    :param fpu,fpv:     position of this cutout in some larger focal plane [default: 0,0]
-    :param nside:       The size of the array [default: 32]
-    :param nom_u0, nom_v0:  The nominal u0,v0 in the StarData [default: 0,0]
-    :param rng:         If adding noise, the galsim deviate to use for the random numbers
-                        [default: None]
-    """
-    g = galsim.Gaussian(sigma=sigma, flux=flux).shift(u0,v0)
-    if noise == 0.:
-        var = 1.e-6
-    else:
-        var = noise**2
-    weight = galsim.Image(nside, nside, dtype=float, init_value=1./var, scale=du)
-    star = piff.Star.makeTarget(x=nside/2+nom_u0/du, y=nside/2+nom_v0/du,
-                                u=fpu, v=fpv, scale=du, stamp_size=nside, weight=weight)
-    star.image.setOrigin(0,0)
-    star.weight.setOrigin(0,0)
-
-    g.drawImage(star.image, use_true_center=False,
-                offset=galsim.PositionD(nom_u0/du,nom_v0/du))
-
-    if noise != 0:
-        gn = galsim.GaussianNoise(sigma=noise, rng=rng)
-        star.image.addNoise(gn)
-
-    return star
+from piff_test_helper import get_script_name, timer, CaptureLog, make_gaussian_data
 
 
 @timer

@@ -193,6 +193,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     """
     from multiprocessing import Pool
     from galsim.utilities import single_threaded
+    from .star import get_shape_method, get_shape_weight_fwhm, set_shape_method
 
     njobs = len(args)
     nproc = galsim.config.util.UpdateNProc(nproc, len(args), {}, logger)
@@ -231,7 +232,8 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
                 output_list[i] = out
     else:
         with single_threaded():
-            pool = Pool(nproc)
+            pool = Pool(nproc, initializer=set_shape_method,
+                        initargs=(get_shape_method(), get_shape_weight_fwhm()))
             results = []
             for i in range(njobs):
                 if isinstance(kwargs, dict):
