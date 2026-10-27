@@ -89,13 +89,13 @@ class TwoDHistStats(Stats):
         positions, shapes_truth, shapes_model = self.measureShapes(
             psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars with successful shape measurements.
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
         logger.verbose("%d/%d measurements were successful",np.sum(mask),len(mask))
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  TwoDHist plot will be empty.")
+            logger.warning("All stars had shape measurement errors. TwoDHist plot will be empty.")
             self.skip = True
             return
 
@@ -482,13 +482,13 @@ class WhiskerStats(Stats):
         positions, shapes_truth, shapes_model = self.measureShapes(
             psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars with successful shape measurements.
         flag_truth = shapes_truth[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_truth == 0) & (flag_model == 0)
         logger.verbose("%d/%d measurements were successful",np.sum(mask),len(mask))
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  Whisker plot will be empty.")
+            logger.warning("All stars had shape measurement errors. Whisker plot will be empty.")
             self.skip = True
             return
 

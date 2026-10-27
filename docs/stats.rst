@@ -24,5 +24,8 @@ used to build the model.  These are specified in a ``stats`` section of the conf
 .. autoclass:: piff.StarStats
     :members:
 
+.. autoclass:: piff.ShapeCatalogStats
+    :members:
+
 .. autoclass:: piff.HSMCatalogStats
     :members:

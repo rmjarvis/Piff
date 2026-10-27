@@ -306,7 +306,8 @@ def calculateSNR(image, weight):
         return (F - Npix) / np.sqrt(F)
 
 
-def calculate_moments(star, third_order=False, fourth_order=False, radial=False, errors=False, logger=None):
+def calculate_moments(star, third_order=False, fourth_order=False, radial=False, errors=False,
+                      logger=None, shape_method=None):
     r"""Calculate moments using a Gaussian weight matched to the object's size and shape.
 
     The flux, 1st, and 2nd order moments are always calculated:
@@ -368,6 +369,9 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     :param radial:          Return the higher order radial moments? [default: False]
     :param errors:          Return the variance estimates of other returned values? [default: False]
     :param logger:          A logger object for logging debug info.  [default: None]
+    :param shape_method:    The shape measurement method to use for calculating the initial
+                            weight function. [default: None, which uses the current global
+                            measurement method]
 
     :returns: A dict of the calculated moments, with the following keys/values:
 
@@ -382,13 +386,16 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
     from .star import get_shape_method
     from .config import LoggerWrapper
     logger = LoggerWrapper(logger)
-    method = get_shape_method()
+    method = get_shape_method() if shape_method is None else shape_method
     if method == 'wmom':
         logger.warning('Using gauss measurements in calculate_moments rather than wmom.')
         method = 'gauss'
+    if method == 'hsm':
+        shape = star.hsm
+    elif method == 'gauss':
         shape = star.gauss
     else:
-        shape = star.measure_size_shape()
+        raise ValueError('Invalid shape measurement method: %s' % method)
     if errors and method != 'hsm':
         logger.warning('The accuracy of the moment error estimates has not been verified '
                        'for method = %s.', method)
@@ -584,7 +591,7 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         # First order moments:
         #
 
-        # For these, we add on the hsm centroid estimate
+        # For these, we add on the measured centroid estimate.
         #
         # M10 = sum(WIu) / M00 + u0
         # M01 = sum(WIv) / M00 + v0
