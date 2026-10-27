@@ -191,7 +191,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
 
     :returns: The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """
-    from multiprocessing import Pool
+    from multiprocessing import Pool, get_context
     from galsim.utilities import single_threaded
     from .star import get_shape_method, get_shape_weight_fwhm, set_shape_method
 
@@ -232,8 +232,9 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
                 output_list[i] = out
     else:
         with single_threaded():
-            pool = Pool(nproc, initializer=set_shape_method,
-                        initargs=(get_shape_method(), get_shape_weight_fwhm()))
+            pool = get_context('spawn').Pool(
+                    nproc, initializer=set_shape_method,
+                    initargs=(get_shape_method(), get_shape_weight_fwhm()))
             results = []
             for i in range(njobs):
                 if isinstance(kwargs, dict):
