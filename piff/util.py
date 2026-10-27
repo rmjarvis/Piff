@@ -307,7 +307,7 @@ def calculateSNR(image, weight):
 
 
 def calculate_moments(star, third_order=False, fourth_order=False, radial=False, errors=False, logger=None):
-    r"""Calculate a bunch of moments using HSM for the weight function.
+    r"""Calculate moments using a Gaussian weight matched to the object's size and shape.
 
     The flux, 1st, and 2nd order moments are always calculated:
 
@@ -320,8 +320,13 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         M_{20} &= \sum W(u,v) I(u,v) (du^2 - dv^2) \\
         M_{02} &= \sum W(u,v) I(u,v) (2 du dv)
 
-    where W(u,v) is the weight from the HSM fit and du,dv are the positions relative to the
-    HSM measured centroid.
+    where W(u,v) is a Gaussian weight function using the measured size and shape of the star,
+    and du,dv are the positions relative to the measured centroid.
+
+    .. note::
+
+        Normally we use whatever the selected size measurement method is, but ``wmom``
+        doesn't produce what we need here to make W. So in that case, we switch to ``gauss``.
 
     If ``third_order`` is set to True, then 3rd order moments are also calculated and returned:
 
@@ -373,22 +378,36 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
 
     If ``errors`` = True, then also a second dict (with the same keys) giving the variances.
     """
+    # Measure the flux, size and shapes we need for constructing W.
+    from .star import get_shape_method
+    from .config import LoggerWrapper
+    logger = LoggerWrapper(logger)
+    method = get_shape_method()
+    if method == 'wmom':
+        logger.warning('Using gauss measurements in calculate_moments rather than wmom.')
+        method = 'gauss'
+        shape = star.gauss
+    else:
+        shape = star.measure_size_shape()
+    if errors and method != 'hsm':
+        logger.warning('The accuracy of the moment error estimates has not been verified '
+                       'for method = %s.', method)
+    f, u0, v0, sigma, g1, g2, flag = shape
+
     # get vectors for data, weight and u, v
     data, weight, u, v = star.data.getDataVector()
-    # also get the values for the HSM kernel, which is just the fitted hsm model
-    f, u0, v0, sigma, g1, g2, flag = star.hsm
 
     if flag:
-        raise RuntimeError("HSM failed with flag %s" % flag)
+        raise RuntimeError("Shape measurement failed with flag %s" % flag)
 
-    # build the HSM weight, writing into image
+    # Build the Gaussian weight, writing into image.
     profile = galsim.Gaussian(sigma=sigma, flux=1.0).shear(g1=g1, g2=g2).shift(u0, v0)
     image = profile.drawImage(star.image.copy(), method='sb', center=star.image_pos)
 
     # convert image into kernel
     kernel = image.array.flatten()
 
-    # Anywhere the data is masked, fill in with the hsm profile.
+    # Anywhere the data is masked, fill in with the measured profile.
     mask = weight == 0.
     if np.any(mask):
         data[mask] = kernel[mask] * np.sum(data[~mask])/np.sum(kernel[~mask])

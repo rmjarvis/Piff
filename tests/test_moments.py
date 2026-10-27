@@ -18,9 +18,10 @@ import piff
 import galsim
 import copy
 import os
+import pytest
 
 from piff.util import calculate_moments
-from piff_test_helper import timer
+from piff_test_helper import timer, CaptureLog, make_gaussian_data
 
 def makeStars(nstar, beta, size=None, g1=None, g2=None, seed=12345):
 
@@ -298,6 +299,74 @@ def test_moments_hsm():
         np.testing.assert_allclose(moments['M11']*2, 2*hsm[3]**2 / (1-shape.e**2)**0.5, rtol=1.e-6)
 
 
+@timer
+def test_alternate_shape_moments():
+    """Test calculate_moments() with other shape measurement methods.
+    """
+    pytest.importorskip('ngmix')
+
+    # Analytic Gaussian moments independently fix the fitted-window second and fourth moments.
+    try:
+        piff.set_shape_method('gauss')
+        star = make_gaussian_data(0.3, 0.015, -0.012, 1000, du=0.11,
+                                  g1=0.12, g2=-0.08, draw_method='no_pixel')
+        star.data.weight.array[10, 12] = 0
+        star.image.array[10, 12] = np.nan
+        star.data.weight.array[12, 12] = 0
+        moments = calculate_moments(star, fourth_order=True)
+        gsq = 0.12**2 + 0.08**2
+        np.testing.assert_allclose(moments['M11'], 0.3**2*(1+gsq)/(1-gsq), rtol=1.e-4)
+        np.testing.assert_allclose(moments['M22']/moments['M11']**2,
+                                   2 + 4*gsq/(1+gsq)**2, rtol=1.e-4)
+
+        # Setting errors=True with non-hsm emits a warning.
+        reference = calculate_moments(star, third_order=True, fourth_order=True, radial=True)
+        with CaptureLog() as cl:
+            moments, variances = calculate_moments(
+                star, third_order=True, fourth_order=True, radial=True, errors=True,
+                logger=cl.logger)
+        assert 'The accuracy of the moment error estimates has not been verified ' in cl.output
+        assert moments.keys() == variances.keys() == reference.keys()
+        for name in reference:
+            np.testing.assert_allclose(moments[name], reference[name])
+            assert np.isfinite(variances[name])
+            assert variances[name] >= 0
+
+        # wmom reverts to gauss and emits a warning.
+        for fwhm in [0.3, 0.6]:
+            piff.set_shape_method('wmom', weight_fwhm=fwhm)
+            with CaptureLog() as cl:
+                fallback = calculate_moments(
+                    star, third_order=True, fourth_order=True, radial=True, logger=cl.logger)
+            assert 'Using gauss measurements' in cl.output
+            assert piff.get_shape_method() == 'wmom'
+            assert piff.get_shape_weight_fwhm() == fwhm
+            for name in reference:
+                np.testing.assert_allclose(fallback[name], reference[name])
+
+            # Errors use the fallback Gaussian too, with its own accuracy warning.
+            with CaptureLog() as cl:
+                fallback, fallback_variances = calculate_moments(
+                    star, third_order=True, fourth_order=True, radial=True, errors=True,
+                    logger=cl.logger)
+            assert 'not been verified for method = gauss' in cl.output
+            for name in reference:
+                np.testing.assert_allclose(fallback[name], reference[name])
+                np.testing.assert_allclose(fallback_variances[name], variances[name])
+
+        # Failed measurements propagate a useful error rather than invalid higher moments.
+        failed = make_gaussian_data(0.3, 0, 0, 1000, du=0.11, draw_method='no_pixel')
+        failed.data.weight.array[:] = 0
+        for method in ['gauss', 'wmom']:
+            piff.set_shape_method(method, weight_fwhm=0.6)
+            with np.testing.assert_raises(RuntimeError) as error:
+                calculate_moments(failed)
+            assert 'Shape measurement failed' in str(error.exception)
+    finally:
+        # Restore the default for other tests.
+        piff.set_shape_method('hsm')
+
+
 if __name__ == "__main__":
     test_moments_return()
     test_moments_mask()
@@ -305,3 +374,4 @@ if __name__ == "__main__":
     test_moments_fail()
     test_moments_errors()
     test_moments_hsm()
+    test_alternate_shape_moments()
