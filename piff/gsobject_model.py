@@ -110,7 +110,9 @@ class GSObjectModel(Model):
         self._fit_flux = fit_flux
         self._method = 'auto' if include_pixel else 'no_pixel'
         self._scipy_kwargs = scipy_kwargs if scipy_kwargs is not None else {}
-        self._raw_size = self.gsobj.drawImage(method=self._method).calculateMomentRadius()
+        image = self.gsobj.drawImage(method=self._method)
+        # Measure the raw size using hsm, since that's what we'll use later to scale it.
+        self._raw_size = image.FindAdaptiveMom(strict=False).moments_sigma * image.scale
         self.set_num(None)
 
     def moment_fit(self, star, logger=None):

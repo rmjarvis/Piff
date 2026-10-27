@@ -1926,7 +1926,10 @@ def test_convergence_centering_failed():
     piffResult.fit(stars)
 
     assert piffResult.niter <= 6, 'Must converge within 6 iterations'
-    assert np.shape(piffResult.stars[28].fit.A) == (0, 623), 'Fully masked stamp retains fitting-coordinate columns'
+    # The fully masked star gets rejected after initialization, so it doesn't ever
+    # construct its fit equations.
+    assert piffResult.stars[28].is_flagged
+    assert piffResult.stars[28].fit.A is None
 
 
 @timer

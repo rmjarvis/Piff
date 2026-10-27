@@ -224,7 +224,7 @@ def test_simple():
 
         print('flux = ',fit.params[0],'*',fit.flux)
         np.testing.assert_allclose(fit.params[0], 1, rtol=1.e-5)
-        np.testing.assert_allclose(fit.params[1], scale, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[1], scale, rtol=2.e-6)
         np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-6)
@@ -241,7 +241,7 @@ def test_simple():
         print('flux = ',fit.params[0],'*',fit.flux)
         np.testing.assert_allclose(fit.params[0], 0.01, rtol=1e-5)
 
-        np.testing.assert_allclose(fit.params[1], scale, rtol=1e-6)
+        np.testing.assert_allclose(fit.params[1], scale, rtol=2.e-6)
         np.testing.assert_allclose(fit.params[2], g1, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.params[3], g2, rtol=0, atol=1e-6)
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=1e-6)
@@ -1137,8 +1137,9 @@ def test_fail():
 
     model1 = piff.Moffat(fastfit=True, beta=2.5)
     star2 = model1.initialize(star2)
-    with np.testing.assert_raises(RuntimeError):
+    with np.testing.assert_raises(RuntimeError) as e:
         model1.fit(star2)
+    assert "Error initializing star" in str(e.exception)
     star3 = model1.initialize(star1)
     star3 = model1.fit(star3)
     star3 = piff.Star(star2.data, star3.fit)
@@ -1154,13 +1155,11 @@ def test_fail():
     assert "Failed fitting star" in cl.output
     print('5')
 
-    # This is contrived to hit the fit failure for the reference.
-    # I'm not sure what realistic use case would actually hit it, but at least it's
-    # theoretically possible to fail there.
-    with pytest.warns(RuntimeWarning):
-        model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
-    with np.testing.assert_raises(RuntimeError):
+    # A noisy reference can have no adaptive-moment solution, so initialization rejects it.
+    model2 = piff.GSObjectModel(galsim.InterpolatedImage(noisy_image), fastfit=True)
+    with np.testing.assert_raises(RuntimeError) as e:
         model2.initialize(star1)
+    assert str(e.exception) == "Error computing the size of the reference object"
     psf = piff.SimplePSF(model2, piff.Mean())
     with CaptureLog() as cl:
         stars, nremoved = psf.initialize_params([star1], logger=cl.logger)
@@ -1171,15 +1170,23 @@ def test_fail():
 
     # The easiest way to make least_squares_fit fail is to give it extra scipy_kwargs
     # that don't let it finish converging.
-    model3 = piff.Moffat(fastfit=False, beta=2.5, scipy_kwargs={'max_nfev':10})
-    star2 = model3.initialize(star2)
-    with np.testing.assert_raises(RuntimeError):
-        model3.fit(star2)
+    model3 = piff.Moffat(fastfit=False, beta=2.5, scipy_kwargs={'max_nfev': 1})
     star3 = model3.initialize(star1)
-    star3 = model3.fit(star3)
-    star3 = piff.Star(star2.data, star3.fit)
-    with np.testing.assert_raises(RuntimeError):
+    with np.testing.assert_raises(RuntimeError) as e:
         model3.fit(star3)
+    assert str(e.exception) == "Error finding the full nonlinear solution"
+
+    # Valid data can have an unmeasurable rendered reference: a delta initialization
+    # sampled at an integer pixel position has only one nonzero pixel.
+    reference_star = piff.Star.makeTarget(x=10, y=10, scale=0.3, stamp_size=33)
+    galsim.Gaussian(sigma=1., flux=15.).drawImage(reference_star.image,
+                                               center=reference_star.image_pos,
+                                               method='no_pixel')
+    reference_model = piff.Gaussian(fastfit=True, init='delta', include_pixel=False)
+    reference_star = reference_model.initialize(reference_star)
+    with np.testing.assert_raises(RuntimeError) as e:
+        reference_model.fit(reference_star)
+    assert str(e.exception) == "Error calculating model moments for this star."
     print('7')
 
     # Non-positive scale values are invalid optimizer probes and should be rejected before
@@ -1215,7 +1222,7 @@ def test_fail():
     # use a gsobj with very low maximum_fft_size.
     gsp = galsim.GSParams(maximum_fft_size=2048)
     model4 = piff.GSObjectModel(galsim.Moffat(beta=1.5, gsparams=gsp, half_light_radius=1))
-    star2 = model4.initialize(star2)
+    star2 = model4.initialize(star2, default_init='delta')
     # This one doesn't fail.  But it does hit the except GalSimError line in the fit function
     # (so long as we make it raise the GalSimFFTSizeError).
     galsim.errors.raise_fft_size_error = True
