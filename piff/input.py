@@ -901,7 +901,7 @@ class InputFiles(Input):
         objects = []
 
         # Make a dict of the types to use for the extra_props, so we can preserve the type
-        # if we need to output them (e.g. in HSMCatalog).
+        # if we need to output them (e.g. in ShapeCatalog).
         prop_types = {key: extra_props[key].dtype.type for key in extra_props}
 
         for k in range(len(image_pos)):
