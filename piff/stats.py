@@ -164,6 +164,13 @@ class Stats(object):
         fig.set_layout_engine('tight')
         canvas.print_figure(file_name, dpi=100)
 
+    def _get_shape_method(self):
+        from .star import get_shape_method
+        return get_shape_method()
+
+    def _measure_size_shape(self, star):
+        return star.measure_size_shape()
+
     def measureShapes(self, psf, stars, model_properties=None, fourth_order=False,
                       raw_moments=False, logger=None):
         """Measure the size and shapes of the PSF profiles and the stars.
@@ -193,7 +200,7 @@ class Stats(object):
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
 
-        shapes_data = [ list(star.measure_size_shape()) for star in stars ]
+        shapes_data = [list(self._measure_size_shape(star)) for star in stars]
         nshapes = 7
 
         if fourth_order or raw_moments:
@@ -203,6 +210,8 @@ class Stats(object):
             if raw_moments:
                 nshapes += 18
                 kwargs = dict(third_order=True, fourth_order=True, radial=True)
+            kwargs['shape_method'] = self._get_shape_method()
+            kwargs['logger'] = logger
             for i, star in enumerate(stars):
                 d = shapes_data[i]
 
@@ -225,7 +234,7 @@ class Stats(object):
                         # Subtract off 3e from the 4th order shapes to remove the leading order
                         # term from the overall ellipticity, which is already captured in the
                         # second order shape.  (For a Gaussian, this makes g4 very close to 0.)
-                        shape = galsim.Shear(g1=star.measure_size_shape()[4], g2=star.measure_size_shape()[5])
+                        shape = galsim.Shear(g1=d[4], g2=d[5])
                         d[8] -= 3*shape.e1
                         d[9] -= 3*shape.e2
                     if raw_moments:
@@ -243,17 +252,17 @@ class Stats(object):
             logger.debug("real shape for star at %s is %s",star.image_pos, shape)
 
         # Convert from sigma to T
-        # Note: the hsm sigma is det(M)^1/4, not sqrt(T/2), so need to account for the effect
+        # Note: the measured sigma is det(M)^1/4, not sqrt(T/2), so account for the effect
         #       of the ellipticity.
         #       If M = [ sigma^2 (1+e1)   sigma^2 e2   ]
         #              [   sigma^2 e2   sigma^2 (1-e1) ]
         #       Then:
-        #         det(M) = sigma^4 (1-|e|^2) = sigma_hsm^4
+        #         det(M) = sigma^4 (1-|e|^2) = sigma_det^4
         #         T = tr(M) = 2 * sigma^2
         #       So:
-        #         T = 2 * sigma_hsm^2 / sqrt(1-|e|^2)
+        #         T = 2 * sigma_det^2 / sqrt(1-|e|^2)
         # Using |e| = 2 |g| / (1+|g|^2), we obtain:
-        #         T = 2 * sigma_hsm^2 * (1+|g|^2)/(1-|g|^2)
+        #         T = 2 * sigma_det^2 * (1+|g|^2)/(1-|g|^2)
         gsq = shapes_data[:,4]**2 + shapes_data[:,5]**2
         shapes_data[:,3] = 2*shapes_data[:,3]**2 * (1+gsq)/(1-gsq)
 
@@ -270,7 +279,7 @@ class Stats(object):
                 stars = [star.withProperties(**model_properties) for star in stars]
                 psf.interpolateStarList(stars, inplace=True)
             model_stars = psf.drawStarList(stars)
-            shapes_model = [list(star.measure_size_shape()) for star in model_stars]
+            shapes_model = [list(self._measure_size_shape(star)) for star in model_stars]
 
             if fourth_order or raw_moments:
                 for i, star in enumerate(model_stars):
@@ -288,7 +297,7 @@ class Stats(object):
                             d.extend([m['M22']/m['M11'],
                                     m['M31']/m['M11']**2, m['M13']/m['M11']**2,
                                     m['M40']/m['M11']**2, m['M04']/m['M11']**2])
-                            shape = galsim.Shear(g1=star.measure_size_shape()[4], g2=star.measure_size_shape()[5])
+                            shape = galsim.Shear(g1=d[4], g2=d[5])
                             d[8] -= 3*shape.e1
                             d[9] -= 3*shape.e2
                         if raw_moments:
@@ -373,12 +382,12 @@ class ShapeHistStats(Stats):
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars with successful shape measurements.
         flag_data = shapes_data[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_data == 0) & (flag_model == 0)
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  ShapeHist plot will be empty.")
+            logger.warning("All stars had shape measurement errors. ShapeHist plot will be empty.")
             self.skip = True
 
         # define terms for the catalogs
@@ -588,12 +597,12 @@ class RhoStats(Stats):
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties, logger=logger)
 
-        # Only use stars for which hsm was successful
+        # Only use stars with successful shape measurements.
         flag_data = shapes_data[:, 6]
         flag_model = shapes_model[:, 6]
         mask = (flag_data == 0) & (flag_model == 0)
         if np.sum(mask) == 0:
-            logger.warning("All stars had hsm errors.  Rho plot will be empty.")
+            logger.warning("All stars had shape measurement errors. Rho plot will be empty.")
             self.skip = True
             return
 
@@ -761,13 +770,13 @@ class RhoStats(Stats):
         axs[1].set_ylim(1.e-9, None)
         return fig, axs
 
-class HSMCatalogStats(Stats):
+class ShapeCatalogStats(Stats):
     r"""Stats class for writing the shape information to an output file.
 
     This will compute the size and shapes of the observed stars and the PSF models
     and write these data to a file. It uses whichever shape measurement method is currently
-    set (with `set_shape_method`) despite the fact that the class and config type retain their
-    historical HSM names.
+    set (with `set_shape_method`). Use type name ``ShapeCatalog`` in a config field.
+    To request HSM measurements independently of the selected method, use `HSMCatalogStats`.
 
     Shape measurements sometimes fail in various ways. When they do,
     we still output the information that we have for a star, but mark the failure with
@@ -796,8 +805,8 @@ class HSMCatalogStats(Stats):
         :g1_model:  The g1 component of the PSF model.
         :g2_model:  The g2 component of the PSF model.
         :reserve:   Whether the star was a reserve star.
-        :flag_data: 0 where HSM succeeded on the observed star, >0 where it failed (see above).
-        :flag_model: 0 where HSM succeeded on the PSF model, >0 where it failed (see above).
+        :flag_data: 0 where measurement succeeded on the observed star, >0 on failure (see above).
+        :flag_model: 0 where measurement succeeded on the PSF model, >0 on failure (see above).
 
     If fourth_order=True, then there are additional quantities calculated as well.
     We define the following notation:
@@ -841,7 +850,7 @@ class HSMCatalogStats(Stats):
     :param raw_moments:      Whether to include the complete set of raw moments as calculated
                              by piff.util.calculate_moments. [default: False]
     """
-    _type_name = 'HSMCatalog'
+    _type_name = 'ShapeCatalog'
 
     @classmethod
     def parseKwargs(cls, config, base, logger=None):
@@ -871,9 +880,9 @@ class HSMCatalogStats(Stats):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         # get the shapes
-        logger.info("Calculating shape histograms for %d stars",len(stars))
-        from .star import get_shape_method, get_shape_weight_fwhm
-        self.shape_method = get_shape_method()
+        logger.info("Calculating shape catalog for %d stars",len(stars))
+        from .star import get_shape_weight_fwhm
+        self.shape_method = self._get_shape_method()
         self.shape_weight_fwhm = get_shape_weight_fwhm()
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties,
@@ -980,7 +989,7 @@ class HSMCatalogStats(Stats):
         if not hasattr(self, 'cols'):
             raise RuntimeError("Must call compute before calling write")
 
-        logger.info("Writing HSM catalog to file %s",file_name)
+        logger.info("Writing %s to file %s", self._type_name, file_name)
 
         data = np.array(list(zip(*self.cols)), dtype=self.dtypes)
         header = {'piff_version': piff_version, 'shape_method': self.shape_method}
@@ -988,3 +997,19 @@ class HSMCatalogStats(Stats):
             header['shape_weight_fwhm'] = self.shape_weight_fwhm
         with fitsio.FITS(file_name, 'rw', clobber=True) as f:
             f.write_table(data, header=header)
+
+
+class HSMCatalogStats(ShapeCatalogStats):
+    """Write a shape catalog using HSM regardless of the selected shape measurement method.
+
+    Use type name ``HSMCatalog`` in a config field. The columns and options are the same as
+    `ShapeCatalogStats`, but the weight function always uses the HSM algorithm for the
+    size and shape measurements.
+    """
+    _type_name = 'HSMCatalog'
+
+    def _get_shape_method(self):
+        return 'hsm'
+
+    def _measure_size_shape(self, star):
+        return star.hsm

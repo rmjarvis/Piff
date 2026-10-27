@@ -1485,6 +1485,14 @@ def test_alternate_shape_stats():
                               g1=0.12, g2=-0.08, draw_method='no_pixel')
     failed = piff.Star(star.data.withNew(weight=star.weight * 0), star.fit)
     try:
+        # Record an HSM reference including higher moments for both data and rendered models.
+        piff.set_shape_method('hsm')
+        model = piff.Gaussian(include_pixel=False)
+        initialized = model.initialize(star)
+        psf = piff.SimplePSF(model, None)
+        reference = piff.ShapeCatalogStats(fourth_order=True, raw_moments=True)
+        reference.compute(psf, [initialized])
+
         # All methods support higher-order statistics without losing the failure flag.
         for method in ['gauss', 'wmom']:
             piff.set_shape_method(method, weight_fwhm=0.6)
@@ -1492,6 +1500,19 @@ def test_alternate_shape_stats():
             assert shapes.shape == (2, 12)  # Seven basic values plus five fourth-order statistics.
             assert shapes[0, 6] == 0
             assert shapes[1, 6] != 0
+
+            # HSMCatalog pins all columns to HSM while leaving the global method unchanged.
+            hsm = piff.HSMCatalogStats(fourth_order=True, raw_moments=True)
+            assert isinstance(hsm, piff.ShapeCatalogStats)
+            hsm.compute(psf, [initialized])
+            np.testing.assert_array_equal(hsm.cols, reference.cols)
+            assert piff.get_shape_method() == method
+            assert piff.get_shape_weight_fwhm() == (0.6 if method == 'wmom' else None)
+            path = os.path.join('output', 'alternate_hsm_catalog.fits')
+            hsm.write(path)
+            header = fitsio.read_header(path, ext=1)
+            assert header['shape_method'] == 'hsm'
+            assert 'shape_weight_fwhm' not in header
     finally:
         # Restore the default for other tests.
         piff.set_shape_method('hsm')
@@ -1549,7 +1570,7 @@ def test_alternate_shape_config():
                             ),
                         },
                         {
-                            'type': 'HSMCatalog',
+                            'type': 'ShapeCatalog',
                             'file_name': (
                                 '$f"alternate_shape_{piff.get_shape_method()}_shapes.fits"'
                             ),

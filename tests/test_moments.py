@@ -354,6 +354,32 @@ def test_alternate_shape_moments():
                 np.testing.assert_allclose(fallback[name], reference[name])
                 np.testing.assert_allclose(fallback_variances[name], variances[name])
 
+        # Per-call overrides use the requested method without changing the global setting.
+        healthy = make_gaussian_data(0.3, 0.015, -0.012, 1000, du=0.11,
+                                     g1=0.12, g2=-0.08, draw_method='no_pixel')
+        piff.set_shape_method('hsm')
+        hsm_reference = calculate_moments(healthy, fourth_order=True, errors=True)
+        gauss_reference = calculate_moments(healthy, shape_method='gauss', fourth_order=True)
+        piff.set_shape_method('wmom', weight_fwhm=0.6)
+        with CaptureLog() as cl:
+            hsm_result = calculate_moments(healthy, shape_method='hsm', fourth_order=True,
+                                           errors=True, logger=cl.logger)
+        assert cl.output == ''
+        assert hsm_result == hsm_reference
+        assert calculate_moments(healthy, shape_method='gauss',
+                                 fourth_order=True) == gauss_reference
+        with CaptureLog() as cl:
+            fallback = calculate_moments(healthy, shape_method='wmom', fourth_order=True,
+                                         logger=cl.logger)
+        assert 'Using gauss measurements' in cl.output
+        assert fallback == gauss_reference
+        assert piff.get_shape_method() == 'wmom'
+        assert piff.get_shape_weight_fwhm() == 0.6
+
+        # Invalid per-call methods fail explicitly rather than silently selecting a backend.
+        with np.testing.assert_raises(ValueError):
+            calculate_moments(healthy, shape_method='invalid')
+
         # Failed measurements propagate a useful error rather than invalid higher moments.
         failed = make_gaussian_data(0.3, 0, 0, 1000, du=0.11, draw_method='no_pixel')
         failed.data.weight.array[:] = 0
