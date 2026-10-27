@@ -252,7 +252,7 @@ class PixelGrid(Model):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                params_var = np.diagonal(scipy.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
+                params_var = np.diagonal(np.linalg.inv(star1.fit.A.T.dot(star1.fit.A)))
         except np.linalg.LinAlgError as e:
             # If we get an error, set the variance to "infinity".
             logger.verbose("Caught error %s making params_var.  Setting all to 1.e100",e)
