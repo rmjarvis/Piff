@@ -1926,10 +1926,23 @@ def test_convergence_centering_failed():
     piffResult.fit(stars)
 
     assert piffResult.niter <= 6, 'Must converge within 6 iterations'
-    # The fully masked star gets rejected after initialization, so it doesn't ever
+    # This star gets rejected after initialization, so it doesn't ever
     # construct its fit equations.
     assert piffResult.stars[28].is_flagged
     assert piffResult.stars[28].fit.A is None
+
+    # It's possible for a fully masked star to get past that rejection check if it
+    # uses init=delta and trust_pos=True.
+    # It gets through to the fit stage before being rejected there.
+    # In this case, it has an A parameter with 0 equations.
+    stars[28].weight.setZero()
+    stars[28].data.properties['trust_pos'] = True
+    piffConfig['model']['init'] = 'delta'
+    piffResult = piff.PSF.process(piffConfig)
+    piffResult.set_context(wcs)
+    piffResult.fit(stars)
+    assert piffResult.stars[28].is_flagged
+    assert np.shape(piffResult.stars[28].fit.A) == (0, 623)
 
 
 @timer
