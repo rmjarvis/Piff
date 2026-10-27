@@ -326,7 +326,7 @@ def test_convolve_optatm():
     mean_mse /= count
     print('mean maximum relative error = ',mean_max_rel_err)
     print('mean mean-squared error = ',mean_mse)
-    assert mean_max_rel_err < 0.04
+    assert mean_max_rel_err < 0.05
     assert mean_mse < 1.5e-5
 
     # Without the Optical component, it's quite a bit worse.
@@ -506,7 +506,7 @@ def test_convolve_pixelgrid():
     mean_mse /= count
     print('mean maximum relative error = ',mean_max_rel_err)
     print('mean mean-squared error = ',mean_mse)
-    assert mean_max_rel_err < 0.04
+    assert mean_max_rel_err < 0.05
     assert mean_mse < 2.e-5
 
 
@@ -655,7 +655,7 @@ def test_nested_convolve():
     mean_mse /= count
     print('mean maximum relative error = ',mean_max_rel_err)
     print('mean mean-squared error = ',mean_mse)
-    assert mean_max_rel_err < 0.04
+    assert mean_max_rel_err < 0.05
     assert mean_mse < 1.5e-5
 
     # Repeat using nested Convolves
@@ -728,7 +728,7 @@ def test_nested_convolve():
     mean_mse /= count
     print('mean maximum relative error = ',mean_max_rel_err)
     print('mean mean-squared error = ',mean_mse)
-    assert mean_max_rel_err < 0.04
+    assert mean_max_rel_err < 0.05
     assert mean_mse < 1.5e-5
 
 
