@@ -420,6 +420,17 @@ class PSF(object):
         stars, self.nremoved = self.initialize_params(stars, logger=logger)
         nreserve = np.sum([star.is_reserve for star in stars])
 
+        # Do a reflux pass now after initialization so the stellar flux estimates can account
+        # for real model flux that falls outside the stamp boundaries. It's still approximate,
+        # since the initial model is not necessarily very good, but it's better than just using
+        # the sum of pixel values, which is what we have so far from initialize_flux_center.
+        # This is especially important for a Sum profile that has a component that absorbs
+        # missing flux, such as PixelGrid. Without this step, that component can absorb
+        # flux errors from the initial flux estimate, which would be better modeled as part
+        # of the other more physical components.
+        stars, reflux_nremoved = self.reflux_stars(stars, logger)
+        self.nremoved += reflux_nremoved
+
         oldchisq = 0.
         for iteration in range(self.max_iter):
 

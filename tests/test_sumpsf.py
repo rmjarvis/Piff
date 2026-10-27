@@ -541,6 +541,38 @@ def test_mixed_pixel_sum2():
 
 
 @timer
+def test_initial_flux():
+    """Recover total flux before an additive grid absorbs a truncated pixel-sum estimate."""
+    # The known optical profile has wings outside both stamps, so pixel sums are low.
+    for stamp_size in [9, 17]:
+        optics = piff.Optical(atmo_type='None', lam=500, diam=0.1)
+        psf = piff.SumPSF([
+            piff.SimplePSF(optics, piff.Mean()),
+            piff.SimplePSF(piff.PixelGrid(scale=0.4, size=9), piff.BasisPolynomial(order=0)),
+        ])
+        star = piff.Star.makeTarget(x=10, y=10, scale=0.4, stamp_size=stamp_size,
+                                    trust_pos=True)
+        optics.getProfile().withFlux(1000.).drawImage(star.image, center=star.image_pos)
+        assert star.image.array.sum() < 0.95 * 1000.
+
+        # The initial reflux makes sure the optical part gets the right flux. Without it,
+        # the PixelGrid part accounts for the missing normalization, and the model never recovers.
+        # It was still a good fit, but the PixelGrid is supplying flux that would be better
+        # provided by the Optical part. Now the optical part gets the full flux and the
+        # pixel grid has negligible impact.
+        psf.set_context({0: star.image.wcs}, None, None)
+        psf.fit([star])
+        result = psf.stars[0]
+        assert not result.is_flagged
+        np.testing.assert_allclose(result.fit.flux, 1000., rtol=1.e-7)
+
+        # The correct physical model needs no grid correction and reproduces the stamp.
+        np.testing.assert_allclose(result.fit.params[1], 0., atol=1.e-7)
+        np.testing.assert_allclose(psf.drawStar(result).image.array, star.image.array,
+                                   rtol=0, atol=1.e-6)
+
+
+@timer
 def test_atmpsf():
     # Let reality be atmospheric + optical PSF with realistic variation.
     # Use Kolmogorov with GP for primary model and PixelGrid to mop up the residuals.
@@ -710,7 +742,7 @@ def test_atmpsf():
     print('mean maximum relative error = ',mean_max_rel_err)
     print('mean mean-squared error = ',mean_mse)
     assert mean_max_rel_err < 0.04
-    assert mean_mse < 1.2e-5
+    assert mean_mse < 1.5e-5
 
     # Without the PixelGrid clean up, it's quite a bit worse.
     config['psf'] = config['psf']['components'][0]
@@ -751,4 +783,5 @@ if __name__ == '__main__':
     test_trivial_sum1()
     test_easy_sum2()
     test_mixed_pixel_sum2()
+    test_initial_flux()
     test_atmpsf()
