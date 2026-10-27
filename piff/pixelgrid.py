@@ -39,7 +39,7 @@ class PixelGrid(Model):
 
     The following initialization methods are available for the ``init`` parameter.
 
-    * hsm           Start with a Gaussian based on the measured flux and size.
+    * gauss         Start with a Gaussian based on the measured size.
     * zero          Start with a Gaussian, but with flux = 1.e-10 x the measured flux.
     * delta         Start with just a single flux=1 pixel at the center.
 
@@ -54,7 +54,7 @@ class PixelGrid(Model):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param init:        Initialization method.  [default: None, which uses hsm unless a PSF
+    :param init:        Initialization method.  [default: None, which uses gauss unless a PSF
                         class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False,
@@ -72,6 +72,9 @@ class PixelGrid(Model):
                  logger=None):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
+        if init == 'hsm':
+            logger.warning("PixelGrid init='hsm' is deprecated. Use init='gauss' instead.")
+            init = 'gauss'
         logger.debug("Building Pixel model with the following parameters:")
         logger.debug("scale = %s",scale)
         logger.debug("size = %s",size)
@@ -143,7 +146,10 @@ class PixelGrid(Model):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         init = self._init if self._init is not None else default_init
-        if init is None: init = 'hsm'
+        if init is None: init = 'gauss'
+        if init == 'hsm':
+            logger.warning("PixelGrid init='hsm' is deprecated. Use init='gauss' instead.")
+            init = 'gauss'
         logger.debug("initializing PixelGrid with method %s",init)
 
         # Check if the star's image data is large enough to adequately fit the PixelGrid.
@@ -155,7 +161,7 @@ class PixelGrid(Model):
                            f"Minimum size required for this grid is {min_xy_size} pixels.")
             raise RuntimeError("Star's image is too small.")
 
-        if init == 'hsm' or init == 'zero':
+        if init == 'gauss' or init == 'zero':
             # Calculate the second moment to initialize an initial Gaussian profile.
             # Measurements return: flux, x, y, sigma, g1, g2, flag.
             sigma = star.measure_size_shape()[3]
