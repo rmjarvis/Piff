@@ -1867,8 +1867,11 @@ def test_stars():
     del config['select']['max_snr_weight']
     config['select']['max_snr'] = 120
     config = galsim.config.CleanConfig(config)
-    with np.testing.assert_warns(DeprecationWarning):
-        select = piff.FlagSelect(config['select'], logger=logger)
+    with CaptureLog() as cl:
+        select = piff.FlagSelect(config['select'], logger=cl.logger)
+    assert 'max_snr is deprecated as of version 1.7. Use max_snr_weight instead.' in cl.output
+    assert 'max_snr' not in config['select']
+    assert config['select']['max_snr_weight'] == 120
     stars2 = input.makeStars(logger=logger)
     stars2 = select.rejectStars(stars2, logger=logger)
     assert len(stars) == 100
@@ -1876,7 +1879,7 @@ def test_stars():
     np.testing.assert_array_equal(snr_list2, snr_list)
 
     # The default is max_snr_weight == 100
-    del config['select']['max_snr']
+    del config['select']['max_snr_weight']
     config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
@@ -1973,8 +1976,8 @@ def test_stars():
     del config['select']['max_snr_weight']
     del config['select']['max_pixel_cut']
 
-    # hsm_size_reject=True rejects a few of these.  But mostly objects with neighbors.
-    config['select']['hsm_size_reject'] = True
+    # size_reject=True rejects a few of these, mostly objects with neighbors.
+    config['select']['size_reject'] = True
     config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
     select = piff.FlagSelect(config['select'], logger=logger)
@@ -1982,26 +1985,44 @@ def test_stars():
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 87
 
-    # hsm_size_reject can also be a float.  (True is equivalent to 10.)
+    # The deprecated key warns and takes precedence over the new key, as in other migrations.
     config['select']['hsm_size_reject'] = 100.
+    config = galsim.config.CleanConfig(config)
+    with CaptureLog() as cl:
+        select = piff.FlagSelect(config['select'], logger=cl.logger)
+    assert 'hsm_size_reject is deprecated as of version 1.8. Use size_reject instead.' in cl.output
+    assert select.size_reject == 100.
+    assert config['select']['size_reject'] == 100.
+    del config['select']['size_reject']
+
+    # Reading and writing the old Python attribute also warns and aliases the new attribute.
+    legacy_select = piff.FlagSelect({'size_reject': 3.})
+    with np.testing.assert_warns(DeprecationWarning):
+        assert legacy_select.hsm_size_reject == 3.
+    with np.testing.assert_warns(DeprecationWarning):
+        legacy_select.hsm_size_reject = 10.
+    assert legacy_select.size_reject == 10.
+
+    # size_reject can also be a float. (True is equivalent to 10.)
+    config['select']['size_reject'] = 100.
     config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 89
-    config['select']['hsm_size_reject'] = 3.
+    config['select']['size_reject'] = 3.
     config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 85 if galsim.__version_info__ < (2,5) else 87
-    config['select']['hsm_size_reject'] = 10.
+    config['select']['size_reject'] = 10.
     config = galsim.config.CleanConfig(config)
     select = piff.FlagSelect(config['select'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
     assert len(stars) == 87
-    del config['select']['hsm_size_reject']
+    del config['select']['size_reject']
 
     # alt_x and alt_y also include some object completely off the image, which are always skipped.
     # (Don't do the min_snr anymore, since most of these stamps don't actually have any signal.)

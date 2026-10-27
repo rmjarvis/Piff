@@ -1157,6 +1157,8 @@ def test_draw():
         np.testing.assert_allclose(im10.array, im4.array, rtol=1.e-14, atol=1.e-14)
 
 def test_depr_select():
+    """Check a number of select fields that are now deprecated or used to be allowed in input.
+    """
     # A bunch of keys used to be allowed in input, but now belong in select.
     # Check that the old way still works, but gives a warning.
 
@@ -1180,7 +1182,7 @@ def test_depr_select():
         'select': {
                 'max_snr_weight' : 200,
                 'min_snr' : 20,
-                'hsm_size_reject' : 20,
+                'size_reject' : 20,
                 'max_edge_frac': 0.25,
                 'stamp_center_size': 10,
                 'max_mask_pixels' : 20,
@@ -1205,6 +1207,8 @@ def test_depr_select():
 
     # This is the old API
     config['input'].update(config['select'])
+    config['input']['hsm_size_reject'] = config['input'].pop('size_reject')
+    config['input']['max_snr'] = config['input'].pop('max_snr_weight')
     del config['select']
     config = galsim.config.CleanConfig(config)
     print('config = ',config)
@@ -1212,6 +1216,14 @@ def test_depr_select():
         piff.piffify(config, cl.logger)
     assert "WARNING: Items [" in cl.output
     assert "] should now be in the 'select' field of the config file." in cl.output
+    assert 'hsm_size_reject is deprecated as of version 1.8' in cl.output
+    assert 'max_snr is deprecated as of version 1.7' in cl.output
+    assert 'hsm_size_reject' not in config['input']
+    assert 'hsm_size_reject' not in config['select']
+    assert config['select']['size_reject'] == 20.
+    assert 'max_snr' not in config['input']
+    assert 'max_snr' not in config['select']
+    assert config['select']['max_snr_weight'] == 200.
     psf2 = piff.read(psf_file)
     print('len2 = ',len(psf2.stars))
     assert len(psf1.stars) == len(psf2.stars)

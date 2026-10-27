@@ -40,11 +40,18 @@ class Select(object):
 
     # Parameters that derived classes should ignore if they appear in the config dict
     # (since they are handled by the base class).
-    base_keys= ['min_snr', 'max_snr_weight', 'hsm_size_reject', 'max_pixel_cut', 'reject_where',
+    base_keys= ['min_snr', 'max_snr_weight', 'size_reject', 'max_pixel_cut', 'reject_where',
                 'max_edge_frac', 'stamp_center_size', 'max_mask_pixels', 'nstars', 'min_sep',
-                'reserve_frac', 'seed', 'max_snr']
+                'reserve_frac', 'seed']
+
+    _migrate_keys = {
+        'max_snr': ('max_snr_weight', '1.7'),
+        'hsm_size_reject': ('size_reject', '1.8'),
+    }
 
     def __init__(self, config, base=None, logger=None):
+        from .config import _migrate_config
+        _migrate_config(config, self._migrate_keys, logger)
         base = base if base is not None else {'select': config}
         opt = {
             'min_snr': float,
@@ -53,7 +60,7 @@ class Select(object):
             'stamp_center_size': int,
             'max_mask_pixels': int,
             'min_sep': float,
-            'hsm_size_reject': float,
+            'size_reject': float,
             'max_pixel_cut': float,
             'reject_where': str,
             'reserve_frac': float,
@@ -73,23 +80,32 @@ class Select(object):
         self.stamp_center_size = params.get('stamp_center_size', 13)
         self.max_mask_pixels = params.get('max_mask_pixels', None)
         self.min_sep = params.get('min_sep', None)
-        self.hsm_size_reject = params.get('hsm_size_reject', 0.)
+        self.size_reject = params.get('size_reject', 0.)
         self.max_pixel_cut = params.get('max_pixel_cut', None)
         self.reject_where = params.get('reject_where', None)
         self.reserve_frac = params.get('reserve_frac', 0.)
         self.nstars = params.get('nstars', None)
         self.rng = np.random.default_rng(params.get('seed', None))
 
-        if 'max_snr' in config:
-            import warnings
-            warnings.warn("max_snr has been renamed max_snr_weight as of version 1.7",
-                          DeprecationWarning)
-            self.max_snr_weight = galsim.config.ParseValue(config, 'max_snr', base, float)[0]
-
-        if self.hsm_size_reject == 1:
+        if self.size_reject == 1:
             # Enable True to be equivalent to 10.  True comes in as 1.0, which would be a
             # silly value to use, so it shouldn't be a problem to turn 1.0 -> 10.0.
-            self.hsm_size_reject = 10.
+            self.size_reject = 10.
+
+    @property
+    def hsm_size_reject(self):
+        """Deprecated alias for size_reject."""
+        import warnings
+        warnings.warn("hsm_size_reject is deprecated. Use size_reject instead.",
+                      DeprecationWarning, stacklevel=2)
+        return self.size_reject
+
+    @hsm_size_reject.setter
+    def hsm_size_reject(self, value):
+        import warnings
+        warnings.warn("hsm_size_reject is deprecated. Use size_reject instead.",
+                      DeprecationWarning, stacklevel=2)
+        self.size_reject = value
 
     @classmethod
     def __init_subclass__(cls):
@@ -138,12 +154,12 @@ class Select(object):
                             (i.e. those with w=0). [default: None]
             :min_sep:       If given, reject stars that have any other input object within
                             this separation (in arcsec). [default: None]
-            :hsm_size_reject: Whether to reject stars with a very different measured size than
+            :size_reject:   Whether to reject stars with a very different measured size than
                             the other stars in the input catalog.  (Used to reject objects with
                             neighbors or other junk in the postage stamp.) [default: False]
                             If this is a float value, it gives the number of inter-quartile-ranges
-                            to use for rejection relative to the median.  hsm_size_reject=True
-                            is equivalent to hsm_size_reject=10.
+                            to use for rejection relative to the median. size_reject=True
+                            is equivalent to size_reject=10.
             :max_pixel_cut: Reject stars with a maximum pixel value greater than this value.
                             Note: this cut is actually made using a flux cut such that the average
                             star with the threshold flux would have this peak pixel value.
@@ -341,11 +357,12 @@ class Select(object):
                     logger.debug("star properties = %s",star.data.properties)
                     continue
 
-            # If doing any selections that rely on hsm, reject any that fail hsm measurement.
-            if self.hsm_size_reject != 0 or self.max_pixel_cut is not None:
+            # If a selection relies on shape measurements, reject stars whose measurement fails.
+            if self.size_reject != 0 or self.max_pixel_cut is not None:
                 flag = star.measure_size_shape()[6]
                 if flag != 0:
-                    logger.verbose("Skipping star at position %f,%f because hsm failed",
+                    logger.verbose("Skipping star at position %f,%f because shape measurement "
+                                   "failed",
                                    star.image_pos.x, star.image_pos.y)
                     continue
 
@@ -369,13 +386,13 @@ class Select(object):
                                "was provided, so these estimates are not likely to be accurate. "
                                "Consider setting input.noise or providing a weight image.")
 
-        # Calculate the hsm size for each star and throw out extreme outliers.
-        if self.hsm_size_reject != 0:
+        # Calculate the size for each star and throw out extreme outliers.
+        if self.size_reject != 0:
             sigma = [star.measure_size_shape()[3] for star in good_stars]
             med_sigma = np.median(sigma)
             iqr_sigma = scipy.stats.iqr(sigma)
-            logger.debug("Doing hsm sigma rejection.")
-            while np.max(np.abs(sigma - med_sigma)) > self.hsm_size_reject * iqr_sigma:
+            logger.debug("Doing size rejection.")
+            while np.max(np.abs(sigma - med_sigma)) > self.size_reject * iqr_sigma:
                 logger.debug("median = %s, iqr = %s, max_diff = %s",
                                 med_sigma, iqr_sigma, np.max(np.abs(sigma-med_sigma)))
                 k = np.argmax(np.abs(sigma-med_sigma))
