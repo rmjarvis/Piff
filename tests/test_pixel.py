@@ -39,6 +39,24 @@ def test_simplest():
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
     psf = piff.SimplePSF(mod, None)
 
+    # The default init method is 'gauss'. Giving it explicitly is equivalend.
+    expected = mod.initialize(s).fit.params
+    canonical = piff.PixelGrid(du, 32, interp, centered=False, init='gauss')
+    np.testing.assert_array_equal(canonical.initialize(s).fit.params, expected)
+
+    # The old name, 'hsm' is now deprecated.
+    with CaptureLog() as cl:
+        legacy = piff.PixelGrid(du, 32, interp, centered=False, init='hsm', logger=cl.logger)
+    assert "init='hsm' is deprecated" in cl.output
+    assert legacy.kwargs['init'] == 'gauss'
+    np.testing.assert_array_equal(legacy.initialize(s).fit.params, expected)
+
+    # It is also deprecated in the initialize call.
+    with CaptureLog() as cl:
+        old_default = mod.initialize(s, default_init='hsm', logger=cl.logger)
+    assert "init='hsm' is deprecated" in cl.output
+    np.testing.assert_array_equal(old_default.fit.params, expected)
+
     # Check that fitting the star can recover the right flux.
     # Note: this shouldn't match perfectly, since SimpleData draws this as a surface
     # brightness image, not integrated over pixels.  With GalSim drawImage, we can do better
