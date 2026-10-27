@@ -143,7 +143,7 @@ jobs:
             - name: Run unit tests
               run: |
                 cd tests
-                coverage run -m pytest -v test_stats.py -k test_model_properties
+                coverage run -m pytest -v test_star.py test_stats.py::test_bad_hsm test_stats.py::test_model_properties
                 coverage combine || true
                 coverage report
                 coverage xml
