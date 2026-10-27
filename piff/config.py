@@ -118,6 +118,16 @@ def read_config(file_name):
     return config
 
 
+def _migrate_config(config, migrate_keys, logger):
+    """Rename keys using an old-name to (new-name, version) mapping; old keys take precedence."""
+    logger = LoggerWrapper(logger)
+    for old, (new, version) in migrate_keys.items():
+        if old in config:
+            logger.warning("%s is deprecated as of version %s. Use %s instead.",
+                           old, version, new)
+            config[new] = config.pop(old)
+
+
 def process(config, logger=None):
     """Build a Piff model according to the specifications in a config dict.
 
@@ -150,6 +160,7 @@ def process(config, logger=None):
 
     # We used to allow a bunch of items in config['input'], which now belong in config['select']
     # For the 1.x series, allow the old API, but give a warning.
+    _migrate_config(config['input'], Select._migrate_keys, logger)
     select_keys = set(Select.base_keys)
     user_input_keys = set(config['input'].keys())
     depr_keys = (select_keys - {'nstars'}) & user_input_keys
