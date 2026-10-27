@@ -376,6 +376,17 @@ def test_alternate_shape_moments():
         assert piff.get_shape_method() == 'wmom'
         assert piff.get_shape_weight_fwhm() == 0.6
 
+        # Adaptive moments provide a matched kernel, with a warning for unverified errors.
+        with CaptureLog() as cl:
+            am_moments, am_variances = calculate_moments(
+                healthy, shape_method='am', fourth_order=True, errors=True, logger=cl.logger)
+        assert 'not been verified for method = am' in cl.output
+        np.testing.assert_allclose(am_moments['M11'],
+                                   0.3**2*(1+gsq)/(1-gsq), rtol=1.e-4)
+        assert am_moments.keys() == am_variances.keys()
+        assert all(np.isfinite(value) and value >= 0 for value in am_variances.values())
+        assert piff.get_shape_method() == 'wmom'
+
         # Invalid per-call methods fail explicitly rather than silently selecting a backend.
         with np.testing.assert_raises(ValueError):
             calculate_moments(healthy, shape_method='invalid')
@@ -383,7 +394,7 @@ def test_alternate_shape_moments():
         # Failed measurements propagate a useful error rather than invalid higher moments.
         failed = make_gaussian_data(0.3, 0, 0, 1000, du=0.11, draw_method='no_pixel')
         failed.data.weight.array[:] = 0
-        for method in ['gauss', 'wmom']:
+        for method in ['gauss', 'am', 'wmom']:
             piff.set_shape_method(method, weight_fwhm=0.6)
             with np.testing.assert_raises(RuntimeError) as error:
                 calculate_moments(failed)

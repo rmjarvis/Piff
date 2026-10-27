@@ -1494,7 +1494,7 @@ def test_alternate_shape_stats():
         reference.compute(psf, [initialized])
 
         # All methods support higher-order statistics without losing the failure flag.
-        for method in ['gauss', 'wmom']:
+        for method in ['gauss', 'am', 'wmom']:
             piff.set_shape_method(method, weight_fwhm=0.6)
             _, shapes, _ = piff.Stats().measureShapes(None, [star, failed], fourth_order=True)
             assert shapes.shape == (2, 12)  # Seven basic values plus five fourth-order statistics.
@@ -1536,9 +1536,9 @@ def test_alternate_shape_config():
     catalog = np.array(positions, dtype=[('x', float), ('y', float)])
     fitsio.write(os.path.join('output', 'alternate_shape_cat.fits'), catalog, clobber=True)
 
-    # Both methods fit the same image and end up with different sizes.
+    # Each method fits the same image and records its measurements in the output catalog.
     try:
-        for method in ['gauss', 'wmom']:
+        for method in ['gauss', 'am', 'wmom']:
             config = {
                 'modules': ['piff'],
                 'shape_method': method,

@@ -394,6 +394,8 @@ def calculate_moments(star, third_order=False, fourth_order=False, radial=False,
         shape = star.hsm
     elif method == 'gauss':
         shape = star.gauss
+    elif method == 'am':
+        shape = star.am
     else:
         raise ValueError('Invalid shape measurement method: %s' % method)
     if errors and method != 'hsm':

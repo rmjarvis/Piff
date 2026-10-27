@@ -651,6 +651,16 @@ def test_shape_method():
         assert gauss is star.measure_size_shape()
         assert star.gauss[-1] == 0
 
+        # am use its own cache, independent of hsm and gauss.
+        piff.set_shape_method('am')
+        am = star.measure_size_shape()
+        assert am is star.am
+        assert am is not hsm
+        assert am is not gauss
+        assert am is star.measure_size_shape()
+        assert am[-1] == 0
+
+        # wmom caches each fwhm independently.
         piff.set_shape_method('wmom', weight_fwhm=0.3)
         wmom = star.measure_size_shape()
         assert wmom is star.wmom(0.3)
@@ -670,6 +680,7 @@ def test_shape_method():
     # The various shape measurements are available regardless of the current backend setting.
     assert star.hsm is hsm
     assert star.gauss is gauss
+    assert star.am is am
     assert star.wmom(0.3) is wmom
 
     # The cache survives changing to other methods and back.
@@ -695,11 +706,11 @@ def test_gauss():
                 star = make_gaussian_data(sigma, 0.015, -0.012, 1000, wcs=wcs,
                                           g1=0.12, g2=-0.08, draw_method='no_pixel',
                                           nom_u0=0.2, nom_v0=0.4)
-                measurement = star.measure_size_shape()
-                assert measurement[-1] == 0
+                result = star.measure_size_shape()
+                assert result[-1] == 0
                 # Measurements are in sky coords with arcsec units.
                 # Should be basically exact here with no noise and no pixel response.
-                np.testing.assert_allclose(measurement[:6],
+                np.testing.assert_allclose(result[:6],
                                            [1000, 0.015, -0.012, sigma, 0.12, -0.08],
                                            rtol=1.e-4, atol=1.e-5)
 
@@ -707,7 +718,7 @@ def test_gauss():
                 # However, it won't be the same object anymore.
                 restored = pickle.loads(pickle.dumps(star))
                 assert restored._gauss is not None
-                np.testing.assert_array_equal(restored._gauss, measurement)
+                np.testing.assert_array_equal(restored._gauss, result)
                 assert restored.measure_size_shape() is restored._gauss
 
         # The ngmix fitter isn't biased by zero-weight or non-finite pixels.
@@ -742,6 +753,75 @@ def test_gauss():
         negative = make_gaussian_data(0.3, 0, 0, -1000, du=0.11, draw_method='no_pixel')
         assert negative.measure_size_shape()[-1] & 2
 
+    finally:
+        # Restore the default for other tests.
+        piff.set_shape_method('hsm')
+
+
+@timer
+def test_am():
+    """Check ngmix adaptive moments in world coordinates, caching, and failure flags."""
+    pytest.importorskip('ngmix')
+    piff.set_shape_method('am')
+    try:
+        # Resolved Gaussians recover flux, centroid, determinant radius, and reduced shear
+        # in world coordinates, including for a sheared or reflected WCS.
+        for wcs in [galsim.PixelScale(0.11),
+                    galsim.JacobianWCS(0.11, 0.013, -0.009, 0.105),
+                    galsim.JacobianWCS(-0.11, 0.013, -0.009, 0.105)]:
+            for sigma in [0.2, 0.3]:
+                star = make_gaussian_data(sigma, 0.015, -0.012, 1000, wcs=wcs,
+                                          g1=0.12, g2=-0.08, draw_method='no_pixel',
+                                          nom_u0=0.2, nom_v0=0.4)
+                result = star.measure_size_shape()
+                assert result[-1] == 0
+
+                # These don't come out quite as accurate as gauss was able to do.
+                np.testing.assert_allclose(result[0], 1000, rtol=1.e-4)
+                np.testing.assert_allclose(result[1:3], [0.015, -0.012], atol=1.e-3)
+                np.testing.assert_allclose(result[3:6], [sigma, 0.12, -0.08],
+                                           rtol=1.e-4, atol=1.e-5)
+
+                # The cache survives a round trip through serialization. (e.g. pickle)
+                # However, it won't be the same object anymore.
+                np.testing.assert_array_equal(star.measure_am(), result)
+                restored = pickle.loads(pickle.dumps(star))
+                np.testing.assert_array_equal(restored.am, result)
+                assert restored.measure_size_shape() is restored.am
+
+        # For a non-Gaussian profile, ngmix and HSM agree on the adaptive flux, size, and shear.
+        profile = galsim.Moffat(beta=3, fwhm=0.7, flux=1000).shear(g1=0.12, g2=-0.08)
+        image = profile.drawImage(nx=48, ny=48, scale=0.11, method='no_pixel')
+        star = piff.Star(piff.StarData(image, image.true_center), None)
+        assert star.am[-1] == star.hsm[-1] == 0
+        np.testing.assert_allclose(star.am[:6], star.hsm[:6], rtol=1.e-3, atol=1.e-5)
+
+        # Invalid data and masked outliers in the stamp corners do not affect the measurement.
+        star = make_gaussian_data(0.3, 0.015, -0.012, 1000, du=0.11,
+                                  g1=0.12, g2=-0.08, draw_method='no_pixel')
+        expected = star.measure_am()
+        star.image.array[0, 0] = np.nan
+        star.weight.array[1, 0] = 0
+        star.image.array[1, 0] = 1.e9
+        star.weight.array[0, 1] = np.inf
+        star.image.array[0, 1] = 1.e9
+        result = star.measure_size_shape()
+        assert result[-1] == 0
+        np.testing.assert_allclose(result, expected, rtol=1.e-10, atol=1.e-10)
+
+        # Fully masked, blank, negative-flux, and collapsed undersampled profiles report failure.
+        masked = make_gaussian_data(0.3, 0, 0, 1000, du=0.11, draw_method='no_pixel')
+        masked.weight.array[:] = 0
+        assert masked.measure_size_shape()[-1] == 1
+        for sigma, flux in [(0.3, 0), (0.3, -1000), (0.07, 1000)]:
+            failed = make_gaussian_data(sigma, 0.015, -0.012, flux, du=0.11,
+                                        g1=0.12, g2=-0.08, draw_method='no_pixel')
+            assert failed.measure_size_shape()[-1] == 1
+
+        # Successful measurements flag centroids displaced by more than one arcsecond.
+        distant = make_gaussian_data(1.5, 1.1, 0, 1000, du=0.5, nside=48,
+                                     draw_method='no_pixel')
+        assert distant.measure_size_shape()[-1] == 4
     finally:
         # Restore the default for other tests.
         piff.set_shape_method('hsm')
@@ -866,7 +946,7 @@ def test_shape_parallel():
     """
     pytest.importorskip('ngmix')
     try:
-        for method in ['gauss', 'wmom']:
+        for method in ['gauss', 'am', 'wmom']:
             star = make_gaussian_data(0.3, 0.015, -0.012, 1000, du=0.11,
                                       g1=0.12, g2=-0.08, draw_method='no_pixel')
             fwhm = 0.3 if method == 'wmom' else None
@@ -903,5 +983,6 @@ if __name__ == '__main__':
     test_multifit_io()
     test_shape_method()
     test_gauss()
+    test_am()
     test_wmom()
     test_shape_parallel()
