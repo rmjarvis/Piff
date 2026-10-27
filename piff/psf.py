@@ -276,9 +276,8 @@ class PSF(object):
         dmdf = self.drawStar(render_star.withFlux(1.)).image.array.ravel()
         model = dmdf * star.fit.flux
 
-        # Weight by the current model to avoid being influenced by spurious pixels near the edge
-        # of the stamp.
-        # Also by the weight map to avoid bad pixels.
+        # Solve for the flux scale using inverse-variance weighted least squares:
+        # flux_ratio = sum(weight * model * data) / sum(weight * model**2).
         W = weight * model
         WD = W * data
         WM = W * model
@@ -318,7 +317,7 @@ class PSF(object):
             # Solve: AT A x = AT b
 
             At = np.vstack((dmdf, dmduc, dmdvc))
-            Atw = At * np.abs(W)  # weighted least squares
+            Atw = At * weight  # weighted least-squares
             AtA = Atw.dot(At.T)
             Atb = Atw.dot(resid)
             x = np.linalg.solve(AtA, Atb)

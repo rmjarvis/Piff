@@ -501,6 +501,27 @@ def test_trust_pos():
     # It's not a huge effect here, but the errors are less when you know the positions are right.
     assert all(error2 < error1)
 
+    # A symmetric size mismatch leaves the center correct but produces nonzero residuals.
+    # Both reflux paths should give the same inverse-variance least-squares flux.
+    psf = piff.SimplePSF(piff.Gaussian(), piff.Mean())
+    star = piff.Star.makeTarget(x=25, y=25, scale=0.2, stamp_size=49).withFlux(1000.)
+    star = piff.Star(star.data, star.fit.newParams(np.array([1., 0., 0.])))
+    truth = psf.drawStar(star)
+    observed = piff.Star(truth.data, truth.fit.newParams(np.array([1.05, 0., 0.])))
+
+    # Independently solve the scalar least-squares problem at the known center.
+    template = psf.drawStar(observed.withFlux(1.)).image.array
+    weight = observed.weight.array
+    expected_flux = np.sum(weight * template * truth.image.array) / np.sum(weight * template**2)
+    expected_chisq = np.sum(weight * (truth.image.array - expected_flux * template)**2)
+    for trust_pos in [True, False]:
+        # Enabling centroid fitting must not undo an already optimal flux at this center.
+        observed.data.properties['trust_pos'] = trust_pos
+        result = psf.reflux(observed.withFlux(900.))
+        np.testing.assert_allclose(result.fit.flux, expected_flux, rtol=0, atol=1.e-6)
+        np.testing.assert_allclose(result.fit.center, (0., 0.), rtol=0, atol=1.e-6)
+        np.testing.assert_allclose(result.fit.chisq, expected_chisq, rtol=1.e-8)
+
 
 @timer
 def test_invalid_config():
