@@ -168,6 +168,8 @@ class RomanOpticalModel(Model):
 
     _type_name = 'Roman'
     _method = 'auto'
+
+    # This means the model cannot incorporate a translational shift.
     _centered = True
 
     def __init__(

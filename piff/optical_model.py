@@ -165,6 +165,8 @@ class Optical(Model):
     """
     _type_name = 'Optical'
     _method = 'auto'
+
+    # This means the model cannot incorporate a translational shift.
     _centered = True
 
     def __init__(self, template=None, gsparams=None, atmo_type='VonKarman', logger=None, **kwargs):
