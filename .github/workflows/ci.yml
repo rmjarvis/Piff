@@ -114,6 +114,9 @@ jobs:
                 # Extra packages needed for testing
                 pip install -U nose coverage "pytest<8" nbval ipykernel pillow
 
+                # ngmix isn't on pypi
+                pip install -U numba git+https://github.com/esheldon/ngmix.git
+
             - name: Install Jax
               if: matrix.py == 3.9 || matrix.py == 3.10 || matrix.py == 3.11 || matrix.py == 3.12
               run: |
