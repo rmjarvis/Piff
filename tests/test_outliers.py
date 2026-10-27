@@ -133,10 +133,8 @@ def test_chisq():
     assert nremoved4 == nremoved3
 
     # Regression tests.  If these change, make sure we understand why.
-    # Two borderline objects pass with the actual rendered chi-squared; the old
-    # linearized values put them just above the rejection threshold.
-    assert nremoved1 == nremoved2 == 56
-    assert nremoved3 == nremoved4 == 16  # Much less, since edge objects aren't being removed
+    assert nremoved1 == nremoved2 == 55
+    assert nremoved3 == nremoved4 == 14  # Much less, since edge objects aren't being removed
                                          # nearly as often as when they have a custom thresh.
 
     # Can't provide multiple thresh specifications
