@@ -286,7 +286,31 @@ def test_simple():
         np.testing.assert_allclose(fit.center[0], du, rtol=0, atol=2e-5)
         np.testing.assert_allclose(fit.center[1], dv, rtol=0, atol=2e-5)
 
-        # Check various init options.
+        # Explicit init='shape' gives the same initial parameters as the default.
+        default_model = piff.Model.process(galsim.config.CleanConfig(config['model']))
+        expected = default_model.initialize(fiducial_star).fit.params
+        config['model']['init'] = 'shape'
+        config['model'] = galsim.config.CleanConfig(config['model'])
+        canonical = piff.Model.process(config['model'])
+        np.testing.assert_array_equal(canonical.initialize(fiducial_star).fit.params, expected)
+
+        # The old name for this was hsm, which does the same thing, and emits a deprecation warning.
+        config['model']['init'] = 'hsm'
+        config['model'] = galsim.config.CleanConfig(config['model'])
+        with CaptureLog() as cl:
+            legacy = piff.Model.process(config['model'], logger=cl.logger)
+        assert "init='hsm' is deprecated" in cl.output
+        assert legacy.kwargs['init'] == 'shape'
+        np.testing.assert_array_equal(legacy.initialize(fiducial_star).fit.params, expected)
+
+        # The deprecated name also works as a caller-supplied default initialization method.
+        with CaptureLog() as cl:
+            old_default = default_model.initialize(fiducial_star, default_init='hsm',
+                                                   logger=cl.logger)
+        assert "init='hsm' is deprecated" in cl.output
+        np.testing.assert_array_equal(old_default.fit.params, expected)
+
+        # Check that zero initialization still fits the same data.
         print('Initializing with zero')
         config['model']['init'] = 'zero'
         config['model']['fit_flux'] = True
