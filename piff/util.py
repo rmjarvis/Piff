@@ -149,6 +149,7 @@ def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
     # We're doing both of those things, but it's still not showing up.
     from io import StringIO
     import logging
+    from galsim.utilities import single_threaded
 
     # In multiprocessing, we cannot pass in the logger, so log to a string and then
     # return that back at the end to be logged by the parent process.
@@ -159,7 +160,10 @@ def _run_multi_helper(func, i, args, kwargs, log_level): # pragma: no cover
     logger.setLevel(log_level) # Input logger in this case is the level to use.
 
     try:
-        out = func(*args, logger=logger, **kwargs)
+        # For spawn or forkserver, the single_threaded context doesn't pass through to the
+        # workers, so apply it again here.
+        with single_threaded():
+            out = func(*args, logger=logger, **kwargs)
     except Exception as e:
         # Exceptions don't propagate through multiprocessing.  So best alternative
         # is to catch it and return it.  We can deal with it somehow on the other end.
@@ -192,7 +196,6 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
     :returns: The output of func(\*args[i], \*\*kwargs[i]) for each item in the args, kwargs lists.
     """
     from multiprocessing import Pool
-    from galsim.utilities import single_threaded
     from .star import get_shape_method, get_shape_weight_fwhm, set_shape_method
 
     njobs = len(args)
@@ -231,28 +234,27 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
             else:
                 output_list[i] = out
     else:
-        with single_threaded():
-            pool = Pool(nproc, initializer=set_shape_method,
-                        initargs=(get_shape_method(), get_shape_weight_fwhm()))
-            results = []
-            for i in range(njobs):
-                if isinstance(kwargs, dict):
-                    k = kwargs
-                elif kwargs is None:
-                    k = {}
-                else:  # pragma: no cover  (We don't use this option currently)
-                    k = kwargs[i]
-                result = pool.apply_async(_run_multi_helper,
-                                          args=(func, i, args[i], k, logger.logger.level),
-                                          callback=log_output)
-                results.append(result)
-            # Make sure we get all the results.  Without this, it works fine on success, but
-            # errors seems to be swallowed.
-            [result.get() for result in results]
-            # These are always necessary to close out the pool.
-            pool.close()
-            pool.join()
-            pool.terminate()
+        pool = Pool(nproc, initializer=set_shape_method,
+                initargs=(get_shape_method(), get_shape_weight_fwhm()))
+        results = []
+        for i in range(njobs):
+            if isinstance(kwargs, dict):
+                k = kwargs
+            elif kwargs is None:
+                k = {}
+            else:  # pragma: no cover  (We don't use this option currently)
+                k = kwargs[i]
+            result = pool.apply_async(_run_multi_helper,
+                                      args=(func, i, args[i], k, logger.logger.level),
+                                      callback=log_output)
+            results.append(result)
+        # Make sure we get all the results.  Without this, it works fine on success, but
+        # errors seems to be swallowed.
+        [result.get() for result in results]
+        # These are always necessary to close out the pool.
+        pool.close()
+        pool.join()
+        pool.terminate()
 
         # Now we can raise an error if there was one.
         if raise_except:
