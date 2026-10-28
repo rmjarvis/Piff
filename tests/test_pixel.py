@@ -39,7 +39,7 @@ def test_simplest():
     star = mod.initialize(s).withFlux(flux=np.sum(s.image.array))
     psf = piff.SimplePSF(mod, None)
 
-    # The default init method is 'gauss'. Giving it explicitly is equivalend.
+    # The default init method is 'gauss'. Giving it explicitly is equivalent.
     expected = mod.initialize(s).fit.params
     canonical = piff.PixelGrid(du, 32, interp, centered=False, init='gauss')
     np.testing.assert_array_equal(canonical.initialize(s).fit.params, expected)

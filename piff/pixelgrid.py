@@ -39,9 +39,9 @@ class PixelGrid(Model):
 
     The following initialization methods are available for the ``init`` parameter.
 
-    * gauss         Start with a Gaussian based on the measured size.
-    * zero          Start with a Gaussian, but with flux = 1.e-10 x the measured flux.
-    * delta         Start with just a single flux=1 pixel at the center.
+    * gauss:        Start with a Gaussian based on the measured size.
+    * zero:         Start with a Gaussian, but with flux = 1.e-10 x the measured flux.
+    * delta:        Start with just a single flux=1 pixel at the center.
 
     All initialization methods start with zero shear and zero centroid offset.
 
@@ -54,8 +54,8 @@ class PixelGrid(Model):
                         PSF fitting will marginalize over stellar position.  If False, stellar
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
-    :param init:        Initialization method.  [default: None, which uses gauss unless a PSF
-                        class specifies a different default.]
+    :param init:        Initialization method.  [default: None, which uses gauss unless a
+                        composite PSF class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False,
                         unless init=='zero', in which case it is automatically True.]
