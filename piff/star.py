@@ -360,7 +360,10 @@ class Star(object):
         obs = self._make_ngmix_observation()
         if obs is None:
             return (0., 0., 0., 0., 0., 0., 1)
-        result = ngmix.gaussmom.GaussMom(fwhm=weight_fwhm).go(obs)
+        # ngmix sometimes emits a warning for divide by zero if the centroid is exactly 0,0
+        # from some moment error estimates. They are harmless, so we suppres them here.
+        with np.errstate(divide='ignore', invalid='ignore'):
+            result = ngmix.gaussmom.GaussMom(fwhm=weight_fwhm).go(obs)
         if result['flags'] != 0:
             return (0., 0., 0., 0., 0., 0., 1)
         e1, e2 = result['e']
