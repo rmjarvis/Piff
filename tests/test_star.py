@@ -938,13 +938,18 @@ def test_wmom():
 
 # Helper function for test_shape_parallel
 def _measure_shape_in_worker(star, logger):
-    return piff.get_shape_method(), piff.get_shape_weight_fwhm(), star.measure_size_shape()
+    from threadpoolctl import threadpool_info
+    measurement = star.measure_size_shape()
+    threads = [pool['num_threads'] for pool in threadpool_info()]
+    return (piff.get_shape_method(), piff.get_shape_weight_fwhm(), measurement,
+            galsim.utilities.get_omp_threads(), threads)
 
 @timer
 def test_shape_parallel():
-    """Check that multiprocessing workers receive the correct shame method and fwhm.
+    """Check worker shape settings and thread limits without changing parent thread limits.
     """
     pytest.importorskip('ngmix')
+    from threadpoolctl import threadpool_info
     try:
         for method in ['gauss', 'am', 'wmom']:
             star = make_gaussian_data(0.3, 0.015, -0.012, 1000, du=0.11,
@@ -956,18 +961,28 @@ def test_shape_parallel():
             # gets it so the cache can't hide an error in the method being passed correctly.
             star_copy = copy.deepcopy(star)
 
-            # Measure the same star in worker processes.
+            # Workers use one thread without changing the parent's thread limits.
             logger = piff.config.setup_logger(0)
             logger = piff.config.LoggerWrapper(logger)
-            results = piff.util.run_multi(_measure_shape_in_worker, nproc=2, raise_except=True,
-                                          args=[(star,), (copy.deepcopy(star),)], logger=logger)
+            parent_omp_threads = galsim.utilities.get_omp_threads()
+            parent_threads = {pool['filepath']: pool['num_threads']
+                              for pool in threadpool_info()}
+            results = piff.util.run_multi(
+                _measure_shape_in_worker, nproc=2, raise_except=True,
+                args=[(star,), (copy.deepcopy(star),)], logger=logger)
+            assert galsim.utilities.get_omp_threads() == parent_omp_threads
+            assert {pool['filepath']: pool['num_threads']
+                    for pool in threadpool_info()} == parent_threads
 
+            # Each backend agrees with the parent measurement and respects worker thread limits.
             expected = star_copy.measure_size_shape()
-            for worker_method, worker_fwhm, measurement in results:
+            for worker_method, worker_fwhm, measurement, omp_threads, threads in results:
                 assert worker_method == method
                 assert worker_fwhm == fwhm
                 assert measurement[-1] == 0
                 np.testing.assert_allclose(measurement, expected, rtol=1.e-4, atol=1.e-5)
+                assert omp_threads == 1
+                assert all(count == 1 for count in threads)
     finally:
         # Restore the default for other tests.
         piff.set_shape_method('hsm')
