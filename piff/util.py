@@ -232,7 +232,7 @@ def run_multi(func, nproc, raise_except, args, logger, kwargs=None):
                 output_list[i] = out
     else:
         with single_threaded():
-            pool = get_context('spawn').Pool(
+            pool = get_context('forkserver').Pool(
                     nproc, initializer=set_shape_method,
                     initargs=(get_shape_method(), get_shape_weight_fwhm()))
             results = []
