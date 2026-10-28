@@ -39,7 +39,7 @@ algorithm implemented in GalSim and described in
 This algorithm is usually a good choice for the kinds of sizes and shapes that we need
 in Piff, so most users can just use the default. However, on undersampled images,
 the HSM algorithm has a tendency to collapse to a degenerate solution. Even when not
-fully collapsing, the measuements can become significantly biased.
+fully collapsing, the measurements can become significantly biased.
 
 We therefore have an option to change the back-end shape measurement algorithm to
 a different choice if desired. The available shape measurement algorithms are:

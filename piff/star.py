@@ -224,7 +224,7 @@ class Star(object):
         which caches the results, so repeated access is efficient.
 
         When the global measurement algorithm is set to 'hsm' (which is the default),
-        this function is responsible for all size/shape measurements using in Piff.
+        this function is responsible for all size/shape measurements used in Piff.
         cf. `set_shape_method`.
 
         :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
@@ -290,7 +290,7 @@ class Star(object):
         which caches the results, so repeated access is efficient.
 
         When the global measurement algorithm is set to 'gauss', this function is responsible
-        for all size/shape measurements using in Piff. cf. `set_shape_method`.
+        for all size/shape measurements used in Piff. cf. `set_shape_method`.
 
         :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
         """
@@ -322,7 +322,7 @@ class Star(object):
         which caches the results, so repeated access is efficient.
 
         When the global measurement algorithm is set to 'am', this function is responsible
-        for all size/shape measurements using in Piff. cf. `set_shape_method`.
+        for all size/shape measurements used in Piff. cf. `set_shape_method`.
 
         :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
         """
@@ -351,7 +351,7 @@ class Star(object):
         which caches the results for each fwhm value, so repeated access is efficient.
 
         When the global measurement algorithm is set to 'wmom', this function is responsible
-        for all size/shape measurements using in Piff. cf. `set_shape_method`.
+        for all size/shape measurements used in Piff. cf. `set_shape_method`.
 
         :returns: (flux, cenu, cenv, sigma, g1, g2, flag)
         """

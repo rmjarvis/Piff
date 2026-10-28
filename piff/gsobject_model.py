@@ -37,10 +37,10 @@ class GSObjectModel(Model):
 
     The following initialization methods are available for the ``init`` parameter.
 
-    * shape         Start with size and shape values that match the measured star.
-    * zero          Start with flux = 1.e-6 x the measured flux.
-    * delta         Start with size = 1.e-6 x the measured size.
-    * (flux,size)   (Note: flux and size here are numeric values.) Start with flux and size
+    * shape:        Start with size and shape values that match the measured star.
+    * zero:         Start with flux = 1.e-6 x the measured flux.
+    * delta:        Start with size = 1.e-6 x the measured size.
+    * (flux,size):  (Note: flux and size here are numeric values.) Start with flux and size
                     scaled by the given values relative to the measurements.
 
     All initialization methods use the measured shear and centroid offset.
@@ -54,8 +54,8 @@ class GSObjectModel(Model):
                         position is fixed at input value and the fitted PSF may be off-center.
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
-    :param init:        Initialization method.  [default: None, which uses shape unless a PSF
-                        class specifies a different default.]
+    :param init:        Initialization method.  [default: None, which uses shape unless a
+                        composite PSF class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False,
                         unless init=='zero', in which case it is automatically True.]
@@ -331,7 +331,10 @@ class GSObjectModel(Model):
         .. note::
 
             The ``fastfit`` shortcut is not supported when the backend size/shape algorithm is
-            set to **wmom**.
+            set to **wmom**. The fixed size for the weight function means that the measured
+            size doesn't scale linearly with dilation, so the fastfit method doesn't work
+            correctly. If the global shape method is set to wmom, fastfit is automatically
+            set to False.
 
         :param star:            A Star to fit.
         :param fastfit:         Use measured moments to fit? [default: None, which means use
@@ -487,7 +490,7 @@ class Gaussian(GSObjectModel):
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
     :param init:        Initialization method; see `GSObjectModel`. [default: None, which uses
-                        shape unless a PSF class specifies a different default.]
+                        shape unless a composite PSF class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
@@ -516,7 +519,7 @@ class Kolmogorov(GSObjectModel):
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
     :param init:        Initialization method; see `GSObjectModel`. [default: None, which uses
-                        shape unless a PSF class specifies a different default.]
+                        shape unless a composite PSF class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
@@ -548,7 +551,7 @@ class Moffat(GSObjectModel):
                         [default: True]
     :param include_pixel: Include integration over pixel when drawing?  [default: True]
     :param init:        Initialization method; see `GSObjectModel`. [default: None, which uses
-                        shape unless a PSF class specifies a different default.]
+                        shape unless a composite PSF class specifies a different default.]
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False]
     :param scipy_kwargs: Optional kwargs to pass to scipy.optimize.least_squares [default: None]
