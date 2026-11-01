@@ -33,8 +33,8 @@ def test_gaussian_blur():
         assert profile.centroid == galsim.PositionD(0, 0)
 
         # Test the profile's values in Fourier space
-        xx, yy, xy = moments
-        covariance = np.array([[xx, xy], [xy, yy]])
+        ixx, iyy, ixy = moments
+        covariance = np.array([[ixx, ixy], [ixy, iyy]])
         for kx, ky in [(0., 0.), (5., -3.), (20., 10.)]:
             k = np.array([kx,ky])
             kval = np.exp(-0.5 * k @ covariance @ k)
@@ -60,9 +60,12 @@ def test_gaussian_blur():
         # Check invalid params.
         assert model.is_valid_params(moments)
         assert not model.is_valid_params([-0.01, 0.01, 0])
-        with np.testing.assert_raises(ValueError) as e:
-            model.getProfile([0.01, 0.01, 0.02])
-        assert 'positive-semidefinite' in str(e.exception)
+
+    # Rendering projects a covariance with eigenvalues -0.01 and 0.03 onto rank-one blur.
+    profile = model.getProfile([0.01, 0.01, 0.02])
+    for kx, ky in [(1., 0.), (2., -2.), (3., 4.)]:
+        np.testing.assert_allclose(profile.kValue(kx, ky),
+                                   np.exp(-0.5*0.015*(kx+ky)**2), rtol=1.e-13)
 
 @timer
 def test_stepk_maxk():
@@ -164,22 +167,25 @@ def test_initialization():
 @timer
 def test_chisq():
     """Test Fourier derivatives and fitted chi-squared with masks, WCS shear, and offsets."""
-    # Test the derivatives at both the boundary of the positive semi-definite region and
-    # an interior point.
-    for moments in [[0, 0, 0], [0.01, 0, 0], [0.004, 0.002, -0.001]]:
+    # Test physical covariance derivatives at boundary and interior points, and the
+    # right-hand-side correction for a raw covariance with a negative x variance.
+    for moments in [[0, 0, 0], [0.01, 0, 0], [0.004, 0.002, -0.001], [-0.001, 0.002, 0.]]:
         for wcs, center in [
             (galsim.PixelScale(0.1), (0., 0.)),
             (galsim.JacobianWCS(0.13, 0.02, -0.01, 0.09), (0.012, -0.023)),
         ]:
-            model = piff.GaussianBlur(init=moments)
+            physical = np.array(moments)
+            physical[0] = max(physical[0], 0.)
+            model = piff.GaussianBlur(init=physical)
             star = piff.Star.makeTarget(x=20.2, y=30.3, wcs=wcs, stamp_size=31)
             star = model.initialize(star.withFlux(100., center=center))
+            star = piff.Star(star.data, star.fit.newParams(np.array(moments)))
             # Covariance derivatives multiply the Fourier tail by k squared, so
             # tighten the companion's cutoff before comparing small derivative values.
             gsparams = galsim.GSParams(maxk_threshold=1.e-12, kvalue_accuracy=1.e-12)
             kernel = galsim.Gaussian(sigma=0.2, gsparams=gsparams)
-            xx, yy, xy = moments
-            covariance = np.array([[xx, xy], [xy, yy]]) + np.eye(2)*0.2**2
+            ixx, iyy, ixy = physical
+            covariance = np.array([[ixx, ixy], [ixy, iyy]]) + np.eye(2)*0.2**2
             inverse = np.linalg.inv(covariance)
             image = gaussian(covariance, flux=100.).shift(center).drawImage(
                 image=galsim.ImageD(star.image.bounds, wcs=wcs),
@@ -205,7 +211,8 @@ def test_chisq():
                            signal*(a*b-inverse[0, 1])]
             expected = np.array([d[mask]*2 for d in derivatives]).T
             np.testing.assert_allclose(measured.fit.A, expected, atol=2.e-6, rtol=2.e-6)
-            np.testing.assert_allclose(measured.fit.b, 0.02, atol=1.e-7)
+            expected_b = 0.02 + expected @ (physical - moments)
+            np.testing.assert_allclose(measured.fit.b, expected_b, atol=1.e-7)
             np.testing.assert_allclose(measured.fit.chisq, mask.sum()*0.02**2, rtol=1.e-6)
             assert measured.fit.dof == mask.sum()
             np.testing.assert_array_equal(measured.fit.params, moments)
@@ -235,7 +242,8 @@ def test_fit():
     """
     # Recover the same nearly one-dimensional blur with shared basis fitting and
     # independent per-star fitting, from default and zero starting covariances.
-    for interp, initial in [('Mean', None), ('Mean', 0.0), ('Fixed', None)]:
+    for interp, initial in [('BasisPolynomial', None), ('BasisPolynomial', 0.0),
+                            ('Mean', None), ('Mean', 0.0), ('Fixed', None)]:
         true = [0.003, 1.e-6, -0.00004]
         config = {
             'type': 'Convolve',
@@ -256,6 +264,8 @@ def test_fit():
                 },
             ],
         }
+        if interp == 'BasisPolynomial':
+            config['components'][1]['interp']['order'] = 0
         psf = piff.PSF.process(config)
         covariance = np.array([[true[0], true[2]], [true[2], true[1]]]) + np.eye(2)*0.12**2
         stars = []
@@ -309,6 +319,92 @@ def test_no_improving_step():
     np.testing.assert_allclose(fitted.fit.chisq, expected_chisq, rtol=1.e-10)
     assert fitted.fit.dof == np.count_nonzero(star.weight.array)
 
+@timer
+def test_varying_blur():
+    """Recover linear and quadratic covariance fields with BasisPolynomial interpolation.
+    """
+    # Recover spatially varying blur from zero while retaining a fixed circular companion.
+    for order in [1, 2]:
+        psf = piff.PSF.process({
+            'type': 'Convolve',
+            'min_iter': 12,
+            'max_iter': 30,
+            'chisq_thresh': 1.e-8,
+            'components': [
+                {
+                    'type': 'Simple',
+                    'model': {'type': 'GaussianBlur', 'init': [0.0144, 0.0144, 0]},
+                    'interp': {'type': 'Fixed'},
+                },
+                {
+                    'type': 'Simple',
+                    'model': {'type': 'GaussianBlur'},
+                    'interp': {'type': 'BasisPolynomial', 'order': order},
+                },
+            ],
+        })
+
+        def moments(x, y):
+            if order == 1:
+                params = np.array([0.002+1.e-5*x, 0.0002+1.e-6*y, 0.0001+1.e-6*x])
+            else: # order = 2
+                # We want the best fit quadratic to cross into unphysical parameter vectors
+                # to test that that works correctly.
+                # The physical parameters bottom out at iyy=0 near y=60, but the best fit
+                # quadratic should find the parabola that goes into iyy<0.
+                # The model will automatically project these to have iyy=0.
+                params = np.array([0.002+1.e-5*x+1.e-7*x*y,
+                                   max(2.e-7*(y-60)**2-0.00002, 0.), 0.])
+            return params
+
+        stars = []
+        for x in [30., 50., 70., 90.]:
+            for y in [30., 50., 70., 90.]:
+                ixx, iyy, ixy = moments(x, y)
+                star = piff.Star.makeTarget(
+                    x=x, y=y, scale=0.11, stamp_size=25,
+                    properties={'chipnum': 0, 'is_reserve': False}).withFlux(1000.)
+                covariance = np.array([[ixx, ixy], [ixy, iyy]]) + np.eye(2)*0.12**2
+                gaussian(covariance, flux=1000.).drawImage(
+                    image=star.image, center=star.image_pos)
+                stars.append(star)
+
+        # Make sure flagged and reserve images don't influence the fit.
+        stars[0] = stars[0].withProperties(is_reserve=True)
+        stars[1] = stars[1].flag_if(True)
+        stars[0].image.array[:] *= 10
+        stars[1].image.array[:] *= 20
+        psf.fit(stars, wcs={0: galsim.PixelScale(0.11)})
+        assert psf.stars[0].is_reserve
+        assert psf.stars[1].is_flagged
+        for star in psf.stars:
+            physical = psf.components[1].model.constrain_params(star.fit.get_params(1))
+            np.testing.assert_allclose(physical, moments(star.x, star.y),
+                                       atol=2.e-6)
+
+        # At new positions, the model projects the raw interpolation for rendering,
+        # including where the quadratic minor-axis variance is negative.
+        target = piff.Star.makeTarget(x=60., y=60., scale=0.11, stamp_size=25,
+                                      properties={'chipnum': 0}).withFlux(1000.)
+        interpolated = psf.interpolateStar(target)
+        physical = psf.components[1].model.constrain_params(interpolated.fit.get_params(1))
+        np.testing.assert_allclose(physical, moments(60., 60.), atol=2.e-6)
+
+        # Rendering and file round trips use the same projected covariance field.
+        ixx, iyy, ixy = moments(60., 60.)
+        covariance = np.array([[ixx, ixy], [ixy, iyy]]) + np.eye(2)*0.12**2
+        expected = gaussian(covariance, flux=1000.).drawImage(
+            image=target.image.copy(), center=target.image_pos)
+        rendered = psf.drawStar(interpolated).image
+        np.testing.assert_allclose(rendered.array, expected.array,
+                                   atol=1.e-4*expected.array.max())
+        path = os.path.join('output', 'varying_blur.piff')
+        psf.write(path)
+        restored = piff.read(path)
+        np.testing.assert_allclose(restored.drawStar(target).image.array, rendered.array,
+                                   atol=1.e-12)
+
+
 if __name__ == '__main__':
     test_gaussian_blur()
     test_stepk_maxk()
@@ -316,3 +412,4 @@ if __name__ == '__main__':
     test_chisq()
     test_fit()
     test_no_improving_step()
+    test_varying_blur()

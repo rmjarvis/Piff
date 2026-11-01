@@ -18,6 +18,7 @@
 
 import numpy as np
 import scipy.linalg
+from scipy.optimize import minimize_scalar
 import galsim
 import warnings
 
@@ -154,7 +155,7 @@ class BasisInterp(Interp):
         raise NotImplementedError("Cannot call `constant` for abstract base class BasisInterp. "
                                   "You probably want to use BasisPolynomial.")
 
-    def solve(self, stars, logger=None, transform_params=None):
+    def solve(self, stars, logger=None, transform_params=None, chisq_func=None):
         """Solve for the interpolation coefficients given some data.
         The StarFit element of each Star in the list is assumed to hold valid
         alpha and beta members specifying depending of chisq on differential
@@ -164,10 +165,17 @@ class BasisInterp(Interp):
         :param logger:      A logger object for logging debug info. [default: None]
         :param transform_params: Optional function converting model parameters to fitting
                                  coordinates. [default: None, meaning identity]
+        :param chisq_func:  Optional callback taking this interpolator and returning the
+                            rendered chi-squared at its current coefficients. If supplied,
+                            minimize it along the proposed update, including both endpoints.
+                            The callback may return infinity for invalid fits. [default: None]
         """
         logger = LoggerWrapper(logger)
         if self.q is None:
             raise RuntimeError("Attempt to solve() before initialize() of BasisInterp")
+        if chisq_func is not None:
+            old_q = self.q.copy()
+            old_chisq = chisq_func(self)
 
         # The inputs to this function are for each star i the design equation is
         #
@@ -226,6 +234,28 @@ class BasisInterp(Interp):
         else:
             self._solve_direct(stars, logger)
 
+        if chisq_func is not None:
+            self._line_search(old_q, old_chisq, chisq_func)
+
+    def _line_search(self, old_q, old_chisq, chisq_func):
+        proposal = self.q.copy()
+
+        # Do a line search for a fraction from [0,1] of the current proposal using the
+        # provided callback to compute chisq.
+        def line_chisq(fraction):
+            self.q = (1-fraction)*old_q + fraction*proposal
+            return chisq_func(self)
+
+        optimum = minimize_scalar(line_chisq, bounds=(0., 1.), method='bounded')
+        # scipy's minimize_scalar doesn't check the end points, so check fraction=0,1 explicitly
+        # to find the best chisq value.
+        fraction, chisq = 0., old_chisq
+        full_chisq = line_chisq(1.)
+        if full_chisq < chisq:
+            fraction, chisq = 1., full_chisq
+        if optimum.fun < chisq:
+            fraction = optimum.x
+        self.q = (1-fraction)*old_q + fraction*proposal
 
     def _solve_qr(self, stars, logger):
         """The implementation of solve() when use_qr = True.
