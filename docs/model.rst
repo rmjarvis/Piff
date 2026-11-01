@@ -31,12 +31,6 @@ Models based on GalSim objects
 .. autoclass:: piff.Moffat
    :members:
 
-Gaussian mixture kernels
-------------------------
-
-.. autoclass:: piff.GaussianMixture
-   :members:
-
 Pixel grid model
 ----------------
 
@@ -47,4 +41,16 @@ Optical model
 -------------
 
 .. autoclass:: piff.Optical
+   :members:
+
+Gaussian mixture model
+----------------------
+
+.. autoclass:: piff.GaussianMixture
+   :members:
+
+Gaussian blur
+-------------
+
+.. autoclass:: piff.GaussianBlur
    :members:
