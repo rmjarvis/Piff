@@ -186,6 +186,7 @@ class SimplePSF(PSF):
 
         nremoved = 0  # For this iteration
         use_stars = []  # Just the stars we want to use for fitting.
+        use_convert_funcs = []  # Conversion functions corresponding to use_stars.
         all_stars = []  # All the stars (with appropriate flags as necessary)
         for k, star in enumerate(stars):
             if not star.is_flagged and not star.is_reserve:
@@ -194,6 +195,7 @@ class SimplePSF(PSF):
                     star = fit_fn(star, logger=logger, convert_func=convert_func,
                                   draw_method=draw_method)
                     use_stars.append(star)
+                    use_convert_funcs.append(convert_func)
                 except Exception as e:
                     logger.warning("Failed fitting star at %s.", star.image_pos)
                     logger.warning("Excluding it from this iteration.")
@@ -207,7 +209,26 @@ class SimplePSF(PSF):
 
         # Perform the interpolation, again using just non-reserve stars
         logger.debug("             Calculating the interpolation")
-        self.interp.solve(use_stars, logger=logger, transform_params=self.model.transform_params)
+        if self.quadratic_chisq and self.model.nonlinear_chisq:
+            # When the interpolator is doing a full joint solution across all stars
+            # (e.g. BasisPolynomial) and the model is not linear, then it will need to
+            # do a line search for the best step. This requires a callback to compute the
+            # chisq at each proposed step.
+            def chisq_func(interp):
+                trial_stars = interp.interpolateList(
+                    use_stars, reconstruct_params=self.model.reconstruct_params)
+                chisq = 0.
+                for star, convert_func in zip(trial_stars, use_convert_funcs):
+                    resid = self.model.residual(star, convert_func, draw_method)
+                    chisq += np.dot(resid, resid)
+                return chisq
+
+            self.interp.solve(use_stars, logger=logger,
+                              transform_params=self.model.transform_params,
+                              chisq_func=chisq_func)
+        else:
+            self.interp.solve(use_stars, logger=logger,
+                              transform_params=self.model.transform_params)
 
         # Propagate that solution to all the stars' parameters, including reserve stars.
         all_stars = self.interp.interpolateList(

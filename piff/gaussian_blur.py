@@ -50,10 +50,10 @@ class FourierGaussian(galsim.GSObject):
         self.moments = tuple(float(x) for x in moments)
         self.derivative = derivative
         self._gsparams = galsim.GSParams.check(gsparams)
-        xx, yy, xy = self.moments
-        self._eigenvalues = np.linalg.eigvalsh([[xx, xy], [xy, yy]])
+        ixx, iyy, ixy = self.moments
+        self._eigenvalues = np.linalg.eigvalsh([[ixx, ixy], [ixy, iyy]])
         self._flux = 1. if derivative is None else 0.
-        self._is_axisymmetric = xx == yy and xy == 0
+        self._is_axisymmetric = ixx == iyy and ixy == 0
 
     @property
     def _maxk(self):
@@ -107,8 +107,8 @@ class FourierGaussian(galsim.GSObject):
             return np.pi / (radius * np.sqrt(largest))
 
     def _kval(self, kx, ky):
-        xx, yy, xy = self.moments
-        kval = np.exp(-0.5*(xx*kx*kx + yy*ky*ky + 2*xy*kx*ky))
+        ixx, iyy, ixy = self.moments
+        kval = np.exp(-0.5*(ixx*kx*kx + iyy*ky*ky + 2*ixy*kx*ky))
         if self.derivative is not None:
             if self.derivative == 0:
                 kval *= -0.5*kx*kx
@@ -162,6 +162,7 @@ class GaussianBlur(Model):
     _method = 'auto'
     _centered = True
     _model_can_be_offset = False
+    nonlinear_chisq = True
 
     def __init__(self, init=None, logger=None):
         if init is None:
@@ -178,24 +179,30 @@ class GaussianBlur(Model):
 
     def is_valid_params(self, params):
         """Whether second moments define a positive-semidefinite covariance."""
-        xx, yy, xy = params
-        return (np.all(np.isfinite(params)) and xx >= 0 and yy >= 0
-                and xx*yy >= xy*xy)
+        ixx, iyy, ixy = params
+        return (np.all(np.isfinite(params)) and ixx >= 0 and iyy >= 0
+                and ixx*iyy >= ixy*ixy)
 
     def constrain_params(self, params):
-        """Project a proposed covariance onto the positive-semidefinite cone."""
-        xx, yy, xy = params
-        values, vectors = np.linalg.eigh([[xx, xy], [xy, yy]])
+        """Project a proposed covariance onto the positive-semidefinite cone.
+
+        The parameters stored on a star are generally unconstrained params returned from an
+        interpolator. These may be unphysical. E.g. ixx,iyy < 0 or ixy^2 < ixx * iyy.
+        This function projects the raw params to the nearest physical param vector by
+        setting any negative eigenvalues of the covariance matrix to 0.
+        """
+        ixx, iyy, ixy = params
+        values, vectors = np.linalg.eigh([[ixx, ixy], [ixy, iyy]])
         # Make any negative eignenvalues -> 0 to get a positive semi-definite matrix.
         # This is the nearest positive semi-definite matrix in Frobenius norm, fwiw.
         covariance = (vectors * np.maximum(values, 0.)) @ vectors.T
         # It's possible for numerical rounding to end up with slightly negative results.
-        # The next bits just enforce xx,yy >= 0 and xy^2 <= xx yy given the machine precision.
-        xx, yy = max(covariance[0, 0], 0.), max(covariance[1, 1], 0.)
+        # The next bits just enforce ixx,iyy >= 0 and ixy^2 <= ixx iyy given the machine precision.
+        ixx, iyy = max(covariance[0, 0], 0.), max(covariance[1, 1], 0.)
         # Round toward the physical side of the determinant boundary.
-        limit = np.nextafter(np.sqrt(xx*yy), 0.)
-        xy = np.clip(covariance[0, 1], -limit, limit)
-        return np.array([xx, yy, xy])
+        limit = np.nextafter(np.sqrt(ixx*iyy), 0.)
+        ixy = np.clip(covariance[0, 1], -limit, limit)
+        return np.array([ixx, iyy, ixy])
 
     def initialize(self, star, logger=None, default_init=None):
         """Initialize a star to work with the current model."""
@@ -207,9 +214,7 @@ class GaussianBlur(Model):
 
     def getProfile(self, params):
         """Return a unit-flux FourierGaussian instance corresponding to the current model."""
-        if not self.is_valid_params(params):
-            raise ValueError('GaussianBlur requires positive-semidefinite second moments')
-        return FourierGaussian(params)
+        return FourierGaussian(self.constrain_params(params))
 
     def _draw(self, profile, star, convert_func, draw_method):
         profile = profile.shift(star.fit.center) * star.fit.flux
@@ -228,29 +233,39 @@ class GaussianBlur(Model):
 
     def chisq(self, star, logger=None, convert_func=None, draw_method=None):
         """Build the quadratic objective using analytic Fourier covariance derivatives."""
-        params = star.fit.get_params(self._num)
+        raw_params = star.fit.get_params(self._num)
+        params = self.constrain_params(raw_params)
         mask = star.weight.array.ravel() != 0
         b = -self.residual(star, convert_func, draw_method)[mask]
+        chisq = np.dot(b, b)
         sw = np.sqrt(star.weight.array).ravel()[mask]
         A = np.empty((len(b), 3))
         for index in range(3):
             profile = FourierGaussian(params, derivative=index)
             A[:, index] = self._draw(profile, star, convert_func, draw_method).ravel()[mask] * sw
-        return Star(star.data, star.fit.withNew(A=A, b=b, chisq=np.dot(b, b), dof=len(b)))
+        # Derivatives are evaluated at the physical covariance, but A dp = b describes
+        # increments from the raw parameters retained on the star and by interpolation.
+        # This means we need to update b to correspond to the step from the raw params
+        # rather than the valid projected params.
+        b += A @ (params - raw_params)
+        return Star(star.data, star.fit.withNew(A=A, b=b, chisq=chisq, dof=len(b)))
 
     def fit(self, star, logger=None, convert_func=None, draw_method=None):
         """Minimize chi-squared along one projected quadratic update direction."""
         measured = self.chisq(star, logger, convert_func, draw_method)
-        params = star.fit.get_params(self._num)
-        proposal = params + np.linalg.lstsq(measured.fit.A, measured.fit.b, rcond=None)[0]
+        raw_params = star.fit.get_params(self._num)
+        proposal = raw_params + np.linalg.lstsq(measured.fit.A, measured.fit.b, rcond=None)[0]
         proposal = self.constrain_params(proposal)
 
         # We don't necessarily want to take the full proposed step. The likelihood surface
         # is non-linear, so it could go past the minimum and back up. We consider the
         # segment between the current parameters and the full proposal and do a line search
         # to find the minimum chisq in this direction.
+        # Note that we don't need to project on every proposed step, since the positive
+        # semi-definite region is convex, so once the full step is valid, all proposed
+        # fractions of this will remain valid.
         def line_chisq(fraction):
-            trial = (1-fraction)*params + fraction*proposal
+            trial = (1-fraction)*raw_params + fraction*proposal
             candidate = Star(star.data, star.fit.newParams(trial, num=self._num))
             resid = self.residual(candidate, convert_func, draw_method)
             return np.dot(resid, resid)
@@ -267,7 +282,7 @@ class GaussianBlur(Model):
         if fraction == 0.:
             fitted = measured
         else:
-            trial = (1-fraction)*params + fraction*proposal
+            trial = (1-fraction)*raw_params + fraction*proposal
             fit = star.fit.newParams(trial, num=self._num, chisq=chisq, dof=measured.fit.dof)
             fitted = Star(star.data, fit)
         return fitted
