@@ -1387,8 +1387,14 @@ def test_des2():
             'x_col' : 'x',
             'y_col' : 'y',
             'sky_col' : 'sky',
-            'ra' : 'TELRA',
-            'dec' : 'TELDEC',
+            'ra' : {
+                'type': 'ImageHeaderValue',
+                'key': 'TELRA',
+            },
+            'dec' : {
+                'type': 'ImageHeaderValue',
+                'key': 'TELDEC',
+            },
             'gain' : 1.0,
             # Real version uses pixmappy WCS, but that's not important for this test, so skip it
             'stamp_size' : 25

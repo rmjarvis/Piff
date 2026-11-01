@@ -499,8 +499,8 @@ class InputFiles(Input):
         self.use_partial = top_level_params.get('use_partial', False)
 
         if 'nstars' in config:
-            logger.warning("input.nstars is deprecated; use select.nstars for the new global "
-                           "highest-S/N behavior.")
+            logger.error("input.nstars is deprecated; use select.nstars for the new global "
+                         "highest-S/N behavior.")
 
         if 'nimages' in config:
             nimages = galsim.config.ParseValue(config, 'nimages', base, int)[0]
@@ -836,15 +836,17 @@ class InputFiles(Input):
                                      config=self.config, base=self.base, logger=logger)
 
     @staticmethod
-    def _handle_depr_image_value(value, image, name, logger):
-        # gain, satur, noise, and sky used to be allowed to be in a FITS header.
+    def _handle_depr_image_value(value, header, name, logger):
+        # gain, satur, noise, sky, ra, and dec used to allow bare FITS header keys.
         # Now this functionality should use the ImageHeaderValue type to be more explicit.
         # The old behavior still works, but is deprecated.
         if isinstance(value, str) and value[0] not in '@$':
-            logger.error("WARNING: Using a bare FITS header key for %s is deprecated."
-                         "Use { 'type': 'ImageHeaderValue': 'key': %s } instead.",
-                         name, value)
-            value = float(image.header[value])
+            logger.error("WARNING: Using a bare FITS header key for %s is deprecated. "
+                         "Use {type: ImageHeaderValue, key: %s} instead.", name, value)
+            value = header[value]
+            # Pointing values may be sexagesimal strings, parsed by setPointing.
+            if name not in ('ra', 'dec'):
+                value = float(value)
         return value
 
     @staticmethod
@@ -1503,13 +1505,13 @@ class InputFiles(Input):
 
         1. numerical values (in Hours, Degrees respective) for ra, dec
         2. hh:mm:ss.ssss, dd:mm:ss.ssss strings giving hours/degrees, minutes, seconds for each
-        3. FITS header key words to read to get the ra, dec values
+        3. FITS header key words to read to get the ra, dec values [deprecated;
+           use ImageHeaderValue config types instead]
         4. None, which will attempt to find the spatial center of all the input images using the
            midpoint of the min/max ra and dec values of the image corners according to their
            individual WCS functions. [Not implemented currently.]
         5. dict with GalSim-style config types to be parsed.
         """
-        import fitsio
         logger = LoggerWrapper(logger)
 
         if (ra is None) != (dec is None):
@@ -1572,19 +1574,17 @@ class InputFiles(Input):
                            self.pointing.ra / galsim.hours,
                            self.pointing.dec / galsim.degrees)
         else:
+            # This is now deprecated. This uses ra, dec as header keys, but these should now
+            # use ImageHeaderValue instead to be more explicit.
             file_name = self.image_file_name[0]
             if len(self.chipnums) == 1:
                 logger.verbose("Setting pointing from keywords %s, %s", ra, dec)
             else:
                 logger.verbose("Setting pointing from keywords %s, %s in %s", ra, dec, file_name)
-            fits = fitsio.FITS(file_name)
             hdu = 1 if file_name.endswith('.fz') else 0
-            header = fits[hdu].read_header()
-            if ra not in header:
-                raise KeyError("Key %s not found in FITS header"%ra)
-            ra = header[ra]
-            if dec not in header:
-                raise KeyError("Key %s not found in FITS header"%dec)
-            dec = header[dec]
+            import fitsio
+            header = fitsio.read_header(file_name, ext=hdu)
+            ra = self._handle_depr_image_value(ra, header, 'ra', logger)
+            dec = self._handle_depr_image_value(dec, header, 'dec', logger)
             # Recurse to do further parsing.
             self.setPointing(ra, dec, logger)
