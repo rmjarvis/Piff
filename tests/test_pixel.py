@@ -2050,12 +2050,14 @@ def test_single_pixel():
 def test_solution_io():
     """Preserve rendered profiles through I/O for full and reduced parameter coordinates.
     """
-    for interp_type in ['BasisPolynomial', 'Polynomial', 'Mean', 'KNN']:
+    for interp_type in ['BasisPolynomial', 'Polynomial', 'Mean', 'KNN', 'Fixed']:
         model = piff.PixelGrid(scale=1., size=3, fit_flux=True)
         if interp_type == 'Mean':
             interp = piff.Mean()
         elif interp_type == 'KNN':
             interp = piff.KNNInterp(n_neighbors=1)
+        elif interp_type == 'Fixed':
+            interp = piff.Fixed()
         else:
             interp = getattr(piff, interp_type)(order=0)
         psf = piff.SimplePSF(model, interp)
@@ -2067,7 +2069,7 @@ def test_solution_io():
                                     properties={'chipnum': 0})
         star = piff.Star(star.data, star.fit.newParams(params))
         psf.stars = psf.interp.initialize([star])
-        if interp_type in ['Mean', 'KNN']:
+        if interp_type in ['Mean', 'KNN', 'Fixed']:
             interp.solve([star])
         image = psf.draw(x=20, y=20, stamp_size=9)
         assert abs(model.getProfile(params).centroid.x) > .01
@@ -2090,11 +2092,16 @@ def test_solution_io():
         np.testing.assert_allclose(interpolated.fit.params, params, atol=1.e-12)
 
         # Now fit in reduced coordinates and verify reconstruction after a round trip.
+        # Note -- Fixed doesn't transform the parameters to the reduced coordinates.
+        #         It just keeps the full parameter array intact.
         star = piff.Star.makeTarget(x=20, y=20, scale=1., stamp_size=9,
                                     properties={'chipnum': 0}).withFlux(10.)
         star.image.array[3:6, 3:6] = [[.2, .4, .2], [.4, 6., .4], [.2, .4, .2]]
         initialized, _ = psf.initialize_params([star])
         psf.stars, _ = psf.single_iteration(initialized, None, None, None)
+        assert psf.stars[0].fit.params.shape == (9,)
+        if interp_type == 'Fixed':
+            np.testing.assert_array_equal(interp.mean, initialized[0].fit.params)
         expected = psf.draw(x=20, y=20, stamp_size=9)
         file_name = os.path.join('output', 'pixel_transformed.piff')
         psf.write(file_name)
