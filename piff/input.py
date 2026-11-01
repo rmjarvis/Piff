@@ -849,13 +849,13 @@ class InputFiles(Input):
                 value = float(value)
         return value
 
-    @staticmethod
-    def _getRawImageData(image_kwargs, cat_kwargs, wcs,
+    @classmethod
+    def _getRawImageData(cls, image_kwargs, cat_kwargs, wcs,
                          invert_weight, remove_signal_from_weight,
                          config, base, logger=None):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
-        image, weight = InputFiles.readImage(logger=logger, **image_kwargs)
+        image, weight = cls.readImage(logger=logger, **image_kwargs)
 
         if invert_weight:
             weight.invertSelf()
@@ -863,7 +863,7 @@ class InputFiles(Input):
         # Update the wcs
         image.wcs = wcs
 
-        image_pos, extra_props = InputFiles.readStarCatalog(
+        image_pos, extra_props = cls.readStarCatalog(
                 logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
@@ -878,24 +878,24 @@ class InputFiles(Input):
                 # This isn't quite right, but hopefully the gain won't vary too much for
                 # different objects, so it should be close.
                 gain = np.mean(extra_props['gain'])
-                weight, _ = InputFiles._removeSignalFromWeight(signal, weight, gain=gain)
+                weight, _ = cls._removeSignalFromWeight(signal, weight, gain=gain)
             else:
                 # If no gain provided, then we want to estimate the gain from the weight image.
-                weight, g = InputFiles._removeSignalFromWeight(signal, weight)
+                weight, g = cls._removeSignalFromWeight(signal, weight)
                 extra_props['gain'] = np.array([g] * len(image_pos), dtype=float)
                 logger.info("Empirically determined gain = %f",g)
             logger.verbose("Removed signal from weight image.")
 
         return image, weight, image_pos, extra_props
 
-    @staticmethod
-    def _makeStarsFromImage(image_kwargs, cat_kwargs, wcs, chipnum,
+    @classmethod
+    def _makeStarsFromImage(cls, image_kwargs, cat_kwargs, wcs, chipnum,
                             stamp_size, pointing, bandpass, use_partial,
                             invert_weight, remove_signal_from_weight,
                             config, base, logger):
         """Make "stars" from a single input image
         """
-        image, wt, image_pos, extra_props = InputFiles._getRawImageData(
+        image, wt, image_pos, extra_props = cls._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight,
                 config, base, logger)
         logger.verbose("Processing catalog %s with %d objects",chipnum,len(image_pos))
@@ -980,7 +980,7 @@ class InputFiles(Input):
             base['image_num'] = image_num
             image_file_name = kwargs['image_file_name']
             image_hdu = kwargs['image_hdu']
-            image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
+            image = self._read_image(image_file_name, image_hdu, read_header=True)
             if 'wcs' in config:
                 logger.info("Using custom wcs from config for %s",image_file_name)
                 base['index_key'] = 'image_num'
@@ -1021,7 +1021,16 @@ class InputFiles(Input):
         return newweight, gain
 
     @staticmethod
-    def readImage(image_file_name, image_hdu, weight_file_name, weight_hdu,
+    def _read_image(file_name, hdu, *, read_header):
+        """Read one image plane, optionally including its metadata.
+
+        Subclasses may override this method to support other file formats. The returned
+        GalSim image must include its WCS and, when requested, a ``header`` attribute.
+        """
+        return galsim.fits.read(file_name, hdu=hdu, read_header=read_header)
+
+    @classmethod
+    def readImage(cls, image_file_name, image_hdu, weight_file_name, weight_hdu,
                   badpix_file_name, badpix_hdu, badpix_zeros, sky_file_name, sky_hdu,
                   image_num, config, base, logger):
         """Read in the image and weight map (or make one if no weight information is given
@@ -1047,7 +1056,7 @@ class InputFiles(Input):
         logger.info("Reading image file %s",image_file_name)
         galsim.config.RemoveCurrent(base)
         base['image_num'] = image_num
-        image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
+        image = cls._read_image(image_file_name, image_hdu, read_header=True)
         base['_current_image'] = image
 
         noise = None
@@ -1068,14 +1077,14 @@ class InputFiles(Input):
 
         if noise is not None:
             noise = galsim.config.ParseValue(config, 'noise', base, None)[0]
-            noise = InputFiles._handle_depr_image_value(noise, image, 'noise', logger)
+            noise = cls._handle_depr_image_value(noise, image.header, 'noise', logger)
 
         # Either read in the weight image, or build a dummy one
         if weight_file_name is not None or weight_hdu is not None:
             weight_file_name = weight_file_name or image_file_name
             weight_hdu = weight_hdu or (1 if weight_file_name.endswith('.fz') else 0)
             logger.verbose("Reading weight image from %s, hdu %d.", weight_file_name, weight_hdu)
-            weight = galsim.fits.read(weight_file_name, hdu=weight_hdu)
+            weight = cls._read_image(weight_file_name, weight_hdu, read_header=False)
             if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
@@ -1101,7 +1110,7 @@ class InputFiles(Input):
         if sky_file_name is not None:
             hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
             logger.verbose("Reading sky image %s.", sky_file_name + hdu_str)
-            sky = galsim.fits.read(sky_file_name, hdu=sky_hdu)
+            sky = cls._read_image(sky_file_name, sky_hdu, read_header=False)
             image -= sky
 
         # If requested, set wt=0 for any bad pixels
@@ -1109,7 +1118,7 @@ class InputFiles(Input):
             badpix_file_name = badpix_file_name or image_file_name
             badpix_hdu = badpix_hdu or (1 if badpix_file_name.endswith('.fz') else 0)
             logger.verbose("Reading badpix image from %s, hdu %d.", badpix_file_name, badpix_hdu)
-            badpix = galsim.fits.read(badpix_file_name, hdu=badpix_hdu)
+            badpix = cls._read_image(badpix_file_name, badpix_hdu, read_header=False)
             # The badpix image may be offset by 32768 from the true value.
             # If so, subtract it off.
             if np.any(badpix.array > 32767):  # pragma: no cover
@@ -1190,20 +1199,20 @@ class InputFiles(Input):
         else:
             return sed_file_name
 
-    @staticmethod
-    def _read_sed_mapping(sed_file_name, cat_file_name):
+    @classmethod
+    def _read_sed_mapping(cls, sed_file_name, cat_file_name):
         if isinstance(sed_file_name, dict):
             return sed_file_name
 
-        sed_map_file = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
+        sed_map_file = cls._resolve_sed_file_name(sed_file_name, cat_file_name)
         with open(sed_map_file) as f:
             sed_map = yaml.safe_load(f)
         if not isinstance(sed_map, dict):
             raise ValueError("SED mapping file must parse to a dict: %r" % sed_map_file)
         return sed_map
 
-    @staticmethod
-    def readStarCatalog(cat_file_name, cat_hdu, x_col, y_col,
+    @classmethod
+    def readStarCatalog(cls, cat_file_name, cat_hdu, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
                         sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
@@ -1257,7 +1266,7 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.info("Reading input catalog %s.",cat_file_name)
-        cat = InputFiles._read_cat(cat_file_name, cat_hdu)
+        cat = cls._read_cat(cat_file_name, cat_hdu)
 
         sky = None
         if 'sky' in config:
@@ -1284,14 +1293,14 @@ class InputFiles(Input):
                             flag_col)
             if use_flag is not None:
                 # Remove any objects with flag & use_flag == 0
-                mask = InputFiles._flag_select(col, use_flag) == 0
+                mask = cls._flag_select(col, use_flag) == 0
                 logger.verbose("Removing objects with flag (col %s) & %d == 0",flag_col,use_flag)
                 if skip_flag != -1:
-                    mask |= InputFiles._flag_select(col, skip_flag) != 0
+                    mask |= cls._flag_select(col, skip_flag) != 0
                     logger.verbose("Removing objects with flag (col %s) & %d != 0",flag_col,skip_flag)
             else:
                 # Remove any objects with flag & skip_flag != 0
-                mask = InputFiles._flag_select(col, skip_flag) != 0
+                mask = cls._flag_select(col, skip_flag) != 0
                 if skip_flag == -1:
                     logger.verbose("Removing objects with flag (col %s) != 0",flag_col)
                 else:
@@ -1383,7 +1392,7 @@ class InputFiles(Input):
                 raise ValueError("sed_col = %s is not a column in %s" % (sed_col, cat_file_name))
             sed_map = None
             if sed_file_name is not None:
-                sed_map = InputFiles._read_sed_mapping(sed_file_name, cat_file_name)
+                sed_map = cls._read_sed_mapping(sed_file_name, cat_file_name)
             sed_file_name_values = []
             for sed_label in cat[sed_col]:
                 if sed_map is not None:
@@ -1395,7 +1404,7 @@ class InputFiles(Input):
                     sed_file_name = sed_map[sed_label]
                 else:
                     sed_file_name = sed_label
-                sed_file_name = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
+                sed_file_name = cls._resolve_sed_file_name(sed_file_name, cat_file_name)
                 sed_file_name_values.append(sed_file_name)
             extra_props['sed_file_name'] = np.array(sed_file_name_values, dtype=object)
             extra_props['sed_wave_type'] = np.array([sed_wave_type] * len(cat), dtype=object)
@@ -1405,7 +1414,7 @@ class InputFiles(Input):
             extra_props['sed_tol'] = np.full(len(cat), sed_tol, dtype=float)
             extra_props['sed_max_samples'] = np.full(len(cat), sed_max_samples, dtype=int)
         elif sed_file_name is not None:
-            sed_file_name = InputFiles._resolve_sed_file_name(sed_file_name, cat_file_name)
+            sed_file_name = cls._resolve_sed_file_name(sed_file_name, cat_file_name)
             extra_props['sed_file_name'] = np.array([sed_file_name] * len(cat), dtype=object)
             extra_props['sed_wave_type'] = np.array([sed_wave_type] * len(cat), dtype=object)
             extra_props['sed_flux_type'] = np.array([sed_flux_type] * len(cat), dtype=object)
@@ -1425,7 +1434,7 @@ class InputFiles(Input):
             extra_props['sky'] = np.float32(cat[sky_col])
         elif sky is not None and sky != 'median':
             sky = galsim.config.ParseValue(config, 'sky', base, None)[0]
-            sky = InputFiles._handle_depr_image_value(sky, image, 'sky', logger)
+            sky = cls._handle_depr_image_value(sky, image.header, 'sky', logger)
             extra_props['sky'] = np.array([sky]*len(cat), dtype=np.float32)
 
         # Make the list of gain values:
@@ -1438,13 +1447,13 @@ class InputFiles(Input):
             extra_props['gain'] = cat[gain_col]
         elif gain is not None:
             gain = galsim.config.ParseValue(config, 'gain', base, None)[0]
-            gain = InputFiles._handle_depr_image_value(gain, image, 'gain', logger)
+            gain = cls._handle_depr_image_value(gain, image.header, 'gain', logger)
             extra_props['gain'] = np.array([gain]*len(cat), dtype=float)
 
         # Get the saturation level
         if satur is not None:
             satur = galsim.config.ParseValue(config, 'satur', base, None)[0]
-            satur = InputFiles._handle_depr_image_value(satur, image, 'satur', logger)
+            satur = cls._handle_depr_image_value(satur, image.header, 'satur', logger)
             logger.debug("Using saturation value: %s",satur)
             extra_props['satur'] = np.array([satur]*len(cat), dtype=float)
 
@@ -1454,7 +1463,7 @@ class InputFiles(Input):
 
         if properties is not None:
             logger.debug('properties = %s', properties)
-            extra_props.update(InputFiles._evaluate_properties(
+            extra_props.update(cls._evaluate_properties(
                 properties, extra_props, len(cat), base, logger))
 
         return image_pos, extra_props
@@ -1547,7 +1556,7 @@ class InputFiles(Input):
               (isinstance(dec, str) and (dec[0] in ['$','@']))):
             image_file_name = self.image_kwargs[0]['image_file_name']
             image_hdu = self.image_kwargs[0]['image_hdu']
-            image = galsim.fits.read(image_file_name, hdu=image_hdu, read_header=True)
+            image = self._read_image(image_file_name, image_hdu, read_header=True)
             base = galsim.config.CopyConfig(self.base)
             base['index_key'] = 'image_num'
             base['image_num'] = 0
