@@ -2252,10 +2252,10 @@ def test_pointing():
         np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
         np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
-    # Strings as keys into FITS header
-    config['ra'] = 'RA'
-    config['dec'] = 'DEC'
-    input = piff.InputFiles(config, logger=logger)
+    # Ra, dec can be values in the fits header.
+    config['ra'] = { 'type': 'ImageHeaderValue', 'key': 'RA' }
+    config['dec'] = { 'type': 'ImageHeaderValue', 'key': 'DEC' }
+    input = piff.InputFiles(config)
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
@@ -2266,10 +2266,14 @@ def test_pointing():
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
-    # Can use explicit config type to get the same thing.
-    config['ra'] = { 'type': 'ImageHeaderValue', 'key': 'RA' }
-    config['dec'] = { 'type': 'ImageHeaderValue', 'key': 'DEC' }
-    input = piff.InputFiles(config, logger=logger)
+    # This used to be done with bare strings. This is still allowed, but deprecated.
+    config['ra'] = 'RA'
+    config['dec'] = 'DEC'
+    with CaptureLog(1) as cl:
+        input = piff.InputFiles(config, logger=cl.logger)
+    assert 'Using a bare FITS header key for ra is deprecated' in cl.output
+    assert 'Using a bare FITS header key for dec is deprecated' in cl.output
+    assert 'ImageHeaderValue' in cl.output
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
