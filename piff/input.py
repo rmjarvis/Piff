@@ -238,65 +238,64 @@ class InputFiles(Input):
                         this gives the name of the file to use. [default: None]
         :badpix_zeros:  Whether to treat all zeros in the input image as bad pixels.
                         [default: False]
-        :sky_file_name: A file containing a sky background image to subtract. [default: None]
-        :sky_ext:       The extension number or name to use in the sky file. [default: None,
-                        which means use the file's default image extension]
+        :sky_file_name: a file containing a sky background image to subtract. [default: none]
+        :sky_ext:       the extension number or name to use in the sky file, or in the image
+                        file if sky_file_name is omitted. [default: none, which means use the
+                        sky file's default image extension]
 
-        :cat_ext:       The extension number or name in FITS catalog files. Ignored for parquet
-                        catalogs. [default: None, which means use the first table extension]
-        :x_col:         The name of the X column in the input catalogs. [default: 'x']
-        :y_col:         The name of the Y column in the input catalogs. [default: 'y']
-        :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
-                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
-        :dec_col:       (Alternative to x_col, y_col) The name of a declination column in
-                        the input catalogs.  Will use the WCS to find (x,y) [default: None]
-        :flag_col:      The name of a flag column in the input catalogs. [default: None]
-                        By default, this will skip any objects with flag != 0, but see
+        :cat_ext:       the extension number or name in fits catalog files. ignored for parquet
+                        catalogs. [default: none, which means use the first table extension]
+        :x_col:         the name of the x column in the input catalogs. [default: 'x']
+        :y_col:         the name of the y column in the input catalogs. [default: 'y']
+        :ra_col:        (alternative to x_col, y_col) the name of a right ascension column in
+                        the input catalogs.  will use the wcs to find (x,y) [default: none]
+        :dec_col:       (alternative to x_col, y_col) the name of a declination column in
+                        the input catalogs.  will use the wcs to find (x,y) [default: none]
+        :flag_col:      the name of a flag column in the input catalogs. [default: none]
+                        by default, this will skip any objects with flag != 0, but see
                         skip_flag and use_flag for other possible meanings for how the
                         flag column can be used to select stars.
-        :skip_flag:     The flag indicating which items to not use. [default: -1]
-                        Items with flag & skip_flag != 0 will be skipped.
-        :use_flag:      The flag indicating which items to use. [default: None]
-                        Items with flag & use_flag == 0 will be skipped.
-        :property_cols: A list of column names of star properties (e.g. star colors).
-                        [default: None]
-        :properties:    A dict of constant star properties to attach to every star from each
-                        input image. The keys are property names. Values are parsed using
-                        the GalSim config parser for each ``image_num``. Plain strings that
+        :skip_flag:     the flag indicating which items to not use. [default: -1]
+                        items with flag & skip_flag != 0 will be skipped.
+        :use_flag:      the flag indicating which items to use. [default: none]
+                        items with flag & use_flag == 0 will be skipped.
+        :property_cols: a list of column names of star properties (e.g. star colors).
+                        [default: none]
+        :properties:    a dict of constant star properties to attach to every star from each
+                        input image. the keys are property names. values are parsed using
+                        the galsim config parser for each ``image_num``. plain strings that
                         begin with ``$`` or ``@`` are treated as config expressions; other
-                        strings are left as literal strings. The explicit ``type``/``value``
-                        dict form is also supported. [default: None]
+                        strings are left as literal strings. the explicit ``type``/``value``
+                        dict form is also supported. [default: none]
 
-        :sed_col:       The name of a column with per-star SED selectors. If ``sed_file_name``
-                        is not provided, selectors are interpreted as SED file names. If
+        :sed_col:       the name of a column with per-star sed selectors. if ``sed_file_name``
+                        is not provided, selectors are interpreted as sed file names. if
                         ``sed_file_name`` is provided, selectors are treated as keys in the
-                        SED mapping. [default: None]
-        :sed_file_name: A single SED file name to use for all stars (if ``sed_col`` is
-                        not provided), or a dict / YAML file mapping ``sed_col`` selectors to
-                        SED file names. [default: None]
-        :sed_wave_type: Wavelength unit for SED files (e.g. ``nm``, ``Angstrom``).
-                        [required if sed_col or sed_file_name is not None]
-        :sed_flux_type: Flux convention for SED files (e.g. ``flambda``, ``fnu``,
-                        ``fphotons`` or units parseable by astropy.Unit).
-                        [required if sed_col or sed_file_name is not None]
-        :sed_wave_key:  FITS-table column name to use for wavelength when loading
-                        SEDs from FITS tables. [default: ``WAVE``]
-        :sed_flux_key:  FITS-table column name to use for flux when loading SEDs
-                        from FITS tables. [default: ``FLUX``]
-        :sed_tol:       Relative tolerance for reducing the number of samples of input SEDs
-                        based on the calculated flux over the given bandpass. The SEDs are each
-                        reduced on first access, and the reduced SED object is then shared
-                        by all matching stars. Values <= 0 disable this step. [default: 0]
+                        sed mapping. [default: none]
+        :sed_file_name: a single sed file name to use for all stars (if ``sed_col`` is
+                        not provided), or a dict / yaml file mapping ``sed_col`` selectors to
+                        sed file names. [default: none]
+        :sed_wave_type: wavelength unit for sed files (e.g. ``nm``, ``angstrom``).
+                        [required if sed_col or sed_file_name is not none]
+        :sed_flux_type: flux convention for sed files (e.g. ``flambda``, ``fnu``,
+                        ``fphotons`` or units parseable by astropy.unit).
+                        [required if sed_col or sed_file_name is not none]
+        :sed_wave_key:  fits-table column name to use for wavelength when loading
+                        seds from fits tables. [default: ``wave``]
+        :sed_flux_key:  fits-table column name to use for flux when loading seds
+                        from fits tables. [default: ``flux``]
+        :sed_tol:       relative tolerance for reducing the number of samples of input seds
+                        based on the calculated flux over the given bandpass. the seds are each
+                        reduced on first access, and the reduced sed object is then shared
+                        by all matching stars. values <= 0 disable this step. [default: 0]
         :sed_max_samples:
-                        Maximum number of samples to keep in the effective SED. If set, use a
+                        maximum number of samples to keep in the effective sed. if set, use a
                         greedy knot-selection algorithm to choose up to this many samples, then
                         refit their values for the best piecewise-linear approximation of the
-                        original effective SED. Values <= 0 disable this step. [default: 0]
-        :bandpass:      GalSim bandpass config dict describing the observing bandpass for the
-                        input image(s). Required when using ``sed_col`` or ``sed_file_name``.
-                        [default: None]
-
-    .. note::
+                        original effective sed. values <= 0 disable this step. [default: 0]
+        :bandpass:      galsim bandpass config dict describing the observing bandpass for the
+                        input image(s). required when using ``sed_col`` or ``sed_file_name``.
+                        [default: none]
 
         For chromatic PSF fitting, you must define the SED of each star in one of the
         following ways:
@@ -369,14 +368,19 @@ class InputFiles(Input):
         :sky_col:       The name of a column with sky values. [default: None]
         :gain_col:      The name of a column with gain values. [default: None]
         :sky:           The sky level to subtract from the image values. [default: None]
-                        Note: It is an error to specify both sky and sky_col. If both are None,
-                        no sky level will be subtracted off.
+                        Specify only one sky source: sky, sky_col, or sky_file_name/sky_ext.
+                        If none are provided, the input image will be assumed to have already
+                        been sky subtracted.
 
                         .. note::
-                            The special value sky = 'median' means to compute the median of
-                            the image and use that as the sky level.  Any other string value
-                            (rather than a float) indicates to get the value from the FITS
-                            header.
+
+                            There are two special values allowed for this parameter:
+                            * ``sky: median`` computes the median of the image and uses that
+                              as the (constant) sky level.
+                            * ``sky: sep`` uses SEP's full spatial background image, with its
+                              default background settings. It requires the optional ``sep``
+                              package to be installed.
+                            Both estimators exclude pixels with zero weight.
 
         :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
                         None] It is an error for both gain and gain_col to be specified.
@@ -399,13 +403,6 @@ class InputFiles(Input):
                         However, this parameter allows you to optionally provide a different
                         WCS.  It should be defined using the same style as a wcs object
                         in GalSim config files. [defulat: None]
-
-    .. note::
-
-        Some values that are nominally floats may be given as FITS header key words instead.
-        These include sky, gain, and satur.  If these are strings (other than sky=median, which
-        is special), then they should be a valid key word in the FITS header giving the value
-        to use.
 
     The above values are parsed separately for each input image/catalog.  In addition, there
     are a couple other parameters that are just parsed once:
@@ -486,6 +483,12 @@ class InputFiles(Input):
                 # Keep old keys in config dict in case any Current/Eval types use them.
                 config[new] = config[old]
                 ignore.append(old)
+
+        sky_sources = sum(['sky' in config, 'sky_col' in config,
+                           'sky_file_name' in config or 'sky_ext' in config])
+        if sky_sources > 1:
+            raise ValueError("Specify only one sky source: sky, sky_col, or "
+                             "sky_file_name/sky_ext.")
 
         # In GalSim, the base dict holds additional parameters that may be of use.
         # For now, add index_kex, as this will be the only thing we index anything on.
@@ -706,6 +709,8 @@ class InputFiles(Input):
             badpix_zeros = params.get('badpix_zeros', False)
             sky_file_name = params.get('sky_file_name', None)
             sky_ext = params.get('sky_ext', None)
+            if sky_file_name is None and sky_ext is not None:
+                sky_file_name = image_file_name
             self.image_file_name.append(image_file_name)
             self.image_kwargs.append({
                     'image_file_name' : image_file_name,
@@ -754,8 +759,6 @@ class InputFiles(Input):
             gain_col = params.get('gain_col', None)
             nstars = params.get('nstars', None)
 
-            if sky_col is not None and 'sky' in config:
-                raise ValueError("Cannot provide both sky_col and sky.")
             if gain_col is not None and 'gain' in config:
                 raise ValueError("Cannot provide both gain_col and gain.")
 
@@ -883,8 +886,8 @@ class InputFiles(Input):
                 logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
-            # Subtract off the mean sky, since this isn't part of the "signal" we want to
-            # remove from the weights.
+            # Subtract the mean catalog sky from the signal used for variance removal.
+            # Image-level backgrounds have already been subtracted by readImage.
             if 'sky' in extra_props:
                 signal = image - np.mean(extra_props['sky'])
             else:
@@ -1021,19 +1024,18 @@ class InputFiles(Input):
 
         :returns: newweight, gain
         """
-        signal = image.array
-        variance = 1./weight.array
-
-        use = (weight.array != 0.) & np.isfinite(signal)
+        use = (weight.array != 0.) & np.isfinite(image.array)
+        signal = image.array[use]
+        variance = 1./weight.array[use]
 
         if gain is None:
-            fit = np.polyfit(signal[use].flatten(), variance[use].flatten(), deg=1)
+            fit = np.polyfit(signal, variance, deg=1)
             gain = 1./fit[0]  # fit is [ 1/gain, sky_var ]
 
-        variance[use] -= signal[use] / gain
+        variance -= signal / gain
 
         newweight = weight.copy()
-        newweight.array[use] = 1. / variance[use]
+        newweight.array[use] = 1. / variance
         return newweight, gain
 
     @staticmethod
@@ -1131,13 +1133,6 @@ class InputFiles(Input):
         if badpix_zeros:
             weight.array[image.array == 0] = 0
 
-        # If requested, subtract a sky image
-        if sky_file_name is not None:
-            ext_str = " from extension %s"%(sky_ext) if sky_ext is not None else ""
-            logger.verbose("Reading sky image %s.", sky_file_name + ext_str)
-            sky = cls._read_image(sky_file_name, sky_ext, read_header=False)
-            image -= sky
-
         # If requested, set wt=0 for any bad pixels
         if badpix_file_name is not None or badpix_ext is not None:
             badpix_file_name = badpix_file_name or image_file_name
@@ -1162,12 +1157,38 @@ class InputFiles(Input):
                              image_file_name)
             weight.array[badpix.array != 0] = 0
 
-        if sky == 'median':
-            ok = weight.array != 0
-            sky = np.median(image.array[ok])
-            image.array[ok] -= sky
+        sky_image = cls._read_sky(image, weight, sky, sky_file_name, sky_ext, logger)
+        if sky_image is not None:
+            image -= sky_image
 
         return image, weight
+
+    @classmethod
+    def _read_sky(cls, image, weight, sky, sky_file_name, sky_ext, logger):
+        """Read or estimate the image-level background after assembling the pixel mask.
+
+        Returns a sky image for a file or SEP estimate, or a scalar for a configured value
+        or image median. Returns None when no image-level sky is specified. Catalog sky
+        values are applied later to individual stars. Subclasses can reuse the returned
+        background when constructing background-dependent weight maps.
+        """
+        if sky_file_name is not None:
+            ext_str = " from extension %s" % sky_ext if sky_ext is not None else ""
+            logger.verbose("Reading sky image %s.", sky_file_name + ext_str)
+            return cls._read_image(sky_file_name, sky_ext, read_header=False)
+        elif sky == 'median':
+            return np.median(image.array[weight.array != 0])
+        elif sky == 'sep':
+            import sep
+            # SEP requires contiguous arrays with native byte order; FITS arrays may be big-endian.
+            data = np.ascontiguousarray(image.array, dtype=image.array.dtype.newbyteorder('='))
+            background = sep.Background(data, mask=weight.array == 0)
+            return galsim.Image(background.back(), bounds=image.bounds, wcs=image.wcs)
+        elif sky is not None:
+            # Float value or a (now deprecated) image header key.
+            return cls._handle_depr_image_value(sky, image.header, 'sky', logger)
+        else:
+            return None
 
     @staticmethod
     def _flag_select(col, flag):
@@ -1293,10 +1314,6 @@ class InputFiles(Input):
         # Read in the star catalog
         logger.info("Reading input catalog %s.",cat_file_name)
         cat = cls._read_cat(cat_file_name, cat_ext)
-
-        sky = None
-        if 'sky' in config:
-            sky = galsim.config.ParseValue(config, 'sky', base, (float, str))[0]
 
         gain = None
         if 'gain' in config:
@@ -1458,10 +1475,6 @@ class InputFiles(Input):
             if sky_col not in cat.dtype.names:
                 raise ValueError("sky_col = %s is not a column in %s"%(sky_col,cat_file_name))
             extra_props['sky'] = np.float32(cat[sky_col])
-        elif sky is not None and sky != 'median':
-            sky = galsim.config.ParseValue(config, 'sky', base, None)[0]
-            sky = cls._handle_depr_image_value(sky, image.header, 'sky', logger)
-            extra_props['sky'] = np.array([sky]*len(cat), dtype=np.float32)
 
         # Make the list of gain values:
         # TODO: SV and Y1 DES images have two gain values, GAINA, GAINB.  It would be nice if we
