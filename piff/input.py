@@ -223,12 +223,13 @@ class InputFiles(Input):
         :chipnum:       The id number of this chip used to reference this image [default:
                         image_num]
 
-        :image_hdu:     The hdu to use in the image files. [default: None, which means use
-                        either 0 or 1 as typical given the compression sceme of the file]
-        :weight_hdu:    The hdu to use for weight images. [default: None, which means a weight
-                        image with all 1's will be automatically created]
-        :badpix_hdu:    The hdu to use for badpix images. Pixels with badpix != 0 will be given
-                        weight == 0. [default: None]
+        :image_ext:     The extension number or name to use in the image files. [default:
+                        None, which means use either 0 or 1 according to FITS compression]
+        :weight_ext:    The extension number or name to use for weight images. [default:
+                        None, which means use the weight file's default extension if supplied,
+                        otherwise create a weight image with all 1's]
+        :badpix_ext:    The extension number or name for badpix images. Pixels with badpix != 0
+                        will be given weight == 0. [default: None]
         :noise:         Rather than a weight image, provide the noise variance in the image.
                         (Useful for simulations where this is a known value.) [default: None]
         :weight_file_name: If the weight image is in a different file than the main image,
@@ -237,8 +238,12 @@ class InputFiles(Input):
                         this gives the name of the file to use. [default: None]
         :badpix_zeros:  Whether to treat all zeros in the input image as bad pixels.
                         [default: False]
+        :sky_file_name: A file containing a sky background image to subtract. [default: None]
+        :sky_ext:       The extension number or name to use in the sky file. [default: None,
+                        which means use the file's default image extension]
 
-        :cat_hdu:       The hdu to use in the catalog files. [default: 1]
+        :cat_ext:       The extension number or name in FITS catalog files. Ignored for parquet
+                        catalogs. [default: None, which means use the first table extension]
         :x_col:         The name of the X column in the input catalogs. [default: 'x']
         :y_col:         The name of the Y column in the input catalogs. [default: 'y']
         :ra_col:        (Alternative to x_col, y_col) The name of a right ascension column in
@@ -448,15 +453,15 @@ class InputFiles(Input):
                 'flag_col' : str,
                 'skip_flag' : int,
                 'use_flag' : int,
-                'image_hdu' : int,
-                'weight_hdu' : int,
-                'badpix_hdu' : int,
+                'image_ext' : (int, str),
+                'weight_ext' : (int, str),
+                'badpix_ext' : (int, str),
                 'weight_file_name' : str,
                 'badpix_file_name' : str,
                 'badpix_zeros' : bool,
                 'sky_file_name' : str,
-                'sky_hdu': int,
-                'cat_hdu' : int,
+                'sky_ext': (int, str),
+                'cat_ext' : (int, str),
                 'invert_weight' : bool,
                 'remove_signal_from_weight' : bool,
                 'stamp_size' : int,
@@ -470,6 +475,17 @@ class InputFiles(Input):
         # user's original dict (in case they care).
         config = copy.deepcopy(config)
         base = copy.deepcopy(base) if base is not None else {'input': config}
+
+        for prefix in ['image', 'weight', 'badpix', 'sky', 'cat']:
+            old = prefix + '_hdu'
+            new = prefix + '_ext'
+            if old in config:
+                if new in config:
+                    raise ValueError("Cannot provide both %s and %s." % (old, new))
+                logger.error("%s is deprecated as of version 1.8. Use %s instead.", old, new)
+                # Keep old keys in config dict in case any Current/Eval types use them.
+                config[new] = config[old]
+                ignore.append(old)
 
         # In GalSim, the base dict holds additional parameters that may be of use.
         # For now, add index_kex, as this will be the only thing we index anything on.
@@ -507,14 +523,14 @@ class InputFiles(Input):
             if nimages < 1:
                 raise ValueError('input.nimages must be >= 1')
 
-        if 'image_hdu' in config and isinstance(config['image_hdu'], list):
-            if len(config['image_hdu']) == 0:
-                raise ValueError("image_hdu may not be an empty list")
+        if 'image_ext' in config and isinstance(config['image_ext'], list):
+            if len(config['image_ext']) == 0:
+                raise ValueError("image_ext may not be an empty list")
             if nimages is None:
-                nimages = len(config['image_hdu'])
-            elif nimages != len(config['image_hdu']):
-                raise ValueError("nimages = %s doesn't match length of image_hdu list (%d)"%(
-                                 nimages, len(config['image_hdu'])))
+                nimages = len(config['image_ext'])
+            elif nimages != len(config['image_ext']):
+                raise ValueError("nimages = %s doesn't match length of image_ext list (%d)" % (
+                                 nimages, len(config['image_ext'])))
 
         # Deal with dir here, since sometimes we need to have it already attached for glob
         # to work.
@@ -682,25 +698,25 @@ class InputFiles(Input):
 
             # Read the image
             image_file_name = params['image_file_name']
-            image_hdu = params.get('image_hdu', None)
+            image_ext = params.get('image_ext', None)
             weight_file_name = params.get('weight_file_name', None)
-            weight_hdu = params.get('weight_hdu', None)
+            weight_ext = params.get('weight_ext', None)
             badpix_file_name = params.get('badpix_file_name', None)
-            badpix_hdu = params.get('badpix_hdu', None)
+            badpix_ext = params.get('badpix_ext', None)
             badpix_zeros = params.get('badpix_zeros', False)
             sky_file_name = params.get('sky_file_name', None)
-            sky_hdu = params.get('sky_hdu', None)
+            sky_ext = params.get('sky_ext', None)
             self.image_file_name.append(image_file_name)
             self.image_kwargs.append({
                     'image_file_name' : image_file_name,
-                    'image_hdu' : image_hdu,
+                    'image_ext' : image_ext,
                     'weight_file_name' : weight_file_name,
-                    'weight_hdu' : weight_hdu,
+                    'weight_ext' : weight_ext,
                     'badpix_file_name' : badpix_file_name,
-                    'badpix_hdu' : badpix_hdu,
+                    'badpix_ext' : badpix_ext,
                     'badpix_zeros' : badpix_zeros,
                     'sky_file_name' : sky_file_name,
-                    'sky_hdu' : sky_hdu,
+                    'sky_ext' : sky_ext,
                     'image_num' : image_num,
                     'config' : self.config,
                     'base' : self.base,
@@ -708,7 +724,7 @@ class InputFiles(Input):
 
             # Read the catalog
             cat_file_name = params['cat_file_name']
-            cat_hdu = params.get('cat_hdu', None)
+            cat_ext = params.get('cat_ext', None)
             x_col = params.get('x_col', 'x')
             y_col = params.get('y_col', 'y')
             ra_col = params.get('ra_col', None)
@@ -746,7 +762,7 @@ class InputFiles(Input):
             self.cat_file_name.append(cat_file_name)
             self.cat_kwargs.append({
                     'cat_file_name' : cat_file_name,
-                    'cat_hdu' : cat_hdu,
+                    'cat_ext' : cat_ext,
                     'x_col' : x_col,
                     'y_col' : y_col,
                     'ra_col' : ra_col,
@@ -979,8 +995,8 @@ class InputFiles(Input):
             galsim.config.RemoveCurrent(base) # Makes any @ items work correctly
             base['image_num'] = image_num
             image_file_name = kwargs['image_file_name']
-            image_hdu = kwargs['image_hdu']
-            image = self._read_image(image_file_name, image_hdu, read_header=True)
+            image_ext = kwargs['image_ext']
+            image = self._read_image(image_file_name, image_ext, read_header=True)
             if 'wcs' in config:
                 logger.info("Using custom wcs from config for %s",image_file_name)
                 base['index_key'] = 'image_num'
@@ -1021,31 +1037,39 @@ class InputFiles(Input):
         return newweight, gain
 
     @staticmethod
-    def _read_image(file_name, hdu, *, read_header):
+    def _read_image(file_name, ext, *, read_header):
         """Read one image plane, optionally including its metadata.
 
         Subclasses may override this method to support other file formats. The returned
         GalSim image must include its WCS and, when requested, a ``header`` attribute.
         """
-        return galsim.fits.read(file_name, hdu=hdu, read_header=read_header)
+        if isinstance(ext, str):
+            # Apparently we never enabled named hdu access in GalSim, so as of GalSim 2.8,
+            # it needs a number. So if we get a string, use astropy.io.fits directly to
+            # get the correct hdu.
+            from astropy.io import fits
+            with fits.open(file_name) as hdus:
+                return galsim.fits.read(hdu_list=hdus[ext], read_header=read_header)
+        else:
+            return galsim.fits.read(file_name, hdu=ext, read_header=read_header)
 
     @classmethod
-    def readImage(cls, image_file_name, image_hdu, weight_file_name, weight_hdu,
-                  badpix_file_name, badpix_hdu, badpix_zeros, sky_file_name, sky_hdu,
+    def readImage(cls, image_file_name, image_ext, weight_file_name, weight_ext,
+                  badpix_file_name, badpix_ext, badpix_zeros, sky_file_name, sky_ext,
                   image_num, config, base, logger):
-        """Read in the image and weight map (or make one if no weight information is given
+        """Read in the image and weight map (or make one if no weight information is given).
 
         :param image_file_name: The name of the file to read.
-        :param image_hdu:       The hdu of the main image.
+        :param image_ext:       The extension number or name of the main image.
         :param weight_file_name: The name if the file with the weight image (if any).
-        :param weight_hdu:      The hdu of the weight image (if any).
+        :param weight_ext:      The extension number or name of the weight image (if any).
         :param badpix_file_name: The name of the file with the bad pixel mask (if any).
-        :param badpix_hdu:      The hdu of the bad pixel mask (if any).
+        :param badpix_ext:      The extension number or name of the bad pixel mask (if any).
         :param badpix_zeros:    Whether to treat all zeros in the input image as bad pixels.
                                 [default: False]
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
-        :param sky_hdu:         The hdu to use in the sky_file_name (if any).
+        :param sky_ext:         The extension number or name in sky_file_name (if any).
         :param config:          The input section of the config dict.
         :param base:            The base config dict.
         :param logger:          A logger object for logging debug info.
@@ -1056,7 +1080,7 @@ class InputFiles(Input):
         logger.info("Reading image file %s",image_file_name)
         galsim.config.RemoveCurrent(base)
         base['image_num'] = image_num
-        image = cls._read_image(image_file_name, image_hdu, read_header=True)
+        image = cls._read_image(image_file_name, image_ext, read_header=True)
         base['_current_image'] = image
 
         noise = None
@@ -1080,11 +1104,12 @@ class InputFiles(Input):
             noise = cls._handle_depr_image_value(noise, image.header, 'noise', logger)
 
         # Either read in the weight image, or build a dummy one
-        if weight_file_name is not None or weight_hdu is not None:
+        if weight_file_name is not None or weight_ext is not None:
             weight_file_name = weight_file_name or image_file_name
-            weight_hdu = weight_hdu or (1 if weight_file_name.endswith('.fz') else 0)
-            logger.verbose("Reading weight image from %s, hdu %d.", weight_file_name, weight_hdu)
-            weight = cls._read_image(weight_file_name, weight_hdu, read_header=False)
+            weight_ext = weight_ext or (1 if weight_file_name.endswith('.fz') else 0)
+            logger.verbose("Reading weight image from %s, extension %s.",
+                           weight_file_name, weight_ext)
+            weight = cls._read_image(weight_file_name, weight_ext, read_header=False)
             if np.all(weight.array == 0):
                 logger.error("According to the weight mask in %s, all pixels have zero weight!",
                              image_file_name)
@@ -1108,17 +1133,18 @@ class InputFiles(Input):
 
         # If requested, subtract a sky image
         if sky_file_name is not None:
-            hdu_str = " from hdu %s"%(sky_hdu) if sky_hdu is not None else ""
-            logger.verbose("Reading sky image %s.", sky_file_name + hdu_str)
-            sky = cls._read_image(sky_file_name, sky_hdu, read_header=False)
+            ext_str = " from extension %s"%(sky_ext) if sky_ext is not None else ""
+            logger.verbose("Reading sky image %s.", sky_file_name + ext_str)
+            sky = cls._read_image(sky_file_name, sky_ext, read_header=False)
             image -= sky
 
         # If requested, set wt=0 for any bad pixels
-        if badpix_file_name is not None or badpix_hdu is not None:
+        if badpix_file_name is not None or badpix_ext is not None:
             badpix_file_name = badpix_file_name or image_file_name
-            badpix_hdu = badpix_hdu or (1 if badpix_file_name.endswith('.fz') else 0)
-            logger.verbose("Reading badpix image from %s, hdu %d.", badpix_file_name, badpix_hdu)
-            badpix = cls._read_image(badpix_file_name, badpix_hdu, read_header=False)
+            badpix_ext = badpix_ext or (1 if badpix_file_name.endswith('.fz') else 0)
+            logger.verbose("Reading badpix image from %s, extension %s.",
+                           badpix_file_name, badpix_ext)
+            badpix = cls._read_image(badpix_file_name, badpix_ext, read_header=False)
             # The badpix image may be offset by 32768 from the true value.
             # If so, subtract it off.
             if np.any(badpix.array > 32767):  # pragma: no cover
@@ -1159,9 +1185,9 @@ class InputFiles(Input):
             return mask
 
     @classmethod
-    def _read_cat(cls, cat_file_name, cat_hdu):
+    def _read_cat(cls, cat_file_name, cat_ext):
         if cat_file_name.endswith('.fits'):
-            return cls._read_fits_cat(cat_file_name, cat_hdu)
+            return cls._read_fits_cat(cat_file_name, cat_ext)
         elif cat_file_name.endswith('.parquet'):
             return cls._read_parquet_cat(cat_file_name)
         else:
@@ -1169,12 +1195,12 @@ class InputFiles(Input):
             try:
                 return cls._read_parquet_cat(cat_file_name)
             except Exception:
-                return cls._read_fits_cat(cat_file_name, cat_hdu)
+                return cls._read_fits_cat(cat_file_name, cat_ext)
 
     @classmethod
-    def _read_fits_cat(cls, cat_file_name, cat_hdu):
+    def _read_fits_cat(cls, cat_file_name, cat_ext):
         import fitsio
-        return fitsio.read(cat_file_name, cat_hdu)
+        return fitsio.read(cat_file_name, cat_ext)
 
     @classmethod
     def _read_parquet_cat(cls, cat_file_name):
@@ -1212,7 +1238,7 @@ class InputFiles(Input):
         return sed_map
 
     @classmethod
-    def readStarCatalog(cls, cat_file_name, cat_hdu, x_col, y_col,
+    def readStarCatalog(cls, cat_file_name, cat_ext, x_col, y_col,
                         ra_col, dec_col, ra_units, dec_units, image,
                         flag_col, skip_flag, use_flag, property_cols, sed_col, sed_wave_type,
                         sed_file_name, sed_flux_type, sed_wave_key, sed_flux_key,
@@ -1222,7 +1248,7 @@ class InputFiles(Input):
         """Read in the star catalogs and return lists of positions for each star in each image.
 
         :param cat_file_name:   The name of the catalog file to read in.
-        :param cat_hdu:         The hdu to use.
+        :param cat_ext:         The extension number or name to use for FITS catalogs.
         :param x_col:           The name of the column with x values.
         :param y_col:           The name of the column with y values.
         :param ra_col:          The name of a column with RA values.
@@ -1266,7 +1292,7 @@ class InputFiles(Input):
 
         # Read in the star catalog
         logger.info("Reading input catalog %s.",cat_file_name)
-        cat = cls._read_cat(cat_file_name, cat_hdu)
+        cat = cls._read_cat(cat_file_name, cat_ext)
 
         sky = None
         if 'sky' in config:
@@ -1555,8 +1581,8 @@ class InputFiles(Input):
               (isinstance(ra, str) and (ra[0] in ['$','@'])) or
               (isinstance(dec, str) and (dec[0] in ['$','@']))):
             image_file_name = self.image_kwargs[0]['image_file_name']
-            image_hdu = self.image_kwargs[0]['image_hdu']
-            image = self._read_image(image_file_name, image_hdu, read_header=True)
+            image_ext = self.image_kwargs[0]['image_ext']
+            image = self._read_image(image_file_name, image_ext, read_header=True)
             base = galsim.config.CopyConfig(self.base)
             base['index_key'] = 'image_num'
             base['image_num'] = 0

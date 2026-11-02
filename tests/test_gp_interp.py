@@ -413,10 +413,10 @@ def test_yaml():
                 },
 
             # What hdu is everything in?
-            'image_hdu' : 1,
-            'badpix_hdu' : 2,
-            'weight_hdu' : 3,
-            'cat_hdu' : 2,
+            'image_ext' : 1,
+            'badpix_ext' : 2,
+            'weight_ext' : 3,
+            'cat_ext' : 2,
 
             # What columns in the catalog have things we need?
             'x_col' : 'XWIN_IMAGE',

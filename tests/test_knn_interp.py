@@ -103,10 +103,10 @@ def test_config():
             'image_file_name' : 'input/DECam_00241238_01.fits.fz',
             'cat_file_name' : 'input/DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
             # What hdu is everything in?
-            'image_hdu': 1,
-            'badpix_hdu': 2,
-            'weight_hdu': 3,
-            'cat_hdu': 2,
+            'image_ext': 1,
+            'badpix_ext': 2,
+            'weight_ext': 3,
+            'cat_ext': 2,
 
             # What columns in the catalog have things we need?
             'x_col': 'XWIN_IMAGE',

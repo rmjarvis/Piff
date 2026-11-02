@@ -850,11 +850,11 @@ def test_bad_hsm():
         'input' : {
             'nstars': 8,
             'image_file_name' : image_file,
-            'image_hdu' : 1,
-            'weight_hdu' : 3,
-            'badpix_hdu' : 2,
+            'image_ext' : 1,
+            'weight_ext' : 3,
+            'badpix_ext' : 2,
             'cat_file_name' : cat_file,
-            'cat_hdu' : 2,
+            'cat_ext' : 2,
             # These next two are intentionally backwards.  The PixelGrid will find some kind
             # of solution, but it will be complex garbage, and hsm will fail for them.
             'x_col' : 'YWIN_IMAGE',
@@ -1442,9 +1442,9 @@ def test_property_cols():
         'input' : {
             'nstars': nstars,
             'image_file_name' : image_file,
-            'image_hdu' : 1,
-            'weight_hdu' : 3,
-            'badpix_hdu' : 2,
+            'image_ext' : 1,
+            'weight_ext' : 3,
+            'badpix_ext' : 2,
             'cat_file_name' : cat_file,
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
