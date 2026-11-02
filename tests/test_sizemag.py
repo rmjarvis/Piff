@@ -310,12 +310,12 @@ def test_sizemag():
     config['input'] = {
         'dir': 'input',
         'image_file_name': 'DECam_00241238_01.fits.fz',
-        'image_hdu': 1,
-        'badpix_hdu': 2,
-        'weight_hdu': 3,
+        'image_ext': 1,
+        'badpix_ext': 2,
+        'weight_ext': 3,
 
         'cat_file_name' : 'DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',
-        'cat_hdu' : 2,
+        'cat_ext' : 2,
         'x_col' : 'XWIN_IMAGE',
         'y_col' : 'YWIN_IMAGE',
         'sky_col' : 'BACKGROUND',

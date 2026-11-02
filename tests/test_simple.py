@@ -1192,7 +1192,7 @@ def test_depr_select():
                 'dir' : dir,
                 'image_file_name' : image_file,
                 'cat_file_name' : cat_file,
-                'weight_hdu' : 1,
+                'weight_ext' : 1,
                 'sky_col' : 'sky',
                 'gain_col' : 'gain',
                 'use_partial' : True,
