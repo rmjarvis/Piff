@@ -1256,6 +1256,13 @@ class InputFiles(Input):
                              image_file_name)
             weight.array[badpix.array != 0] = 0
 
+        # Any Inf or NaN pixels in the science image should also be given weight=0.
+        # Additionally, set the value to 0, so downstream processing that does math like
+        # weight * image doesn't get NaNs in the calculation.
+        nonfinite = ~np.isfinite(image.array)
+        weight.array[nonfinite] = 0
+        image.array[nonfinite] = 0
+
         sky_image = cls._read_sky(image, weight, sky, sky_file_name, sky_ext, logger)
         if sky_image is not None:
             image -= sky_image

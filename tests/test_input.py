@@ -1893,6 +1893,33 @@ def test_weight():
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array, expected_weight1)
 
+    # Nonfinite science pixels are masked and cleared
+    science = galsim.fits.read('input/test_input_image_00.fits').array.astype(float)
+    science[30, 30:33] = [np.nan, np.inf, -np.inf]
+    badpix = np.zeros(science.shape, dtype=np.int16)
+    badpix[30, 30] = 1
+    badpix[40, 40] = 1
+    weight = np.ones(science.shape)
+    file_name = os.path.join('output', 'nonfinite_science.fits')
+    with fitsio.FITS(file_name, 'rw', clobber=True) as f:
+        f.write(science)
+        f.write(weight)
+        f.write(badpix)
+    config = {
+        'image_file_name': file_name,
+        'cat_file_name': 'input/test_input_cat_00.fits',
+        'weight_ext': 1,
+        'badpix_ext': 2,
+        'sky': 3.0,
+    }
+    raw_data = piff.InputFiles(config).getRawImageData(0)
+    expected_image = science - 3.0
+    expected_image[30, 30:33] = 0 - 3.0  # The sky subtraction happens after they are set to 0.
+    expected_weight = weight.copy()
+    expected_weight[30, 30:33] = 0
+    expected_weight[40, 40] = 0
+    np.testing.assert_array_equal(raw_data.image.array, expected_image)
+    np.testing.assert_array_equal(raw_data.weight.array, expected_weight)
 
 @timer
 def test_lsst_weight():
