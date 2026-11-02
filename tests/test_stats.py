@@ -1564,7 +1564,7 @@ def test_alternate_shape_config():
                 },
                 'output': {
                     'dir': 'output',
-                    'file_name': 'alternate_shape.piff"',
+                    'file_name': 'alternate_shape.piff',
                     'stats': [
                         {
                             'type': 'SizeMag',
