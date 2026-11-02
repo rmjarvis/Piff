@@ -308,7 +308,8 @@ def test_no_improving_step():
     gaussian(np.diag([0.035, 0.041]), flux=100.).drawImage(
         image=star.image, center=star.image_pos)
     star = piff.Star(star.data, star.fit.withNew(chisq=-1., dof=-1))
-    fitted = model.fit(star, convert_func=partial(galsim.Convolve, galsim.Gaussian(sigma=0.2)))
+    convert_func = partial(galsim.Convolve, galsim.Gaussian(sigma=0.2))
+    fitted = model.fit(star, convert_func=convert_func)
     np.testing.assert_array_equal(fitted.fit.params, [0, 0, 0])
 
     # Even though this component didn't change, the chisq and dof are updated correctly.
@@ -318,6 +319,14 @@ def test_no_improving_step():
     expected_chisq = np.sum(star.weight.array*(rendered.array-star.image.array)**2)
     np.testing.assert_allclose(fitted.fit.chisq, expected_chisq, rtol=1.e-10)
     assert fitted.fit.dof == np.count_nonzero(star.weight.array)
+
+    # The same thing applies when using BasisPolynomial, where the line fit is done in that
+    # class rather than GaussianBlur.fit.
+    psf = piff.SimplePSF(model, piff.BasisPolynomial(order=0))
+    initialized, _ = psf.initialize_params([star])
+    fitted, removed = psf.single_iteration(initialized, None, [convert_func], None)
+    assert removed == 0
+    np.testing.assert_array_equal(fitted[0].fit.params, [0., 0., 0.])
 
 @timer
 def test_varying_blur():
