@@ -316,6 +316,34 @@ def test_add_poisson():
     test = test.addPoisson(stardata1)
     np.testing.assert_allclose(1./test.weight.array, 1./weight.array + image.array/2)
 
+    # A spatial gain map supplies the gain separately at every pixel and survives Poisson updates.
+    yy, xx = np.indices(image.array.shape)
+    gain_image = galsim.Image(2.0 + 0.01 * xx + 0.02 * yy, bounds=image.bounds, wcs=image.wcs)
+    mapped = piff.StarData(image, image_pos, weight=weight, gain_image=gain_image)
+    test = mapped.addPoisson()
+    np.testing.assert_allclose(1.0 / test.weight.array,
+                               1.0 / weight.array + image.array / gain_image.array)
+    assert test.gain_image == gain_image
+    assert 'gain' not in test.properties
+    np.testing.assert_array_equal(test.addPoisson().weight.array, test.weight.array)
+
+    # Explicit gains replace the stored gain source, with the same precedence as scalar gains.
+    scalar = test.addPoisson(gain=3.0)
+    assert scalar.gain_image is None
+    np.testing.assert_allclose(1.0 / scalar.weight.array, 1.0 / weight.array + image.array / 3.0)
+    remapped = scalar.addPoisson(gain=gain_image)
+    assert 'gain' not in remapped.properties
+    np.testing.assert_array_equal(remapped.weight.array, test.weight.array)
+
+    # Pickle and copies preserve gain maps, bandpasses, and cached chromatic metadata together.
+    bandpass = galsim.Bandpass('1', wave_type='nm', blue_limit=400, red_limit=800)
+    sed = galsim.SED('1', wave_type='nm', flux_type='fphotons')
+    chromatic = mapped.withNew(bandpass=bandpass, _sed_eff=sed).addPoisson()
+    for copied in [chromatic.copy(), pickle.loads(pickle.dumps(chromatic))]:
+        assert copied.gain_image == gain_image
+        assert copied.bandpass == bandpass
+        assert copied.sed_eff == sed
+
     # Error if signal is different shape
     small_image = galsim.Image(15,15, scale=0.25)
     stardata4 = piff.StarData(small_image, image_pos)

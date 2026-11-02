@@ -793,6 +793,7 @@ class Star(object):
                                    pointing=s.data.pointing,
                                    bandpass=s.data.bandpass,
                                    sed_eff=s.data._sed_eff,
+                                   gain_image=s.data.gain_image,
                                    properties=dict(s.data.properties, sky=sky),
                                    property_types=s.data.property_types,
                                    _xyuv_set = True),
@@ -839,10 +840,10 @@ class Star(object):
 
         :param signal:  The signal (as a Star instance) from which the Poisson variance is
                         extracted.  If None, the data image is used.  All signals are
-                        clipped from below at zero.
-        :param gain:    The gain, in e per ADU, assumed in calculating new weights.  If None
-                        is given, then the 'gain' property is used, else defaults to not
-                        adding any variance.
+                        clipped from below at zero. [default: None]
+        :param gain:    The gain in e per ADU, either as a scalar or an image. If None, we use
+                        gain_image if available or a scalar 'gain' property. If neither
+                        is set, no variance is added. [default: None]
 
         :returns: a new Star instance with updated weight array.
         """
@@ -925,15 +926,17 @@ class StarData(object):
                         [default: None]
     :param sed_eff:     The unit-flux SED multiplied by the observing bandpass.
                         [default: None]
+    :param gain_image:  Per-pixel gain as a galsim.Image. [default: None]
     """
     _sed_cache = {}
 
     def __init__(self, image, image_pos, weight=None, pointing=None, field_pos=None,
                  properties=None, property_types=None, orig_weight=None, logger=None,
-                 _xyuv_set=False, bandpass=None, sed_eff=None):
+                 _xyuv_set=False, bandpass=None, sed_eff=None, gain_image=None):
         # Save all of these as attributes.
         self.image = image
         self.image_pos = image_pos
+        self.gain_image = gain_image
         # Make sure we have a local wcs in case the provided image is more complex.
         self.local_wcs = image.wcs.local(image_pos)
         self.pixel_area = self.local_wcs.pixelArea()
@@ -1318,16 +1321,16 @@ class StarData(object):
 
         :param signal:  The signal (as a Star instance) from which the Poisson variance is
                         extracted.  If None, the data image is used.  All signals are
-                        clipped from below at zero.
-        :param gain:    The gain, in e per ADU, assumed in calculating new weights.  If None
-                        is given, then the 'gain' property is used, else defaults to not
-                        adding any variance.
+                        clipped from below at zero. [default: None]
+        :param gain:    The gain in e per ADU, either as a scalar or an image. If None, we use
+                        gain_image if available or a scalar 'gain' property. If neither
+                        is set, no variance is added. [default: None]
 
         :returns: a new StarData instance with updated weight array.
         """
-        # Get the gain.  None both here and in properties, means don't add any variance.
+        # If gain not given, use the stored image or property value.
         if gain is None:
-            gain = self.properties.get('gain',None)
+            gain = self.gain_image if self.gain_image is not None else self.properties.get('gain')
         if gain is None:
             return self
 
@@ -1349,7 +1352,16 @@ class StarData(object):
         # Note: use the original weight here, not the current weight, since this may have already
         # had some Poisson noise added to the weight.
         newweight = self.orig_weight.copy()
-        newweight.array[use] = 1. / (1./self.orig_weight.array[use] + variance[use] / gain)
+        if isinstance(gain, galsim.Image):
+            gain_values = gain.array[use]
+            gain_image = gain
+            properties = self.properties.copy()
+            properties.pop('gain', None)
+        else:
+            gain_values = gain
+            gain_image = None
+            properties = dict(self.properties, gain=gain)
+        newweight.array[use] = 1. / (1./self.orig_weight.array[use] + variance[use] / gain_values)
 
         # Return new object
         return StarData(image=self.image,
@@ -1359,7 +1371,8 @@ class StarData(object):
                         pointing=self.pointing,
                         bandpass=self.bandpass,
                         sed_eff=self._sed_eff,
-                        properties=dict(self.properties, gain=gain),
+                        gain_image=gain_image,
+                        properties=properties,
                         property_types=self.property_types,
                         _xyuv_set = True)
 
