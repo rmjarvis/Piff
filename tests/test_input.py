@@ -453,6 +453,14 @@ def test_extensions():
         assert positions == [galsim.PositionD(16, 16), galsim.PositionD(32, 32)]
         assert handler.getWCS()[0] == galsim.PixelScale(0.4)
 
+    # A sky extension without a filename selects the sky plane in the science file.
+    current = dict(config)
+    current.pop('sky_file_name')
+    handler = piff.InputFiles(current)
+    image, weight, _, _ = handler.getRawImageData(0)
+    np.testing.assert_array_equal(image.array, science - sky)
+    np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+
     # The old names for *_ext was *_hdu. These are still allowed, but deprecated.
     for key in keys:
         current = dict(config)
@@ -744,7 +752,7 @@ def test_cols():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, props = input.getRawImageData(0)
+    raw_image, _, image_pos, props = input.getRawImageData(0)
     sky_list = props['sky']
     gain_list = props['gain']
     assert len(image_pos) == 100
@@ -763,17 +771,16 @@ def test_cols():
                 'gain' : gain,
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
-    sky_list = props['sky']
+    image, _, image_pos, props = input.getRawImageData(0)
+    assert 'sky' not in props
     gain_list = props['gain']
     assert len(image_pos) == 100
-    assert len(sky_list) == 100
     assert len(gain_list) == 100
     # These aren't precisely equal because we go through a str value, which truncates it.
     # We could hack this to keep it exact, but it's probably not worth it and it's easier to
     # enable both str and float by reading it as str and then trying the float conversion to see
     # it if works.  Anyway, that's why this is only decimal=9.
-    np.testing.assert_almost_equal(sky_list, sky, decimal=9)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain, decimal=9)
 
     # sky and gain can be taken from the fits header using the ImageHeaderValue type.
@@ -785,13 +792,12 @@ def test_cols():
                 'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
-    sky_list = props['sky']
+    image, _, image_pos, props = input.getRawImageData(0)
+    assert 'sky' not in props
     gain_list = props['gain']
     assert len(image_pos) == 100
-    assert len(sky_list) == 100
     assert len(gain_list) == 100
-    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain)
 
     # The old way to do this was to treat strings as header keys.  This still works,
@@ -806,15 +812,14 @@ def test_cols():
              }
     input = piff.InputFiles(config)
     with CaptureLog() as cl:
-        _, _, image_pos, props = input.getRawImageData(0, logger=cl.logger)
+        image, _, image_pos, props = input.getRawImageData(0, logger=cl.logger)
     assert "Using a bare FITS header key for sky is deprecated" in cl.output
     assert "Using a bare FITS header key for gain is deprecated" in cl.output
-    sky_list = props['sky']
+    assert 'sky' not in props
     gain_list = props['gain']
     assert len(image_pos) == 100
-    assert len(sky_list) == 100
     assert len(gain_list) == 100
-    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain)
 
     # These can also use other parseable config values.
@@ -827,12 +832,12 @@ def test_cols():
                 'trust_pos' : {'type': 'Eval', 'str': 'True'},
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
-    sky_list = props['sky']
+    image, _, image_pos, props = input.getRawImageData(0)
+    assert 'sky' not in props
     gain_list = props['gain']
     trust_pos = props['trust_pos']
     assert len(image_pos) == 100
-    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain)
     np.testing.assert_array_equal(trust_pos, [True] * 100)
 
@@ -859,10 +864,12 @@ def test_cols():
     base = {'input': multi_config, 'first_value': 10.}
     multi_input = piff.InputFiles(multi_config, base=base, logger=logger)
     for image_num, expected in enumerate([10., 20.]):
-        _, weight, image_pos, props = multi_input.getRawImageData(image_num)
+        image, weight, image_pos, props = multi_input.getRawImageData(image_num)
         assert len(image_pos) == 100
         np.testing.assert_allclose(weight.array, 1. / expected)
-        for key in ['sky', 'gain', 'satur']:
+        np.testing.assert_allclose(image.array, raw_image.array - expected)
+        assert 'sky' not in props
+        for key in ['gain', 'satur']:
             np.testing.assert_allclose(props[key], expected)
 
     # Eval references must also refresh their targets when moving to another image.
@@ -871,9 +878,11 @@ def test_cols():
         multi_config[key] = '$@image_value'
     multi_input = piff.InputFiles(multi_config, base=base, logger=logger)
     for image_num, expected in enumerate([10., 20.]):
-        _, weight, _, props = multi_input.getRawImageData(image_num)
+        image, weight, _, props = multi_input.getRawImageData(image_num)
         np.testing.assert_allclose(weight.array, 1. / expected)
-        for key in ['sky', 'gain', 'satur']:
+        np.testing.assert_allclose(image.array, raw_image.array - expected)
+        assert 'sky' not in props
+        for key in ['gain', 'satur']:
             np.testing.assert_allclose(props[key], expected)
 
     # gain can also be given explicitly as an ImageHeaderValue.
@@ -1091,14 +1100,14 @@ def test_cols():
                 'trust_pos' : '$@image_num == 1',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, weight0, image_pos0, props0 = input.getRawImageData(0)
-    _, weight1, image_pos1, props1 = input.getRawImageData(1)
+    image0, weight0, image_pos0, props0 = input.getRawImageData(0)
+    image1, weight1, image_pos1, props1 = input.getRawImageData(1)
     assert len(image_pos0) == 100
     assert len(image_pos1) == 100
     np.testing.assert_allclose(weight0.array[weight0.array != 0], [1.] * np.count_nonzero(weight0.array))
     np.testing.assert_allclose(weight1.array[weight1.array != 0], [0.5] * np.count_nonzero(weight1.array))
-    np.testing.assert_array_equal(props0['sky'], [100.] * 100)
-    np.testing.assert_array_equal(props1['sky'], [101.] * 100)
+    np.testing.assert_allclose(image0.array, fitsio.read('input/test_input_image_00.fits') - 100)
+    np.testing.assert_allclose(image1.array, fitsio.read('input/test_input_image_01.fits') - 101)
     np.testing.assert_array_equal(props0['trust_pos'], [False] * 100)
     np.testing.assert_array_equal(props1['trust_pos'], [True] * 100)
 
@@ -1143,8 +1152,22 @@ def test_cols():
     np.testing.assert_raises(ValueError, piff.InputFiles,
                              dict(flag_col='flag', use_flag='xx', **base_config))
 
-    # Can't give duplicate sky, gain
-    np.testing.assert_raises(ValueError, piff.InputFiles, dict(sky_col='sky', sky=3, **base_config))
+    # Sky comes from one source; a sky filename and extension together specify one source.
+    sky_options = {
+        'sky': 3,
+        'sky_col': 'sky',
+        'sky_file_name': 'input/test_input_sky_00.fits.fz',
+        'sky_ext': 1,
+    }
+    for first, second in [('sky', 'sky_col'), ('sky', 'sky_file_name'),
+                          ('sky_col', 'sky_file_name'), ('sky', 'sky_ext'),
+                          ('sky_col', 'sky_ext')]:
+        config = dict(base_config)
+        config[first] = sky_options[first]
+        config[second] = sky_options[second]
+        np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
+    # Gain can likewise come from either a configured value or a catalog column.
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(gain_col='gain', gain=3, **base_config))
 
     # Invalid header keys
@@ -1867,7 +1890,7 @@ def test_lsst_weight():
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
     gain = props['gain'][0]
-    sky = props['sky'][0]
+    sky = fitsio.read_header('input/test_input_image_00.fits')['SKYLEVEL']
     read_noise = 10
     expected_noise = sky / gain + read_noise**2 / gain**2
     print('expected noise = ',expected_noise)
@@ -2518,10 +2541,16 @@ def test_sky():
     input = piff.InputFiles(config, logger=logger)
     image, _, _, extra_props = input.getRawImageData(0)
     stars = input.makeStars(logger=logger)
-    np.testing.assert_allclose(image.array, raw_image.array)
+    np.testing.assert_allclose(image.array, raw_image.array - 7)
+    assert 'sky' not in extra_props
     for i in range(len(stars)):
-        assert extra_props['sky'][i] == 7
+        assert 'sky' not in stars[i].data.properties
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - 7)
+
+    # Make sure reloading images doesn't subtract the background a second time.
+    loaded = input.load_images(stars)
+    for original, restored in zip(stars, loaded):
+        np.testing.assert_array_equal(restored.image.array, original.image.array)
 
     # If sky is given as a string, it is a header key word.
     config = {
@@ -2533,11 +2562,10 @@ def test_sky():
     input = piff.InputFiles(config, logger=logger)
     image, _, _, extra_props = input.getRawImageData(0)
     stars = input.makeStars(logger=logger)
-    np.testing.assert_allclose(image.array, raw_image.array)
     with fitsio.FITS(image_file, 'r') as f:
         sky = np.float32(f[0].read_header()['SKYLEVEL'])
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     for i in range(len(stars)):
-        assert extra_props['sky'][i] == sky
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky)
 
     # If sky_file_name is given then it is an image file to subtract
@@ -2627,6 +2655,94 @@ def test_sky():
     with np.testing.assert_raises(ValueError):
         piff.InputFiles(config, logger=logger)
 
+
+@timer
+def test_sep_sky():
+    """Test sky=sep option to let SExtractor determine the background image.
+    """
+    # Use a sloping background with several stars and galaxies and detector noise.
+    sep = pytest.importorskip('sep')
+    rng = galsim.BaseDeviate(1234)
+    y, x = np.mgrid[:384, :384]
+    background = 100 + 0.05 * x + 0.03 * y
+    science_image = galsim.ImageD(384, 384, scale=0.2)
+    science_image.array[:] = background
+    psf = galsim.Moffat(beta=3.5, fwhm=0.7).shear(g1=0.03, g2=-0.02)
+    positions = [(71.3, 71.8), (155.4, 101.2), (289.1, 82.6),
+                 (101.8, 260.2), (245.6, 291.3), (312.2, 225.6)]
+    profiles = [psf.withFlux(flux) for flux in [2000, 5000, 8000, 3000]]
+    for flux, radius in [(12000, 0.5), (4000, 0.3)]:
+        galaxy = galsim.Exponential(half_light_radius=radius, flux=flux).shear(g1=0.2, g2=0.1)
+        profiles.append(galsim.Convolve(psf, galaxy))
+    for profile, (px, py) in zip(profiles, positions):
+        bounds = galsim.BoundsI(int(px) - 24, int(px) + 24, int(py) - 24, int(py) + 24)
+        profile.drawImage(image=science_image[bounds], center=galsim.PositionD(px, py),
+                          add_to_image=True)
+    gain = 4.0
+    read_variance = 25.0
+    science_image.addNoise(galsim.CCDNoise(rng, gain=gain,
+                                           read_noise=gain * np.sqrt(read_variance)))
+    science = science_image.array
+    variance = read_variance + science / gain
+    mask = np.zeros_like(science, dtype=np.int16)
+    mask[80:96, 80:96] = 1
+    science[mask != 0] = 0
+    science[12, 12] = 0
+    masked = (mask != 0) | (science == 0)
+    file_name = os.path.join('output', 'sep_sky.fits')
+    cat_name = os.path.join('output', 'sep_sky_cat.fits')
+    sky_name = os.path.join('output', 'sep_sky_background.fits')
+    with fitsio.FITS(file_name, 'rw', clobber=True) as f:
+        f.write(science)
+        f.write(1.0 / variance)
+        f.write(mask)
+    fitsio.write(cat_name, np.array(positions, dtype=[('x', float), ('y', float)]),
+                 clobber=True)
+    config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'weight_ext': 1,
+        'badpix_ext': 2,
+        'badpix_zeros': True,
+        'sky': 'sep',
+        'gain': gain,
+        'remove_signal_from_weight': True,
+        'stamp_size': 24,
+    }
+
+    # SEP recovers the background to 1% despite sources and noise; Piff subtracts its full image.
+    estimated = sep.Background(science, mask=masked).back()
+    np.testing.assert_allclose(estimated[64:-64, 64:-64], background[64:-64, 64:-64], rtol=0.01)
+    handler = piff.InputFiles(config)
+    image, weight, _, props = handler.getRawImageData(0)
+    np.testing.assert_allclose(image.array, science - estimated)
+    assert 'sky' not in props
+    assert np.ptp(estimated) > 10
+
+    # Removing source variance retains the spatial background variance and all masked weights.
+    expected_weight = 1.0 / (read_variance + estimated / gain)
+    expected_weight[masked] = 0
+    np.testing.assert_allclose(weight.array, expected_weight)
+
+    # A supplied sky image produces the same image and weights as the SEP-derived image.
+    fitsio.write(sky_name, estimated, clobber=True)
+    file_config = dict(config)
+    file_config.pop('sky')
+    file_config['sky_file_name'] = sky_name
+    file_handler = piff.InputFiles(file_config)
+    file_image, file_weight, _, _ = file_handler.getRawImageData(0)
+    np.testing.assert_allclose(file_image.array, image.array)
+    np.testing.assert_allclose(file_weight.array, weight.array)
+
+    # Stamp creation and reloading subtract the same background exactly once.
+    stars = handler.makeStars()
+    assert len(stars) == len(positions)
+    loaded = handler.load_images(stars)
+    for star, restored in zip(stars, loaded):
+        np.testing.assert_allclose(star.image.array, image[star.image.bounds].array)
+        np.testing.assert_allclose(star.weight.array, weight[star.weight.bounds].array)
+        np.testing.assert_array_equal(restored.image.array, star.image.array)
+        np.testing.assert_array_equal(restored.weight.array, star.weight.array)
 
 @timer
 def test_sed_col():
@@ -3212,6 +3328,8 @@ if __name__ == '__main__':
     test_stars()
     test_select_min_sep()
     test_pointing()
+    test_sky()
+    test_sep_sky()
     test_sed_col()
     test_single_sed()
     test_sed_star_io()

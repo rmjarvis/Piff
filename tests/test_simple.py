@@ -994,9 +994,9 @@ def test_load_images():
     for star in psf2.stars:
         np.testing.assert_array_equal(star.image.array, 0.)
 
-    # First the old API:
+    # The old API needs an explicit sky because global sky is not stored on each star.
     with CaptureLog() as cl:
-        loaded_stars = piff.Star.load_images(psf2.stars, image_file, logger=cl.logger)
+        loaded_stars = piff.Star.load_images(psf2.stars, image_file, sky=sky, logger=cl.logger)
     assert "WARNING: The Star.load_images function is deprecated." in cl.output
     for star, orig in zip(loaded_stars, psf.stars):
         np.testing.assert_array_equal(star.image.array, orig.image.array)

@@ -944,7 +944,7 @@ def test_single_image():
     # Check image
     assert input.nimages == 1
     image1, _, image_pos, _ = input.getRawImageData(0)
-    np.testing.assert_equal(image1.array, image.array)
+    np.testing.assert_equal(image1.array, image.array - sky_level)
 
     # Check catalog
     assert len(image_pos) == len(x_list)
