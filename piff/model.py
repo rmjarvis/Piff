@@ -39,6 +39,11 @@ class Model(object):
     transform_params = None
     reconstruct_params = None
 
+    # Models that are nonlinear in their parameters should set this to True, which allows
+    # interpolators to do a line search in the proposed update direction rather than take
+    # the full proposed step implied by the least-squares solution.
+    nonlinear_chisq = False
+
     @classmethod
     def process(cls, config, base=None, logger=None):
         """Parse the model field of the config dict.
@@ -119,6 +124,14 @@ class Model(object):
         :returns:       Star instance with the appropriate initial fit values
         """
         raise NotImplementedError("Derived classes must define the initialize function")
+
+    def constrain_params(self, params):
+        """Constrain a proposed parameter vector to the model's valid range.
+
+        The default leaves the proposal unchanged. Some models may apply an adjustment
+        to keep from going into invalid regions of parameter space.
+        """
+        return params
 
     def normalize(self, star):
         """Make sure star.fit.params are normalized properly.

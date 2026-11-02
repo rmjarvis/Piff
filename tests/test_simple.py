@@ -691,6 +691,10 @@ def test_model():
     np.testing.assert_raises(NotImplementedError, model.initialize, None)
     np.testing.assert_raises(NotImplementedError, model.fit, None)
 
+    # Models without a physical constraint retain the original proposal unchanged.
+    proposal = np.array([1., 2., 3.])
+    assert model.constrain_params(proposal) is proposal
+
     # Invalid to read a type that isn't a piff.Model type.
     # Mock this by pretending that Gaussian is the only subclass of Model.
     filename = os.path.join('input','D00240560_r_c01_r2362p01_piff.fits')
