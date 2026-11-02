@@ -22,10 +22,28 @@ import glob
 import os
 import galsim
 import yaml
+from typing import NamedTuple
 
 from .util import run_multi
 from .star import Star, StarData
 from .config import LoggerWrapper
+
+class RawImageData(NamedTuple):
+    """Image and catalog data returned by `InputFiles.getRawImageData`.
+
+    Fields can be accessed by name or unpacked in the order listed below.
+
+    :param image:       Science image after image-level sky subtraction.
+    :param weight:      Weight image after masking and any source-variance removal.
+    :param image_pos:   List of catalog positions in image coordinates.
+    :param extra_props: Dict of additional catalog properties, with an array for each property.
+    :param gain_image:  Per-pixel gain image, or None when no gain image was supplied.
+    """
+    image: galsim.Image
+    weight: galsim.Image
+    image_pos: list
+    extra_props: dict
+    gain_image: galsim.Image | None
 
 class Input(object):
     """The base class for handling inputs for building a Piff model.
@@ -879,10 +897,10 @@ class InputFiles(Input):
         weight_images = {}
         gain_images = {}
         for image_num in range(self.nimages):
-            image, weight, _, _, gain_image = self.getRawImageData(image_num, logger)
-            images[self.chipnums[image_num]] = image
-            weight_images[self.chipnums[image_num]] = weight
-            gain_images[self.chipnums[image_num]] = gain_image
+            data = self.getRawImageData(image_num, logger)
+            images[self.chipnums[image_num]] = data.image
+            weight_images[self.chipnums[image_num]] = data.weight
+            gain_images[self.chipnums[image_num]] = data.gain_image
 
         loaded_stars = []
         for star in stars:
@@ -906,7 +924,9 @@ class InputFiles(Input):
         :param image_num:   The index of the image to read.
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: image, weight, image_pos, extra_props, gain_image.
+        :returns: A `RawImageData` named tuple with fields image, weight, image_pos,
+                  extra_props, and gain_image. Fields can be accessed by name or unpacked
+                  in that order.
         """
         self.base['index_key'] = 'image_num'
         self.base['image_num'] = image_num
@@ -973,7 +993,8 @@ class InputFiles(Input):
                 logger.warning("Masked %d pixels with invalid variance after removing source noise",
                                added_masks)
 
-        return image, weight, image_pos, extra_props, gain_image
+        return RawImageData(image=image, weight=weight, image_pos=image_pos,
+                            extra_props=extra_props, gain_image=gain_image)
 
     @classmethod
     def _makeStarsFromImage(cls, image_kwargs, cat_kwargs, wcs, chipnum,

@@ -189,7 +189,9 @@ def test_single_image():
 
     # Check image
     assert input.nimages == 1
-    image1, _, image_pos, _, _ = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image1 = raw_data.image
+    image_pos = raw_data.image_pos
     np.testing.assert_equal(image1.array, image.array)
 
     # Check catalog
@@ -205,7 +207,7 @@ def test_single_image():
                'stamp_size': 48 }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     assert len(image_pos) == 7
 
     # Make star data
