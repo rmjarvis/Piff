@@ -16,7 +16,7 @@
 .. module:: decaminfo
 """
 
-from ..star import Star, StarFit, StarData
+from ..star import Star
 import numpy as np
 
 class DECamInfo(object):
@@ -230,14 +230,7 @@ class DECamInfo(object):
         properties = stardata.properties.copy()
         properties['focal_x'] = focal_x[0]
         properties['focal_y'] = focal_y[0]
-        for key in ['x', 'y', 'u', 'v']:
-            # Get rid of keys that constructor doesn't want to see:
-            properties.pop(key,None)
-        return StarData(image=stardata.image,
-                        image_pos=stardata.image_pos,
-                        weight=stardata.weight,
-                        pointing=stardata.pointing,
-                        properties=properties)
+        return stardata.withNew(properties=properties)
 
     def pixel_to_focal(self, star):
         """Take star and add focal plane position to properties

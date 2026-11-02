@@ -943,7 +943,7 @@ def test_single_image():
 
     # Check image
     assert input.nimages == 1
-    image1, _, image_pos, _ = input.getRawImageData(0)
+    image1, _, image_pos, _, _ = input.getRawImageData(0)
     np.testing.assert_equal(image1.array, image.array - sky_level)
 
     # Check catalog
@@ -1636,7 +1636,7 @@ def test_color():
     assert input.image_file_name == [image_file]
     assert input.cat_file_name == [cat_file]
     assert input.nimages == 1
-    image1, _, image_pos, props = input.getRawImageData(0)
+    image1, _, image_pos, props, _ = input.getRawImageData(0)
     np.testing.assert_equal(image1.array, image.array)
     assert len(image_pos) == len(x_list)
     np.testing.assert_equal([pos.x for pos in image_pos], x_list)
@@ -1959,10 +1959,11 @@ def test_too_small():
     # This test comes directly from the bug report in issue #131
     import pickle
     stars = pickle.load(open("input/stars_131.pickle", "rb"))
-    # This historical fixture predates the SED fields initialized by StarData.__init__.
+    # This historical fixture predates the SED and gain fields initialized by StarData.__init__.
     for star in stars:
         star.data.bandpass = None
         star.data._sed_eff = None
+        star.data.gain_image = None
 
     piffConfig = {
         'type': "Simple",

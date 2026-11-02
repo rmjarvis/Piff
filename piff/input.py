@@ -367,6 +367,10 @@ class InputFiles(Input):
 
         :sky_col:       The name of a column with sky values. [default: None]
         :gain_col:      The name of a column with gain values. [default: None]
+        :gain_file_name: A file containing a per-pixel effective gain map. [default: None]
+        :gain_ext:      The extension number or name in the gain file, or in the image file
+                        if gain_file_name is omitted. [default: None, which means use the gain
+                        file's default extension]
         :sky:           The sky level to subtract from the image values. [default: None]
                         Specify only one sky source: sky, sky_col, or sky_file_name/sky_ext.
                         If none are provided, the input image will be assumed to have already
@@ -375,17 +379,22 @@ class InputFiles(Input):
                         .. note::
 
                             There are two special values allowed for this parameter:
+
                             * ``sky: median`` computes the median of the image and uses that
                               as the (constant) sky level.
                             * ``sky: sep`` uses SEP's full spatial background image, with its
                               default background settings. It requires the optional ``sep``
                               package to be installed.
+
                             Both estimators exclude pixels with zero weight.
 
-        :gain:          The gain to use for adding Poisson noise to the weight map.  [default:
-                        None] It is an error for both gain and gain_col to be specified.
-                        If both are None, then no additional noise will be added to account
-                        for the Poisson noise from the galaxy flux.
+        :gain:          The gain to use for adding Poisson noise to the weight map. Gain is defined
+                        such that source_variance = source_signal / gain in the image's units.
+                        Specify only one gain source: gain, gain_col, or gain_file_name/
+                        gain_ext. The gain may also be inferred implicitly from the action of
+                        remove_signal_from_weight (see below). If no gain information is provided,
+                        then no additional noise will be added to account for the Poisson noise
+                        from the stars' flux. [default: None]
         :satur:         The staturation level.  If any pixels for a star exceed this, then
                         the star is skipped. [default: None]
         :trust_pos:     Whether to trust the input position as essentially exact (True), or to
@@ -406,6 +415,22 @@ class InputFiles(Input):
 
     The above values are parsed separately for each input image/catalog.  In addition, there
     are a couple other parameters that are just parsed once:
+
+        :invert_weight: Whether the weight maps are actually variance maps, and thus should be
+                        inverted to make the usual inverse variance weight. [default: False]
+        :remove_signal_from_weight: Whether the weight (either inverted or not) includes the
+                        Poisson noise from the sources. If so, set this to true so Piff can
+                        remove that noise to recover the noise from non-source contributions
+                        (read noise, background, dark current, etc.). Piff will account for the
+                        source Poisson noise itself using the current model at every iteration,
+                        so leaving observed source Poisson noise in the input weight would be an
+                        error. [default: False]
+
+                        .. note::
+
+                            This works better if a gain value is provided. But if one is not
+                            known, Piff will try to estimate the (average) gain from the
+                            data image and the given weights.
 
         :stamp_size:    The size of the postage stamps to use for the cutouts.  Note: some
                         stamps may be smaller than this if the star is near a chip boundary.
@@ -447,6 +472,8 @@ class InputFiles(Input):
                 'sed_max_samples' : int,
                 'sky_col' : str,
                 'gain_col' : str,
+                'gain_file_name': str,
+                'gain_ext': (int, str),
                 'flag_col' : str,
                 'skip_flag' : int,
                 'use_flag' : int,
@@ -489,6 +516,12 @@ class InputFiles(Input):
         if sky_sources > 1:
             raise ValueError("Specify only one sky source: sky, sky_col, or "
                              "sky_file_name/sky_ext.")
+
+        gain_sources = sum(['gain' in config, 'gain_col' in config,
+                            'gain_file_name' in config or 'gain_ext' in config])
+        if gain_sources > 1:
+            raise ValueError("Specify only one gain source: gain, gain_col, or "
+                             "gain_file_name/gain_ext.")
 
         # In GalSim, the base dict holds additional parameters that may be of use.
         # For now, add index_kex, as this will be the only thing we index anything on.
@@ -543,7 +576,7 @@ class InputFiles(Input):
 
         # Convert Current/Eval shorthand before literal filenames are expanded as glob patterns.
         for key in ['image_file_name', 'cat_file_name', 'sky_file_name',
-                    'weight_file_name', 'badpix_file_name']:
+                    'weight_file_name', 'badpix_file_name', 'gain_file_name']:
             value = config.get(key)
             if isinstance(value, str) and value.startswith('@'):
                 config[key] = {'type': 'Current', 'key': value[1:]}
@@ -645,6 +678,25 @@ class InputFiles(Input):
         elif not isinstance(config['badpix_file_name'], dict):
             raise ValueError("badpix_file_name should be either a dict or a string")
 
+        if 'gain_file_name' not in config:
+            pass
+        elif isinstance(config['gain_file_name'], str):
+            gain_file_name = config['gain_file_name']
+            if dir is not None:
+                gain_file_name = os.path.join(dir, gain_file_name)
+            gain_list = sorted(glob.glob(gain_file_name))
+            if len(gain_list) == 0:
+                raise ValueError("No files found corresponding to " + config['gain_file_name'])
+            if len(gain_list) == 1 and nimages > 1:
+                logger.verbose("Using the same gain file for all images")
+                gain_list = gain_list * nimages
+            elif len(gain_list) != nimages:
+                raise ValueError("nimages = %s doesn't match length of gain_file_name list (%d)" % (
+                                 nimages, len(gain_list)))
+            config['gain_file_name'] = gain_list
+        elif not isinstance(config['gain_file_name'], dict):
+            raise ValueError("gain_file_name should be either a dict or a string")
+
         if 'cat_file_name' not in config:
             raise TypeError('Parameter cat_file_name is required')
         elif isinstance(config['cat_file_name'], list):
@@ -711,6 +763,10 @@ class InputFiles(Input):
             sky_ext = params.get('sky_ext', None)
             if sky_file_name is None and sky_ext is not None:
                 sky_file_name = image_file_name
+            gain_file_name = params.get('gain_file_name', None)
+            gain_ext = params.get('gain_ext', None)
+            if gain_file_name is None and gain_ext is not None:
+                gain_file_name = image_file_name
             self.image_file_name.append(image_file_name)
             self.image_kwargs.append({
                     'image_file_name' : image_file_name,
@@ -722,6 +778,8 @@ class InputFiles(Input):
                     'badpix_zeros' : badpix_zeros,
                     'sky_file_name' : sky_file_name,
                     'sky_ext' : sky_ext,
+                    'gain_file_name': gain_file_name,
+                    'gain_ext': gain_ext,
                     'image_num' : image_num,
                     'config' : self.config,
                     'base' : self.base,
@@ -758,9 +816,6 @@ class InputFiles(Input):
             sky_col = params.get('sky_col', None)
             gain_col = params.get('gain_col', None)
             nstars = params.get('nstars', None)
-
-            if gain_col is not None and 'gain' in config:
-                raise ValueError("Cannot provide both gain_col and gain.")
 
             self.cat_file_name.append(cat_file_name)
             self.cat_kwargs.append({
@@ -822,10 +877,12 @@ class InputFiles(Input):
 
         images = {}
         weight_images = {}
+        gain_images = {}
         for image_num in range(self.nimages):
-            image, weight, _, _ = self.getRawImageData(image_num)
+            image, weight, _, _, gain_image = self.getRawImageData(image_num, logger)
             images[self.chipnums[image_num]] = image
             weight_images[self.chipnums[image_num]] = weight
+            gain_images[self.chipnums[image_num]] = gain_image
 
         loaded_stars = []
         for star in stars:
@@ -834,7 +891,11 @@ class InputFiles(Input):
             if 'sky' in star.data.properties:
                 image -= star['sky']
             weight = weight_images[chipnum][star.data.weight.bounds].copy()
-            data = star.data.withNew(image=image, weight=weight)
+            gain_image = gain_images[chipnum]
+            if gain_image is not None:
+                gain_image = gain_image[image.bounds].copy()
+            data = star.data.withNew(image=image, weight=weight, orig_weight=weight,
+                                     gain_image=gain_image)
             loaded_stars.append(Star(data=data, fit=star.fit))
 
         return loaded_stars
@@ -845,7 +906,7 @@ class InputFiles(Input):
         :param image_num:   The index of the image to read.
         :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns: image, weight, image_pos, extra_props.
+        :returns: image, weight, image_pos, extra_props, gain_image.
         """
         self.base['index_key'] = 'image_num'
         self.base['image_num'] = image_num
@@ -874,7 +935,7 @@ class InputFiles(Input):
                          config, base, logger=None):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
-        image, weight = cls.readImage(logger=logger, **image_kwargs)
+        image, weight, gain_image = cls.readImage(logger=logger, **image_kwargs)
 
         if invert_weight:
             weight.invertSelf()
@@ -886,13 +947,16 @@ class InputFiles(Input):
                 logger=logger, image=image, **cat_kwargs)
 
         if remove_signal_from_weight:
+            nmasked = np.count_nonzero(weight.array == 0)
             # Subtract the mean catalog sky from the signal used for variance removal.
             # Image-level backgrounds have already been subtracted by readImage.
             if 'sky' in extra_props:
                 signal = image - np.mean(extra_props['sky'])
             else:
                 signal = image
-            if 'gain' in extra_props:
+            if gain_image is not None:
+                weight, _ = cls._removeSignalFromWeight(signal, weight, gain=gain_image)
+            elif 'gain' in extra_props:
                 # If given, use the mean gain when removing the signal.
                 # This isn't quite right, but hopefully the gain won't vary too much for
                 # different objects, so it should be close.
@@ -904,8 +968,12 @@ class InputFiles(Input):
                 extra_props['gain'] = np.array([g] * len(image_pos), dtype=float)
                 logger.info("Empirically determined gain = %f",g)
             logger.verbose("Removed signal from weight image.")
+            added_masks = np.count_nonzero(weight.array == 0) - nmasked
+            if added_masks:
+                logger.warning("Masked %d pixels with invalid variance after removing source noise",
+                               added_masks)
 
-        return image, weight, image_pos, extra_props
+        return image, weight, image_pos, extra_props, gain_image
 
     @classmethod
     def _makeStarsFromImage(cls, image_kwargs, cat_kwargs, wcs, chipnum,
@@ -914,7 +982,7 @@ class InputFiles(Input):
                             config, base, logger):
         """Make "stars" from a single input image
         """
-        image, wt, image_pos, extra_props = cls._getRawImageData(
+        image, wt, image_pos, extra_props, gain_image = cls._getRawImageData(
                 image_kwargs, cat_kwargs, wcs, invert_weight, remove_signal_from_weight,
                 config, base, logger)
         logger.verbose("Processing catalog %s with %d objects",chipnum,len(image_pos))
@@ -979,9 +1047,11 @@ class InputFiles(Input):
                 stamp -= sky
 
             pos = galsim.PositionD(x,y)
+            gain_stamp = gain_image[bounds].copy() if gain_image is not None else None
             data = StarData(stamp, pos, weight=wt_stamp, pointing=pointing,
                             bandpass=bandpass,
-                            properties=props, property_types=prop_types)
+                            properties=props, property_types=prop_types,
+                            gain_image=gain_stamp)
             # Attach an attribute so we can tell later whether the weight is real or
             # if it's just the default w=1.0.
             data._piff_default_weight = getattr(wt, '_piff_default_weight', False)
@@ -1018,9 +1088,9 @@ class InputFiles(Input):
 
         :param image:   The image to use as the signal
         :param weight:  The weight image.
-        :param gain:    Optionally, the gain to use as the proportionality relation.
-                        If gain is None, then it will be estimated automatically and returned.
-                        [default: None]
+        :param gain:    Optionally, the gain to use as the proportionality relation. May be
+                        either a scalar or an image. If gain is None, then it will be estimated
+                        automatically and returned. [default: None]
 
         :returns: newweight, gain
         """
@@ -1032,10 +1102,14 @@ class InputFiles(Input):
             fit = np.polyfit(signal, variance, deg=1)
             gain = 1./fit[0]  # fit is [ 1/gain, sky_var ]
 
-        variance -= signal / gain
+        gain_values = gain.array[use] if isinstance(gain, galsim.Image) else gain
+        variance -= signal / gain_values
 
         newweight = weight.copy()
-        newweight.array[use] = 1. / variance
+        valid = np.isfinite(variance) & (variance > 0)
+        new_values = np.zeros_like(variance)
+        np.divide(1.0, variance, out=new_values, where=valid)
+        newweight.array[use] = new_values
         return newweight, gain
 
     @staticmethod
@@ -1058,8 +1132,10 @@ class InputFiles(Input):
     @classmethod
     def readImage(cls, image_file_name, image_ext, weight_file_name, weight_ext,
                   badpix_file_name, badpix_ext, badpix_zeros, sky_file_name, sky_ext,
-                  image_num, config, base, logger):
-        """Read in the image and weight map (or make one if no weight information is given).
+                  gain_file_name, gain_ext, image_num, config, base, logger):
+        """Read the science image, weight map, and optional gain image.
+
+        Make a weight map if no weight information is given.
 
         :param image_file_name: The name of the file to read.
         :param image_ext:       The extension number or name of the main image.
@@ -1072,11 +1148,13 @@ class InputFiles(Input):
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
         :param sky_ext:         The extension number or name in sky_file_name (if any).
+        :param gain_file_name:  The name of the file with the gain image (if any).
+        :param gain_ext:        The extension number or name of the gain image (if any).
         :param config:          The input section of the config dict.
         :param base:            The base config dict.
         :param logger:          A logger object for logging debug info.
 
-        :returns: image, weight
+        :returns: image, weight, gain_image (None when no gain image is supplied)
         """
         # Read in the image
         logger.info("Reading image file %s",image_file_name)
@@ -1161,7 +1239,17 @@ class InputFiles(Input):
         if sky_image is not None:
             image -= sky_image
 
-        return image, weight
+        gain_image = None
+        if gain_file_name is not None:
+            logger.verbose("Reading gain image from %s, extension %s.", gain_file_name, gain_ext)
+            gain_image = cls._read_image(gain_file_name, gain_ext, read_header=False)
+            if gain_image.bounds != image.bounds:
+                raise ValueError('Gain image bounds do not match science image bounds')
+            use = weight.array != 0
+            if np.any(~np.isfinite(gain_image.array[use]) | (gain_image.array[use] <= 0)):
+                raise ValueError('Gain image must be finite and positive at unmasked pixels')
+
+        return image, weight, gain_image
 
     @classmethod
     def _read_sky(cls, image, weight, sky, sky_file_name, sky_ext, logger):
