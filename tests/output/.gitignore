@@ -1,4 +1,5 @@
 *.fits*
+*.asdf
 *.pdf
 *.png
 *.piff
