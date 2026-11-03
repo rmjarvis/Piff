@@ -256,6 +256,9 @@ class InputFiles(Input):
                         this gives the name of the file to use. [default: None]
         :badpix_zeros:  Whether to treat all zeros in the input image as bad pixels.
                         [default: False]
+        :fix_ushort_badpix: Correct a legacy 32768 offset in the bad-pixel mask. Old FITS files
+                        sometimes offset their badpix arrays by 32768. Set this to True to
+                        undo that. [default: False]
         :sky_file_name: a file containing a sky background image to subtract. [default: none]
         :sky_ext:       the extension number or name to use in the sky file, or in the image
                         file if sky_file_name is omitted. [default: none, which means use the
@@ -501,6 +504,7 @@ class InputFiles(Input):
                 'weight_file_name' : str,
                 'badpix_file_name' : str,
                 'badpix_zeros' : bool,
+                'fix_ushort_badpix' : bool,
                 'sky_file_name' : str,
                 'sky_ext': (int, str),
                 'cat_ext' : (int, str),
@@ -777,6 +781,7 @@ class InputFiles(Input):
             badpix_file_name = params.get('badpix_file_name', None)
             badpix_ext = params.get('badpix_ext', None)
             badpix_zeros = params.get('badpix_zeros', False)
+            fix_ushort_badpix = params.get('fix_ushort_badpix', False)
             sky_file_name = params.get('sky_file_name', None)
             sky_ext = params.get('sky_ext', None)
             if sky_file_name is None and sky_ext is not None:
@@ -794,6 +799,7 @@ class InputFiles(Input):
                     'badpix_file_name' : badpix_file_name,
                     'badpix_ext' : badpix_ext,
                     'badpix_zeros' : badpix_zeros,
+                    'fix_ushort_badpix' : fix_ushort_badpix,
                     'sky_file_name' : sky_file_name,
                     'sky_ext' : sky_ext,
                     'gain_file_name': gain_file_name,
@@ -1152,7 +1158,8 @@ class InputFiles(Input):
 
     @classmethod
     def readImage(cls, image_file_name, image_ext, weight_file_name, weight_ext,
-                  badpix_file_name, badpix_ext, badpix_zeros, sky_file_name, sky_ext,
+                  badpix_file_name, badpix_ext, badpix_zeros, fix_ushort_badpix,
+                  sky_file_name, sky_ext,
                   gain_file_name, gain_ext, image_num, config, base, logger):
         """Read the science image, weight map, and optional gain image.
 
@@ -1165,6 +1172,8 @@ class InputFiles(Input):
         :param badpix_file_name: The name of the file with the bad pixel mask (if any).
         :param badpix_ext:      The extension number or name of the bad pixel mask (if any).
         :param badpix_zeros:    Whether to treat all zeros in the input image as bad pixels.
+                                [default: False]
+        :param fix_ushort_badpix: Whether to correct badpix arrays with a 32768 offset value.
                                 [default: False]
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
@@ -1239,19 +1248,20 @@ class InputFiles(Input):
             logger.verbose("Reading badpix image from %s, extension %s.",
                            badpix_file_name, badpix_ext)
             badpix = cls._read_image(badpix_file_name, badpix_ext, read_header=False)
-            # The badpix image may be offset by 32768 from the true value.
-            # If so, subtract it off.
-            if np.any(badpix.array > 32767):  # pragma: no cover
-                logger.debug('min(badpix) = %s',np.min(badpix.array))
-                logger.debug('max(badpix) = %s',np.max(badpix.array))
-                logger.debug("subtracting 32768 from all values in badpix image")
-                badpix -= 32768
-            if np.any(badpix.array < -32767):  # pragma: no cover
-                logger.debug('min(badpix) = %s',np.min(badpix.array))
-                logger.debug('max(badpix) = %s',np.max(badpix.array))
-                logger.debug("adding 32768 to all values in badpix image")
-                badpix += 32768
-            if np.all(badpix.array != 0):  # pragma: no cover
+
+            # Correct legacy unsigned-integer offsets if requested.
+            if fix_ushort_badpix:
+                if np.any(badpix.array > 32767):
+                    logger.debug('min(badpix) = %s',np.min(badpix.array))
+                    logger.debug('max(badpix) = %s',np.max(badpix.array))
+                    logger.debug("subtracting 32768 from all values in badpix image")
+                    badpix -= 32768
+                if np.any(badpix.array < -32767):
+                    logger.debug('min(badpix) = %s',np.min(badpix.array))
+                    logger.debug('max(badpix) = %s',np.max(badpix.array))
+                    logger.debug("adding 32768 to all values in badpix image")
+                    badpix += 32768
+            if np.all(badpix.array != 0):
                 logger.error("According to the bad pixel array in %s, all pixels are masked!",
                              image_file_name)
             weight.array[badpix.array != 0] = 0

@@ -545,7 +545,6 @@ def test_extensions():
     assert positions == [galsim.PositionD(16, 16), galsim.PositionD(32, 32)]
     assert handler.getWCS()[0] == galsim.PixelScale(0.4)
 
-
 @timer
 def test_invalid():
     """Test invalid configuration elements
@@ -1731,12 +1730,13 @@ def test_weight():
     np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
 
     # Some old versions of fitsio had a bug where the badpix mask could be offset by 32768.
-    # We move them back to 0
+    # This can be fixed using fix_ushort_badpix = True.
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
                 'weight_ext' : 1,
                 'badpix_ext' : 5,
+                'fix_ushort_badpix' : True,
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
@@ -1744,6 +1744,7 @@ def test_weight():
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, expected_noise**-1)
 
+    # The correction also handles an offset of -32768.
     config['badpix_ext'] = 6
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
@@ -1753,6 +1754,7 @@ def test_weight():
 
     # Various ways to get all weight values == 0 (which will emit a logger message, but isn't
     # an error).
+    del config['fix_ushort_badpix']
     config['weight_ext'] = 1
     config['badpix_ext'] = 7  # badpix > 0
     input = piff.InputFiles(config, logger=logger)

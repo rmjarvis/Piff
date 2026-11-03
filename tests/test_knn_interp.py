@@ -105,6 +105,7 @@ def test_config():
             # What hdu is everything in?
             'image_ext': 1,
             'badpix_ext': 2,
+            'fix_ushort_badpix': True,  # GalSim reads this mask with a 32768 offset.
             'weight_ext': 3,
             'cat_ext': 2,
 
