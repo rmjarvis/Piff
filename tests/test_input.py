@@ -3561,6 +3561,119 @@ def test_input_bandpass():
     assert psf3.pointing == pointing
     assert psf3.bandpass == bandpass
 
+@timer
+def test_asdf():
+    """Test reading ASDF files."""
+    asdf = pytest.importorskip('asdf')
+
+    # Make an asdf file with all the possible data arrays we might want to read.
+    y, x = np.mgrid[:128, :128]
+    sky = 15 + 0.01 * x + 0.02 * y
+    gain = 2 + 0.002 * x + 0.003 * y
+    signal = galsim.ImageD(128, 128, scale=0.2)
+    positions = [(32.3, 35.7), (90.1, 41.2), (65.6, 93.4)]
+    for pos, flux in zip(positions, [1000, 2000, 1500]):
+        profile = galsim.Moffat(beta=3.5, fwhm=0.7, flux=flux).shear(g1=0.04, g2=-0.02)
+        profile.drawImage(image=signal, center=galsim.PositionD(*pos), add_to_image=True)
+    science = signal.array + sky
+    variance = 4 + science / gain
+    badpix = np.zeros(science.shape, dtype=np.uint32)
+    badpix[20, 20] = 1 << 20
+    science[30, 30] = np.nan
+    file_name = os.path.join('output', 'input_data.asdf')
+    cat_name = os.path.join('output', 'input_asdf_cat.fits')
+    tree = {
+        'data_arrays': {
+            'science': science,
+            'second': science + 5,
+            'weight': 1.0 / variance,
+            'badpix': badpix,
+            'sky': sky,
+            'gain': gain,
+        },
+    }
+    with asdf.AsdfFile(tree) as af:
+        af.write_to(file_name)
+    fitsio.write(cat_name, np.array(positions, dtype=[('x', float), ('y', float)]), clobber=True)
+
+    # The extension values are "paths" in the asdf file using . to connect the levels.
+    config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'image_ext': 'data_arrays.science',
+        'weight_ext': 'data_arrays.weight',
+        'badpix_ext': 'data_arrays.badpix',
+        'sky_ext': 'data_arrays.sky',
+        'gain_ext': 'data_arrays.gain',
+        'remove_signal_from_weight': True,
+        'stamp_size': 24,
+        'wcs': {'type': 'PixelScale', 'scale': 0.2},
+    }
+    reader = piff.InputFiles(config)
+    data = reader.getRawImageData(0)
+    expected_image = signal.array.copy()
+    expected_image[30, 30] = -sky[30, 30]
+    expected_weight = 1.0 / (4 + sky / gain)
+    expected_weight[badpix != 0] = 0
+    expected_weight[30, 30] = 0
+    np.testing.assert_allclose(data.image.array, expected_image, atol=1.e-12)
+    np.testing.assert_allclose(data.weight.array, expected_weight)
+    np.testing.assert_array_equal(data.gain_image.array, gain)
+    assert data.image.wcs == galsim.PixelScale(0.2)
+    assert data.image_pos == [galsim.PositionD(*pos) for pos in positions]
+
+    # Make stars from these input data.
+    stars = reader.makeStars()
+    assert len(stars) == len(positions)
+    for star in stars:
+        bounds = star.image.bounds
+        np.testing.assert_allclose(star.image.array, data.image[bounds].array)
+        np.testing.assert_allclose(star.weight.array, data.weight[bounds].array)
+        np.testing.assert_array_equal(star.data.gain_image.array, data.gain_image[bounds].array)
+
+    # Multiple data arrays in an asdf file at different paths can represent mutliple input images.
+    multi_config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'image_ext': ['data_arrays.science', 'data_arrays.second'],
+    }
+    multi = piff.InputFiles(multi_config)
+    assert multi.nimages == 2
+    for i in range(2):
+        expected = science + 5 * i
+        expected[30, 30] = 0
+        data = multi.getRawImageData(i)
+        np.testing.assert_array_equal(data.image.array, expected)
+        assert data.image.wcs == galsim.PixelScale(1.0)
+
+    # It's allowed to get the main image from asdf and another (e.g. weight) from FITS.
+    weight_name = os.path.join('output', 'asdf_weight.fits')
+    galsim.Image(1.0 / variance).write(weight_name)
+    mixed_config = dict(config)
+    mixed_config.pop('weight_ext')
+    mixed_config['weight_file_name'] = weight_name
+    mixed = piff.InputFiles(mixed_config).getRawImageData(0)
+    np.testing.assert_allclose(mixed.weight.array, expected_weight)
+
+    # It's also allowed get the main image from FITS and others from ASDF.
+    science_name = os.path.join('output', 'asdf_science.fits')
+    galsim.Image(science).write(science_name)
+    mixed_config = dict(config)
+    mixed_config['image_file_name'] = science_name
+    mixed_config.pop('image_ext')
+    for plane in ['weight', 'badpix', 'sky', 'gain']:
+        mixed_config[plane + '_file_name'] = file_name
+    mixed = piff.InputFiles(mixed_config).getRawImageData(0)
+    np.testing.assert_allclose(mixed.image.array, expected_image, atol=1.e-12)
+    np.testing.assert_allclose(mixed.weight.array, expected_weight)
+    np.testing.assert_array_equal(mixed.gain_image.array, gain)
+
+    # There is no default ext for asdf.
+    # Also check invalid ext values, including an integer.
+    for ext in [None, 1, 'data_arrays.missing', 'invalid']:
+        invalid = dict(config, image_ext=ext)
+        error = KeyError if isinstance(ext, str) else ValueError
+        np.testing.assert_raises(error, piff.InputFiles, invalid)
 
 if __name__ == '__main__':
     setup()
@@ -3583,3 +3696,4 @@ if __name__ == '__main__':
     test_sed_star_io()
     test_wcs_bandpass_io()
     test_input_bandpass()
+    test_asdf()
