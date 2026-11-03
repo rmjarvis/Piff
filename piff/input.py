@@ -24,7 +24,7 @@ import galsim
 import yaml
 from typing import NamedTuple
 
-from .util import run_multi
+from .util import run_multi, read_asdf_image
 from .star import Star, StarData
 from .config import LoggerWrapper
 
@@ -192,6 +192,19 @@ class InputFiles(Input):
 
     Parse the input config dict (Normally the 'input' field in the overall configuration dict).
 
+    We currently support FITS and ASDF file formats for the input images, and FITS or Parquet
+    files for the catalog data.
+
+    For FITS files, the *_ext parameters refer to the HDU with the given data, which may be
+    specified either by number or name.
+
+    For ASDF files, the *_ext parameters refer to the path in the ASDF tree. Use dots to
+    indicate heirarchy levels. E.g. roman.data means af['roman']['data'].
+
+    FITS files automatically load the WCS data given in the image header if present.
+    ASDF files don't seem to have a standard location, so you must specify the WCS
+    explicitly with an input.wcs field.
+
     The two required fields in the input dict are:
 
         :image_file_name:   The file name(s) of the input image(s).
@@ -241,13 +254,14 @@ class InputFiles(Input):
         :chipnum:       The id number of this chip used to reference this image [default:
                         image_num]
 
-        :image_ext:     The extension number or name to use in the image files. [default:
-                        None, which means use either 0 or 1 according to FITS compression]
-        :weight_ext:    The extension number or name to use for weight images. [default:
-                        None, which means use the weight file's default extension if supplied,
-                        otherwise create a weight image with all 1's]
-        :badpix_ext:    The extension number or name for badpix images. Pixels with badpix != 0
-                        will be given weight == 0. [default: None]
+        :image_ext:     The FITS extension number/name or ASDF path to the image.
+                        [default: None, which means use either 0 or 1 according to FITS
+                        compression; required for ASDF files]
+        :weight_ext:    The FITS extension number/name or ASDF path for weight images.
+                        [default: None, which means use the weight file's default extension
+                        if supplied, otherwise create a weight image with all 1's]
+        :badpix_ext:    The FITS extension number/name or ASDF path for badpix images.
+                        Pixels with badpix != 0 will be given weight == 0. [default: None]
         :noise:         Rather than a weight image, provide the noise variance in the image.
                         (Useful for simulations where this is a known value.) [default: None]
         :weight_file_name: If the weight image is in a different file than the main image,
@@ -260,9 +274,9 @@ class InputFiles(Input):
                         sometimes offset their badpix arrays by 32768. Set this to True to
                         undo that. [default: False]
         :sky_file_name: a file containing a sky background image to subtract. [default: none]
-        :sky_ext:       the extension number or name to use in the sky file, or in the image
-                        file if sky_file_name is omitted. [default: none, which means use the
-                        sky file's default image extension]
+        :sky_ext:       the FITS extension number/name or ASDF path in the sky file,
+                        or in the image file if sky_file_name is omitted.
+                        [default: none, which means use the sky file's default image extension]
 
         :cat_ext:       the extension number or name in fits catalog files. ignored for parquet
                         catalogs. [default: none, which means use the first table extension]
@@ -389,9 +403,9 @@ class InputFiles(Input):
         :sky_col:       The name of a column with sky values. [default: None]
         :gain_col:      The name of a column with gain values. [default: None]
         :gain_file_name: A file containing a per-pixel effective gain map. [default: None]
-        :gain_ext:      The extension number or name in the gain file, or in the image file
-                        if gain_file_name is omitted. [default: None, which means use the gain
-                        file's default extension]
+        :gain_ext:      The FITS extension number/name or ASDF path in the gain file,
+                        or in the image file if gain_file_name is omitted.
+                        [default: None, which means use the gain file's default extension]
         :sky:           The sky level to subtract from the image values. [default: None]
                         Specify only one sky source: sky, sky_col, or sky_file_name/sky_ext.
                         If none are provided, the input image will be assumed to have already
@@ -1141,12 +1155,14 @@ class InputFiles(Input):
 
     @staticmethod
     def _read_image(file_name, ext, *, read_header):
-        """Read one image plane, optionally including its metadata.
+        """Read one image, optionally including its metadata.
 
         Subclasses may override this method to support other file formats. The returned
         GalSim image must include its WCS and, when requested, a ``header`` attribute.
         """
-        if isinstance(ext, str):
+        if file_name.endswith('.asdf'):
+            return read_asdf_image(file_name, ext, read_header=read_header)
+        elif isinstance(ext, str):
             # Apparently we never enabled named hdu access in GalSim, so as of GalSim 2.8,
             # it needs a number. So if we get a string, use astropy.io.fits directly to
             # get the correct hdu.
@@ -1166,20 +1182,20 @@ class InputFiles(Input):
         Make a weight map if no weight information is given.
 
         :param image_file_name: The name of the file to read.
-        :param image_ext:       The extension number or name of the main image.
+        :param image_ext:       The FITS extension number/name or ASDF path of the image.
         :param weight_file_name: The name if the file with the weight image (if any).
-        :param weight_ext:      The extension number or name of the weight image (if any).
+        :param weight_ext:      The FITS extension number/name or ASDF path of the weight image.
         :param badpix_file_name: The name of the file with the bad pixel mask (if any).
-        :param badpix_ext:      The extension number or name of the bad pixel mask (if any).
+        :param badpix_ext:      The FITS extension number/name or ASDF path of the bad pixel mask.
         :param badpix_zeros:    Whether to treat all zeros in the input image as bad pixels.
                                 [default: False]
         :param fix_ushort_badpix: Whether to correct badpix arrays with a 32768 offset value.
                                 [default: False]
         :param sky_file_name:   A file to use for a sky background to subtract from the image
                                 (if any).
-        :param sky_ext:         The extension number or name in sky_file_name (if any).
+        :param sky_ext:         The FITS extension number/name or ASDF path in sky_file_name.
         :param gain_file_name:  The name of the file with the gain image (if any).
-        :param gain_ext:        The extension number or name of the gain image (if any).
+        :param gain_ext:        The FITS extension number/name or ASDF path of the gain image.
         :param config:          The input section of the config dict.
         :param base:            The base config dict.
         :param logger:          A logger object for logging debug info.
@@ -1216,7 +1232,6 @@ class InputFiles(Input):
         # Either read in the weight image, or build a dummy one
         if weight_file_name is not None or weight_ext is not None:
             weight_file_name = weight_file_name or image_file_name
-            weight_ext = weight_ext or (1 if weight_file_name.endswith('.fz') else 0)
             logger.verbose("Reading weight image from %s, extension %s.",
                            weight_file_name, weight_ext)
             weight = cls._read_image(weight_file_name, weight_ext, read_header=False)
@@ -1244,7 +1259,6 @@ class InputFiles(Input):
         # If requested, set wt=0 for any bad pixels
         if badpix_file_name is not None or badpix_ext is not None:
             badpix_file_name = badpix_file_name or image_file_name
-            badpix_ext = badpix_ext or (1 if badpix_file_name.endswith('.fz') else 0)
             logger.verbose("Reading badpix image from %s, extension %s.",
                            badpix_file_name, badpix_ext)
             badpix = cls._read_image(badpix_file_name, badpix_ext, read_header=False)
