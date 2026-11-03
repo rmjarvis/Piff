@@ -312,6 +312,7 @@ def test_sizemag():
         'image_file_name': 'DECam_00241238_01.fits.fz',
         'image_ext': 1,
         'badpix_ext': 2,
+        'fix_ushort_badpix': True,  # GalSim reads this mask with a 32768 offset.
         'weight_ext': 3,
 
         'cat_file_name' : 'DECam_00241238_01_psfcat_tb_maxmag_17.0_magcut_3.0_findstars.fits',

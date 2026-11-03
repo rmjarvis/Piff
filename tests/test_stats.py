@@ -806,6 +806,7 @@ def test_bad_hsm():
             'image_ext' : 1,
             'weight_ext' : 3,
             'badpix_ext' : 2,
+            'fix_ushort_badpix': True,  # GalSim reads this mask with a 32768 offset.
             'cat_file_name' : cat_file,
             'cat_ext' : 2,
             # These next two are intentionally backwards.  The PixelGrid will find some kind

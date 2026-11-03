@@ -1136,6 +1136,7 @@ def test_des_image():
             'image_ext' : 1,
             'weight_ext' : 3,
             'badpix_ext' : 2,
+            'fix_ushort_badpix': True,  # GalSim reads this mask with a 32768 offset.
             'cat_file_name' : cat_file,
             'cat_ext' : 2,
             'x_col' : 'XWIN_IMAGE',

@@ -3,6 +3,7 @@ input:
     image_file_name: DECam_00241238_01.fits.fz
     image_ext: 1
     badpix_ext: 2
+    fix_ushort_badpix: true  # GalSim reads this mask with a 32768 offset.
     weight_ext: 3
 
     cat_file_name: DECam_00241238_01_cat.fits
