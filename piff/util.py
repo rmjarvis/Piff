@@ -112,6 +112,12 @@ def adjust_value(value, dtype):
             # For other numpy arrays, we can use astype instead.
             return np.array(value).astype(t)
 
+def get_asdf_value(tree, path):
+    """Select a value from an ASDF tree using a dotted path."""
+    for key in path.split('.'):
+        tree = tree[key]
+    return tree
+
 def estimate_cov_from_jac(jac):
     """Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
     .. math::
