@@ -16,6 +16,7 @@ import galsim
 import numpy as np
 import os
 from galsim.wcs import CelestialWCS
+from ..util import get_asdf_value
 
 
 class RomanGWCS(CelestialWCS):
@@ -88,9 +89,7 @@ class _RomanGWCSBuilder(galsim.config.WCSBuilder):
             file_name = os.path.join(kwargs['dir'], file_name)
         logger.info('Reading Roman GWCS from %s', file_name)
         with asdf.open(file_name) as af:
-            wcs = af.tree
-            for key in kwargs.get('path', 'roman.meta.wcs').split('.'):
-                wcs = wcs[key]
+            wcs = get_asdf_value(af.tree, kwargs.get('path', 'roman.meta.wcs'))
             return RomanGWCS(wcs)
 
 

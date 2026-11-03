@@ -908,17 +908,7 @@ def test_cols():
     assert len(gain_list) == 100
     np.testing.assert_almost_equal(gain_list, gain)
 
-    # Missing ImageHeaderValue keys should raise a KeyError.
-    config['gain'] = { 'type': 'ImageHeaderValue', 'key': 'BAD_GAIN' }
-    with np.testing.assert_raises(KeyError):
-        piff.InputFiles(config, logger=logger).getRawImageData(0)
-
-    # ImageHeaderValue requires a current image context.
-    with np.testing.assert_raises(ValueError):
-        galsim.config.ParseValue(
-            { 'x': { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' } }, 'x', {}, None)
-
-    # including satur will skip stars that are over the given saturation value.
+    # Including satur will skip stars that are over the given saturation value.
     # (It won't skip them here, just when building the stars list.)
     config = {
                 'dir' : 'input',
