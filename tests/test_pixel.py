@@ -938,12 +938,12 @@ def test_single_image():
                'sky' : sky_level,
              }
     input = piff.InputFiles(config)
-    assert input.image_file_name == [image_file]
-    assert input.cat_file_name == [cat_file]
 
     # Check image
     assert input.nimages == 1
     raw_data = input.getRawImageData(0)
+    assert input.image_file_name == [image_file]
+    assert input.cat_file_name == [cat_file]
     image1 = raw_data.image
     image_pos = raw_data.image_pos
     np.testing.assert_equal(image1.array, image.array - sky_level)
@@ -1636,10 +1636,10 @@ def test_color():
                'property_cols' : ['color']
              }
     input = piff.InputFiles(config)
-    assert input.image_file_name == [image_file]
-    assert input.cat_file_name == [cat_file]
     assert input.nimages == 1
     image1, _, image_pos, props, _ = input.getRawImageData(0)
+    assert input.image_file_name == [image_file]
+    assert input.cat_file_name == [cat_file]
     np.testing.assert_equal(image1.array, image.array)
     assert len(image_pos) == len(x_list)
     np.testing.assert_equal([pos.x for pos in image_pos], x_list)

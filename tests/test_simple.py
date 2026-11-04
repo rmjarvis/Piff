@@ -184,12 +184,12 @@ def test_single_image():
     config = { 'image_file_name' : image_file,
                'cat_file_name': cat_file }
     input = piff.InputFiles(config, logger=logger)
-    assert input.image_file_name == [ image_file ]
-    assert input.cat_file_name == [ cat_file ]
 
     # Check image
     assert input.nimages == 1
     raw_data = input.getRawImageData(0)
+    assert input.image_file_name == [ image_file ]
+    assert input.cat_file_name == [ cat_file ]
     image1 = raw_data.image
     image_pos = raw_data.image_pos
     np.testing.assert_equal(image1.array, image.array)
