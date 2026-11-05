@@ -2917,6 +2917,21 @@ def test_sky():
     for i in range(len(stars)):
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky_med)
 
+    # Make sure a sky property can't sneak in via the property_cols or properties avenue.
+    # These should still be invalid in conjunction with other sky specifications.
+    for properties in [{'property_cols': ['sky']}, {'properties': {'sky': 7}}]:
+        for sky_source in [{'sky': 0}, {'sky_file_name': sky_file}]:
+            conflicting_config = {
+                'image_file_name': image_file,
+                'cat_file_name': cat_file,
+                **properties,
+                **sky_source,
+            }
+            reader = piff.InputFiles(conflicting_config)
+            with np.testing.assert_raises(ValueError) as e:
+                reader.getRawImageData(0)
+            assert 'sky property' in str(e.exception)
+
     # Error if sky_file doesn't exist
     config['sky_file_name'] = sky_file[-2]
     with np.testing.assert_raises(ValueError):
