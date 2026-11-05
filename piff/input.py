@@ -1260,6 +1260,9 @@ class InputFiles(Input):
             extra_props.update(self._evaluate_properties(
                 params['properties'], extra_props, len(cat), base, logger))
 
+        if 'sky' in extra_props and data.sky is not None:
+            raise ValueError("A sky property cannot coexist with an image-level sky source.")
+
         data.image_pos = image_pos
         data.extra_props = extra_props
 
