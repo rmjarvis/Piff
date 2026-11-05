@@ -3,4 +3,5 @@
 *.pdf
 *.png
 *.piff
+*.npz
 test_dir
