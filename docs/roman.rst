@@ -7,6 +7,9 @@ live in the sub-module piff.roman. They include the following:
 .. autoclass:: piff.roman.RomanGWCS
     :members:
 
+.. autoclass:: piff.roman.RomanFiles
+    :members:
+
 .. autoclass:: piff.roman.RomanOpticsPSF
     :members:
 

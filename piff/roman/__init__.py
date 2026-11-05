@@ -18,3 +18,4 @@ Specialized features for the Nancy Grace Roman Space Telescope.
 
 from .roman_psf import RomanOpticsPSF, RomanOpticalModel, RomanSCAInterp
 from .gwcs import RomanGWCS
+from .roman_files import RomanFiles
