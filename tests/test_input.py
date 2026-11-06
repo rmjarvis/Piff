@@ -172,27 +172,35 @@ def test_basic():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _ = input.getRawImageData(0)
+    # Raw image results support both tuple unpacking and access by field name.
+    raw_data = input.getRawImageData(0)
+    assert isinstance(raw_data, piff.RawImageData)
+    image, weight, image_pos, extra_props, gain_image = raw_data
+    assert raw_data.image is image
+    assert raw_data.weight is weight
+    assert raw_data.image_pos is image_pos
+    assert raw_data.extra_props is extra_props
+    assert raw_data.gain_image is gain_image is None
     assert len(image_pos) == 100
 
     # Check alternate file suffix for catalog.
     config['cat_file_name'] = 'test_input_cat_00.fit'
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos2, _ = input.getRawImageData(0)
+    image_pos2 = input.getRawImageData(0).image_pos
     np.testing.assert_array_equal(image_pos, image_pos2)
 
     # Check parquet files
     config['cat_file_name'] = 'test_input_cat_00.parquet'
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos2, _ = input.getRawImageData(0)
+    image_pos2 = input.getRawImageData(0).image_pos
     np.testing.assert_array_equal(image_pos, image_pos2)
 
     config['cat_file_name'] = 'test_input_cat_00.pq'
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos2, _ = input.getRawImageData(0)
+    image_pos2 = input.getRawImageData(0).image_pos
     np.testing.assert_array_equal(image_pos, image_pos2)
 
     config['cat_file_name'] = 'test_input_cat_00.invalid'
@@ -206,7 +214,7 @@ def test_basic():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     assert len(image_pos) == 100
 
     # 3 images in a list
@@ -220,7 +228,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _ = input.getRawImageData(i)
+        image_pos = input.getRawImageData(i).image_pos
         assert len(image_pos) == 100
 
     # Again without dir.
@@ -233,7 +241,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _ = input.getRawImageData(i)
+        image_pos = input.getRawImageData(i).image_pos
         assert len(image_pos) == 100
 
     # 3 images using glob
@@ -247,7 +255,7 @@ def test_basic():
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _ = input.getRawImageData(i)
+        image_pos = input.getRawImageData(i).image_pos
         assert len(image_pos) == 100
 
     # Filename shorthand must follow the same per-image parsing as explicit dicts.
@@ -262,12 +270,12 @@ def test_basic():
         'pixel_scale': {'type': 'List_float', 'items': [0.2, 0.3]},
     }
     targets = ['image', 'cat', 'image', 'image', 'sky']
-    reference_config = {'nimages': 2, 'weight_hdu': 1, 'badpix_hdu': 2}
+    reference_config = {'nimages': 2, 'weight_ext': 1, 'badpix_ext': 2}
     reference_config['wcs'] = {'type': 'PixelScale', 'scale': '$@pixel_scale'}
     for key, target in zip(file_keys, targets):
         reference_config[key] = {'type': 'Current', 'key': target}
     reference = piff.InputFiles(reference_config, base=base, logger=logger)
-    assert reference.wcs_list == [galsim.PixelScale(0.2), galsim.PixelScale(0.3)]
+    assert reference.getWCS(logger) == {0: galsim.PixelScale(0.2), 1: galsim.PixelScale(0.3)}
     for prefix in ['@', '$@']:
         print('prefix = ',prefix)
         shorthand_config = reference_config.copy()
@@ -275,15 +283,15 @@ def test_basic():
             shorthand_config[key] = prefix + target
         print('shorthand_config = ',shorthand_config)
         shorthand = piff.InputFiles(shorthand_config, base=base, logger=logger)
+        assert shorthand.getWCS(logger) == reference.getWCS(logger)
         print('shorthand = ',shorthand)
         print('image_file_name = ',shorthand.image_file_name, reference.image_file_name)
         assert shorthand.image_file_name == reference.image_file_name
         assert shorthand.cat_file_name == reference.cat_file_name
         assert shorthand.image_file_name[0] != shorthand.image_file_name[1]
-        assert shorthand.wcs_list == reference.wcs_list
         for image_num in range(2):
-            image, weight, positions, _ = shorthand.getRawImageData(image_num)
-            ref_image, ref_weight, ref_positions, _ = reference.getRawImageData(image_num)
+            image, weight, positions, _, _ = shorthand.getRawImageData(image_num)
+            ref_image, ref_weight, ref_positions, _, _ = reference.getRawImageData(image_num)
             np.testing.assert_array_equal(image.array, ref_image.array)
             np.testing.assert_array_equal(weight.array, ref_weight.array)
             assert positions == ref_positions
@@ -298,7 +306,7 @@ def test_basic():
     assert "input.nstars is deprecated" in cl.output
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _ = input.getRawImageData(i)
+        image_pos = input.getRawImageData(i).image_pos
         assert len(image_pos) == 37
 
     # input.nstars can still vary by image with the old per-catalog behavior.
@@ -306,7 +314,7 @@ def test_basic():
     input = piff.InputFiles(config)
     assert input.nimages == 3
     for i in range(3):
-        _, _, image_pos, _ = input.getRawImageData(i)
+        image_pos = input.getRawImageData(i).image_pos
         if i == 0:
             assert len(image_pos) == 40
         elif i == 1:
@@ -408,6 +416,137 @@ def test_basic():
 
 
 @timer
+def test_extensions():
+    """Test various aspects of accessing FITS extensions, including accessing them  by name.
+    """
+    # Write named extensions with known values to test extension selection, sky subtraction,
+    # and bad-pixel masking.
+    from astropy.io import fits
+    file_name = os.path.join('output', 'input_extensions.fits')
+    science = np.arange(64 * 64, dtype=float).reshape(64, 64)
+    sky = np.full_like(science, 2.0)
+    mask = np.zeros(science.shape, dtype=np.int16)
+    mask[15, 15] = 1
+    catalog = np.array([(16.0, 16.0), (32.0, 32.0)], dtype=[('x', float), ('y', float)])
+    with fitsio.FITS(file_name, 'rw', clobber=True) as f:
+        f.write(science, extname='SCI', header={'GS_WCS': 'PixelScale', 'GS_SCALE': 0.4})
+        f.write(science + 10, extname='SCI2',
+                header={'GS_WCS': 'PixelScale', 'GS_SCALE': 0.7})
+        f.write(np.full_like(science, 5.0), extname='WEIGHT')
+        f.write(mask, extname='MASK')
+        f.write(sky, extname='SKY')
+        f.write(catalog, extname='CAT')
+    config = {
+        'image_file_name': file_name,
+        'cat_file_name': file_name,
+        'sky_file_name': file_name,
+        'image_ext': 0,
+        'weight_ext': 2,
+        'badpix_ext': 3,
+        'sky_ext': 4,
+        'cat_ext': 5,
+    }
+
+    # Extensions can be selected by either number or name.
+    names = ['SCI', 'WEIGHT', 'MASK', 'SKY', 'CAT']
+    keys = ['image_ext', 'weight_ext', 'badpix_ext', 'sky_ext', 'cat_ext']
+    for named in [False, True]:
+        current = dict(config)
+        if named:
+            current.update(zip(keys, names))
+        handler = piff.InputFiles(current)
+        image, weight, positions, _, _ = handler.getRawImageData(0)
+        np.testing.assert_array_equal(image.array, science - sky)
+        np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+        assert positions == [galsim.PositionD(16, 16), galsim.PositionD(32, 32)]
+        assert handler.getWCS()[0] == galsim.PixelScale(0.4)
+
+    # A sky extension without a filename selects the sky plane in the science file.
+    current = dict(config)
+    current.pop('sky_file_name')
+    handler = piff.InputFiles(current)
+    raw_data = handler.getRawImageData(0)
+    image = raw_data.image
+    weight = raw_data.weight
+    np.testing.assert_array_equal(image.array, science - sky)
+    np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+
+    # The old names for *_ext was *_hdu. These are still allowed, but deprecated.
+    for key in keys:
+        current = dict(config)
+        old = key.replace('_ext', '_hdu')
+        current[old] = current.pop(key)
+        with CaptureLog(1) as cl:
+            handler = piff.InputFiles(current, logger=cl.logger)
+        assert '%s is deprecated as of version 1.8. Use %s instead.' % (old, key) in cl.output
+        assert old in current and key not in current
+        image, weight, positions, _, _ = handler.getRawImageData(0)
+        np.testing.assert_array_equal(image.array, science - sky)
+        np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+        assert positions == [galsim.PositionD(16, 16), galsim.PositionD(32, 32)]
+
+    # References to the deprecated names in Current or Eval types still work.
+    current = dict(config)
+    current['image_hdu'] = current.pop('image_ext')
+    current['weight_hdu'] = '$@input.image_hdu + 2'
+    current.pop('weight_ext')
+    handler = piff.InputFiles(current, base={'input': current})
+    raw_data = handler.getRawImageData(0)
+    image = raw_data.image
+    weight = raw_data.weight
+    np.testing.assert_array_equal(image.array, science - sky)
+    np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+
+    # Extensions can be a list, which can mix numeric and named forms.
+    for image_ext in [[0, 1], ['SCI', 'SCI2'], [0, 'SCI2']]:
+        current = dict(config, image_ext=image_ext)
+        current['weight_ext'] = [2, 'WEIGHT']
+        current['badpix_ext'] = ['MASK', 3]
+        current['sky_ext'] = [4, 'SKY']
+        current['cat_ext'] = ['CAT', 5]
+        handler = piff.InputFiles(current)
+        assert handler.nimages == 2
+        for i in range(2):
+            image, weight, positions, _, _ = handler.getRawImageData(i)
+            np.testing.assert_array_equal(image.array, science + 10 * i - sky)
+            np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+            assert positions == [galsim.PositionD(16, 16), galsim.PositionD(32, 32)]
+            assert handler.getWCS()[i] == galsim.PixelScale([0.4, 0.7][i])
+
+    # Extensions can be a GalSim-parsed type that runs over imgae_num.
+    # If the number of images is not apparent from the image_file_name, then input.nimages
+    # needs to be given in the config.
+    current = dict(config, nimages=2)
+    current['image_ext'] = {'type': 'Sequence', 'first': 0}
+    current['weight_ext'] = {'type': 'List_str', 'items': ['WEIGHT', 'WEIGHT']}
+    handler = piff.InputFiles(current)
+    for i in range(2):
+        raw_data = handler.getRawImageData(i)
+        image = raw_data.image
+        weight = raw_data.weight
+        np.testing.assert_array_equal(image.array, science + 10 * i - sky)
+        np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+
+    # Check named extensions in compressed FITS files.
+    compressed_file = os.path.join('output', 'input_extensions.fits.fz')
+    with fits.open(file_name) as hdus:
+        compressed = fits.HDUList([fits.PrimaryHDU()])
+        for hdu in hdus[:-1]:
+            compressed.append(fits.CompImageHDU(data=hdu.data, header=hdu.header, name=hdu.name))
+        compressed.append(hdus[-1].copy())
+        compressed.writeto(compressed_file, overwrite=True)
+    current = dict(config)
+    current.update(zip(keys, names))
+    for key in ['image_file_name', 'cat_file_name', 'sky_file_name']:
+        current[key] = compressed_file
+    handler = piff.InputFiles(current)
+    image, weight, positions, _, _ = handler.getRawImageData(0)
+    np.testing.assert_array_equal(image.array, science - sky)
+    np.testing.assert_array_equal(weight.array, np.where(mask, 0, 5))
+    assert positions == [galsim.PositionD(16, 16), galsim.PositionD(32, 32)]
+    assert handler.getWCS()[0] == galsim.PixelScale(0.4)
+
+@timer
 def test_invalid():
     """Test invalid configuration elements
     """
@@ -426,6 +565,28 @@ def test_invalid():
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
     config = { 'cat_file_name': os.path.join('input',cat_file), 'image_file_name' : 17 }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
+    # Cannot give the old *_hdu alongside *_ext, even when their values agree.
+    for prefix in ['image', 'weight', 'badpix', 'sky', 'cat']:
+        config = {
+            'image_file_name': os.path.join('input', image_file),
+            'cat_file_name': os.path.join('input', cat_file),
+            prefix + '_hdu': 0,
+            prefix + '_ext': 0,
+        }
+        with np.testing.assert_raises(ValueError) as e:
+            piff.InputFiles(config)
+        assert 'Cannot provide both %s_hdu and %s_ext' % (prefix, prefix) in str(e.exception)
+
+    # Extension lists may not include empty lists or have inconsistent counts.
+    for selectors, nimages in [([], 1), ([0, 1], 3)]:
+        config = {
+            'image_file_name': os.path.join('input', image_file),
+            'cat_file_name': os.path.join('input', cat_file),
+            'image_ext': selectors,
+            'nimages': nimages,
+        }
+        np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
     # Using the wrong name (either as a glob or not) should raise an appropriate exception
     config = { 'dir' : 'input', 'image_file_name' : 'x'+image_file, 'cat_file_name' : cat_file }
@@ -454,23 +615,23 @@ def test_invalid():
     config = { 'nimages' : -1, 'image_file_name' : image_files, 'cat_file_name': cat_files }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
 
-    # image_hdu can define nimages, but invalid values should raise.
+    # image_ext can define nimages, but invalid values should raise.
     config = {
         'image_file_name' : os.path.join('input', image_file),
-        'image_hdu' : [],
+        'image_ext' : [],
         'cat_file_name' : os.path.join('input', cat_file),
     }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
     config = {
         'nimages' : 3,
         'image_file_name' : os.path.join('input', image_file),
-        'image_hdu' : [0, 1],
+        'image_ext' : [0, 1],
         'cat_file_name' : os.path.join('input', cat_file),
     }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
     config = {
         'image_file_name' : 'input/test_input_image_*.fits',
-        'image_hdu' : [0, 1],
+        'image_ext' : [0, 1],
         'cat_file_name' : os.path.join('input', cat_file),
     }
     np.testing.assert_raises(ValueError, piff.InputFiles, config)
@@ -488,7 +649,7 @@ def test_invalid():
     # Auxiliary file inputs should validate types and list lengths too.
     config = {
         'image_file_name' : os.path.join('input', image_file),
-        'image_hdu' : [0, 1],
+        'image_ext' : [0, 1],
         'cat_file_name' : os.path.join('input', cat_file),
         'sky_file_name' : 'input/test_input_*_00.fits',
     }
@@ -498,7 +659,7 @@ def test_invalid():
 
     config = {
         'image_file_name' : os.path.join('input', image_file),
-        'image_hdu' : [0, 1],
+        'image_ext' : [0, 1],
         'cat_file_name' : os.path.join('input', cat_file),
         'weight_file_name' : 'input/test_input_*_00.fits',
     }
@@ -510,7 +671,7 @@ def test_invalid():
 
     config = {
         'image_file_name' : os.path.join('input', image_file),
-        'image_hdu' : [0, 1],
+        'image_ext' : [0, 1],
         'cat_file_name' : os.path.join('input', cat_file),
         'badpix_file_name' : 'input/test_input_*_00.fits',
     }
@@ -562,7 +723,7 @@ def test_cols():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     assert len(image_pos) == 100
 
     # Can do ra, dec instead of x, y
@@ -577,7 +738,7 @@ def test_cols():
              }
     input2 = piff.InputFiles(config, logger=logger)
     assert input2.nimages == 1
-    _, _, image_pos2, _ = input2.getRawImageData(0)
+    image_pos2 = input2.getRawImageData(0).image_pos
     print('input.image_pos = ',image_pos)
     print('input2.image_pos = ',image_pos2)
     assert len(image_pos2) == 100
@@ -604,7 +765,7 @@ def test_cols():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, props = input.getRawImageData(0)
+    raw_image, _, image_pos, props, _ = input.getRawImageData(0)
     sky_list = props['sky']
     gain_list = props['gain']
     assert len(image_pos) == 100
@@ -623,17 +784,16 @@ def test_cols():
                 'gain' : gain,
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
-    sky_list = props['sky']
+    image, _, image_pos, props, _ = input.getRawImageData(0)
+    assert 'sky' not in props
     gain_list = props['gain']
     assert len(image_pos) == 100
-    assert len(sky_list) == 100
     assert len(gain_list) == 100
     # These aren't precisely equal because we go through a str value, which truncates it.
     # We could hack this to keep it exact, but it's probably not worth it and it's easier to
     # enable both str and float by reading it as str and then trying the float conversion to see
     # it if works.  Anyway, that's why this is only decimal=9.
-    np.testing.assert_almost_equal(sky_list, sky, decimal=9)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain, decimal=9)
 
     # sky and gain can be taken from the fits header using the ImageHeaderValue type.
@@ -645,13 +805,12 @@ def test_cols():
                 'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
-    sky_list = props['sky']
+    image, _, image_pos, props, _ = input.getRawImageData(0)
+    assert 'sky' not in props
     gain_list = props['gain']
     assert len(image_pos) == 100
-    assert len(sky_list) == 100
     assert len(gain_list) == 100
-    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain)
 
     # The old way to do this was to treat strings as header keys.  This still works,
@@ -666,15 +825,14 @@ def test_cols():
              }
     input = piff.InputFiles(config)
     with CaptureLog() as cl:
-        _, _, image_pos, props = input.getRawImageData(0, logger=cl.logger)
+        image, _, image_pos, props, _ = input.getRawImageData(0, logger=cl.logger)
     assert "Using a bare FITS header key for sky is deprecated" in cl.output
     assert "Using a bare FITS header key for gain is deprecated" in cl.output
-    sky_list = props['sky']
+    assert 'sky' not in props
     gain_list = props['gain']
     assert len(image_pos) == 100
-    assert len(sky_list) == 100
     assert len(gain_list) == 100
-    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain)
 
     # These can also use other parseable config values.
@@ -687,12 +845,12 @@ def test_cols():
                 'trust_pos' : {'type': 'Eval', 'str': 'True'},
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
-    sky_list = props['sky']
+    image, _, image_pos, props, _ = input.getRawImageData(0)
+    assert 'sky' not in props
     gain_list = props['gain']
     trust_pos = props['trust_pos']
     assert len(image_pos) == 100
-    np.testing.assert_almost_equal(sky_list, sky)
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     np.testing.assert_almost_equal(gain_list, gain)
     np.testing.assert_array_equal(trust_pos, [True] * 100)
 
@@ -704,7 +862,7 @@ def test_cols():
                 'noise' : '$2 + 3',
              }
     input = piff.InputFiles(config, logger=logger)
-    image, weight, image_pos, _ = input.getRawImageData(0)
+    image, weight, image_pos, _, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array[weight.array != 0], [1./5.] * np.count_nonzero(weight.array))
 
@@ -719,10 +877,12 @@ def test_cols():
     base = {'input': multi_config, 'first_value': 10.}
     multi_input = piff.InputFiles(multi_config, base=base, logger=logger)
     for image_num, expected in enumerate([10., 20.]):
-        _, weight, image_pos, props = multi_input.getRawImageData(image_num)
+        image, weight, image_pos, props, _ = multi_input.getRawImageData(image_num)
         assert len(image_pos) == 100
         np.testing.assert_allclose(weight.array, 1. / expected)
-        for key in ['sky', 'gain', 'satur']:
+        np.testing.assert_allclose(image.array, raw_image.array - expected)
+        assert 'sky' not in props
+        for key in ['gain', 'satur']:
             np.testing.assert_allclose(props[key], expected)
 
     # Eval references must also refresh their targets when moving to another image.
@@ -731,31 +891,25 @@ def test_cols():
         multi_config[key] = '$@image_value'
     multi_input = piff.InputFiles(multi_config, base=base, logger=logger)
     for image_num, expected in enumerate([10., 20.]):
-        _, weight, _, props = multi_input.getRawImageData(image_num)
+        image, weight, _, props, _ = multi_input.getRawImageData(image_num)
         np.testing.assert_allclose(weight.array, 1. / expected)
-        for key in ['sky', 'gain', 'satur']:
+        np.testing.assert_allclose(image.array, raw_image.array - expected)
+        assert 'sky' not in props
+        for key in ['gain', 'satur']:
             np.testing.assert_allclose(props[key], expected)
 
     # gain can also be given explicitly as an ImageHeaderValue.
     config['gain'] = { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image_pos = raw_data.image_pos
+    props = raw_data.extra_props
     gain_list = props['gain']
     assert len(image_pos) == 100
     assert len(gain_list) == 100
     np.testing.assert_almost_equal(gain_list, gain)
 
-    # Missing ImageHeaderValue keys should raise a KeyError.
-    config['gain'] = { 'type': 'ImageHeaderValue', 'key': 'BAD_GAIN' }
-    with np.testing.assert_raises(KeyError):
-        piff.InputFiles(config, logger=logger).getRawImageData(0)
-
-    # ImageHeaderValue requires a current image context.
-    with np.testing.assert_raises(ValueError):
-        galsim.config.ParseValue(
-            { 'x': { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' } }, 'x', {}, None)
-
-    # including satur will skip stars that are over the given saturation value.
+    # Including satur will skip stars that are over the given saturation value.
     # (It won't skip them here, just when building the stars list.)
     config = {
                 'dir' : 'input',
@@ -766,7 +920,9 @@ def test_cols():
                 'satur' : 1890,
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image_pos = raw_data.image_pos
+    props = raw_data.extra_props
     satur = props['satur'][0]
     assert satur == 1890
     assert len(image_pos) == 100
@@ -780,7 +936,9 @@ def test_cols():
                 'satur' : '$1800 + 90',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image_pos = raw_data.image_pos
+    props = raw_data.extra_props
     satur = props['satur'][0]
     assert satur == 1890
     assert len(image_pos) == 100
@@ -794,7 +952,9 @@ def test_cols():
                 'satur' : { 'type': 'ImageHeaderValue', 'key': 'SATURAT' },
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image_pos = raw_data.image_pos
+    props = raw_data.extra_props
     satur = props['satur'][0]
     assert satur == 1890
     assert len(image_pos) == 100
@@ -810,7 +970,9 @@ def test_cols():
              }
     input = piff.InputFiles(config)
     with CaptureLog() as cl:
-        _, _, image_pos, props = input.getRawImageData(0, logger=cl.logger)
+        raw_data = input.getRawImageData(0, logger=cl.logger)
+        image_pos = raw_data.image_pos
+        props = raw_data.extra_props
     assert "Using a bare FITS header key for satur is deprecated" in cl.output
     satur = props['satur'][0]
     assert satur == 1890
@@ -825,7 +987,7 @@ def test_cols():
                 'skip_flag' : 4
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     assert input.nimages == 1
     print('len = ',len(image_pos))
     assert len(image_pos) == 80
@@ -839,7 +1001,7 @@ def test_cols():
                 'use_flag' : 1
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     print('len = ',len(image_pos))
     assert len(image_pos) == 85
 
@@ -853,7 +1015,7 @@ def test_cols():
                 'use_flag' : '$2**0',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     print('len = ',len(image_pos))
     assert len(image_pos) == 68
 
@@ -865,7 +1027,7 @@ def test_cols():
                 'flag_col' : 'flag',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     print('len = ',len(image_pos))
     assert len(image_pos) == 12
 
@@ -879,7 +1041,7 @@ def test_cols():
                 'use_flag' : 128
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     print('len = ',len(image_pos))
     assert len(image_pos) == 0
     with np.testing.assert_raises(RuntimeError):
@@ -896,12 +1058,12 @@ def test_cols():
                 'cat_file_name' : 'test_input_cat_00.fits',
              }
     input = piff.InputFiles(dict(property_cols=['gr_color'], **base_config), logger=logger)
-    _, _, _, props_dict = input.getRawImageData(0)
+    props_dict = input.getRawImageData(0).extra_props
     assert len(props_dict['gr_color']) == 100
     np.testing.assert_array_equal(props_dict['gr_color'], gr_color)
     input = piff.InputFiles(dict(property_cols=['gr_color', 'rz_color'], **base_config),
                             logger=logger)
-    _, _, _, props_dict = input.getRawImageData(0)
+    props_dict = input.getRawImageData(0).extra_props
     print(props_dict)
     assert len(props_dict['gr_color']) == 100
     assert len(props_dict['rz_color']) == 100
@@ -927,11 +1089,11 @@ def test_cols():
                 'property_cols' : ['gr_color'],
              }
     input = piff.InputFiles(config, logger=logger)
-    _, _, _, props_dict = input.getRawImageData(0)
+    props_dict = input.getRawImageData(0).extra_props
     np.testing.assert_array_equal(props_dict['const_prop'], [1.5] * 100)
     np.testing.assert_array_equal(props_dict['image_id'], [10] * 100)
     np.testing.assert_allclose(props_dict['gr_plus_one'], gr_color + 1)
-    _, _, _, props_dict = input.getRawImageData(1)
+    props_dict = input.getRawImageData(1).extra_props
     np.testing.assert_array_equal(props_dict['const_prop'], [1.5] * 100)
     np.testing.assert_array_equal(props_dict['image_id'], [11] * 100)
 
@@ -951,14 +1113,14 @@ def test_cols():
                 'trust_pos' : '$@image_num == 1',
              }
     input = piff.InputFiles(config, logger=logger)
-    _, weight0, image_pos0, props0 = input.getRawImageData(0)
-    _, weight1, image_pos1, props1 = input.getRawImageData(1)
+    image0, weight0, image_pos0, props0, _ = input.getRawImageData(0)
+    image1, weight1, image_pos1, props1, _ = input.getRawImageData(1)
     assert len(image_pos0) == 100
     assert len(image_pos1) == 100
     np.testing.assert_allclose(weight0.array[weight0.array != 0], [1.] * np.count_nonzero(weight0.array))
     np.testing.assert_allclose(weight1.array[weight1.array != 0], [0.5] * np.count_nonzero(weight1.array))
-    np.testing.assert_array_equal(props0['sky'], [100.] * 100)
-    np.testing.assert_array_equal(props1['sky'], [101.] * 100)
+    np.testing.assert_allclose(image0.array, fitsio.read('input/test_input_image_00.fits') - 100)
+    np.testing.assert_allclose(image1.array, fitsio.read('input/test_input_image_01.fits') - 101)
     np.testing.assert_array_equal(props0['trust_pos'], [False] * 100)
     np.testing.assert_array_equal(props1['trust_pos'], [True] * 100)
 
@@ -987,8 +1149,10 @@ def test_cols():
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
     with np.testing.assert_raises(ValueError):
         input = piff.InputFiles(dict(property_cols='invalid_string', **base_config))
+        input.getRawImageData(0)
     with np.testing.assert_raises(galsim.GalSimConfigError):
         input = piff.InputFiles(dict(properties='invalid_string', **base_config))
+        input.getRawImageData(0)
     input = piff.InputFiles(
         dict(properties={'foo': {'type': 'invalid', 'value': 1}}, **base_config))
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
@@ -998,30 +1162,49 @@ def test_cols():
     np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
     # skip_flag, use_flag need to be integers
-    np.testing.assert_raises(ValueError, piff.InputFiles,
-                             dict(flag_col='flag', skip_flag='xx', **base_config))
-    np.testing.assert_raises(ValueError, piff.InputFiles,
-                             dict(flag_col='flag', use_flag='xx', **base_config))
+    for key in ['skip_flag', 'use_flag']:
+        input = piff.InputFiles(dict(base_config, flag_col='flag', **{key: 'xx'}))
+        np.testing.assert_raises(ValueError, input.getRawImageData, 0)
 
-    # Can't give duplicate sky, gain
-    np.testing.assert_raises(ValueError, piff.InputFiles, dict(sky_col='sky', sky=3, **base_config))
+    # Sky comes from one source; a sky filename and extension together specify one source.
+    sky_options = {
+        'sky': 3,
+        'sky_col': 'sky',
+        'sky_file_name': 'input/test_input_sky_00.fits.fz',
+        'sky_ext': 1,
+    }
+    for first, second in [('sky', 'sky_col'), ('sky', 'sky_file_name'),
+                          ('sky_col', 'sky_file_name'), ('sky', 'sky_ext'),
+                          ('sky_col', 'sky_ext')]:
+        config = dict(base_config)
+        config[first] = sky_options[first]
+        config[second] = sky_options[second]
+        np.testing.assert_raises(ValueError, piff.InputFiles, config)
+
+    # Gain can likewise come from either a configured value or a catalog column.
     np.testing.assert_raises(ValueError, piff.InputFiles, dict(gain_col='gain', gain=3, **base_config))
 
     # Invalid header keys
     config = dict(sky={'type': 'ImageHeaderValue', 'key': 'sky'}, **base_config)
-    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    reader = piff.InputFiles(config)
+    np.testing.assert_raises(KeyError, reader.getRawImageData, 0)
     config = dict(gain={'type': 'ImageHeaderValue', 'key': 'gain'}, **base_config)
-    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    reader = piff.InputFiles(config)
+    np.testing.assert_raises(KeyError, reader.getRawImageData, 0)
     config = dict(satur={'type': 'ImageHeaderValue', 'key': 'satur'}, **base_config)
-    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    reader = piff.InputFiles(config)
+    np.testing.assert_raises(KeyError, reader.getRawImageData, 0)
 
     # Same with the deprecated versions:
     config = dict(sky='sky', **base_config)
-    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    reader = piff.InputFiles(config)
+    np.testing.assert_raises(KeyError, reader.getRawImageData, 0)
     config = dict(gain='gain', **base_config)
-    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    reader = piff.InputFiles(config)
+    np.testing.assert_raises(KeyError, reader.getRawImageData, 0)
     config = dict(satur='satur', **base_config)
-    np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
+    reader = piff.InputFiles(config)
+    np.testing.assert_raises(KeyError, reader.getRawImageData, 0)
 
 
 @timer
@@ -1398,7 +1581,7 @@ def test_boolarray():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     print('len = ',len(image_pos))
     assert len(image_pos) == 80
 
@@ -1422,6 +1605,7 @@ def test_chipnum():
                 'cat_file_name': cat_files
              }
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger)
     assert input.chipnums == list(range(3))
 
     # Now make the chipnums something else
@@ -1432,6 +1616,7 @@ def test_chipnum():
                 'chipnum' : [ 5, 6, 7 ]
              }
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger)
     assert input.chipnums == [ i+5 for i in range(3) ]
 
     # Use the GalSim Eval capability to get the index + 1
@@ -1442,6 +1627,7 @@ def test_chipnum():
                 'chipnum' : '$image_num + 1'
              }
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger)
     assert input.chipnums == [ i+1 for i in range(3) ]
 
     # Or parse it from the image_file_name
@@ -1456,6 +1642,7 @@ def test_chipnum():
                 }
              }
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger)
     assert input.chipnums == list(range(3))
 
 
@@ -1475,7 +1662,7 @@ def test_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, _ = input.getRawImageData(0)
+    image, weight, image_pos, _, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
@@ -1486,14 +1673,14 @@ def test_weight():
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
-                'weight_hdu' : 1,
-                'badpix_hdu' : 2,
+                'weight_ext' : 1,
+                'badpix_ext' : 2,
                 'sky_col' : 'sky',  # Used to determine what the value of weight should be
                 'gain_col' : 'gain',
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, extra_props = input.getRawImageData(0)
+    image, weight, image_pos, extra_props, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
@@ -1511,7 +1698,7 @@ def test_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 32.**-1)
 
@@ -1524,7 +1711,7 @@ def test_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 34.**-1)
 
@@ -1533,7 +1720,7 @@ def test_weight():
     input = piff.InputFiles(config)
     assert input.nimages == 1
     with CaptureLog() as cl:
-        _, weight, _, _ = input.getRawImageData(0, logger=cl.logger)
+        weight = input.getRawImageData(0, logger=cl.logger).weight
     assert "Using a bare FITS header key for noise is deprecated" in cl.output
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 34.**-1)
@@ -1545,104 +1732,107 @@ def test_weight():
     np.testing.assert_raises(KeyError, piff.InputFiles(config).getRawImageData, 0)
 
     # Some old versions of fitsio had a bug where the badpix mask could be offset by 32768.
-    # We move them back to 0
+    # This can be fixed using fix_ushort_badpix = True.
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
-                'weight_hdu' : 1,
-                'badpix_hdu' : 5,
+                'weight_ext' : 1,
+                'badpix_ext' : 5,
+                'fix_ushort_badpix' : True,
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, expected_noise**-1)
 
-    config['badpix_hdu'] = 6
+    # The correction also handles an offset of -32768.
+    config['badpix_ext'] = 6
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, expected_noise**-1)
 
     # Various ways to get all weight values == 0 (which will emit a logger message, but isn't
     # an error).
-    config['weight_hdu'] = 1
-    config['badpix_hdu'] = 7  # badpix > 0
+    del config['fix_ushort_badpix']
+    config['weight_ext'] = 1
+    config['badpix_ext'] = 7  # badpix > 0
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
-    config['weight_hdu'] = 3  # wt = 0
-    config['badpix_hdu'] = 2
+    config['weight_ext'] = 3  # wt = 0
+    config['badpix_ext'] = 2
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
-    config['weight_hdu'] = 8  # Even cols are = 0
-    config['badpix_hdu'] = 9  # Odd cols are > 0
+    config['weight_ext'] = 8  # Even cols are = 0
+    config['badpix_ext'] = 9  # Odd cols are > 0
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
     # Use a different file for badpix and weight.  These are hdu 2,1 in this file.
     config['weight_file_name'] = 'input/test_input_weight_00.fits'
-    config['weight_hdu'] = 1
+    config['weight_ext'] = 1
     config['badpix_file_name'] = 'input/test_input_badpix_00.fits'
-    config['badpix_hdu'] = 0
+    config['badpix_ext'] = 0
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, weight, _, _ = input.getRawImageData(0)
+    weight = input.getRawImageData(0).weight
     assert weight.array.shape == (1024, 1024)
     np.testing.assert_almost_equal(weight.array, 0.)
 
     # Negative valued weights are invalid
     del config['weight_file_name']
     del config['badpix_file_name']
-    config['weight_hdu'] = 4
+    config['weight_ext'] = 4
     input = piff.InputFiles(config)
     with CaptureLog() as cl:
-        _, weight, _, _ = input.getRawImageData(0, logger=cl.logger)
+        weight = input.getRawImageData(0, logger=cl.logger).weight
     assert 'Warning: weight map has invalid negative-valued pixels.' in cl.output
 
     # If some input values are zero, they can be treated as bad pixels with badpix_zeros
-    del config['weight_hdu']
-    config['badpix_hdu'] = 9
+    del config['weight_ext']
+    config['badpix_ext'] = 9
     input = piff.InputFiles(config, logger=logger)
-    _, weight, _, _ = input.getRawImageData(0)
-    del config['badpix_hdu']
-    config['image_hdu'] = 11
+    weight = input.getRawImageData(0).weight
+    del config['badpix_ext']
+    config['image_ext'] = 11
     config['badpix_zeros'] = True
     input = piff.InputFiles(config, logger=logger)
-    _, weight2, _, _ = input.getRawImageData(0)
+    weight2 = input.getRawImageData(0).weight
     np.testing.assert_array_equal(weight.array, weight2.array)
 
     # One image file with multiple HDUs should be treated as multiple images.
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
-                'image_hdu' : [0, 10],
+                'image_ext' : [0, 10],
                 'cat_file_name' : 'input/test_input_cat_00.fits',
                 'sky_file_name' : 'input/test_input_sky_00.fits.fz',
                 'weight_file_name' : 'input/test_input_weight_00.fits',
-                'weight_hdu' : [0, 1],
+                'weight_ext' : [0, 1],
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 2
+    image, weight, image_pos, _, _ = input.getRawImageData(0)
     assert input.image_file_name == ['input/test_input_image_00.fits'] * 2
     assert input.cat_file_name == ['input/test_input_cat_00.fits'] * 2
-    image, weight, image_pos, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     np.testing.assert_allclose(image.array,
                                fitsio.read('input/test_input_image_00.fits', ext=0) - sky)
     np.testing.assert_allclose(weight.array,
                                fitsio.read('input/test_input_weight_00.fits', ext=0))
-    image, weight, image_pos, _ = input.getRawImageData(1)
+    image, weight, image_pos, _, _ = input.getRawImageData(1)
     assert len(image_pos) == 100
     np.testing.assert_allclose(image.array,
                                fitsio.read('input/test_input_image_00.fits', ext=10) - sky)
@@ -1655,29 +1845,29 @@ def test_weight():
                 'dir' : 'input',
                 'nimages' : 2,
                 'image_file_name' : 'test_input_image_00.fits',
-                'image_hdu' : [0, 10],
+                'image_ext' : [0, 10],
                 'cat_file_name' : 'test_input_cat_00.fits',
                 'weight_file_name' : 'test_input_weight_00.fits',
-                'weight_hdu' : [0, 1],
+                'weight_ext' : [0, 1],
                 'badpix_file_name' : 'test_input_badpix_00.fits',
-                'badpix_hdu' : 0,
+                'badpix_ext' : 0,
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 2
-    assert input.image_file_name == ['input/test_input_image_00.fits'] * 2
-    assert input.cat_file_name == ['input/test_input_cat_00.fits'] * 2
-    assert input.image_kwargs[0]['weight_file_name'] == 'input/test_input_weight_00.fits'
-    assert input.image_kwargs[1]['weight_file_name'] == 'input/test_input_weight_00.fits'
-    assert input.image_kwargs[0]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
-    assert input.image_kwargs[1]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
     expected_weight0 = fitsio.read('input/test_input_weight_00.fits', ext=0)
     expected_weight0[1::2, :] = 0
-    _, weight, image_pos, _ = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    assert input.image_file_name == ['input/test_input_image_00.fits'] * 2
+    assert input.cat_file_name == ['input/test_input_cat_00.fits'] * 2
+    weight = raw_data.weight
+    image_pos = raw_data.image_pos
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array, expected_weight0)
     expected_weight1 = fitsio.read('input/test_input_weight_00.fits', ext=1)
     expected_weight1[1::2, :] = 0
-    _, weight, image_pos, _ = input.getRawImageData(1)
+    raw_data = input.getRawImageData(1)
+    weight = raw_data.weight
+    image_pos = raw_data.image_pos
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array, expected_weight1)
 
@@ -1686,19 +1876,53 @@ def test_weight():
     config['badpix_file_name'] = { 'type': 'List', 'items': ['input/test_input_badpix_00.fits'], }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 2
+    raw_data = input.getRawImageData(0)
     assert input.image_file_name == ['input/test_input_image_00.fits'] * 2
     assert input.cat_file_name == ['input/test_input_cat_00.fits'] * 2
-    assert input.image_kwargs[0]['weight_file_name'] == 'input/test_input_weight_00.fits'
-    assert input.image_kwargs[1]['weight_file_name'] == 'input/test_input_weight_00.fits'
-    assert input.image_kwargs[0]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
-    assert input.image_kwargs[1]['badpix_file_name'] == 'input/test_input_badpix_00.fits'
-    _, weight, image_pos, _ = input.getRawImageData(0)
+    weight = raw_data.weight
+    image_pos = raw_data.image_pos
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array, expected_weight0)
-    _, weight, image_pos, _ = input.getRawImageData(1)
+    raw_data = input.getRawImageData(1)
+    weight = raw_data.weight
+    image_pos = raw_data.image_pos
     assert len(image_pos) == 100
     np.testing.assert_allclose(weight.array, expected_weight1)
 
+    # Nonfinite science pixels are masked and cleared.
+    # Nonfinite and negative weights are masked.
+    science = galsim.fits.read('input/test_input_image_00.fits').array.astype(float)
+    science[30, 30:33] = [np.nan, np.inf, -np.inf]
+    badpix = np.zeros(science.shape, dtype=np.int16)
+    badpix[30, 30] = 1
+    badpix[40, 40] = 1
+    weight = np.ones(science.shape)
+    weight[31, 30:34] = [np.nan, np.inf, -np.inf, -1.0]
+    file_name = os.path.join('output', 'nonfinite_science.fits')
+    with fitsio.FITS(file_name, 'rw', clobber=True) as f:
+        f.write(science)
+        f.write(weight)
+        f.write(badpix)
+    config = {
+        'image_file_name': file_name,
+        'cat_file_name': 'input/test_input_cat_00.fits',
+        'weight_ext': 1,
+        'badpix_ext': 2,
+        'sky': 3.0,
+    }
+    with CaptureLog() as cl:
+        reader = piff.InputFiles(config)
+        raw_data = reader.getRawImageData(0, logger=cl.logger)
+    assert 'weight map has non-finite pixels' in cl.output
+    assert 'image has non-finite pixels' in cl.output
+    expected_image = science - 3.0
+    expected_image[30, 30:33] = 0 - 3.0  # The sky subtraction happens after they are set to 0.
+    expected_weight = weight.copy()
+    expected_weight[30, 30:33] = 0
+    expected_weight[31, 30:34] = 0
+    expected_weight[40, 40] = 0
+    np.testing.assert_array_equal(raw_data.image.array, expected_image)
+    np.testing.assert_array_equal(raw_data.weight.array, expected_weight)
 
 @timer
 def test_lsst_weight():
@@ -1714,7 +1938,7 @@ def test_lsst_weight():
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
-                'weight_hdu' : 10,
+                'weight_ext' : 10,
                 'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
                 'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
                 'invert_weight' : True,
@@ -1722,12 +1946,12 @@ def test_lsst_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, props = input.getRawImageData(0)
+    image, weight, image_pos, props, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
     gain = props['gain'][0]
-    sky = props['sky'][0]
+    sky = fitsio.read_header('input/test_input_image_00.fits')['SKYLEVEL']
     read_noise = 10
     expected_noise = sky / gain + read_noise**2 / gain**2
     print('expected noise = ',expected_noise)
@@ -1738,14 +1962,14 @@ def test_lsst_weight():
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
-                'weight_hdu' : 10,
+                'weight_ext' : 10,
                 'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
                 'invert_weight' : True,
                 'remove_signal_from_weight' : True,
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, props = input.getRawImageData(0)
+    image, weight, image_pos, props, _ = input.getRawImageData(0)
     np.testing.assert_allclose(props['gain'], gain, rtol=1.e-6)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-6)
 
@@ -1754,14 +1978,14 @@ def test_lsst_weight():
     config = {
                 'image_file_name' : 'input/test_input_image_00.fits',
                 'cat_file_name' : 'input/test_input_cat_00.fits',
-                'weight_hdu' : 10,
+                'weight_ext' : 10,
                 'gain' : { 'type': 'ImageHeaderValue', 'key': 'GAIN_A' },
                 'invert_weight' : True,
                 'remove_signal_from_weight' : True,
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight, image_pos, props = input.getRawImageData(0)
+    image, weight, image_pos, props, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
@@ -1783,7 +2007,7 @@ def test_lsst_weight():
              }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    image, weight1, image_pos, props = input.getRawImageData(0)
+    image, weight1, image_pos, props, _ = input.getRawImageData(0)
     assert len(image_pos) == 100
     assert image.array.shape == (1024, 1024)
     assert weight.array.shape == (1024, 1024)
@@ -1794,6 +2018,200 @@ def test_lsst_weight():
     print('var = ',1./weight.array)
     np.testing.assert_allclose(weight.array, expected_noise**-1, rtol=1.e-5)
 
+
+@timer
+def test_gain_image():
+    """Test passing an image for the gain, which different values at each pixel.
+    """
+    from piff.writers import FitsWriter
+    from piff.readers import FitsReader
+
+    # Draw several stars with GalSim and form the known per-pixel Poisson variance.
+    signal = galsim.ImageD(128, 128, scale=0.2)
+    positions = [(5.2, 6.3), (40.1, 48.6), (91.7, 99.4)]
+    psf = galsim.Moffat(beta=3.5, fwhm=0.7)
+    for pos, flux in zip(positions, [2000, 5000, 8000]):
+        psf.withFlux(flux).drawImage(image=signal, center=galsim.PositionD(*pos),
+                                    add_to_image=True)
+    y, x = np.mgrid[:128, :128]
+    gain = 2.0 + 0.01 * x + 0.005 * y
+    sky = 15.0
+    background_variance = 4.0 + sky / gain
+    background_weight = 1.0 / background_variance
+    background_weight[0, 0] = 0
+    observed_weight = 1.0 / (background_variance + signal.array / gain)
+    observed_weight[0, 0] = 0
+    gain[0, 0] = 0  # Masked pixels need not have a usable gain.
+    image_name = os.path.join('output', 'gain_science.fits')
+    gain_name = os.path.join('output', 'gain_map.fits')
+    cat_name = os.path.join('output', 'gain_cat.fits')
+    with fitsio.FITS(image_name, 'rw', clobber=True) as f:
+        f.write(signal.array + sky)
+        f.write(observed_weight)
+        f.write(gain, extname='GAIN')
+        f.write(background_weight, extname='BACKGROUND_WEIGHT')
+    fitsio.write(gain_name, gain, extname='GAIN', clobber=True)
+    catalog = np.array([(x, y, sky) for x, y in positions],
+                       dtype=[('x', float), ('y', float), ('sky', float)])
+    fitsio.write(cat_name, catalog, clobber=True)
+    config = {
+        'image_file_name': image_name,
+        'cat_file_name': cat_name,
+        'weight_ext': 1,
+        'sky': sky,
+        'remove_signal_from_weight': True,
+        'stamp_size': 24,
+        'use_partial': True,
+    }
+
+    # Catalog sky levels preserve the known background variance during source-noise removal.
+    catalog_config = dict(config, gain_ext='GAIN', sky_col='sky')
+    catalog_config.pop('sky')
+    catalog_data = piff.InputFiles(catalog_config).getRawImageData(0)
+    np.testing.assert_allclose(catalog_data.weight.array, background_weight)
+
+    # Numeric/named extensions and separate files give the same gain cutouts and weights.
+    for options in [{'gain_ext': 2}, {'gain_ext': 'GAIN'}, {'gain_file_name': gain_name},
+                    {'gain_file_name': image_name, 'gain_ext': 'GAIN'}]:
+        reader = piff.InputFiles(dict(config, **options))
+        raw_data = reader.getRawImageData(0)
+        props = raw_data.extra_props
+        gain_image = raw_data.gain_image
+        np.testing.assert_array_equal(gain_image.array, gain)
+        assert 'gain' not in props
+        stars = reader.makeStars()
+        assert len(stars) == len(positions)
+        assert stars[0].image.array.size < 24**2
+        for star in stars:
+            bounds = star.image.bounds
+            expected_gain = galsim.Image(gain)[bounds]
+            np.testing.assert_array_equal(star.data.gain_image.array, expected_gain.array)
+            assert 'gain' not in star.data.properties
+            expected_variance = galsim.Image(background_variance)[bounds].array
+            expected_weight = 1.0 / expected_variance
+            expected_observed = galsim.Image(observed_weight)[bounds].array
+            expected_weight[expected_observed == 0] = 0
+            np.testing.assert_allclose(star.weight.array, expected_weight)
+            np.testing.assert_allclose(star.addPoisson().weight.array, expected_observed)
+
+    # Background-only weights use the map directly without first removing source variance.
+    background_config = {
+        **config,
+        'gain_ext': 'GAIN',
+        'weight_ext': 'BACKGROUND_WEIGHT',
+        'remove_signal_from_weight': False,
+    }
+    background_stars = piff.InputFiles(background_config).makeStars()
+    for original, loaded in zip(stars, background_stars):
+        np.testing.assert_allclose(loaded.weight.array, original.weight.array)
+        np.testing.assert_allclose(loaded.addPoisson().weight.array,
+                                   original.addPoisson().weight.array)
+
+    # Model Poisson updates replace, rather than accumulate, the source contribution.
+    for star in stars:
+        model = piff.Star(star.data.withNew(image=2 * star.image), star.fit)
+        updated = star.addPoisson(model)
+        use = star.weight.array != 0
+        expected_variance = 1.0 / star.weight.array[use]
+        expected_variance += 2 * star.image.array[use] / star.data.gain_image.array[use]
+        np.testing.assert_allclose(1.0 / updated.weight.array[use], expected_variance)
+        np.testing.assert_array_equal(updated.weight.array[~use], 0)
+        np.testing.assert_array_equal(updated.addPoisson(model).weight.array, updated.weight.array)
+
+    # Star.write omits gain images; InputFiles.load_images restores them from the source files.
+    saved_name = os.path.join('output', 'gain_stars.fits')
+    with FitsWriter.open(saved_name) as writer:
+        piff.Star.write(stars, writer, 'stars')
+    with FitsReader.open(saved_name) as fits_reader:
+        restored = piff.Star.read(fits_reader, 'stars')
+    assert all(star.data.gain_image is None for star in restored)
+    restored = reader.load_images(restored)
+    for original, loaded in zip(stars, restored):
+        assert loaded.data.gain_image == original.data.gain_image
+        np.testing.assert_array_equal(loaded.data.orig_weight.array,
+                                      original.data.orig_weight.array)
+        np.testing.assert_allclose(loaded.addPoisson().weight.array,
+                                   original.addPoisson().weight.array)
+
+    # Gain filenames support dir, globs, and config references.
+    filename_config = dict(config)
+    filename_config['dir'] = 'output'
+    filename_config['image_file_name'] = 'gain_science.fits'
+    filename_config['cat_file_name'] = 'gain_cat.fits'
+    base = {'input': filename_config, 'gain_path': gain_name}
+    for filename in ['gain_ma*.fits', {'type': 'List', 'items': [gain_name]}, '@gain_path']:
+        filename_config['gain_file_name'] = filename
+        loaded_stars = piff.InputFiles(filename_config, base=base).makeStars()
+        assert len(loaded_stars) == len(stars)
+        for original, loaded in zip(stars, loaded_stars):
+            assert loaded.data.gain_image == original.data.gain_image
+
+    # A single gain file can be reused across multiple science images.
+    multi_config = dict(config)
+    multi_config['image_file_name'] = [image_name] * 2
+    multi_config['gain_file_name'] = gain_name
+    multi_stars = piff.InputFiles(multi_config).makeStars()
+    assert len(multi_stars) == 2 * len(stars)
+    for original, loaded in zip(stars * 2, multi_stars):
+        assert loaded.data.gain_image == original.data.gain_image
+
+    # Gain extensions can vary by image using either an extension index or name.
+    multi_config.pop('gain_file_name')
+    multi_config['gain_ext'] = [2, 'GAIN']
+    multi_stars = piff.InputFiles(multi_config).makeStars()
+    for original, loaded in zip(stars * 2, multi_stars):
+        assert loaded.data.gain_image == original.data.gain_image
+
+    # Cannot combine gain image with scalar gain or gain_col.
+    for map_option in [{'gain_ext': 2}, {'gain_file_name': gain_name}]:
+        for value_option in [{'gain': 3.0}, {'gain_col': 'gain'}]:
+            np.testing.assert_raises(ValueError, piff.InputFiles,
+                                     dict(config, **map_option, **value_option))
+
+    # Gain files must exist, have a valid filename config, and match the image count.
+    for filename in ['output/missing_gain.fits', 17, 'input/test_input_image_*.fits']:
+        np.testing.assert_raises(ValueError, piff.InputFiles, dict(config, gain_file_name=filename))
+
+    # Invalid gains are masked.
+    reader = piff.InputFiles(dict(config, gain_ext='GAIN'))
+    for bad_value in [0, -1, np.nan, np.inf]:
+        bad_gain = gain.copy()
+        bad_gain[50, 50] = bad_value
+        with fitsio.FITS(image_name, 'rw') as f:
+            f[2].write(bad_gain)
+        with CaptureLog() as cl:
+            raw_data = reader.getRawImageData(0, logger=cl.logger)
+        if np.isfinite(bad_value):
+            assert 'gain image has non-positive pixels' in cl.output
+        else:
+            assert 'gain image has non-finite pixels' in cl.output
+        expected_weight = background_weight.copy()
+        expected_weight[50, 50] = 0
+        np.testing.assert_allclose(raw_data.weight.array, expected_weight)
+        masked_stars = reader.makeStars()
+        assert len(masked_stars) == len(stars)
+        assert masked_stars[1].weight(51, 51) == 0
+        for star in masked_stars:
+            np.testing.assert_allclose(star.weight.array,
+                                       galsim.Image(expected_weight)[star.image.bounds].array)
+            assert np.all(np.isfinite(star.addPoisson().weight.array))
+
+    # An inconsistent gain that implies negative remaining variance masks the affected pixel.
+    bad_gain = gain.copy()
+    bad_gain[48, 39] = 0.001
+    with fitsio.FITS(image_name, 'rw') as f:
+        f[2].write(bad_gain)
+    with CaptureLog() as cl:
+        bad_stars = reader.makeStars(logger=cl.logger)
+    assert bad_stars[1].weight(40, 49) == 0
+    assert 'Masked 1 pixels with invalid variance' in cl.output
+
+    # The gain image must be the same shape as the data image.
+    with fitsio.FITS(image_name, 'rw') as f:
+        f[2].reshape((64, 256))
+    with np.testing.assert_raises(ValueError) as e:
+        reader.makeStars()
+    assert 'bounds' in str(e.exception)
 
 @timer
 def test_stars():
@@ -1814,7 +2232,7 @@ def test_stars():
                 'dir' : dir,
                 'image_file_name' : image_file,
                 'cat_file_name' : cat_file,
-                'weight_hdu' : 1,
+                'weight_ext' : 1,
                 'sky_col' : 'sky',
                 'gain_col' : 'gain',
                 'use_partial' : True,
@@ -2038,7 +2456,7 @@ def test_stars():
     assert len(stars) == 36
 
     # Also skip objects which are all weight=0
-    config['input']['weight_hdu'] = 3
+    config['input']['weight_ext'] = 3
     input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -2046,7 +2464,7 @@ def test_stars():
     assert len(stars) == 0
 
     # But not ones that are only partially weight=0
-    config['input']['weight_hdu'] = 8
+    config['input']['weight_ext'] = 8
     input = piff.InputFiles(config['input'], logger=logger)
     stars = input.makeStars(logger=logger)
     stars = select.rejectStars(stars, logger=logger)
@@ -2057,7 +2475,7 @@ def test_stars():
     # This is a bit artificial, b/c 512 / 1024 of the pixels are masked in the test case
     del config['input']['x_col']
     del config['input']['y_col']
-    config['input']['weight_hdu'] = 8
+    config['input']['weight_ext'] = 8
     config['select']['max_mask_pixels'] = 513
     config = galsim.config.CleanConfig(config)
     input = piff.InputFiles(config['input'], logger=logger)
@@ -2201,7 +2619,7 @@ def test_select_min_sep():
 
 @timer
 def test_pointing():
-    """Test the input.setPointing function
+    """Test how the pointing gets set in input.
     """
     if __name__ == '__main__':
         logger = piff.config.setup_logger(verbose=2)
@@ -2219,12 +2637,13 @@ def test_pointing():
                 'cat_file_name' : cat_file,
              }
     input = piff.InputFiles(config, logger=logger)
-    assert input.pointing is None
+    assert input.getPointing(logger) is None
 
     # Explicit ra, dec as floats
     config['ra'] = 6.0
     config['dec'] = -30.0
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger=logger)
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
@@ -2232,6 +2651,7 @@ def test_pointing():
     config['ra'] = 6
     config['dec'] = -30
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger=logger)
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
@@ -2239,6 +2659,7 @@ def test_pointing():
     config['ra'] = '06:00:00'
     config['dec'] = '-30:00:00'
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger=logger)
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
@@ -2249,13 +2670,15 @@ def test_pointing():
         config['ra'] = ra
         config['dec'] = dec
         input = piff.InputFiles(config, logger=logger)
+        input.readMetadata(logger=logger)
         np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
         np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
-    # Strings as keys into FITS header
-    config['ra'] = 'RA'
-    config['dec'] = 'DEC'
-    input = piff.InputFiles(config, logger=logger)
+    # Ra, dec can be values in the fits header.
+    config['ra'] = { 'type': 'ImageHeaderValue', 'key': 'RA' }
+    config['dec'] = { 'type': 'ImageHeaderValue', 'key': 'DEC' }
+    input = piff.InputFiles(config)
+    input.readMetadata()
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
@@ -2263,43 +2686,48 @@ def test_pointing():
     config['image_file_name'] = 'test_input_image_*.fits'
     config['cat_file_name'] = 'test_input_cat_*.fits'
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger=logger)
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
-    # Can use explicit config type to get the same thing.
-    config['ra'] = { 'type': 'ImageHeaderValue', 'key': 'RA' }
-    config['dec'] = { 'type': 'ImageHeaderValue', 'key': 'DEC' }
-    input = piff.InputFiles(config, logger=logger)
+    # This used to be done with bare strings. This is still allowed, but deprecated.
+    config['ra'] = 'RA'
+    config['dec'] = 'DEC'
+    with CaptureLog(1) as cl:
+        input = piff.InputFiles(config, logger=cl.logger)
+        input.readMetadata(logger=cl.logger)
+    assert 'Using a bare FITS header key for ra is deprecated' in cl.output
+    assert 'Using a bare FITS header key for dec is deprecated' in cl.output
+    assert 'ImageHeaderValue' in cl.output
     np.testing.assert_almost_equal(input.pointing.ra.rad, np.pi/2.)
     np.testing.assert_almost_equal(input.pointing.dec.rad, -np.pi/6.)
 
     # Check invalid ra,dec values
     base_config = { 'dir' : dir, 'image_file_name' : image_file, 'cat_file_name' : cat_file }
-    np.testing.assert_raises(ValueError, piff.InputFiles,
-                             dict(ra=0, dec='00:00:00' , **base_config))
-    np.testing.assert_raises(ValueError, piff.InputFiles,
-                             dict(ra='00:00:00', dec=0, **base_config))
-    np.testing.assert_raises(ValueError, piff.InputFiles,
-                             dict(ra=0*galsim.degrees, dec=0*galsim.radians, **base_config))
-    np.testing.assert_raises(KeyError, piff.InputFiles,
-                             dict(ra='bad_ra', dec='DEC', **base_config))
-    np.testing.assert_raises(KeyError, piff.InputFiles,
-                             dict(ra='RA', dec='bad_dec', **base_config))
-    np.testing.assert_raises(ValueError, piff.InputFiles,
-                             dict(ra=0, **base_config))
-    np.testing.assert_raises(ValueError, piff.InputFiles,
-                             dict(dec=0, **base_config))
+    for error, coords in [
+        (ValueError, {'ra': 0, 'dec': '00:00:00'}),
+        (ValueError, {'ra': '00:00:00', 'dec': 0}),
+        (ValueError, {'ra': 0*galsim.degrees, 'dec': 0*galsim.radians}),
+        (KeyError, {'ra': 'bad_ra', 'dec': 'DEC'}),
+        (KeyError, {'ra': 'RA', 'dec': 'bad_dec'}),
+        (ValueError, {'ra': 'GS_WCS', 'dec': 'GS_WCS'}),
+        (ValueError, {'ra': 0}),
+        (ValueError, {'dec': 0}),
+    ]:
+        input = piff.InputFiles(dict(base_config, **coords))
+        np.testing.assert_raises(error, input.readMetadata)
 
     # If image has celestial wcs, and no ra, dec specified then it will compute it for you
     config = {
                 'dir' : dir,
                 'image_file_name' : 'DECam_00241238_01.fits.fz',
                 'cat_file_name' : 'DECam_00241238_01_cat.fits',
-                'cat_hdu' : 2,
+                'cat_ext' : 2,
                 'x_col' : 'XWIN_IMAGE',
                 'y_col' : 'YWIN_IMAGE',
              }
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger=logger)
     np.testing.assert_almost_equal(input.pointing.ra / galsim.hours, 4.063, decimal=3)
     np.testing.assert_almost_equal(input.pointing.dec / galsim.degrees, -51.471, decimal=3)
 
@@ -2307,6 +2735,7 @@ def test_pointing():
     config['ra'] = 'TELRA'
     config['dec'] = 'TELDEC'
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger=logger)
     np.testing.assert_almost_equal(input.pointing.ra / galsim.hours, 4.097, decimal=3)
     np.testing.assert_almost_equal(input.pointing.dec / galsim.degrees, -52.375, decimal=3)
 
@@ -2316,11 +2745,12 @@ def test_pointing():
                 'dir' : dir,
                 'image_file_name' : ['DECam_00241238_01.fits.fz', 'DECam_00241238_01.fits.fz'],
                 'cat_file_name' : ['DECam_00241238_01_cat.fits', 'DECam_00241238_01_cat.fits'],
-                'cat_hdu' : 2,
+                'cat_ext' : 2,
                 'x_col' : 'XWIN_IMAGE',
                 'y_col' : 'YWIN_IMAGE',
              }
     input = piff.InputFiles(config, logger=logger)
+    input.readMetadata(logger=logger)
     np.testing.assert_almost_equal(input.pointing.ra / galsim.hours, 4.063, decimal=3)
     np.testing.assert_almost_equal(input.pointing.dec / galsim.degrees, -51.471, decimal=3)
 
@@ -2343,7 +2773,7 @@ def test_sky():
                 'use_partial' : True,
              }
     input = piff.InputFiles(config, logger=logger)
-    raw_image, _, _, _ = input.getRawImageData(0)
+    raw_image = input.getRawImageData(0).image
     raw_stars = input.makeStars(logger=logger)
     assert raw_image.array.shape == (1024, 1024)
     assert len(raw_stars) == 100
@@ -2356,7 +2786,9 @@ def test_sky():
                 'sky_col' : 'sky',
              }
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
     np.testing.assert_allclose(image.array, raw_image.array)
     assert len(extra_props['sky']) == 100
@@ -2372,12 +2804,21 @@ def test_sky():
                 'sky' : 7,
              }
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
-    np.testing.assert_allclose(image.array, raw_image.array)
+    np.testing.assert_allclose(image.array, raw_image.array - 7)
+    assert raw_data.sky == 7
+    assert 'sky' not in extra_props
     for i in range(len(stars)):
-        assert extra_props['sky'][i] == 7
+        assert 'sky' not in stars[i].data.properties
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - 7)
+
+    # Make sure reloading images doesn't subtract the background a second time.
+    loaded = input.load_images(stars)
+    for original, restored in zip(stars, loaded):
+        np.testing.assert_array_equal(restored.image.array, original.image.array)
 
     # If sky is given as a string, it is a header key word.
     config = {
@@ -2387,13 +2828,14 @@ def test_sky():
                 'sky' : { 'type': 'ImageHeaderValue', 'key': 'SKYLEVEL' },
              }
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
-    np.testing.assert_allclose(image.array, raw_image.array)
     with fitsio.FITS(image_file, 'r') as f:
         sky = np.float32(f[0].read_header()['SKYLEVEL'])
+    np.testing.assert_allclose(image.array, raw_image.array - sky)
     for i in range(len(stars)):
-        assert extra_props['sky'][i] == sky
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky)
 
     # If sky_file_name is given then it is an image file to subtract
@@ -2408,17 +2850,21 @@ def test_sky():
                 'sky_file_name' : sky_file,
              }
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
     np.testing.assert_allclose(image.array, raw_image.array - sky32)
     assert 'sky' not in extra_props  # No sky property in this case.
     for i in range(len(stars)):
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky32)
 
-    # Can provide an explicit hdu, although the default works fine in this case.
-    config['sky_hdu'] = 1
+    # Can provide an explicit extension, although the default works fine in this case.
+    config['sky_ext'] = 1
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
     np.testing.assert_allclose(image.array, raw_image.array - sky32)
     assert 'sky' not in extra_props
@@ -2434,7 +2880,9 @@ def test_sky():
                 'sky_file_name' : sky_file[6:],
              }
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
     np.testing.assert_allclose(image.array, raw_image.array - sky32)
     assert 'sky' not in extra_props
@@ -2449,7 +2897,9 @@ def test_sky():
                 'sky_file_name' : { 'type': 'List', 'items': [sky_file], },
              }
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
     np.testing.assert_allclose(image.array, raw_image.array - sky32)
     assert 'sky' not in extra_props
@@ -2465,13 +2915,30 @@ def test_sky():
                 'sky' : 'median',
              }
     input = piff.InputFiles(config, logger=logger)
-    image, _, _, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image = raw_data.image
+    extra_props = raw_data.extra_props
     stars = input.makeStars(logger=logger)
     sky_med = np.median(raw_image.array)
     np.testing.assert_allclose(image.array, raw_image.array - sky_med)
     assert 'sky' not in extra_props
     for i in range(len(stars)):
         np.testing.assert_allclose(stars[i].image.array, raw_stars[i].image.array - sky_med)
+
+    # Make sure a sky property can't sneak in via the property_cols or properties avenue.
+    # These should still be invalid in conjunction with other sky specifications.
+    for properties in [{'property_cols': ['sky']}, {'properties': {'sky': 7}}]:
+        for sky_source in [{'sky': 0}, {'sky_file_name': sky_file}]:
+            conflicting_config = {
+                'image_file_name': image_file,
+                'cat_file_name': cat_file,
+                **properties,
+                **sky_source,
+            }
+            reader = piff.InputFiles(conflicting_config)
+            with np.testing.assert_raises(ValueError) as e:
+                reader.getRawImageData(0)
+            assert 'sky property' in str(e.exception)
 
     # Error if sky_file doesn't exist
     config['sky_file_name'] = sky_file[-2]
@@ -2483,6 +2950,96 @@ def test_sky():
     with np.testing.assert_raises(ValueError):
         piff.InputFiles(config, logger=logger)
 
+
+@timer
+def test_sep_sky():
+    """Test sky=sep option to let SExtractor determine the background image.
+    """
+    # Use a sloping background with several stars and galaxies and detector noise.
+    sep = pytest.importorskip('sep')
+    rng = galsim.BaseDeviate(1234)
+    y, x = np.mgrid[:384, :384]
+    background = 100 + 0.05 * x + 0.03 * y
+    science_image = galsim.ImageD(384, 384, scale=0.2)
+    science_image.array[:] = background
+    psf = galsim.Moffat(beta=3.5, fwhm=0.7).shear(g1=0.03, g2=-0.02)
+    positions = [(71.3, 71.8), (155.4, 101.2), (289.1, 82.6),
+                 (101.8, 260.2), (245.6, 291.3), (312.2, 225.6)]
+    profiles = [psf.withFlux(flux) for flux in [2000, 5000, 8000, 3000]]
+    for flux, radius in [(12000, 0.5), (4000, 0.3)]:
+        galaxy = galsim.Exponential(half_light_radius=radius, flux=flux).shear(g1=0.2, g2=0.1)
+        profiles.append(galsim.Convolve(psf, galaxy))
+    for profile, (px, py) in zip(profiles, positions):
+        bounds = galsim.BoundsI(int(px) - 24, int(px) + 24, int(py) - 24, int(py) + 24)
+        profile.drawImage(image=science_image[bounds], center=galsim.PositionD(px, py),
+                          add_to_image=True)
+    gain = 4.0
+    read_variance = 25.0
+    science_image.addNoise(galsim.CCDNoise(rng, gain=gain,
+                                           read_noise=gain * np.sqrt(read_variance)))
+    science = science_image.array
+    variance = read_variance + science / gain
+    mask = np.zeros_like(science, dtype=np.int16)
+    mask[80:96, 80:96] = 1
+    science[mask != 0] = 0
+    science[12, 12] = 0
+    masked = (mask != 0) | (science == 0)
+    file_name = os.path.join('output', 'sep_sky.fits')
+    cat_name = os.path.join('output', 'sep_sky_cat.fits')
+    sky_name = os.path.join('output', 'sep_sky_background.fits')
+    with fitsio.FITS(file_name, 'rw', clobber=True) as f:
+        f.write(science)
+        f.write(1.0 / variance)
+        f.write(mask)
+    fitsio.write(cat_name, np.array(positions, dtype=[('x', float), ('y', float)]),
+                 clobber=True)
+    config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'weight_ext': 1,
+        'badpix_ext': 2,
+        'badpix_zeros': True,
+        'sky': 'sep',
+        'gain': gain,
+        'remove_signal_from_weight': True,
+        'stamp_size': 24,
+    }
+
+    # SEP recovers the background to 1% despite sources and noise; Piff subtracts its full image.
+    estimated = sep.Background(science, mask=masked).back()
+    np.testing.assert_allclose(estimated[64:-64, 64:-64], background[64:-64, 64:-64], rtol=0.01)
+    handler = piff.InputFiles(config)
+    image, weight, _, props, _ = handler.getRawImageData(0)
+    np.testing.assert_allclose(image.array, science - estimated)
+    assert 'sky' not in props
+    assert np.ptp(estimated) > 10
+
+    # Removing source variance retains the spatial background variance and all masked weights.
+    expected_weight = 1.0 / (read_variance + estimated / gain)
+    expected_weight[masked] = 0
+    np.testing.assert_allclose(weight.array, expected_weight)
+
+    # A supplied sky image produces the same image and weights as the SEP-derived image.
+    fitsio.write(sky_name, estimated, clobber=True)
+    file_config = dict(config)
+    file_config.pop('sky')
+    file_config['sky_file_name'] = sky_name
+    file_handler = piff.InputFiles(file_config)
+    raw_data = file_handler.getRawImageData(0)
+    file_image = raw_data.image
+    file_weight = raw_data.weight
+    np.testing.assert_allclose(file_image.array, image.array)
+    np.testing.assert_allclose(file_weight.array, weight.array)
+
+    # Stamp creation and reloading subtract the same background exactly once.
+    stars = handler.makeStars()
+    assert len(stars) == len(positions)
+    loaded = handler.load_images(stars)
+    for star, restored in zip(stars, loaded):
+        np.testing.assert_allclose(star.image.array, image[star.image.bounds].array)
+        np.testing.assert_allclose(star.weight.array, weight[star.weight.bounds].array)
+        np.testing.assert_array_equal(restored.image.array, star.image.array)
+        np.testing.assert_array_equal(restored.weight.array, star.weight.array)
 
 @timer
 def test_sed_col():
@@ -2507,7 +3064,9 @@ def test_sed_col():
     }
     piff.StarData._sed_cache = {}
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image_pos = raw_data.image_pos
+    extra_props = raw_data.extra_props
     assert not piff.StarData._sed_cache
     stars = input.makeStars(logger=logger)
     assert not piff.StarData._sed_cache
@@ -2546,7 +3105,7 @@ def test_sed_col():
     # With a sed_file_name dict, sed_col entries act as labels into the mapping.
     config3 = dict(config, sed_col='sed_label', sed_file_name='test_sed_map.yaml')
     input = piff.InputFiles(config3, logger=logger)
-    _, _, _, extra_props2 = input.getRawImageData(0)
+    extra_props2 = input.getRawImageData(0).extra_props
     seds2 = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     assert 'sed_eff' not in extra_props2
     assert seds2[0] is seds2[4]
@@ -2607,7 +3166,9 @@ def test_single_sed():
         },
     }
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image_pos = raw_data.image_pos
+    extra_props = raw_data.extra_props
     seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     assert len(image_pos) == 100
     assert len(seds) == 95
@@ -2626,7 +3187,9 @@ def test_single_sed():
     # after forming sed * bandpass, which should take the len(wave) == 0 branch in _read_sed_file.
     config['sed_file_name'] = '1./wave'
     input = piff.InputFiles(config, logger=logger)
-    _, _, image_pos, extra_props = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    image_pos = raw_data.image_pos
+    extra_props = raw_data.extra_props
     seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     assert len(image_pos) == 100
     assert len(seds) == 95
@@ -2647,7 +3210,7 @@ def test_single_sed():
     }
     piff.StarData._sed_cache = {}
     input = piff.InputFiles(config, logger=logger)
-    _, _, _, props = input.getRawImageData(0)
+    props = input.getRawImageData(0).extra_props
     seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     assert len(seds) == 95
     assert seds[0] is seds[1]
@@ -2739,7 +3302,7 @@ def test_single_sed():
     config6 = dict(config)
     del config6['bandpass']
     with np.testing.assert_raises(ValueError) as e:
-        piff.InputFiles(config6, logger=logger)
+        piff.InputFiles(config6, logger=logger).getRawImageData(0)
     assert "bandpass is required" in str(e.exception)
 
 
@@ -2779,7 +3342,7 @@ def test_sed_thin():
     # First default is no thinning.
     piff.StarData._sed_cache = {}
     input = piff.InputFiles(config, logger=logger)
-    _, _, _, props = input.getRawImageData(0)
+    props = input.getRawImageData(0).extra_props
     seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     sed = seds[0]
     assert seds[0] is seds[1]
@@ -2796,7 +3359,7 @@ def test_sed_thin():
     piff.StarData._sed_cache = {}
     thin_config = dict(config, sed_tol=0.1)
     input = piff.InputFiles(thin_config, logger=logger)
-    _, _, _, thin_props = input.getRawImageData(0)
+    thin_props = input.getRawImageData(0).extra_props
     thin_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     thin_sed = thin_seds[0]
     assert thin_seds[0] is thin_seds[1]
@@ -2815,7 +3378,7 @@ def test_sed_thin():
     piff.StarData._sed_cache = {}
     sample_config = dict(config, sed_max_samples=2)
     input = piff.InputFiles(sample_config, logger=logger)
-    _, _, _, sample_props = input.getRawImageData(0)
+    sample_props = input.getRawImageData(0).extra_props
     sample_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     sample_sed = sample_seds[0]
     assert sample_seds[0] is sample_seds[1]
@@ -2838,7 +3401,7 @@ def test_sed_thin():
     piff.StarData._sed_cache = {}
     combo_config = dict(config, sed_tol=0.1, sed_max_samples=4)
     input = piff.InputFiles(combo_config, logger=logger)
-    _, _, _, combo_props = input.getRawImageData(0)
+    combo_props = input.getRawImageData(0).extra_props
     combo_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     combo_sed = combo_seds[0]
     assert combo_props['sed_tol'][0] == 0.1
@@ -2852,7 +3415,7 @@ def test_sed_thin():
     piff.StarData._sed_cache = {}
     no_op_config = dict(config, sed_tol=0.1, sed_max_samples=100)
     input = piff.InputFiles(no_op_config, logger=logger)
-    _, _, _, no_op_props = input.getRawImageData(0)
+    no_op_props = input.getRawImageData(0).extra_props
     no_op_seds = [star.data.sed_eff for star in input.makeStars(logger=logger)]
     no_op_sed = no_op_seds[0]
     assert no_op_props['sed_tol'][0] == 0.1
@@ -3018,6 +3581,9 @@ def test_input_bandpass():
     assert pointing is None
     assert bandpass is not None
 
+    # Bandpass queries also read metadata automatically before any image processing.
+    assert piff.InputFiles(config['input']).getBandpass(logger) == bandpass
+
     # PSF.process creates a PSF object without the wcs, pointing, bandpass context yet.
     psf = piff.PSF.process(config['psf'], logger=logger)
     assert psf.wcs is None
@@ -3054,21 +3620,156 @@ def test_input_bandpass():
     assert psf3.pointing == pointing
     assert psf3.bandpass == bandpass
 
+@timer
+def test_asdf():
+    """Test reading ASDF files."""
+    asdf = pytest.importorskip('asdf')
+
+    # Make an asdf file with all the possible data arrays we might want to read.
+    y, x = np.mgrid[:128, :128]
+    sky = 15 + 0.01 * x + 0.02 * y
+    gain = 2 + 0.002 * x + 0.003 * y
+    signal = galsim.ImageD(128, 128, scale=0.2)
+    positions = [(32.3, 35.7), (90.1, 41.2), (65.6, 93.4)]
+    for pos, flux in zip(positions, [1000, 2000, 1500]):
+        profile = galsim.Moffat(beta=3.5, fwhm=0.7, flux=flux).shear(g1=0.04, g2=-0.02)
+        profile.drawImage(image=signal, center=galsim.PositionD(*pos), add_to_image=True)
+    science = signal.array + sky
+    variance = 4 + science / gain
+    badpix = np.zeros(science.shape, dtype=np.uint32)
+    badpix[20, 20] = 1 << 20
+    science[30, 30] = np.nan
+    file_name = os.path.join('output', 'input_data.asdf')
+    cat_name = os.path.join('output', 'input_asdf_cat.fits')
+    tree = {
+        'data_arrays': {
+            'science': science,
+            'half': science.astype(np.float16),
+            'second': science + 5,
+            'weight': 1.0 / variance,
+            'badpix': badpix,
+            'sky': sky,
+            'gain': gain,
+        },
+    }
+    with asdf.AsdfFile(tree) as af:
+        af.write_to(file_name)
+    fitsio.write(cat_name, np.array(positions, dtype=[('x', float), ('y', float)]), clobber=True)
+
+    # The extension values are "paths" in the asdf file using . to connect the levels.
+    config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'image_ext': 'data_arrays.science',
+        'weight_ext': 'data_arrays.weight',
+        'badpix_ext': 'data_arrays.badpix',
+        'sky_ext': 'data_arrays.sky',
+        'gain_ext': 'data_arrays.gain',
+        'remove_signal_from_weight': True,
+        'stamp_size': 24,
+        'wcs': {'type': 'PixelScale', 'scale': 0.2},
+    }
+    reader = piff.InputFiles(config)
+    data = reader.getRawImageData(0)
+    expected_image = signal.array.copy()
+    expected_image[30, 30] = -sky[30, 30]
+    expected_weight = 1.0 / (4 + sky / gain)
+    expected_weight[badpix != 0] = 0
+    expected_weight[30, 30] = 0
+    np.testing.assert_allclose(data.image.array, expected_image, atol=1.e-12)
+    np.testing.assert_allclose(data.weight.array, expected_weight)
+    np.testing.assert_array_equal(data.gain_image.array, gain)
+    assert data.image.wcs == galsim.PixelScale(0.2)
+    assert data.image_pos == [galsim.PositionD(*pos) for pos in positions]
+
+    # Make stars from these input data.
+    stars = reader.makeStars()
+    assert len(stars) == len(positions)
+    for star in stars:
+        bounds = star.image.bounds
+        np.testing.assert_allclose(star.image.array, data.image[bounds].array)
+        np.testing.assert_allclose(star.weight.array, data.weight[bounds].array)
+        np.testing.assert_array_equal(star.data.gain_image.array, data.gain_image[bounds].array)
+
+    # Multiple data arrays in an asdf file at different paths can represent mutliple input images.
+    multi_config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'image_ext': ['data_arrays.science', 'data_arrays.second'],
+    }
+    multi = piff.InputFiles(multi_config)
+    assert multi.nimages == 2
+    for i in range(2):
+        expected = science + 5 * i
+        expected[30, 30] = 0
+        data = multi.getRawImageData(i)
+        np.testing.assert_array_equal(data.image.array, expected)
+        assert data.image.wcs == galsim.PixelScale(1.0)
+
+    # Half-precision science arrays are promoted to a GalSim-supported image dtype.
+    half_config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'image_ext': 'data_arrays.half',
+    }
+    half_data = piff.InputFiles(half_config).getRawImageData(0)
+    expected = science.astype(np.float16).astype(np.float32)
+    expected[30, 30] = 0
+    assert half_data.image.dtype == np.float32
+    np.testing.assert_array_equal(half_data.image.array, expected)
+
+    # Auxiliary ASDF planes also require dotted paths rather than FITS extension numbers.
+    invalid = dict(config, weight_ext=1)
+    np.testing.assert_raises(ValueError, piff.InputFiles(invalid).getRawImageData, 0)
+
+    # It's allowed to get the main image from asdf and another (e.g. weight) from FITS.
+    weight_name = os.path.join('output', 'asdf_weight.fits')
+    galsim.Image(1.0 / variance).write(weight_name)
+    mixed_config = dict(config)
+    mixed_config.pop('weight_ext')
+    mixed_config['weight_file_name'] = weight_name
+    mixed = piff.InputFiles(mixed_config).getRawImageData(0)
+    np.testing.assert_allclose(mixed.weight.array, expected_weight)
+
+    # It's also allowed get the main image from FITS and others from ASDF.
+    science_name = os.path.join('output', 'asdf_science.fits')
+    galsim.Image(science).write(science_name)
+    mixed_config = dict(config)
+    mixed_config['image_file_name'] = science_name
+    mixed_config.pop('image_ext')
+    for plane in ['weight', 'badpix', 'sky', 'gain']:
+        mixed_config[plane + '_file_name'] = file_name
+    mixed = piff.InputFiles(mixed_config).getRawImageData(0)
+    np.testing.assert_allclose(mixed.image.array, expected_image, atol=1.e-12)
+    np.testing.assert_allclose(mixed.weight.array, expected_weight)
+    np.testing.assert_array_equal(mixed.gain_image.array, gain)
+
+    # There is no default ext for asdf.
+    # Also check invalid ext values, including an integer.
+    for ext in [None, 1, 'data_arrays.missing', 'invalid']:
+        invalid = dict(config, image_ext=ext)
+        error = KeyError if isinstance(ext, str) else ValueError
+        np.testing.assert_raises(error, piff.InputFiles(invalid).readMetadata)
 
 if __name__ == '__main__':
     setup()
     test_basic()
+    test_extensions()
     test_invalid()
     test_cols()
     test_boolarray()
     test_chipnum()
     test_weight()
     test_lsst_weight()
+    test_gain_image()
     test_stars()
     test_select_min_sep()
     test_pointing()
+    test_sky()
+    test_sep_sky()
     test_sed_col()
     test_single_sed()
     test_sed_star_io()
     test_wcs_bandpass_io()
     test_input_bandpass()
+    test_asdf()
