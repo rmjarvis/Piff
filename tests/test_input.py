@@ -2051,7 +2051,9 @@ def test_gain_image():
         f.write(gain, extname='GAIN')
         f.write(background_weight, extname='BACKGROUND_WEIGHT')
     fitsio.write(gain_name, gain, extname='GAIN', clobber=True)
-    fitsio.write(cat_name, np.array(positions, dtype=[('x', float), ('y', float)]), clobber=True)
+    catalog = np.array([(x, y, sky) for x, y in positions],
+                       dtype=[('x', float), ('y', float), ('sky', float)])
+    fitsio.write(cat_name, catalog, clobber=True)
     config = {
         'image_file_name': image_name,
         'cat_file_name': cat_name,
@@ -2061,6 +2063,12 @@ def test_gain_image():
         'stamp_size': 24,
         'use_partial': True,
     }
+
+    # Catalog sky levels preserve the known background variance during source-noise removal.
+    catalog_config = dict(config, gain_ext='GAIN', sky_col='sky')
+    catalog_config.pop('sky')
+    catalog_data = piff.InputFiles(catalog_config).getRawImageData(0)
+    np.testing.assert_allclose(catalog_data.weight.array, background_weight)
 
     # Numeric/named extensions and separate files give the same gain cutouts and weights.
     for options in [{'gain_ext': 2}, {'gain_ext': 'GAIN'}, {'gain_file_name': gain_name},
@@ -3636,6 +3644,7 @@ def test_asdf():
     tree = {
         'data_arrays': {
             'science': science,
+            'half': science.astype(np.float16),
             'second': science + 5,
             'weight': 1.0 / variance,
             'badpix': badpix,
@@ -3696,6 +3705,22 @@ def test_asdf():
         data = multi.getRawImageData(i)
         np.testing.assert_array_equal(data.image.array, expected)
         assert data.image.wcs == galsim.PixelScale(1.0)
+
+    # Half-precision science arrays are promoted to a GalSim-supported image dtype.
+    half_config = {
+        'image_file_name': file_name,
+        'cat_file_name': cat_name,
+        'image_ext': 'data_arrays.half',
+    }
+    half_data = piff.InputFiles(half_config).getRawImageData(0)
+    expected = science.astype(np.float16).astype(np.float32)
+    expected[30, 30] = 0
+    assert half_data.image.dtype == np.float32
+    np.testing.assert_array_equal(half_data.image.array, expected)
+
+    # Auxiliary ASDF planes also require dotted paths rather than FITS extension numbers.
+    invalid = dict(config, weight_ext=1)
+    np.testing.assert_raises(ValueError, piff.InputFiles(invalid).getRawImageData, 0)
 
     # It's allowed to get the main image from asdf and another (e.g. weight) from FITS.
     weight_name = os.path.join('output', 'asdf_weight.fits')
