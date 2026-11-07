@@ -172,7 +172,7 @@ class Stats(object):
         return star.measure_size_shape()
 
     def measureShapes(self, psf, stars, model_properties=None, fourth_order=False,
-                      raw_moments=False, logger=None):
+                      raw_moments=False, include_flagged=False, logger=None):
         """Measure the size and shapes of the PSF profiles and the stars.
 
         :param psf:              A PSF Object
@@ -188,6 +188,8 @@ class Stats(object):
                                  fourth-order quantities if those are being returned or after the
                                  regular quantities otherwise.  Either way they are the last 18
                                  columns in the output array. [default: False]
+        :param include_flagged:  Whether to include flagged stars in the measurement.
+                                 [default: False]
         :param logger:           A logger object for logging debug info. [default: None]
 
         :returns:           positions of stars, shapes of stars, and shapes of
@@ -197,6 +199,8 @@ class Stats(object):
         from .config import LoggerWrapper
 
         logger = LoggerWrapper(logger)
+        if not include_flagged:
+            stars = [star for star in stars if not star.is_flagged]
         # measure moments with Gaussian on image
         logger.debug("Measuring shapes of real stars")
 
@@ -268,7 +272,7 @@ class Stats(object):
 
         # Pull out the positions to return
         positions = np.array([ (star.data.properties['u'], star.data.properties['v'])
-                               for star in stars ])
+                               for star in stars ]).reshape((-1, 2))
 
         # generate the model stars and measure moments
         if psf is None:
@@ -887,7 +891,7 @@ class ShapeCatalogStats(Stats):
         positions, shapes_data, shapes_model = self.measureShapes(
                 psf, stars, model_properties=self.model_properties,
                 fourth_order=self.fourth_order, raw_moments=self.raw_moments,
-                logger=logger)
+                include_flagged=True, logger=logger)
 
         # Build the columns for the output catalog
         if isinstance(stars[0].image.wcs, galsim.wcs.CelestialWCS):

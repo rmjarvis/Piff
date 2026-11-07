@@ -52,7 +52,8 @@ class SizeMagStats(Stats):
             # remove initial objects that ended up being used.
             init_pos = [s.image_pos for s in psf.initial_stars]
             initial_objects = [s for s in psf.initial_objects if s.image_pos not in init_pos]
-            star_pos = [s.image_pos for s in stars]
+            # Match the unflagged PSF-star sample used by measureShapes.
+            star_pos = [s.image_pos for s in stars if not s.is_flagged]
             initial_stars = [s for s in psf.initial_stars if s.image_pos not in star_pos]
             _, obj_shapes, _ = self.measureShapes(None, initial_objects, logger=logger)
             _, init_shapes, _ = self.measureShapes(None, initial_stars, logger=logger)
