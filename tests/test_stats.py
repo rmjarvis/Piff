@@ -113,6 +113,41 @@ def test_twodstats():
     stats2.write()
 
 @timer
+def test_flagged_stars():
+    """Check the include_flagged option to measureShapes()
+    """
+    # Draw two stars at distinct positions so filtering can be checked by position.
+    model = piff.Gaussian(fastfit=True)
+    psf = piff.SimplePSF(model, None)
+    stars = [model.draw(make_star(icen=x, sigma=1.0)) for x in [500, 600]]
+    reserve = stars[0].withProperties(is_reserve=True)
+    rejected = stars[1].flag_if(True)
+    stats = piff.Stats()
+
+    # The default excludes rejected stars but retains reserve stars.
+    positions, data_shapes, model_shapes = stats.measureShapes(psf, [reserve, rejected])
+    assert positions.shape == (1, 2)
+    assert data_shapes.shape == model_shapes.shape == (1, 7)
+    np.testing.assert_allclose(positions[0], [reserve['u'], reserve['v']])
+
+    # Explicitly retaining flagged stars includes both rows in their original order.
+    positions, all_data, all_models = stats.measureShapes(
+        psf, [reserve, rejected], include_flagged=True)
+    np.testing.assert_allclose(positions, [[reserve['u'], reserve['v']],
+                                          [rejected['u'], rejected['v']]])
+    assert all_data.shape == all_models.shape == (2, 7)
+    np.testing.assert_allclose(all_data[:1], data_shapes)
+    np.testing.assert_allclose(all_models[:1], model_shapes)
+
+    # When all stars are rejected, plotting routines don't crash -- they produce their
+    # default empty plot.
+    for diagnostic in [piff.TwoDHistStats(), piff.WhiskerStats(),
+                       piff.ShapeHistStats(), piff.RhoStats()]:
+        diagnostic.compute(psf, [rejected])
+        assert diagnostic.skip
+        diagnostic.plot()
+
+@timer
 def test_shift_cmap():
     from matplotlib import cm
 
@@ -777,6 +812,18 @@ def test_hsmcatalog():
     data2 = fitsio.read(hsm_file2)
     for key in data.dtype.names:
         np.testing.assert_allclose(data2[key], data[key], rtol=1.e-5)
+
+    # Both output catalogs preserve rejected rows and their flags, and retain
+    # reserve status independently of the rejection flag.
+    catalog_stars = [stars[0].withProperties(is_reserve=True), stars[1].flag_if(True)]
+    for catalog in [piff.ShapeCatalogStats(), piff.HSMCatalogStats()]:
+        catalog.compute(psf, catalog_stars)
+        path = os.path.join('output', catalog._type_name + '_flagged.fits')
+        catalog.write(path)
+        rows = fitsio.read(path)
+        assert len(rows) == 2
+        np.testing.assert_array_equal(rows['flag_psf'], [0, 1])
+        np.testing.assert_array_equal(rows['reserve'], [True, catalog_stars[1].is_reserve])
 
 @timer
 def test_bad_hsm():
@@ -1627,6 +1674,7 @@ def test_alternate_shape_config():
 
 if __name__ == '__main__':
     test_twodstats()
+    test_flagged_stars()
     test_shift_cmap()
     test_twodstats_config()
     test_rhostats_config()

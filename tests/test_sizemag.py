@@ -51,6 +51,32 @@ def test_sizemag_plot():
     assert os.path.isfile(file_name)
 
 @timer
+def test_sizemag_flagged():
+    """Check that SizeMag retains rejected stars as candidates rather than PSF stars."""
+    # Draw two stars at distinct positions with known Gaussian model parameters.
+    model = piff.Gaussian(fastfit=True)
+    psf = piff.SimplePSF(model, None)
+    stars = []
+    for x in [500, 600]:
+        target = piff.Star.makeTarget(x=x, y=700, scale=0.263)
+        fit = piff.StarFit(np.array([1.0, 0.0, 0.0]))
+        stars.append(model.draw(piff.Star(target.data, fit)))
+
+    # A star that is flagged as an outlier is retained as a "Candidate Star", not a PSF star.
+    # Reserve stars are considered PSF stars and are included in the model list.
+    reserve = stars[0].withProperties(is_reserve=True)
+    rejected = stars[1].flag_if(True)
+    _, data_shapes, model_shapes = piff.Stats().measureShapes(psf, [reserve])
+    psf.initial_stars = stars
+    psf.initial_objects = stars
+    sizemag = piff.SizeMagStats()
+    sizemag.compute(psf, [reserve, rejected])
+    np.testing.assert_allclose(sizemag.T_star, data_shapes[:, 3])
+    np.testing.assert_allclose(sizemag.T_psf, model_shapes[:, 3])
+    assert len(sizemag.T_init) == 1
+
+
+@timer
 def test_smallbright():
     """Test the SmallBright selection algorithm.
     """
@@ -412,5 +438,6 @@ def test_sizemag():
 
 if __name__ == '__main__':
     test_sizemag_plot()
+    test_sizemag_flagged()
     test_smallbright()
     test_sizemag()
