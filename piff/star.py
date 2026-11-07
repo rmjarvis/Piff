@@ -267,7 +267,10 @@ class Star(object):
         return flux, center.x, center.y, sigma, shape.g1, shape.g2, flag
 
     def _make_ngmix_observation(self):
-        """Build an ngmix observation, or return None when no usable pixels remain."""
+        """Build an observation centered at the current fitted position.
+
+        Return None when no usable pixels remain.
+        """
         import ngmix
 
         image, weight, image_pos = self.data.getImage()
@@ -277,10 +280,11 @@ class Star(object):
         data = np.where(valid, image.array, 0.).astype(float)
         weights = np.where(valid, weight.array, 0.).astype(float)
         jac = image.wcs.jacobian(image_pos=image_pos)
-        # ngmix uses zero-based array coordinates, not GalSim image bounds. Anchor
-        # the Jacobian at the catalog position so fitted centroids are offsets from it.
-        ngjac = ngmix.Jacobian(row=image_pos.y - image.ymin,
-                            col=image_pos.x - image.xmin, wcs=jac)
+        # ngmix uses zero-based array coordinates. Convert the fitted world
+        # offset from the catalog position into a displacement of that origin.
+        offset = jac.toImage(galsim.PositionD(*self.fit.center))
+        ngjac = ngmix.Jacobian(row=image_pos.y + offset.y - image.ymin,
+                               col=image_pos.x + offset.x - image.xmin, wcs=jac)
         return ngmix.Observation(data, weight=weights, jacobian=ngjac)
 
     def measure_gauss(self):
@@ -305,6 +309,10 @@ class Star(object):
         if result['flags'] != 0:
             return (0., 0., 0., 0., 0., 0., 1)
         v, u, g1, g2, T, flux = result['pars']
+        # We measured relative to the current center, but u,v should be relative to the nominal
+        # position.
+        u += self.fit.center[0]
+        v += self.fit.center[1]
         # Match HSM's determinant-radius convention: sigma = det(covariance)**(1/4).
         gsq = g1*g1 + g2*g2
         sigma = np.sqrt(T / 2 * (1 - gsq) / (1 + gsq))
@@ -337,6 +345,10 @@ class Star(object):
         if result['flags'] != 0:
             return (0., 0., 0., 0., 0., 0., 1)
         v, u = result['pars'][:2]
+        # We measured relative to the current center, but u,v should be relative to the nominal
+        # position.
+        u += self.fit.center[0]
+        v += self.fit.center[1]
         shape = galsim.Shear(e1=result['e'][0], e2=result['e'][1])
         sigma = np.sqrt(result['T'] / 2 * np.sqrt(1 - shape.e**2))
         # ngmix returns Gaussian-weighted flux. Double it for HSM's adaptive-flux convention.
@@ -345,7 +357,7 @@ class Star(object):
         return flux, u, v, sigma, shape.g1, shape.g2, flag
 
     def measure_wmom(self, weight_fwhm):
-        """Measure fixed, circular Gaussian-weighted moments about the catalog position.
+        """Measure fixed circular Gaussian-weighted moments about the current fitted position.
 
         This usually isn't called directly.  The results are accessible as star.wmom(fwhm),
         which caches the results for each fwhm value, so repeated access is efficient.
@@ -375,6 +387,10 @@ class Star(object):
         g1, g2 = e1 / denom, e2 / denom
         sigma = np.sqrt(result['T'] / 2 * np.sqrt(1 - esq))
         v, u = result['sums'][:2] / result['sums'][5]
+        # We measured relative to the current center, but u,v should be relative to the nominal
+        # position.
+        u += self.fit.center[0]
+        v += self.fit.center[1]
         flag = 4 if u*u + v*v > 1 else 0
         return result['flux'], u, v, sigma, g1, g2, flag
 
@@ -416,7 +432,7 @@ class Star(object):
         flag marks a failed or suspect measurement.
 
         The **wmom** algorithm returns weighted flux and raw second moments about the
-        catalog position, without deweighting.
+        current fitted position, without deweighting.
         """
         method = get_shape_method()
         if method == 'hsm':

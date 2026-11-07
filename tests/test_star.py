@@ -692,6 +692,55 @@ def test_shape_method():
     assert piff.get_shape_method() == 'hsm'
 
 @timer
+def test_offset_shape():
+    """Check that a star's center being offset relative to the nominal position doesn't
+    bias the measured shape due to miscentering. This had been a problem for wmom in particular,
+    since that method doesn't automatically fit for the profile center.
+    """
+    pytest.importorskip('ngmix')
+
+    # Draw three identical stars. One has the correct nominal position.
+    # The other two are wrong by 1 pixel.
+    wcs = galsim.JacobianWCS(-0.11, 0.003, -0.002, 0.108)
+    profile = galsim.Moffat(beta=3, fwhm=0.6, flux=1000).shear(g1=0.07, g2=-0.04)
+    # nominal positions from the input catalog
+    image_pos =  [galsim.PositionD(x,y)
+                  for x,y in [(123.3, 234.5), (177.9, 99.8), (50.8, 154.3)]]
+    # offsets of the true centroid from the nominal position
+    offsets =  [galsim.PositionD(x,y)
+                for x,y in [(0, 0), (0.3, -0.8), (0.6, 0.7)]]
+    stars = []
+    for pos, offset in zip(image_pos, offsets):
+        image = profile.drawImage(nx=48, ny=48, center=pos+offset, wcs=wcs)
+        data = piff.StarData(image, image_pos=pos)
+        stars.append(piff.Star(data, None))
+
+    # Piff fits the shared Moffat profile and corrects the offset catalog positions.
+    psf = piff.SimplePSF(piff.Moffat(beta=3, include_pixel=True), piff.Mean())
+    psf.set_context({0: wcs})
+    psf.fit(stars)
+    assert len(psf.stars) == 3
+    for star, offset in zip(psf.stars, offsets):
+        world_offset = wcs.toWorld(offset)
+        np.testing.assert_allclose(star.fit.center, [world_offset.x, world_offset.y],
+                                   atol=1.e-8)
+
+    # All shape methods should measure consistent size and shape for all three stars:
+    # (wmom was the problematic one, but check them all for good measure.)
+    try:
+        for method in ['hsm', 'wmom', 'gauss', 'am']:
+            piff.set_shape_method(method, weight_fwhm=0.6)
+            _, data, model = piff.Stats().measureShapes(psf, psf.stars)
+            assert np.all(data[:, 6] == 0)
+            assert np.all(model[:, 6] == 0)
+            for i in range(3):
+                np.testing.assert_allclose(data[i, 3:6], data[0, 3:6], rtol=2.e-4)
+                np.testing.assert_allclose(model[i, 3:6], data[i, 3:6], rtol=2.e-4)
+    finally:
+        # Restore the default shape method for other tests.
+        piff.set_shape_method('hsm')
+
+@timer
 def test_gauss():
     """Test the gauss shape measurement method.
     """
@@ -982,6 +1031,7 @@ if __name__ == '__main__':
     test_io()
     test_multifit_io()
     test_shape_method()
+    test_offset_shape()
     test_gauss()
     test_am()
     test_wmom()
