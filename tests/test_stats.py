@@ -604,7 +604,7 @@ def test_starstats_config():
     assert 'Star is deprecated' in cl.output
     config['output']['stats'][0]['type'] = 'StarImages'
 
-    # check default nplot
+    # The default requests 11 stars, but plots only the available sample if smaller.
     psf = piff.read(psf_file)
     starStats = piff.StarStats(include_ave=False)
     config = galsim.config.CleanConfig(config)
@@ -613,9 +613,11 @@ def test_starstats_config():
     with np.testing.assert_raises(RuntimeError):
         starStats.write()  # Cannot write before compute
     starStats.compute(psf, orig_stars)
-    assert starStats.nplot == len(starStats.stars)
-    assert starStats.nplot == len(starStats.models)
-    assert starStats.nplot == len(starStats.indices)
+    assert starStats.nplot == 11
+    nplot = min(starStats.nplot, len(orig_stars))
+    assert len(starStats.stars) == nplot
+    assert len(starStats.models) == nplot
+    assert len(starStats.indices) == nplot
     np.testing.assert_array_equal(starStats.stars[2].image.array,
                                   orig_stars[starStats.indices[2]].image.array)
 
@@ -631,6 +633,97 @@ def test_starstats_config():
     starStats = piff.StarStats(nplot=6) # include_ave=True is the default
     starStats.compute(psf, orig_stars)
     assert len(starStats.stars) == 7
+
+    # Each data/model/residual triplet shares an asinh scale spanning every pixel.
+    # The average uses all contributing stars, even when only six individual stars plot.
+    from matplotlib.colors import AsinhNorm, Normalize, SymLogNorm
+    fig, axes = starStats.plot()
+    assert len(starStats.indices) == len(starStats.stars)
+    variance = [np.median(1 / s.weight.array[s.weight.array > 0]) for s in orig_stars]
+    for i, (star, model) in enumerate(zip(starStats.stars, starStats.models)):
+        images = [axes[i // 2, 3 * (i % 2) + j].images[0] for j in range(3)]
+        norm = images[0].norm
+        assert isinstance(norm, AsinhNorm)
+        assert all(im.norm is norm for im in images)
+        arrays = [star.image.array, model.image.array, star.image.array - model.image.array]
+        assert norm.vmin == np.min(arrays)
+        assert norm.vmax == np.max(arrays)
+        if i == 0:
+            expected_width = np.sqrt(np.sum(variance)) / len(orig_stars)
+        else:
+            weight = star.weight.array
+            expected_width = np.sqrt(np.median(1 / weight[weight > 0]))
+        np.testing.assert_allclose(norm.linear_width, expected_width)
+        values = np.array([norm.vmin, 0, norm.vmax])
+        transformed = np.arcsinh(values / expected_width)
+        expected = (transformed - transformed[0]) / (transformed[-1] - transformed[0])
+        np.testing.assert_allclose(norm(values), expected, atol=1.e-15)
+
+    # Config options select each stretch and scale limits relative to each triplet's
+    # full intensity range, including when fractions extend beyond that range.
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    for stretch, norm_class in [('linear', Normalize), ('asinh', AsinhNorm),
+                                ('symlog', SymLogNorm)]:
+        for min_fraction, max_fraction in [(0, 1), (0.1, 0.8), (-0.1, 1.2)]:
+            plot_config = {
+                'type': 'StarImages',
+                'file_name': star_file,
+                'nplot': 2,
+                'stretch': stretch,
+                'min_fraction': min_fraction,
+                'max_fraction': max_fraction,
+            }
+            configured = piff.Stats.process(plot_config)[0]
+            configured.compute(psf, orig_stars)
+            fig, axes = configured.plot()
+            FigureCanvasAgg(fig).draw()
+            for i, (star, model) in enumerate(zip(configured.stars, configured.models)):
+                images = [axes[i // 2, 3 * (i % 2) + j].images[0] for j in range(3)]
+                norm = images[0].norm
+                assert type(norm) is norm_class
+                assert all(im.norm is norm for im in images)
+                arrays = [star.image.array, model.image.array,
+                          star.image.array - model.image.array]
+                minimum = float(np.min(arrays))
+                span = float(np.max(arrays)) - minimum
+                expected_limits = minimum + np.array([min_fraction, max_fraction]) * span
+                np.testing.assert_allclose([norm.vmin, norm.vmax], expected_limits)
+                if i == 0:
+                    expected_width = np.sqrt(np.sum(variance)) / len(orig_stars)
+                else:
+                    weight = star.weight.array
+                    expected_width = np.sqrt(np.median(1 / weight[weight > 0]))
+                if stretch == 'asinh':
+                    np.testing.assert_allclose(norm.linear_width, expected_width)
+                elif stretch == 'symlog':
+                    np.testing.assert_allclose(norm.linthresh, expected_width)
+
+    # Absolute matplotlib limits override the configured fractional bounds.
+    _, axes = configured.plot(vmin=-1, vmax=2)
+    norm = axes[0, 0].images[0].norm
+    assert norm.vmin == -1
+    assert norm.vmax == 2
+
+    # A custom normalization also overrides a configured stretch and fractional bounds.
+    custom = Normalize(vmin=-1, vmax=2)
+    _, axes = configured.plot(norm=custom)
+    assert axes[0, 0].images[0].norm is custom
+    assert axes[0, 2].images[0].norm is custom
+
+    # Invalid stretches and unordered or non-finite limits are rejected at construction.
+    with np.testing.assert_raises(ValueError):
+        piff.StarStats(stretch='log')
+    for min_fraction, max_fraction in [(1, 0), (0.5, 0.5), (np.nan, 1), (0, np.inf)]:
+        with np.testing.assert_raises(ValueError):
+            piff.StarStats(min_fraction=min_fraction, max_fraction=max_fraction)
+
+    # Fully masked flagged stamps have no noise estimate; still allow visual inspection.
+    masked = orig_stars[0]
+    masked = piff.Star(masked.data.withNew(weight=masked.weight * 0), masked.fit)
+    masked_stats = piff.StarStats(nplot=0, include_ave=False)
+    masked_stats.compute(psf, [masked])
+    _, axes = masked_stats.plot()
+    assert axes[0, 0].images[0].norm.linear_width == 1
 
     # If there are fewer viable stars than nplot, use all viable stars rather than failing.
     flagged_stars = [
