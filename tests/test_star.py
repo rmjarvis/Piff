@@ -973,6 +973,49 @@ def test_shape_parallel():
         piff.set_shape_method('hsm')
 
 
+@timer
+def test_starfit_copy():
+    """StarFit.copy (used by withNew, withFlux, newParams) must copy the mutable parameter
+    arrays, but may share the (never modified in place) design matrix A and vector b.
+    """
+    A = np.ones((3,5), order='F')
+    b = np.ones(3)
+    fit = piff.StarFit(np.arange(5.), flux=2., center=(0.1,0.2), params_var=np.ones(5),
+                       A=A, b=b, chisq=1., dof=3)
+    fit2 = fit.copy()
+    fit2.params[0] = 100.
+    fit2.params_var[0] = 100.
+    assert fit.params[0] == 0.
+    assert fit.params_var[0] == 1.
+    assert fit2.flux == 2.
+    assert fit2.center == (0.1, 0.2)
+    assert fit2.chisq == 1.
+    assert fit2.dof == 3
+    assert fit2.A is fit.A
+    assert fit2.b is fit.b
+
+    fit3 = fit.withNew(flux=3., center=(0.,0.))
+    assert fit.flux == 2.
+    assert fit.center == (0.1, 0.2)
+    assert fit3.flux == 3.
+    np.testing.assert_array_equal(fit3.params, fit.params)
+    assert fit3.params is not fit.params
+
+    # Composite PSFs store lists of parameter arrays.  These are also deep copied.
+    fit = piff.StarFit([np.arange(3.), np.arange(4.)], params_var=[np.ones(3), None])
+    fit2 = fit.copy()
+    fit2.params[0][0] = 100.
+    fit2.params_var[0][0] = 100.
+    assert fit.params[0][0] == 0.
+    assert fit.params_var[0][0] == 1.
+
+    # None is fine for everything.
+    fit = piff.StarFit(None)
+    fit2 = fit.copy()
+    assert fit2.params is None
+    assert fit2.A is None
+
+
 if __name__ == '__main__':
     test_init()
     test_euclidean()
@@ -986,3 +1029,4 @@ if __name__ == '__main__':
     test_am()
     test_wmom()
     test_shape_parallel()
+    test_starfit_copy()

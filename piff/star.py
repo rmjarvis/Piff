@@ -1509,7 +1509,14 @@ class StarFit(object):
             return self.params_var
 
     def copy(self):
-        return copy.deepcopy(self)
+        # The design matrix A and vector b can be large (npix x nparams).  They are never
+        # modified in place once attached to a StarFit, so share them between copies rather
+        # than deep copying them.  Everything else (params, params_var, ...) is deep copied,
+        # since e.g. updateParams and PixelGrid.normalize modify params in place.
+        ret = copy.copy(self)
+        ret.params = copy.deepcopy(self.params)
+        ret.params_var = copy.deepcopy(self.params_var)
+        return ret
 
     def withNew(self, **kwargs):
         r"""Return new StarFit that has new values of some attributes.

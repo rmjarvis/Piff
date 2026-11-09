@@ -380,6 +380,158 @@ def test_basis_interp():
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=[-4,-1])
     np.testing.assert_raises(ValueError, piff.BasisPolynomial, order=-2)
 
+    # pcg is a valid solver, but not compatible with use_qr.
+    basis = piff.BasisPolynomial(order=2, solver="pcg", pcg_tol=1.e-10, pcg_max_iter=50)
+    assert basis.solver == "pcg"
+    assert basis.pcg_tol == 1.e-10
+    assert basis.pcg_max_iter == 50
+    assert basis.kwargs['pcg_tol'] == 1.e-10
+    with np.testing.assert_raises(NotImplementedError):
+        basis = piff.BasisPolynomial(order=2, solver="pcg", use_qr=True)
+    # The pcg options can be given in a config dict as well.
+    config = {'type': 'BasisPolynomial', 'order': 2, 'solver': 'pcg', 'pcg_tol': 1.e-9,
+              'pcg_max_iter': 77}
+    basis = piff.Interp.process(config)
+    assert basis.solver == "pcg"
+    assert basis.pcg_tol == 1.e-9
+    assert basis.pcg_max_iter == 77
+    # The pcg options are not written for other solvers.
+    basis = piff.BasisPolynomial(order=2, solver="cpp")
+    assert 'pcg_tol' not in basis.kwargs
+
+
+def _make_quadratic_stars(nstars, npix, nparams, rng, A0=None):
+    """Make stars with random (A, b) design matrices, as left by Model.chisq, for testing
+    the BasisInterp solvers without running a full PSF fit.
+    """
+    stars = []
+    for i in range(nstars):
+        x, y = rng.uniform(0., 4000., 2)
+        color = rng.uniform(0., 2.)
+        target = piff.Star.makeTarget(x=x, y=y, scale=0.2, stamp_size=5,
+                                      properties={'color': color})
+        if A0 is None:
+            A = rng.normal(size=(npix, nparams))
+        else:
+            # Realistic case: similar design matrices up to a scale and a small perturbation.
+            A = rng.uniform(0.3, 3.) * (A0 + 0.3 * rng.normal(size=(npix, nparams)))
+        b = rng.normal(size=npix)
+        fit = piff.StarFit(np.zeros(nparams), A=np.asfortranarray(A), b=b)
+        stars.append(piff.Star(target.data, fit))
+    return stars
+
+
+@timer
+def test_pcg_solver():
+    """Test the pcg solver against the direct solvers on small random problems.
+    """
+    rng = np.random.RandomState(1234)
+    nstars, npix, nparams = 40, 60, 20
+    A0 = rng.normal(size=(npix, nparams))
+    stars = _make_quadratic_stars(nstars, npix, nparams, rng, A0=A0)
+
+    # Use pixel coordinates with a 4th order polynomial and a linear color term, like Rubin.
+    # The basis values then span many orders of magnitude (x^4 with x ~ 4000).
+    results = {}
+    for solver in ['scipy', 'cpp', 'pcg']:
+        interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver=solver)
+        interp.initialize(stars)
+        interp.solve(stars)
+        results[solver] = interp.q.copy()
+        if solver == 'pcg':
+            print('pcg iterations = ', interp.last_cg_iterations)
+            print('pcg residual = ', interp.last_cg_residual)
+            assert not interp.last_pcg_fallback
+            assert 0 < interp.last_cg_iterations <= interp.pcg_max_iter
+            assert interp.last_cg_residual < interp.pcg_tol
+    print('nq = ', results['pcg'].size)
+    scale = np.max(np.abs(results['scipy']))
+    np.testing.assert_allclose(results['cpp'], results['scipy'], rtol=0, atol=1.e-8 * scale)
+    np.testing.assert_allclose(results['pcg'], results['scipy'], rtol=0, atol=1.e-8 * scale)
+    # The data-space predictions A_i q K_i should agree even better.
+    for s in stars:
+        K = interp.basis(s)
+        pred_pcg = s.fit.A.dot(results['pcg'].dot(K))
+        pred_ref = s.fit.A.dot(results['scipy'].dot(K))
+        np.testing.assert_allclose(pred_pcg, pred_ref, rtol=0, atol=1.e-9 * np.max(np.abs(pred_ref)))
+
+    # Totally unrelated design matrices are a hard case for the Kronecker preconditioner,
+    # but CG still converges (in at most nq iterations in exact arithmetic).
+    stars2 = _make_quadratic_stars(nstars, npix, nparams, rng)
+    interp = piff.BasisPolynomial(order=2, keys=['x','y'], solver='pcg')
+    interp.initialize(stars2)
+    interp.solve(stars2)
+    print('pcg iterations (random A) = ', interp.last_cg_iterations)
+    assert not interp.last_pcg_fallback
+    ref = piff.BasisPolynomial(order=2, keys=['x','y'], solver='scipy')
+    ref.initialize(stars2)
+    ref.solve(stars2)
+    scale = np.max(np.abs(ref.q))
+    np.testing.assert_allclose(interp.q, ref.q, rtol=0, atol=1.e-8 * scale)
+
+    # If CG doesn't converge in time, pcg falls back to the cpp solver, so the answer is
+    # identical to that solver.
+    interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='pcg',
+                                  pcg_max_iter=2)
+    interp.initialize(stars)
+    with CaptureLog() as cl:
+        interp.solve(stars, logger=cl.logger)
+    assert 'did not converge' in cl.output
+    assert interp.last_pcg_fallback
+    np.testing.assert_array_equal(interp.q, results['cpp'])
+
+    # Too few stars for the polynomial makes the whitening fail; also falls back.
+    few = stars[:5]
+    interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='pcg')
+    interp.initialize(few)
+    with CaptureLog() as cl:
+        interp.solve(few, logger=cl.logger)
+    assert interp.last_pcg_fallback
+    ref = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='cpp')
+    ref.initialize(few)
+    ref.solve(few)
+    np.testing.assert_array_equal(interp.q, ref.q)
+
+    # Fully masked stars (A = 0) are fine.
+    masked = _make_quadratic_stars(nstars, npix, nparams, rng, A0=A0)
+    masked[3] = piff.Star(masked[3].data, piff.StarFit(np.zeros(nparams),
+                                                       A=np.zeros((0, nparams), order='F'),
+                                                       b=np.zeros(0)))
+    results = {}
+    for solver in ['cpp', 'pcg']:
+        interp = piff.BasisPolynomial(order=2, keys=['x','y'], solver=solver)
+        interp.initialize(masked)
+        interp.solve(masked)
+        results[solver] = interp.q.copy()
+    assert not interp.last_pcg_fallback
+    scale = np.max(np.abs(results['cpp']))
+    np.testing.assert_allclose(results['pcg'], results['cpp'], rtol=0, atol=1.e-8 * scale)
+
+    # A zero right-hand side gives no update.
+    zero = [piff.Star(s.data, piff.StarFit(np.zeros(nparams), A=s.fit.A, b=np.zeros(npix)))
+            for s in stars]
+    interp = piff.BasisPolynomial(order=2, keys=['x','y'], solver='pcg')
+    interp.initialize(zero)
+    q0 = interp.q.copy()
+    interp.solve(zero)
+    np.testing.assert_array_equal(interp.q, q0)
+
+    # The matrix-free code path (used when the alpha matrices would take too much memory)
+    # gives the same answer.
+    try:
+        piff.BasisInterp.pcg_alpha_memory_budget = 0
+        interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='pcg')
+        interp.initialize(stars)
+        interp.solve(stars)
+    finally:
+        piff.BasisInterp.pcg_alpha_memory_budget = 5.e8
+    assert not interp.last_pcg_fallback
+    ref = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='pcg')
+    ref.initialize(stars)
+    ref.solve(stars)
+    scale = np.max(np.abs(ref.q))
+    np.testing.assert_allclose(interp.q, ref.q, rtol=0, atol=1.e-10 * scale)
+
 
 @timer
 def test_missing():
@@ -1045,7 +1197,7 @@ def test_single_image():
 
     test_star_solver = []
 
-    solvers = ["scipy", "qr", "jax", "cpp"]
+    solvers = ["scipy", "qr", "jax", "cpp", "pcg"]
 
     for solver in solvers:
         print("Running piffify function")
@@ -1089,11 +1241,11 @@ def test_single_image():
         image_reference.array[0,0] = 123456
         assert image.array[0,0] == image_reference.array[0,0]
 
-    # check that the solver versions (qr/jax/cpp vs numpy/scipy) of the test star are the same
+    # check that the solver versions (jax/cpp/pcg vs numpy/scipy) of the test star are the same
     # Don't include QR in this check. It seems to be flaky on some systems. Not sure yet what
     # is going on, and I don't want to take the time to investigate, since no one really ever
     # uses the QR fitter. So punt on this for now.
-    for i in [2,3]:
+    for i in [2,3,4]:
         np.testing.assert_allclose(test_star_solver[0].image.array,
                                    test_star_solver[i].image.array,
                                    rtol=1.e-7)

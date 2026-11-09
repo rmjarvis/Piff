@@ -103,6 +103,8 @@ class BasisInterp(Interp):
     def __init__(self):
         self.degenerate_points = True  # This Interpolator uses chisq quadratic forms
         self.solver = "scipy"  # The default.  May be overridden by subclasses.
+        self.pcg_tol = 1.e-12  # Defaults for the "pcg" solver.  May be overridden by subclasses.
+        self.pcg_max_iter = 500
         self.q = None
         self.set_num(None)
 
@@ -223,6 +225,8 @@ class BasisInterp(Interp):
 
         if self.solver == "qr":
             self._solve_qr(stars, logger)
+        elif self.solver == "pcg":
+            self._solve_pcg(stars, logger)
         else:
             self._solve_direct(stars, logger)
 
@@ -417,6 +421,160 @@ class BasisInterp(Interp):
         # Reshape dq back into a 2d array and add it to the current solution.
         self.q += dq.reshape(self.q.shape)
 
+    # Above this many bytes, _solve_pcg does not keep the per-star alpha matrices in memory
+    # and instead applies A_i^T (A_i x) directly (about 2x slower per CG iteration).
+    pcg_alpha_memory_budget = 5.e8
+
+    def _solve_pcg(self, stars, logger):
+        r"""The implementation of solve() when solver == 'pcg'.
+
+        The normal matrix of the full problem is a sum of Kronecker products,
+
+        .. math::
+
+            A^T A = \sum_i \alpha_i \otimes K_i K_i^T,
+            \quad \alpha_i = A_i^T A_i,
+
+        of size (nparam * nbasis)^2.  Factoring it directly costs O((nparam*nbasis)^3), which
+        dominates the whole PSF fit for large grids and high polynomial orders.  Here we
+        never form it.  Writing the update as a matrix Q of shape (nparam, nbasis) so that
+        the parameter update at star i is Q K_i, the normal operator is
+
+            Q -> sum_i alpha_i Q K_i K_i^T,
+
+        which costs O(nstars * nparam^2) to apply.  We solve with the conjugate gradient
+        method, preconditioned by the single Kronecker product
+
+            M = alpha_bar (x) G,  alpha_bar = sum_i alpha_i / sum_i tr(alpha_i),
+            G = sum_i tr(alpha_i) K_i K_i^T,
+
+        which is exact when all stars have the same alpha_i (up to scale) and whose inverse
+        only needs one Cholesky factorization of the nparam x nparam matrix alpha_bar.
+        In practice we first change variables to K_i -> L^{-1} K_i with G = L L^T, which
+        makes G the identity, absorbs the (potentially enormous) dynamic range of the
+        polynomial basis values, and turns the preconditioner into alpha_bar (x) I.
+
+        If CG does not converge within pcg_max_iter iterations (e.g. a singular system),
+        we fall back to the direct C++ solver so that the result is never worse than before.
+        """
+        tol = self.pcg_tol
+        max_iter = self.pcg_max_iter
+        self.last_cg_iterations = 0
+        self.last_cg_residual = np.nan
+        self.last_pcg_fallback = False
+
+        Ks = []
+        As = []
+        bs = []
+        for s in stars:
+            Ks.append(self.basis(s))
+            As.append(s.fit.A)
+            bs.append(s.fit.b)
+        Ks = np.array(Ks, dtype=float)
+        nstars, nbasis = Ks.shape
+        nparam = self.q.shape[0]
+
+        # alpha_i = A_i^T A_i and beta_i = A_i^T b_i for each star.
+        # Keep the alpha_i if they fit in memory (fast batched matvec); otherwise apply
+        # A_i^T (A_i x) on the fly.
+        store_alpha = nstars * nparam * nparam * 8 <= self.pcg_alpha_memory_budget
+        alphas = np.empty((nstars, nparam, nparam)) if store_alpha else None
+        alpha_bar = np.zeros((nparam, nparam))
+        betas = np.empty((nstars, nparam))
+        weights = np.empty(nstars)
+        for i, (A, b) in enumerate(zip(As, bs)):
+            alpha = A.T.dot(A)
+            if store_alpha:
+                alphas[i] = alpha
+            alpha_bar += alpha
+            weights[i] = np.trace(alpha)
+            betas[i] = A.T.dot(b)
+        logger.debug('pcg: nstars=%d nparam=%d nbasis=%d store_alpha=%s',
+                     nstars, nparam, nbasis, store_alpha)
+
+        try:
+            # Whiten the basis: G = sum_i w_i K_i K_i^T = L L^T, kappa_i = L^-1 K_i.
+            # Scale G to unit diagonal before the Cholesky, since the raw polynomial values
+            # can span many orders of magnitude (e.g. x^4 for x in pixels).
+            G = (Ks * weights[:, np.newaxis]).T.dot(Ks)
+            d = np.sqrt(np.diag(G))
+            if not np.all(d > 0):
+                raise np.linalg.LinAlgError("Degenerate basis in pcg solver")
+            L = np.linalg.cholesky(G / d[:, np.newaxis] / d[np.newaxis, :]) * d[:, np.newaxis]
+            kappa = scipy.linalg.solve_triangular(L, Ks.T, lower=True, check_finite=False).T
+
+            # Preconditioner: alpha_bar (x) I in the whitened coordinates.
+            alpha_bar /= np.sum(weights)
+            alpha_bar.flat[::nparam+1] += 1.e-12 * np.trace(alpha_bar) / nparam
+            cf = scipy.linalg.cho_factor(alpha_bar, lower=True, check_finite=False)
+        except (np.linalg.LinAlgError, scipy.linalg.LinAlgError, ValueError) as e:
+            logger.warning('pcg solver: %s.  Falling back to direct solver.', e)
+            self.last_pcg_fallback = True
+            self._solve_direct_cpp(stars, logger)
+            return
+
+        def apply(Q):
+            # Q -> sum_i alpha_i Q kappa_i kappa_i^T
+            Y = Q.dot(kappa.T)  # (nparam, nstars); column i is Q kappa_i
+            if store_alpha:
+                Z = np.matmul(alphas, Y.T[:, :, np.newaxis])[:, :, 0].T
+            else:
+                Z = np.empty_like(Y)
+                for i, A in enumerate(As):
+                    Z[:, i] = A.T.dot(A.dot(Y[:, i]))
+            return Z.dot(kappa)
+
+        def precondition(Rm):
+            return scipy.linalg.cho_solve(cf, Rm, check_finite=False)
+
+        # Right-hand side in whitened coordinates, and the standard PCG iteration.
+        R = betas.T.dot(kappa)
+        norm_R = np.linalg.norm(R)
+        if norm_R == 0.:
+            logger.debug('pcg: zero right-hand side, no update')
+            return
+        X = np.zeros_like(R)
+        r = R.copy()
+        z = precondition(r)
+        p = z.copy()
+        rz = np.vdot(r, z)
+        converged = False
+        for it in range(1, max_iter+1):
+            Ap = apply(p)
+            pAp = np.vdot(p, Ap)
+            if not np.isfinite(pAp) or pAp <= 0.:
+                break
+            a = rz / pAp
+            X += a * p
+            r -= a * Ap
+            res = np.linalg.norm(r) / norm_R
+            self.last_cg_iterations = it
+            self.last_cg_residual = res
+            if res < tol:
+                converged = True
+                break
+            z = precondition(r)
+            rz_new = np.vdot(r, z)
+            if not np.isfinite(rz_new) or rz_new <= 0.:
+                break
+            p = z + (rz_new / rz) * p
+            rz = rz_new
+
+        if not converged:
+            logger.warning('pcg solver did not converge in %d iterations (residual %.2e).  '
+                           'Falling back to direct solver.',
+                           self.last_cg_iterations, self.last_cg_residual)
+            self.last_pcg_fallback = True
+            self._solve_direct_cpp(stars, logger)
+            return
+
+        logger.verbose('pcg converged in %d iterations, relative residual %.2e',
+                       self.last_cg_iterations, self.last_cg_residual)
+        # Undo the whitening: X = Q L  =>  Q = X L^-1.
+        dq = scipy.linalg.solve_triangular(L, X.T, lower=True, trans='T', check_finite=False).T
+        logger.debug('...finished solution')
+        self.q += dq
+
     def interpolate(self, star, logger=None, inplace=False, reconstruct_params=None):
         """Perform the interpolation to find the interpolated parameter vector at some position.
 
@@ -484,6 +642,15 @@ class BasisPolynomial(BasisInterp):
        than ~30. With a Piff config using `PixelGrid` with ``size=25`` and ``interp="Lanczos(11)"``
        and a second order polynomial for interpolation, and running on ~O(100) PSFs reserved
        stars on a 4GB single core CPU, "cpp" solver is 60% faster than "scipy" solver.
+    5. "pcg" never builds the full (nparams*nbasis)^2 normal matrix.  It exploits the fact
+       that this matrix is a sum of Kronecker products (one per star) and solves the normal
+       equations iteratively with a Kronecker-preconditioned conjugate gradient method.
+       Its cost scales linearly with the number of basis functions instead of cubically, so
+       it is most useful for large PixelGrid models and high polynomial orders (e.g. a 25x25
+       grid with a 4th order polynomial, where the direct solvers would need to factor a
+       ~15000 x 15000 matrix).  The result agrees with the direct solvers to about
+       ``pcg_tol`` in relative residual (default 1e-12).  If the iteration does not converge
+       (e.g. for a singular system), it falls back to the "cpp" solver.
 
     Use type name "BasisPolynomial" in a config field to use this interpolant.
 
@@ -499,7 +666,10 @@ class BasisPolynomial(BasisInterp):
                         between these pairs.  Furthermore, any pairs for which you want to skip
                         cross terms (max=0) may be omitted from the dict.
     :param solver:      Which solver to use.  Solvers available are "scipy", "qr", "jax",
-                        "cpp". See above for details. [default: 'scipy']
+                        "cpp", "pcg". See above for details. [default: 'scipy']
+    :param pcg_tol:     Relative residual at which the "pcg" solver stops. [default: 1.e-12]
+    :param pcg_max_iter: Maximum number of conjugate gradient iterations for the "pcg" solver
+                        before falling back to the direct solver. [default: 500]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
@@ -512,6 +682,8 @@ class BasisPolynomial(BasisInterp):
             'max_order': (dict, int),
             'solver': str,
             'use_qr': bool,
+            'pcg_tol': float,
+            'pcg_max_iter': int,
         }
         kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
         kwargs['logger'] = logger
@@ -524,6 +696,8 @@ class BasisPolynomial(BasisInterp):
             max_order=None,
             solver="scipy",
             use_qr=False,
+            pcg_tol=1.e-12,
+            pcg_max_iter=500,
             logger=None
         ):
         super(BasisPolynomial, self).__init__()
@@ -531,6 +705,8 @@ class BasisPolynomial(BasisInterp):
         logger = LoggerWrapper(logger)
 
         self._keys = keys
+        self.pcg_tol = pcg_tol
+        self.pcg_max_iter = pcg_max_iter
         if hasattr(order,'__len__'):
             if not len(order)==len(keys):
                 raise ValueError('Number of provided orders does not match number of keys')
@@ -545,7 +721,7 @@ class BasisPolynomial(BasisInterp):
 
         self.solver = solver
 
-        valid_solver = ["scipy", "qr", "jax", "cpp"]
+        valid_solver = ["scipy", "qr", "jax", "cpp", "pcg"]
 
         if solver not in valid_solver:
             raise ValueError(f"{solver} is not a valid solver. Valid solver are {valid_solver}")
@@ -573,6 +749,10 @@ class BasisPolynomial(BasisInterp):
             'keys' : keys,
             'solver': solver,
         }
+        if solver == "pcg":
+            # Only write these when relevant, so files made with other solvers are unchanged.
+            self.kwargs['pcg_tol'] = pcg_tol
+            self.kwargs['pcg_max_iter'] = pcg_max_iter
 
         # Now build a mask that picks the desired polynomial products
         # Start with 1d arrays giving orders in all dimensions
