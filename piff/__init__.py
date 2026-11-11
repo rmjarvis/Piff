@@ -89,7 +89,7 @@ from .gp_interp import GPInterp, GaussianProcess
 from .fixed_interp import Fixed
 
 # Outlier handlers are named BlahOutliers where Blah is what they are called in teh config file
-from .outliers import Outliers, ChisqOutliers, CentroidOutliers
+from .outliers import Outliers, ChisqOutliers, MADOutliers, CentroidOutliers
 
 # Input handlers are named InputBlah where Blah is what they are called in the config file
 from .input import Input, InputFiles

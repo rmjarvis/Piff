@@ -207,54 +207,141 @@ class Outliers(object):
         """
         pass
 
-class MADOutliers(Outliers):  # pragma: no cover  (This isn't functional yet.)
-    """An Outliers handler using mean absolute deviation (MAD) for defining outliers.
+class MADOutliers(Outliers):
+    """An Outliers handler that rejects stars whose reduced chisq is an outlier with respect
+    to the population of stars, using the median and the median absolute deviation (MAD).
 
-        MAD = < |x - median] >
+    For each star the statistic is r = chisq / dof.  Over the stars being fit (not flagged,
+    not reserve), the median m and the MAD are computed, and the MAD is scaled to the
+    equivalent Gaussian sigma, sigma_mad = 1.4826 * MAD.  Stars with
 
-    The range of values to keep in the sample are
+        r > m + nsigma * sigma_mad
 
-        [median - nmad * MAD, median + nmad * MAD]
+    are flagged as outliers (and, if ``upper_only`` is False, also those with
+    r < m - nsigma * sigma_mad).
 
-    where nmad is a parameter specified by the user.
+    Unlike :class:`ChisqOutliers`, this does not assume that each star's chisq follows a
+    chisq distribution with its number of degrees of freedom.  It only compares stars with
+    each other, so it is insensitive to a global misestimate of the pixel noise or to model
+    misfit that is common to all stars.  It is also much less sensitive to per-star rescaling
+    of the weights (e.g. an SNR cap or "error floor" applied to bright stars), which makes the
+    chisq of different stars mean different things and can drive :class:`ChisqOutliers` to
+    reject most of the stars whose weights were not rescaled.
 
-    The user can specify this parameter in one of two ways.
+    The user can specify the threshold in one of two ways.
 
-        1. The user can specify nmad directly.
-        2. The user can specify nsigma, in which case nmad = sqrt(pi/2) nsigma, the equivalent
-           value for a Gaussian distribution.
+        1. The user can specify nmad directly, the number of (scaled) MADs from the median.
+        2. The user can specify nsigma, which is the same thing: the scaled MAD is the
+           equivalent sigma for a Gaussian distribution, so nmad = nsigma.
 
-    Either nmad or nsigma must be provided.
+    Exactly one of nmad or nsigma must be provided.
 
-    :param nmad:        The number of mean absolute deviations from the median at which
-                        something is declared an outlier.
-    :param nsigma:      The number of sigma equivalent if the underlying distribution is
-                        Gaussian.
+    .. note::
+
+        Reserve stars do not count toward max_remove when flagging outliers.  Any reserve star
+        that is flagged as an outlier still shows up in the output file, but has flag_psf=1.
+
+    :param nmad:        The number of scaled MADs from the median at which a star is declared
+                        an outlier.
+    :param nsigma:      Equivalent to nmad (the scaled MAD is the Gaussian-equivalent sigma).
+    :param max_remove:  The maximum number of outliers to remove on each iteration.  If this
+                        is a float < 1.0, then this is interpreted as a maximum fraction of
+                        stars to remove.  e.g. 0.01 will remove at most 1% of the stars.
+                        [default: None]
+    :param upper_only:  Whether to only reject stars with too large a reduced chisq.  A reduced
+                        chisq that is lower than typical is normally not a sign of a bad star.
+                        [default: True]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'MAD'
 
-    def __init__(self, nmad=None, nsigma=None, logger=None):
+    def __init__(self, nmad=None, nsigma=None, max_remove=None, upper_only=True, logger=None):
         if nmad is None and nsigma is None:
             raise TypeError("Either nmad or nsigma is required")
+        if nmad is not None and nsigma is not None:
+            raise TypeError("Only one of nmad or nsigma may be given.")
         if nsigma is not None:
-            nmad = math.sqrt(math.pi/2) * nsigma
-        self.nmad = nmad
+            nmad = nsigma
+        if nmad <= 0:
+            raise ValueError("nmad must be > 0")
+        self.nmad = float(nmad)
+        self.max_remove = max_remove
+        self.upper_only = bool(upper_only)
 
         self.kwargs = {
-            'nmad' : nmad,
+            'nmad' : self.nmad,
+            'max_remove' : max_remove,
+            'upper_only' : self.upper_only,
         }
 
-    def removeOutliers(self, stars):
-        """Remove outliers from a list of stars based on their fit parameters.
+    # The ratio between the standard deviation and the MAD of a Gaussian distribution.
+    _mad_to_sigma = 1.4826
+
+    def removeOutliers(self, stars, logger=None):
+        """Remove outliers from a list of stars based on their reduced chisq values.
 
         :param stars:       A list of Star instances
+        :param logger:      A logger object for logging debug info. [default: None]
 
-        :returns:           A new list of stars without outliers
+        :returns: stars, nremoved   A new list of stars with outliers flagged, and how many outliers
+                                    were flagged.
         """
-        # I started writing this class, but then realized this isn't what we want to do
-        # for the PixelGrid model.  So leave this for now...
-        raise NotImplementedError("MAD algorithm not implemented")
+        from .config import LoggerWrapper
+        logger = LoggerWrapper(logger)
+
+        is_flagged = np.array([s.is_flagged for s in stars], dtype=bool)
+        is_reserve = np.array([s.is_reserve for s in stars], dtype=bool)
+        use = ~is_flagged & ~is_reserve
+        nstars = int(np.sum(use))
+        logger.verbose("Checking %d stars for outliers", nstars)
+        if nstars == 0:
+            return stars, 0
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            rchisq = np.array([s.fit.chisq / s.fit.dof if s.fit.dof else np.nan for s in stars],
+                              dtype=float)
+
+        # The threshold is computed from the stars being fit, but applied to all of them.
+        median = np.nanmedian(rchisq[use])
+        sigma = self._mad_to_sigma * np.nanmedian(np.abs(rchisq[use] - median))
+        upper = median + self.nmad * sigma
+        lower = -np.inf if self.upper_only else median - self.nmad * sigma
+        logger.verbose("median chisq/dof = %f, sigma_mad = %f, thresh = %f", median, sigma, upper)
+
+        # Distance beyond the threshold; nan (e.g. dof = 0) counts as bad.
+        excess = np.maximum(rchisq - upper, lower - rchisq)
+        bad = ~(excess <= 0)
+        candidates = use & bad
+        nremoved = int(np.sum(candidates))
+
+        if nremoved == 0:
+            # Flag any reserve stars that need it.
+            stars = [s.flag_if(b and r and not f) for s, b, r, f in zip(stars, bad, is_reserve, is_flagged)]
+            logger.debug("No outliers found")
+            return stars, 0
+
+        logger.verbose("Found %d stars with chisq/dof outside [%f, %f]", nremoved, lower, upper)
+
+        # Update max_remove if necessary
+        max_remove = self.max_remove
+        if max_remove is not None and 0 < max_remove < 1:
+            max_remove = int(math.ceil(max_remove * nstars))
+
+        if max_remove is not None and nremoved > max_remove:
+            # Only remove the worst max_remove stars (among the stars being fit).
+            # Reserve stars are flagged according to the same raised threshold.
+            nremoved = max_remove
+            cand_excess = np.where(candidates, excess, -np.inf)
+            new_thresh = np.sort(cand_excess)[-nremoved]
+            bad = ~(excess < new_thresh)
+
+        new_flags = bad & ~is_flagged
+        stars = [s.flag_if(f) for s, f in zip(stars, new_flags)]
+
+        logger.debug("chisq/dof = %s", rchisq[new_flags])
+        logger.debug("flux = %s", [s.flux for s, f in zip(stars, new_flags) if f])
+
+        return stars, nremoved
 
 
 class ChisqOutliers(Outliers):

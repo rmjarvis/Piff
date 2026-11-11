@@ -532,6 +532,232 @@ def test_pcg_solver():
     scale = np.max(np.abs(ref.q))
     np.testing.assert_allclose(interp.q, ref.q, rtol=0, atol=1.e-10 * scale)
 
+    # Stars carrying a design cache instead of A, b (cf. PixelGrid cache_design=True) give
+    # the same answer: alpha = flux^2 alpha0, beta = flux (c - flux/sum(p) alpha0 p).
+    # Here b = sqrt(w) (data - model) with model = A0 p flux / sum(p), so we build a cache
+    # whose beta reproduces A^T b for the chosen flux and params.
+    def _cached_star(s, flux, params):
+        A0 = s.fit.A / flux
+        c = A0.T.dot(s.fit.b) + A0.T.dot(A0.dot(params)) * flux / np.sum(params)
+        cache = piff.pixelgrid.PixelGridDesignCache(
+            s.data, (0.,0.), nparams, None, None, A0.T.dot(A0), c, 0., npix,
+            np.zeros((0, nparams)), np.zeros(0), npix)
+        fit = piff.StarFit(params, flux=flux, A=None, b=None, design_cache=cache)
+        return piff.Star(s.data, fit)
+    cached = [_cached_star(s, flux, params) for s, flux, params in
+              zip(stars, rng.uniform(0.5, 2., nstars), rng.uniform(0.1, 1., (nstars, nparams)))]
+    for s, c in zip(stars, cached):
+        np.testing.assert_allclose(c.fit.alpha, s.fit.alpha, rtol=0,
+                                   atol=1.e-12 * np.max(np.abs(s.fit.alpha)))
+        np.testing.assert_allclose(c.fit.beta, s.fit.beta, rtol=0,
+                                   atol=1.e-12 * np.max(np.abs(s.fit.beta)))
+    # (initialize sets q from the stars' params, which are not zero here, so compare dq.)
+    interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='pcg')
+    interp.initialize(cached)
+    q0 = interp.q.copy()
+    interp.solve(cached)
+    assert not interp.last_pcg_fallback
+    np.testing.assert_allclose(interp.q - q0, ref.q, rtol=0, atol=1.e-10 * scale)
+    # A mix of cached and explicit stars works too.
+    mixed = [c if i % 2 else s for i, (s, c) in enumerate(zip(stars, cached))]
+    interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='pcg')
+    interp.initialize(mixed)
+    q0 = interp.q.copy()
+    interp.solve(mixed)
+    np.testing.assert_allclose(interp.q - q0, ref.q, rtol=0, atol=1.e-10 * scale)
+    # The direct solvers need the explicit A.
+    for solver in ['cpp', 'qr']:
+        interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver=solver)
+        interp.initialize(cached)
+        with np.testing.assert_raises(ValueError):
+            interp.solve(cached)
+    # Non-convergence with cached stars raises PCGFallbackNeeded rather than silently
+    # falling back (SimplePSF catches it and rebuilds the explicit matrices).
+    interp = piff.BasisPolynomial(order=[4,4,1], keys=['x','y','color'], solver='pcg',
+                                  pcg_max_iter=2)
+    interp.initialize(cached)
+    with np.testing.assert_raises(piff.basis_interp.PCGFallbackNeeded):
+        interp.solve(cached)
+    assert interp.last_pcg_fallback
+
+
+@timer
+def test_cache_design():
+    """PixelGrid(cache_design=True) must reproduce the explicit chisq / solve / reflux results.
+    """
+    import pickle
+    rng = galsim.BaseDeviate(4321)
+    # Stamps (32 pixels) bigger than the grid (15 x 0.5 = 7.5 -> maxuv = 4.0 = 8 pixels), so
+    # there are pixels with non-zero weight outside the fitting mask.
+    nside = 32
+    stars = []
+    for u0, v0, flux in [(0., 0., 200.), (0.3, -0.2, 500.), (-0.4, 0.1, 50.), (0.1, 0.1, 1000.)]:
+        stars.append(make_gaussian_data(1.2, u0, v0, flux, du=0.5, noise=0.1, rng=rng,
+                                        nside=nside))
+    # Zero-weight pixels inside and outside the mask.
+    stars[0].weight.array[14:16, 10:12] = 0
+    stars[0].weight.array[0:2, :] = 0
+    # A float32 image.
+    s = stars[1]
+    img32 = galsim.Image(s.image, dtype=np.float32)
+    stars[1] = piff.Star(s.data.withNew(image=img32), s.fit)
+    mod_ref = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=False)
+    mod = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=False, cache_design=True)
+    interp = piff.BasisPolynomial(order=1, solver='pcg')
+    psf_ref = piff.SimplePSF(mod_ref, interp)
+    psf = piff.SimplePSF(mod, interp)
+    stars = psf_ref.initialize_flux_center(stars)
+    stars = [mod_ref.initialize(s) for s in stars]
+    # A fully masked star (masked after the initialization, which needs some pixels).
+    s = make_gaussian_data(1.2, 0., 0., 100., du=0.5, noise=0.1, rng=rng, nside=nside)
+    s = mod_ref.initialize(s)
+    s.weight.array[:] = 0
+    stars.append(s)
+    # Perturb the parameters so sum(p) != 1 and they are not just the initial Gaussian.
+    for s in stars:
+        p = s.fit.params * 1.1
+        p[::7] += 0.01 * p.max()
+        s.fit.updateParams(p)
+
+    def check_same(s_cached, s_ref, tol=1.e-8):
+        # Note: the explicit path draws the model in the image's dtype, so for a float32
+        # image its chisq and b carry float32 rounding, while the cache always uses doubles.
+        # Hence the looser tolerance for that star.
+        assert s_cached.fit.A is None
+        assert s_cached.fit.b is None
+        assert s_cached.fit.design_cache is not None
+        assert s_ref.fit.A is not None
+        assert s_cached.fit.dof == s_ref.fit.dof
+        np.testing.assert_allclose(s_cached.fit.chisq, s_ref.fit.chisq, rtol=tol)
+        scale = np.max(np.abs(s_ref.fit.alpha))
+        np.testing.assert_allclose(s_cached.fit.alpha, s_ref.fit.alpha, rtol=0, atol=1.e-12*scale)
+        scale = np.max(np.abs(s_ref.fit.beta))
+        np.testing.assert_allclose(s_cached.fit.beta, s_ref.fit.beta, rtol=0,
+                                   atol=max(tol, 1.e-12)*scale)
+
+    for s in stars:
+        tol = 1.e-6 if s.image.array.dtype == np.float32 else 1.e-8
+        s_ref = mod_ref.chisq(s)
+        s_cached = mod.chisq(s)
+        check_same(s_cached, s_ref, tol)
+        print('chisq: ', s_ref.fit.chisq, s_cached.fit.chisq, s_ref.fit.dof)
+
+        # A flux change hits the same cache, and matches a fresh explicit calculation.
+        s2 = s_cached.withFlux(s_cached.fit.flux * 1.7)
+        s2_cached = mod.chisq(s2)
+        assert s2_cached.fit.design_cache is s_cached.fit.design_cache
+        check_same(s2_cached, mod_ref.chisq(s2), tol)
+
+        # Reflux without drawing matches PSF.reflux.
+        r_ref = psf_ref.reflux(s_ref)
+        r = psf.reflux(s_cached)
+        assert r.fit.design_cache is s_cached.fit.design_cache
+        np.testing.assert_allclose(r.fit.flux, r_ref.fit.flux, rtol=1.e-12)
+        np.testing.assert_allclose(r.fit.chisq, r_ref.fit.chisq, rtol=tol)
+        assert r.fit.dof == r_ref.fit.dof
+        assert r.fit.center == r_ref.fit.center
+        print('reflux: ', r_ref.fit.flux, r.fit.flux, r_ref.fit.chisq, r.fit.chisq)
+        # And the next chisq after reflux still uses the cache.
+        assert mod.chisq(r).fit.design_cache is s_cached.fit.design_cache
+
+        # Invalidation: a different center, new weights (addPoisson with a gain), or a new
+        # data object (flag_if) rebuild the cache, with the right answer.
+        s3 = piff.Star(s_cached.data, s_cached.fit.withNew(center=(0.1, -0.05)))
+        s3_cached = mod.chisq(s3)
+        assert s3_cached.fit.design_cache is not s_cached.fit.design_cache
+        check_same(s3_cached, mod_ref.chisq(s3), tol)
+        s4 = s_cached.addPoisson(gain=2.)
+        assert s4.data is not s_cached.data
+        s4_cached = mod.chisq(s4)
+        assert s4_cached.fit.design_cache is not s_cached.fit.design_cache
+        check_same(s4_cached, mod_ref.chisq(s4), tol)
+        s5 = s_cached.flag_if(True)
+        s5_cached = mod.chisq(s5)
+        assert s5_cached.fit.design_cache is not s_cached.fit.design_cache
+        check_same(s5_cached, mod_ref.chisq(s5), tol)
+
+        # The cache is not pickled.
+        assert pickle.loads(pickle.dumps(s_cached)).fit.design_cache is None
+
+        # Explicit A, b on request (used by PixelGrid.fit), bitwise equal to the reference.
+        s6 = mod.chisq(s_cached, _explicit=True)
+        np.testing.assert_array_equal(s6.fit.A, s_ref.fit.A)
+        np.testing.assert_array_equal(s6.fit.b, s_ref.fit.b)
+        assert s6.fit.chisq == s_ref.fit.chisq
+        if s.fit.dof is None or np.count_nonzero(s.weight.array) > 0:
+            f_ref = mod_ref.fit(s)
+            f = mod.fit(s)
+            np.testing.assert_array_equal(f.fit.params, f_ref.fit.params)
+            np.testing.assert_array_equal(f.fit.params_var, f_ref.fit.params_var)
+
+    # A convert_func bypasses the cache (and gives the usual explicit A).
+    s = stars[2]
+    s_conv = mod.chisq(s, convert_func=lambda prof: prof)
+    assert s_conv.fit.A is not None
+    s_conv_ref = mod_ref.chisq(s, convert_func=lambda prof: prof)
+    np.testing.assert_array_equal(s_conv.fit.A, s_conv_ref.fit.A)
+
+    # centered=True ignores cache_design (with a warning), and gives the explicit A.
+    with CaptureLog(1) as cl:
+        mod_c = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=True, cache_design=True,
+                               logger=cl.logger)
+    assert 'ignored' in cl.output
+    mod_c_ref = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=True)
+    s = mod_c_ref.initialize(stars[2])
+    sc = mod_c.chisq(s)
+    sc_ref = mod_c_ref.chisq(s)
+    assert sc.fit.A is not None
+    np.testing.assert_array_equal(sc.fit.A, sc_ref.fit.A)
+    np.testing.assert_array_equal(sc.fit.b, sc_ref.fit.b)
+    assert mod_c.reflux_from_cache(sc) is None
+
+    # The cache needs the pcg solver.
+    psf_bad = piff.SimplePSF(mod, piff.BasisPolynomial(order=1, solver='scipy'))
+    with np.testing.assert_raises(ValueError):
+        psf_bad.initialize_params(stars)
+    # But a non-basis interpolator is fine (it uses PixelGrid.fit, which is explicit).
+    psf_poly = piff.SimplePSF(mod, piff.Polynomial(order=0))
+    psf_poly.initialize_params(stars)
+
+    # A full fit (with outlier rejection) gives the same PSF as the explicit path, with the
+    # same iterations and outlier decisions.  The stars have no gain, so the weights are
+    # constant and the caches survive the whole fit.
+    stars = []
+    rng = galsim.BaseDeviate(1111)
+    for u in np.linspace(0., 1., 4):
+        for v in np.linspace(0., 1., 4):
+            flux = 100. + 900. * (u + v) / 2.
+            s = make_gaussian_data(1.0 + 0.1*u, 0.1*v, -0.1*u, flux, noise=0.1, du=0.5,
+                                   fpu=u, fpv=v, rng=rng, nside=nside)
+            stars.append(s)
+    # One star with a different (wrong) shape, to be rejected.
+    stars[5] = make_gaussian_data(1.6, 0., 0., 500., noise=0.1, du=0.5, fpu=0.25, fpv=0.5,
+                                  rng=rng, nside=nside)
+    results = {}
+    for cache in [False, True]:
+        mod = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=False, cache_design=cache)
+        interp = piff.BasisPolynomial(order=1, keys=['u','v'], solver='pcg')
+        outliers = piff.ChisqOutliers(nsigma=4, max_remove=1)
+        psf = piff.SimplePSF(mod, interp, outliers=[outliers], max_iter=10)
+        with CaptureLog(2) as cl:
+            psf.fit(stars, logger=cl.logger)
+        assert 'did not converge' not in cl.output
+        print('cache_design=%s: niter=%d nremoved=%d chisq=%f dof=%d' % (
+            cache, psf.niter, psf.nremoved, psf.chisq, psf.dof))
+        # No cache is left on the stars after the fit.
+        assert all(s.fit.design_cache is None for s in psf.stars)
+        assert all((s.fit.A is None) == cache for s in psf.stars if not s.is_flagged)
+        target = make_gaussian_data(1.05, 0., 0., 100., du=0.5, fpu=0.5, fpv=0.5, nside=nside)
+        results[cache] = (psf.drawStar(target).image.array, psf.interp.q.copy(), psf.niter,
+                          psf.nremoved, [s.is_flagged for s in psf.stars], psf.chisq, psf.dof)
+    assert psf.nremoved >= 1
+    np.testing.assert_allclose(results[True][0], results[False][0], rtol=1.e-7)
+    scale = np.max(np.abs(results[False][1]))
+    np.testing.assert_allclose(results[True][1], results[False][1], rtol=0, atol=1.e-8*scale)
+    assert results[True][2:5] == results[False][2:5]
+    np.testing.assert_allclose(results[True][5], results[False][5], rtol=1.e-8)
+    assert results[True][6] == results[False][6]
+
 
 @timer
 def test_missing():
@@ -1249,6 +1475,36 @@ def test_single_image():
         np.testing.assert_allclose(test_star_solver[0].image.array,
                                    test_star_solver[i].image.array,
                                    rtol=1.e-7)
+
+    # The cached design path (PixelGrid cache_design=True with the pcg solver) gives the same
+    # PSF as the explicit pcg run, with the same iterations and outlier decisions.
+    config['psf']['interp']['solver'] = 'pcg'
+    config['psf']['model']['centered'] = False
+    config['psf']['outliers'] = {'type': 'Chisq', 'nsigma': 4, 'max_remove': 0.05}
+    results = {}
+    for cache in [False, True]:
+        config['psf']['model']['cache_design'] = cache
+        piff.piffify(config)
+        psf = piff.read(psf_file)
+        assert 'cache_design' not in psf.model.kwargs  # Not part of the file format.
+        results[cache] = (psf.drawStar(target_star).image.array, psf.interp.q.copy(),
+                          psf.niter, psf.nremoved, psf.chisq, psf.dof)
+    # (The pcg solver stops at a 1e-12 relative residual, so two runs with different rounding
+    # in the operator agree to ~1e-8 of the peak, not bitwise.)
+    peak = np.max(np.abs(results[False][0]))
+    np.testing.assert_allclose(results[True][0], results[False][0], rtol=0, atol=1.e-7*peak)
+    scale = np.max(np.abs(results[False][1]))
+    np.testing.assert_allclose(results[True][1], results[False][1], rtol=0, atol=1.e-6*scale)
+    assert results[True][2:4] == results[False][2:4]
+    np.testing.assert_allclose(results[True][4], results[False][4], rtol=1.e-8)
+    assert results[True][5] == results[False][5]
+    # The cache needs the pcg solver.
+    config['psf']['interp']['solver'] = 'cpp'
+    with np.testing.assert_raises(ValueError):
+        piff.piffify(config)
+    del config['psf']['model']['cache_design']
+    del config['psf']['model']['centered']
+    del config['psf']['outliers']
 
 @timer
 def test_des_image():

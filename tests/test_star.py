@@ -994,6 +994,24 @@ def test_starfit_copy():
     assert fit2.A is fit.A
     assert fit2.b is fit.b
 
+    # A design cache (cf. PixelGrid cache_design) is shared too, but not pickled.
+    import pickle, copy
+    cache = object()
+    fit = piff.StarFit(np.arange(5.), flux=2., A=A, b=b, design_cache=cache)
+    assert fit.copy().design_cache is cache
+    assert fit.withNew(flux=3.).design_cache is cache
+    assert fit.newParams(np.ones(5)).design_cache is cache
+    assert pickle.loads(pickle.dumps(fit)).design_cache is None
+    assert copy.deepcopy(fit).design_cache is None
+    # Unpickling a StarFit from before design_cache existed gives None.
+    state = fit.__getstate__()
+    del state['design_cache']
+    old = piff.StarFit.__new__(piff.StarFit)
+    old.__setstate__(state)
+    assert old.design_cache is None
+    fit = piff.StarFit(np.arange(5.), flux=2., center=(0.1,0.2), params_var=np.ones(5),
+                       A=A, b=b, chisq=1., dof=3)
+
     fit3 = fit.withNew(flux=3., center=(0.,0.))
     assert fit.flux == 2.
     assert fit.center == (0.1, 0.2)

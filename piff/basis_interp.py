@@ -74,6 +74,14 @@ def vmap_build_ATA_ATb(Ks, alphas, betas):
     return ATA, ATb
 
 
+class PCGFallbackNeeded(RuntimeError):
+    """Raised by BasisInterp._solve_pcg when it cannot converge and the stars carry a design
+    cache instead of an explicit design matrix, so the direct fallback solver cannot be run
+    on them directly.  SimplePSF catches it, rebuilds the explicit matrices and retries.
+    """
+    pass
+
+
 class BasisInterp(Interp):
     r"""An Interp class that works whenever the interpolating functions are
     linear sums of basis functions.  Does things the "slow way" to be stable to
@@ -234,6 +242,7 @@ class BasisInterp(Interp):
     def _solve_qr(self, stars, logger):
         """The implementation of solve() when use_qr = True.
         """
+        self._check_explicit_design(stars, 'qr')
 
         # First, build up one chunk for each star.  We'll stack them later.
         A_chunks = []
@@ -315,9 +324,16 @@ class BasisInterp(Interp):
         else:
             self._solve_direct_python(stars, logger)
 
+    @staticmethod
+    def _check_explicit_design(stars, solver):
+        if any(s.fit.A is None for s in stars):
+            raise ValueError("The %s solver needs the explicit design matrices.  It cannot be "
+                             "used with PixelGrid(cache_design=True)." % solver)
+
     def _solve_direct_cpp(self, stars, logger):
         """The implementation in C++ of solve() when use_qr = False.
         """
+        self._check_explicit_design(stars, 'cpp')
 
         Ks = []
         As = []
@@ -466,10 +482,21 @@ class BasisInterp(Interp):
         Ks = []
         As = []
         bs = []
+        # Stars fit with PixelGrid(cache_design=True) carry no A, b but a design cache with
+        # alpha0 = A^T A / flux^2 (cf. PixelGridDesignCache).  For those we use
+        # alpha_i = flux^2 alpha0_i directly, and never form an explicit A.
+        caches = []
         for s in stars:
             Ks.append(self.basis(s))
-            As.append(s.fit.A)
-            bs.append(s.fit.b)
+            if s.fit.A is None and s.fit.design_cache is not None:
+                caches.append((s.fit.design_cache.alpha0, float(s.fit.flux)**2))
+                As.append(None)
+                bs.append(None)
+            else:
+                caches.append(None)
+                As.append(s.fit.A)
+                bs.append(s.fit.b)
+        ncached = sum(c is not None for c in caches)
         Ks = np.array(Ks, dtype=float)
         nstars, nbasis = Ks.shape
         nparam = self.q.shape[0]
@@ -477,20 +504,30 @@ class BasisInterp(Interp):
         # alpha_i = A_i^T A_i and beta_i = A_i^T b_i for each star.
         # Keep the alpha_i if they fit in memory (fast batched matvec); otherwise apply
         # A_i^T (A_i x) on the fly.
-        store_alpha = nstars * nparam * nparam * 8 <= self.pcg_alpha_memory_budget
+        store_alpha = (ncached == 0 and
+                       nstars * nparam * nparam * 8 <= self.pcg_alpha_memory_budget)
         alphas = np.empty((nstars, nparam, nparam)) if store_alpha else None
         alpha_bar = np.zeros((nparam, nparam))
         betas = np.empty((nstars, nparam))
         weights = np.empty(nstars)
+        tmp = np.empty((nparam, nparam)) if ncached else None
         for i, (A, b) in enumerate(zip(As, bs)):
+            if caches[i] is not None:
+                alpha0, f2 = caches[i]
+                np.multiply(alpha0, f2, out=tmp)
+                alpha_bar += tmp
+                weights[i] = f2 * stars[i].fit.design_cache.trace0
+                betas[i] = stars[i].fit.beta
+                continue
             alpha = A.T.dot(A)
             if store_alpha:
                 alphas[i] = alpha
             alpha_bar += alpha
             weights[i] = np.trace(alpha)
             betas[i] = A.T.dot(b)
-        logger.debug('pcg: nstars=%d nparam=%d nbasis=%d store_alpha=%s',
-                     nstars, nparam, nbasis, store_alpha)
+        del tmp
+        logger.debug('pcg: nstars=%d nparam=%d nbasis=%d store_alpha=%s ncached=%d',
+                     nstars, nparam, nbasis, store_alpha, ncached)
 
         try:
             # Whiten the basis: G = sum_i w_i K_i K_i^T = L L^T, kappa_i = L^-1 K_i.
@@ -508,8 +545,10 @@ class BasisInterp(Interp):
             alpha_bar.flat[::nparam+1] += 1.e-12 * np.trace(alpha_bar) / nparam
             cf = scipy.linalg.cho_factor(alpha_bar, lower=True, check_finite=False)
         except (np.linalg.LinAlgError, scipy.linalg.LinAlgError, ValueError) as e:
-            logger.warning('pcg solver: %s.  Falling back to direct solver.', e)
             self.last_pcg_fallback = True
+            if ncached:
+                raise PCGFallbackNeeded('pcg solver: %s.' % e)
+            logger.warning('pcg solver: %s.  Falling back to direct solver.', e)
             self._solve_direct_cpp(stars, logger)
             return
 
@@ -518,6 +557,17 @@ class BasisInterp(Interp):
             Y = Q.dot(kappa.T)  # (nparam, nstars); column i is Q kappa_i
             if store_alpha:
                 Z = np.matmul(alphas, Y.T[:, :, np.newaxis])[:, :, 0].T
+            elif ncached:
+                YT = np.ascontiguousarray(Y.T)  # (nstars, nparam)
+                ZT = np.empty_like(YT)
+                for i, A in enumerate(As):
+                    if caches[i] is not None:
+                        alpha0, f2 = caches[i]
+                        np.dot(alpha0, YT[i], out=ZT[i])
+                        ZT[i] *= f2
+                    else:
+                        ZT[i] = A.T.dot(A.dot(YT[i]))
+                return ZT.T.dot(kappa)
             else:
                 Z = np.empty_like(Y)
                 for i, A in enumerate(As):
@@ -561,10 +611,14 @@ class BasisInterp(Interp):
             rz = rz_new
 
         if not converged:
+            self.last_pcg_fallback = True
+            if ncached:
+                raise PCGFallbackNeeded(
+                    'pcg solver did not converge in %d iterations (residual %.2e).' % (
+                        self.last_cg_iterations, self.last_cg_residual))
             logger.warning('pcg solver did not converge in %d iterations (residual %.2e).  '
                            'Falling back to direct solver.',
                            self.last_cg_iterations, self.last_cg_residual)
-            self.last_pcg_fallback = True
             self._solve_direct_cpp(stars, logger)
             return
 

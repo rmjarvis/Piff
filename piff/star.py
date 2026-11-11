@@ -1400,7 +1400,7 @@ class StarFit(object):
     :param dof:    The number of degrees of freedom for the given chisq.
     """
     def __init__(self, params, flux=1., center=(0.,0.), params_var=None, A=None, b=None,
-                 chisq=None, dof=None):
+                 chisq=None, dof=None, design_cache=None):
         # center might be a galsim.PositionD.  That's fine, but we'll convert to a tuple here.
         try:
             center = (center.x, center.y)
@@ -1415,14 +1415,33 @@ class StarFit(object):
         self.b = b
         self.chisq = chisq
         self.dof = dof
+        # Optional cached quadratic form of the chisq (cf. PixelGrid.chisq with
+        # cache_design=True).  When present and A is None, alpha and beta are computed from it.
+        self.design_cache = design_cache
 
     @property
     def alpha(self):
+        if self.A is None and self.design_cache is not None:
+            return self.design_cache.alpha(self)
         return self.A.T.dot(self.A)
 
     @property
     def beta(self):
+        if self.A is None and self.design_cache is not None:
+            return self.design_cache.beta(self)
         return self.A.T.dot(self.b)
+
+    def __getstate__(self):
+        # The design cache is a (large) derived quantity that is rebuilt on demand.
+        # Don't pickle it or carry it through deepcopy.
+        d = self.__dict__.copy()
+        d['design_cache'] = None
+        return d
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
+        # Objects pickled by older versions don't have this attribute.
+        self.__dict__.setdefault('design_cache', None)
 
     @classmethod
     def reshape_params(cls, params, params_lens):
@@ -1516,6 +1535,9 @@ class StarFit(object):
         ret = copy.copy(self)
         ret.params = copy.deepcopy(self.params)
         ret.params_var = copy.deepcopy(self.params_var)
+        # copy.copy goes through __getstate__, which drops the design cache.  Copies share it
+        # (it is flux-independent and never modified in place), like A and b.
+        ret.design_cache = self.design_cache
         return ret
 
     def withNew(self, **kwargs):

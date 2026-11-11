@@ -149,6 +149,122 @@ def test_chisq():
     np.testing.assert_raises(TypeError, piff.ChisqOutliers)
 
 @timer
+def test_mad():
+    """Test the MAD outlier class
+    """
+    rng = np.random.RandomState(1234)
+    nstars = 200
+    template = piff.Star.makeTarget(x=20.0, y=20.0, scale=0.2, stamp_size=11)
+    dof = 100
+
+    def make_stars(rchisq, reserve=()):
+        stars = []
+        for i, r in enumerate(rchisq):
+            data = template.data.withNew(properties=dict(template.data.properties,
+                                                          is_reserve=(i in reserve)))
+            stars.append(piff.Star(data, piff.StarFit(params=None, chisq=r*dof, dof=dof)))
+        return stars
+
+    # A population with per-star reduced chisq ~ N(1.5, 0.1), i.e. the noise is globally
+    # misestimated, plus a few real outliers.  Chisq with the usual threshold would
+    # reject everything after scaling by the mean, MAD only rejects the real outliers.
+    rchisq = rng.normal(1.5, 0.1, nstars)
+    bad = [3, 50, 77, 150]
+    rchisq[bad] = [3., 2.5, 10., 2.2]
+    stars = make_stars(rchisq)
+
+    outliers = piff.MADOutliers(nsigma=5)
+    stars1, nremoved = outliers.removeOutliers(stars)
+    print('MAD nsigma=5: nremoved = ', nremoved)
+    assert nremoved == len(bad)
+    assert sorted(np.nonzero([s.is_flagged for s in stars1])[0]) == sorted(bad)
+    # nmad is the same thing as nsigma.
+    outliers2 = piff.MADOutliers(nmad=5)
+    stars2, nremoved2 = outliers2.removeOutliers(stars)
+    assert nremoved2 == nremoved
+    assert outliers2.kwargs == outliers.kwargs
+
+    # max_remove as a count and as a fraction: the worst ones go first.
+    outliers = piff.MADOutliers(nsigma=5, max_remove=2)
+    stars3, nremoved = outliers.removeOutliers(stars)
+    assert nremoved == 2
+    assert sorted(np.nonzero([s.is_flagged for s in stars3])[0]) == [3, 77]
+    outliers = piff.MADOutliers(nsigma=5, max_remove=0.01)  # ceil(0.01 * 200) = 2
+    stars3, nremoved = outliers.removeOutliers(stars)
+    assert nremoved == 2
+    assert sorted(np.nonzero([s.is_flagged for s in stars3])[0]) == [3, 77]
+    # Then the rest on the next call.
+    stars4, nremoved = outliers.removeOutliers(stars3)
+    assert nremoved == 2
+    assert sorted(np.nonzero([s.is_flagged for s in stars4])[0]) == sorted(bad)
+    stars5, nremoved = outliers.removeOutliers(stars4)
+    assert nremoved == 0
+    assert sorted(np.nonzero([s.is_flagged for s in stars5])[0]) == sorted(bad)
+
+    # Low chisq is not an outlier by default, unless upper_only=False.
+    rchisq2 = rchisq.copy()
+    rchisq2[10] = 0.1
+    stars = make_stars(rchisq2)
+    stars6, nremoved = piff.MADOutliers(nsigma=5).removeOutliers(stars)
+    assert nremoved == len(bad)
+    assert not stars6[10].is_flagged
+    stars7, nremoved = piff.MADOutliers(nsigma=5, upper_only=False).removeOutliers(stars)
+    assert nremoved == len(bad) + 1
+    assert stars7[10].is_flagged
+
+    # Reserve stars are flagged with the same threshold, but don't count toward nremoved
+    # or max_remove, and don't contribute to the median/MAD.
+    stars = make_stars(rchisq, reserve=[77, 120])
+    stars8, nremoved = piff.MADOutliers(nsigma=5).removeOutliers(stars)
+    assert nremoved == len(bad) - 1
+    assert stars8[77].is_flagged and stars8[77].is_reserve
+    assert not stars8[120].is_flagged
+    # Also when nothing else is removed (the nremoved == 0 branch).
+    rchisq3 = rng.normal(1.5, 0.1, nstars)
+    rchisq3[120] = 10.
+    stars = make_stars(rchisq3, reserve=[120])
+    stars9, nremoved = piff.MADOutliers(nsigma=5).removeOutliers(stars)
+    assert nremoved == 0
+    assert stars9[120].is_flagged
+    # Already flagged stars are ignored (and stay flagged).
+    stars10, nremoved = piff.MADOutliers(nsigma=5).removeOutliers(stars8)
+    assert nremoved == 0
+    assert [s.is_flagged for s in stars10] == [s.is_flagged for s in stars8]
+    # A star with dof = 0 (e.g. a failed reflux) is treated as bad.
+    stars = make_stars(rchisq3)  # Star 120 is a regular outlier here.
+    stars[5] = piff.Star(stars[5].data, piff.StarFit(params=None, chisq=0., dof=0))
+    stars11, nremoved = piff.MADOutliers(nsigma=5).removeOutliers(stars)
+    assert nremoved == 2
+    assert stars11[5].is_flagged
+    assert stars11[120].is_flagged
+    # Nothing to check.
+    stars12, nremoved = piff.MADOutliers(nsigma=5).removeOutliers(
+        [s.flag_if(True) for s in stars])
+    assert nremoved == 0
+
+    # Invalid constructions
+    np.testing.assert_raises(TypeError, piff.MADOutliers)
+    np.testing.assert_raises(TypeError, piff.MADOutliers, nsigma=5, nmad=5)
+    np.testing.assert_raises(ValueError, piff.MADOutliers, nsigma=-1)
+
+    # Config and file round trip
+    config = {'type': 'MAD', 'nsigma': 4, 'max_remove': 0.05}
+    outliers = piff.Outliers.process(config)
+    assert isinstance(outliers, list) and len(outliers) == 1
+    outliers = outliers[0]
+    assert isinstance(outliers, piff.MADOutliers)
+    assert outliers.nmad == 4
+    assert outliers.max_remove == 0.05
+    assert outliers.upper_only
+    file_name = os.path.join('output', 'test_mad_outliers.fits')
+    with piff.writers.FitsWriter.open(file_name) as w:
+        outliers.write(w, 'outliers')
+    with piff.readers.FitsReader.open(file_name) as r:
+        outliers2 = piff.Outliers.read(r, 'outliers')
+    assert isinstance(outliers2, piff.MADOutliers)
+    assert outliers2.kwargs == outliers.kwargs
+
+@timer
 def test_base():
     """Test Outliers base class
     """
@@ -393,6 +509,7 @@ def test_dof_outlier_rejection():
 
 if __name__ == '__main__':
     test_chisq()
+    test_mad()
     test_base()
     test_centroid()
     test_dof_outlier_rejection()

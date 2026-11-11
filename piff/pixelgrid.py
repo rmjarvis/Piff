@@ -26,6 +26,122 @@ from .model import Model
 from .star import Star
 from .util import HouseholderTransform
 
+class PixelGridDesignCache:
+    r"""The quadratic form of a star's chisq for a PixelGrid model with centered=False,
+    cached across iterations of the PSF fit.
+
+    With unit-flux normalization (fit_flux=False) and no centroid constraint, the model drawn
+    on the star's pixels is exactly linear in the parameters:
+
+        model = f A0 p / sum(p)
+
+    where A0 is the (unweighted, flux-free) design matrix built by PixelGrid.chisq, f is the
+    star's flux and p its parameter vector.  Writing W for the pixel weights, d for the data
+    and g = f / sum(p), the quantities that PixelGrid.chisq and PSF.reflux compute are
+
+        chisq = d^T W d - 2 g p.c + g^2 p^T alpha0 p
+        A^T A = f^2 alpha0
+        A^T b = f (c - g alpha0 p)
+
+    with alpha0 = A0^T W A0 and c = A0^T W d.  Both depend only on the pixel data, the weights
+    and the star center, none of which change between iterations in the usual
+    centered=False fit, so they are computed once and reused.
+
+    The fit uses the pixels within maxuv of the center ("mask"), while reflux's chisq uses
+    every pixel with non-zero weight.  For the (few) extra pixels we keep the explicit
+    weighted rows E = sqrt(W) A0 and e = sqrt(W) d, so that
+    p^T alpha0_full p = p^T alpha0 p + |E p|^2 and p.c_full = p.c + (E p).e.
+
+    :param data:        The StarData the cache was built from (identity is part of the key).
+    :param center:      The star center used to build it.
+    :param nparams:     The number of model parameters.
+    :param signature:   The PixelGrid signature (size, scale, interp, fit_flux).
+    :param num:         The model number for star.fit.get_params.
+    :param alpha0:      A0^T W A0 on the masked pixels.
+    :param c:           A0^T W d on the masked pixels.
+    :param dd:          d^T W d on the masked pixels.
+    :param nmask:       The number of masked pixels (the chisq dof).
+    :param E:           sqrt(W) A0 on the extra pixels.
+    :param e:           sqrt(W) d on the extra pixels.
+    :param nfull:       The total number of pixels with non-zero weight.
+    """
+    def __init__(self, data, center, nparams, signature, num,
+                 alpha0, c, dd, nmask, E, e, nfull):
+        self.data = data
+        self.center = tuple(center)
+        self.nparams = nparams
+        self.signature = signature
+        self.num = num
+        self.alpha0 = alpha0
+        self.trace0 = np.trace(alpha0)
+        self.c = c
+        self.dd = dd
+        self.nmask = nmask
+        self.E = E
+        self.e = e
+        self.nfull = nfull
+
+    @property
+    def nbytes(self):
+        return self.alpha0.nbytes + self.c.nbytes + self.E.nbytes + self.e.nbytes
+
+    def is_valid_for(self, star, signature):
+        """Whether this cache applies to the given star (same data, center and model).
+        """
+        if star.data is not self.data or signature != self.signature:
+            return False
+        if tuple(star.fit.center) != self.center:
+            return False
+        params = star.fit.get_params(self.num)
+        return params is not None and len(params) == self.nparams
+
+    def _scale(self, fit):
+        params = fit.get_params(self.num)
+        sp = np.sum(params)
+        if sp == 0.:
+            raise ValueError("PixelGrid parameters sum to zero")
+        # Note: float() so that a float32 flux (e.g. from a float32 image) doesn't make the
+        # arithmetic below single precision.
+        return params, float(fit.flux) / sp
+
+    def chisq_dof(self, fit):
+        """The chisq and dof on the masked pixels, as PixelGrid.chisq computes them.
+        """
+        p, g = self._scale(fit)
+        chisq = self.dd - 2.*g*p.dot(self.c) + g*g*p.dot(self.alpha0.dot(p))
+        return chisq, self.nmask
+
+    def alpha(self, fit):
+        """A^T A for the star's current flux.
+        """
+        return float(fit.flux)**2 * self.alpha0
+
+    def beta(self, fit):
+        """A^T b for the star's current flux and parameters.
+        """
+        p, g = self._scale(fit)
+        return float(fit.flux) * (self.c - g*self.alpha0.dot(p))
+
+    def reflux(self, fit):
+        """The flux-only reflux solution on all pixels with non-zero weight, as PSF.reflux
+        computes it when the center is not fit.
+
+        :returns: (new_flux, new_chisq, new_dof)
+        """
+        p, g = self._scale(fit)
+        Ep = self.E.dot(p)
+        pc = p.dot(self.c) + Ep.dot(self.e)
+        pap = p.dot(self.alpha0.dot(p)) + Ep.dot(Ep)
+        dd = self.dd + self.e.dot(self.e)
+        # Same formulation as PSF.reflux: flux_ratio = sum(w model data) / sum(w model^2)
+        f_data = g * pc
+        f_model = g*g*pap or 1  # Don't let f_model = 0
+        new_flux = float(fit.flux) * (f_data / f_model)
+        g2 = new_flux / np.sum(fit.get_params(self.num))
+        new_chisq = dd - 2.*g2*pc + g2*g2*pap
+        return new_flux, new_chisq, self.nfull - 1
+
+
 class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
 
@@ -60,6 +176,19 @@ class PixelGrid(Model):
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False,
                         unless init=='zero', in which case it is automatically True.]
+    :param cache_design: If True, cache the quadratic form of each star's chisq (the normal
+                        matrix A^T A and related vectors of the unweighted, flux-free design
+                        matrix) on the star the first time ``chisq`` is called, and reuse it
+                        in later iterations of the PSF fit instead of redrawing the model and
+                        rebuilding the design matrix.  The cache is exact whenever the star's
+                        pixel data, weights and center are unchanged between iterations, which
+                        is the case for ``centered=False`` fits without a ``gain`` property
+                        (e.g. the Rubin/LSST configuration); it is rebuilt automatically
+                        otherwise.  Stars then carry no explicit design matrix, so this option
+                        requires an interpolator solver that only needs A^T A and A^T b
+                        (``BasisPolynomial(solver='pcg')``).  It is ignored for
+                        ``centered=True``, ``fit_flux=True`` and composite PSFs.  This option
+                        is not written to the output file. [default: False]
     :param logger:      A logger object for logging debug info. [default: None]
     """
 
@@ -67,7 +196,7 @@ class PixelGrid(Model):
     _method = 'no_pixel'
 
     def __init__(self, scale, size, interp=None, centered=True, init=None, fit_flux=False,
-                 logger=None):
+                 cache_design=False, logger=None):
         from .config import LoggerWrapper
         logger = LoggerWrapper(logger)
         if init == 'hsm':
@@ -90,6 +219,12 @@ class PixelGrid(Model):
         self._centered = centered
         self._init = init
         self._fit_flux = fit_flux
+        self._cache_design = bool(cache_design)
+        if self._cache_design and (centered or fit_flux):
+            logger.warning("PixelGrid cache_design=True is ignored with centered=True or "
+                           "fit_flux=True.")
+        # Everything the cached quadratic form depends on besides the star itself.
+        self._cache_signature = (size, scale, repr(self.interp), bool(fit_flux))
 
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = (self.size+1)/2. * self.scale
@@ -232,7 +367,8 @@ class PixelGrid(Model):
         assert draw_method in (None, 'no_pixel')
         logger = LoggerWrapper(logger)
         # Get chisq Taylor expansion for linearized model
-        star1 = self.chisq(star, logger=logger, convert_func=convert_func)
+        # (This needs the explicit A, b, so bypass the design cache if it is enabled.)
+        star1 = self.chisq(star, logger=logger, convert_func=convert_func, _explicit=True)
 
         # The chisq function calculates A and b where
         #
@@ -286,13 +422,18 @@ class PixelGrid(Model):
         self.normalize(star)
         return star
 
-    def chisq(self, star, logger=None, convert_func=None, draw_method=None):
+    def chisq(self, star, logger=None, convert_func=None, draw_method=None, _explicit=False):
         """Calculate dependence of chi^2 = -2 log L(D|p) on PSF parameters for single star.
         as a quadratic form chi^2 = dp^T AT A dp - 2 bT A dp + chisq,
         where dp is the shift in fitting coordinates (the full grid if transform_params is None).
         The returned Star holds (A, b, chisq), while its full params vector is unchanged.
         Use transform_params and reconstruct_params when interpolating these fitting
         coordinates.
+
+        If the model was built with ``cache_design=True`` (and the conditions listed there
+        hold), the returned Star instead holds ``A = b = None`` and a ``fit.design_cache``
+        from which ``fit.alpha`` (= A^T A) and ``fit.beta`` (= A^T b) are computed on demand.
+        Pass ``_explicit=True`` to force the explicit A, b.
 
         :param star:            A Star instance
         :param logger:          A logger object for logging debug info. [default: None]
@@ -313,6 +454,20 @@ class PixelGrid(Model):
         logger.debug('initial params = %s',star.fit.get_params(self._num))
 
         data, weight, u, v = star.data.getDataVector()
+
+        if (self._cache_design and not _explicit and convert_func is None
+                and self._centroid_transform is None and not self._fit_flux):
+            # The model is exactly linear in the parameters here (model = flux * A0 p / sum(p)),
+            # so chisq, A^T A and A^T b follow from a cached quadratic form.  No drawing needed.
+            cache = star.fit.design_cache
+            if cache is None or not cache.is_valid_for(star, self._cache_signature):
+                logger.debug('building design cache')
+                cache = self._build_design_cache(star, data, weight, u, v)
+            chisq, dof = cache.chisq_dof(star.fit)
+            logger.debug('chisq,dof = %s,%s (from design cache)',chisq,dof)
+            return Star(star.data, star.fit.withNew(chisq=chisq, dof=dof, A=None, b=None,
+                                                    design_cache=cache))
+
         prof = self.getProfile(star.fit.get_params(self._num))._shift(*star.fit.center)
         logger.debug('prof.flux = %s',prof.flux)
 
@@ -368,7 +523,6 @@ class PixelGrid(Model):
         # A[i,k] = d(model_i)/dp_k
         # b[i] = resid_i
         # Solution to A x = b will be the desired dparams
-        A = np.zeros((nmask, self._nparams), dtype=float, order='F')
         b = data - model
 
         # The PixelGrid model basis can be represented as a 1x1 InterpolatedImage with flux=1,
@@ -379,6 +533,7 @@ class PixelGrid(Model):
         du, dv = basis_shifts
 
         if convert_func is not None:
+            A = np.zeros((nmask, self._nparams), dtype=float, order='F')
             # In this case we need the basis_profile to have the right scale (rather than
             # incorporate it into the jacobian) so that convert_func will have the right size.
             basis_profile = basis_profile.dilate(self.scale)
@@ -403,7 +558,8 @@ class PixelGrid(Model):
                     prof.drawFFT(image)
                 A[:,k] = image.array.ravel()[mask]
         else:
-            if 0:
+            if 0:  # pragma: no cover
+                A = np.zeros((nmask, self._nparams), dtype=float, order='F')
                 # When we don't have the convert_func step, this calculation can be sped up
                 # fairly significantly.  If we wanted to use only GalSim method, then this is
                 # how we would do it.  We can combine both the scale and the initial shift
@@ -429,97 +585,9 @@ class PixelGrid(Model):
                     A[:,k] = image.array.ravel()[mask]
             else:
                 # This is even faster, but less easy to follow how it works.
-                # I'll make an attempt to explain how it proceeds, but I find it somewhat
-                # more confusing than the above method.
-
-                # Note: The main reason this is faster is that we only compute the interpolation
-                # xvals for npix * (2*xr) * 2, rather than npix * (2*xr)**2 by leveraging
-                # the fact that each interpolation coefficient gets repeated for multiple
-                # basis pixels, so the above drawReal call has duplicated work, which cannot
-                # really be pulled out into a common calculation using just GalSim functionality.
-
-                # First calculate the interp.xval values that we will need.
-                # We need to evaluate the interpolation coefficient using self.interp.xvale
-                # at any integer multiples of self.scale that are sufficiently near u or v.
-                # More simply, we need to evaluate at integer locations that are near u/scale
-                # or v/scale.  The argument to xval needs to be the distance this integer location
-                # is from u or v.
-                # The maximum argument is given by self.interp.xrange.
-                u = u[mask] / self.scale
-                v = v[mask] / self.scale
-                ui,uf = np.divmod(u,1)
-                vi,vf = np.divmod(v,1)
-                xr = int(np.ceil(self.interp.xrange))
-                # Note arguments are basis pixel position minus image pixel position.
-                # Hence the minus sign in front of uf.
-                argu = -uf[:,np.newaxis] + np.arange(-xr+1,xr+1)[np.newaxis,:]
-                argv = -vf[:,np.newaxis] + np.arange(-xr+1,xr+1)[np.newaxis,:]
-                uwt = self.interp.xval(argu.ravel()).reshape(argu.shape)
-                vwt = self.interp.xval(argv.ravel()).reshape(argv.shape)
-
-                # The interpolation coefficients are uwt * vwt * flux_ratio
-                # We need one factor the pixel area ratio so arbitratily choose uwt to
-                # multiply by this (constant) factor so it gets applied to the product.
+                # See _unweighted_design for the details.
                 flux_scaling = star.data.pixel_area / self.pixel_area
-                uwt *= flux_scaling
-
-                # Now the tricky part.  We need to figure out which basis pixel each of those
-                # combinations belongs to.
-                # This is easier to do if we don't loop over basis pixels as we did above, but
-                # rather loop over the image pixels.  Then we can fill the appropriate columns
-                # in the A matrix for each row.
-                # For each row, the columns we need are those with
-                #   int(u) - xrange + 1 <= du < int(u) + xrange + 1
-                #   int(v) - xrange + 1 <= dv < int(v) + xrange + 1
-                # We can figure this out by slicing into an array that has the same shape
-                # as du or dv with the running index indicating which basis pixel corresponds
-                # to each location.
-                ui = ui.astype(int)
-                vi = vi.astype(int)
-                col_index = np.arange(self._nparams).reshape(du.shape)
-
-                # For each row, we need the outer product of uwt and vwt.
-                # Not the whole thing all the time, but despite that, it's faster to
-                # have numpy do this product all at once in a single C call rather than
-                # separately for each row.
-                uvwt = uwt[:, np.newaxis, :] * vwt[:, :, np.newaxis]
-
-                for i in range(nmask):
-                    # i1:i2 is the slice for the v direction into the col_index array.
-                    # p1:p2 is the slice for the v direction into the uwt array.
-                    # Normally p1:p2 is just 0:2*xr, but we need to be careful about going
-                    # off the edge of the grid, so it may be smaller than this.
-                    i1 = vi[i] - xr + self._origin + 1
-                    i2 = vi[i] + xr + self._origin + 1
-                    p1 = 0
-                    p2 = 2*xr
-                    if i1 < 0:
-                        p1 = -i1
-                        i1 = 0
-                    if i2 > self.size:
-                        p2 -= i2 - self.size
-                        i2 = self.size
-                    # Repeat for u using j1:j2 and q1:q2
-                    j1 = ui[i] - xr + self._origin + 1
-                    j2 = ui[i] + xr + self._origin + 1
-                    q1 = 0
-                    q2 = 2*xr
-                    if j1 < 0:
-                        q1 = -j1
-                        j1 = 0
-                    if j2 > self.size:
-                        q2 -= j2 - self.size
-                        j2 = self.size
-
-                    # Now we have the right indices for everything
-                    # i1:i2 are the v indices in the col_index array.
-                    # j1:j2 are the u indices in the col_index array.
-                    # p1:p2 are the v indices to use
-                    # q1:q2 are the u indices to use
-                    # The interpolation coefficients are the outer product of these.
-                    # cols are the indices of the corresponding basis pixels.
-                    cols = col_index[i1:i2, j1:j2]
-                    A[i, cols.ravel()] = uvwt[i, p1:p2, q1:q2].ravel()
+                A = self._unweighted_design(u[mask], v[mask], flux_scaling)
 
         # Account for the current flux estimate.
         A *= star.fit.flux
@@ -540,6 +608,154 @@ class PixelGrid(Model):
         logger.debug('chisq,dof = %s,%s',chisq,dof)
 
         return Star(star.data, star.fit.withNew(chisq=chisq, dof=dof, A=A, b=b))
+
+    def _unweighted_design(self, u, v, flux_scaling):
+        """Build the design matrix A0[i,k] = d(model_i)/dp_k for unit flux and unit weights.
+
+        :param u, v:        Positions of the image pixels relative to the star center, in the
+                            model's uv units.
+        :param flux_scaling: The ratio of the image pixel area to the model pixel area.
+
+        :returns: A0, an (npix, nparams) Fortran-ordered array.
+        """
+        # The main reason this is faster than drawing each basis pixel with GalSim is that we
+        # only compute the interpolation xvals for npix * (2*xr) * 2, rather than
+        # npix * (2*xr)**2 by leveraging the fact that each interpolation coefficient gets
+        # repeated for multiple basis pixels.
+
+        # First calculate the interp.xval values that we will need.
+        # We need to evaluate the interpolation coefficient using self.interp.xval
+        # at any integer multiples of self.scale that are sufficiently near u or v.
+        # More simply, we need to evaluate at integer locations that are near u/scale
+        # or v/scale.  The argument to xval needs to be the distance this integer location
+        # is from u or v.
+        # The maximum argument is given by self.interp.xrange.
+        npix = len(u)
+        A = np.zeros((npix, self._nparams), dtype=float, order='F')
+        u = u / self.scale
+        v = v / self.scale
+        ui,uf = np.divmod(u,1)
+        vi,vf = np.divmod(v,1)
+        xr = int(np.ceil(self.interp.xrange))
+        # Note arguments are basis pixel position minus image pixel position.
+        # Hence the minus sign in front of uf.
+        argu = -uf[:,np.newaxis] + np.arange(-xr+1,xr+1)[np.newaxis,:]
+        argv = -vf[:,np.newaxis] + np.arange(-xr+1,xr+1)[np.newaxis,:]
+        uwt = self.interp.xval(argu.ravel()).reshape(argu.shape)
+        vwt = self.interp.xval(argv.ravel()).reshape(argv.shape)
+
+        # The interpolation coefficients are uwt * vwt * flux_ratio
+        # We need one factor the pixel area ratio so arbitratily choose uwt to
+        # multiply by this (constant) factor so it gets applied to the product.
+        uwt *= flux_scaling
+
+        # Now the tricky part.  We need to figure out which basis pixel each of those
+        # combinations belongs to.
+        # This is easier to do if we don't loop over basis pixels, but rather loop over the
+        # image pixels.  Then we can fill the appropriate columns in the A matrix for each row.
+        # For each row, the columns we need are those with
+        #   int(u) - xrange + 1 <= du < int(u) + xrange + 1
+        #   int(v) - xrange + 1 <= dv < int(v) + xrange + 1
+        # We can figure this out by slicing into an array that has the same shape
+        # as the grid with the running index indicating which basis pixel corresponds
+        # to each location.
+        ui = ui.astype(int)
+        vi = vi.astype(int)
+        col_index = np.arange(self._nparams).reshape(self.size, self.size)
+
+        # For each row, we need the outer product of uwt and vwt.
+        # Not the whole thing all the time, but despite that, it's faster to
+        # have numpy do this product all at once in a single C call rather than
+        # separately for each row.
+        uvwt = uwt[:, np.newaxis, :] * vwt[:, :, np.newaxis]
+
+        for i in range(npix):
+            # i1:i2 is the slice for the v direction into the col_index array.
+            # p1:p2 is the slice for the v direction into the uwt array.
+            # Normally p1:p2 is just 0:2*xr, but we need to be careful about going
+            # off the edge of the grid, so it may be smaller than this.
+            i1 = vi[i] - xr + self._origin + 1
+            i2 = vi[i] + xr + self._origin + 1
+            p1 = 0
+            p2 = 2*xr
+            if i1 < 0:
+                p1 = -i1
+                i1 = 0
+            if i2 > self.size:
+                p2 -= i2 - self.size
+                i2 = self.size
+            # Repeat for u using j1:j2 and q1:q2
+            j1 = ui[i] - xr + self._origin + 1
+            j2 = ui[i] + xr + self._origin + 1
+            q1 = 0
+            q2 = 2*xr
+            if j1 < 0:
+                q1 = -j1
+                j1 = 0
+            if j2 > self.size:
+                q2 -= j2 - self.size
+                j2 = self.size
+            if i2 <= i1 or j2 <= j1:
+                # Pixel is outside the support of the interpolated grid: the row is all zero.
+                # (Cannot happen for pixels within maxuv of the center.)
+                continue
+
+            # Now we have the right indices for everything
+            # i1:i2 are the v indices in the col_index array.
+            # j1:j2 are the u indices in the col_index array.
+            # p1:p2 are the v indices to use
+            # q1:q2 are the u indices to use
+            # The interpolation coefficients are the outer product of these.
+            # cols are the indices of the corresponding basis pixels.
+            cols = col_index[i1:i2, j1:j2]
+            A[i, cols.ravel()] = uvwt[i, p1:p2, q1:q2].ravel()
+        return A
+
+    def _build_design_cache(self, star, data, weight, u, v):
+        """Build the cached quadratic form for a star.  See PixelGridDesignCache.
+        """
+        u0, v0 = star.fit.center
+        u = u - u0
+        v = v - v0
+        good = weight != 0
+        mask = (np.abs(u) <= self.maxuv) & (np.abs(v) <= self.maxuv) & good
+        extra = good & ~mask
+        data = np.asarray(data, dtype=float)
+        flux_scaling = star.data.pixel_area / self.pixel_area
+
+        # Rows used for the fit (same as the explicit A): sqrt(w) A0 and sqrt(w) data.
+        Am = self._unweighted_design(u[mask], v[mask], flux_scaling)
+        sw = np.sqrt(weight[mask])
+        Am *= sw[:, np.newaxis]
+        dm = sw * data[mask]
+        alpha0 = Am.T.dot(Am)
+        c = Am.T.dot(dm)
+        dd = dm.dot(dm)
+
+        # Rows with non-zero weight outside the fitting mask.  They don't enter the fit, but
+        # reflux's chisq includes them.
+        Ae = self._unweighted_design(u[extra], v[extra], flux_scaling)
+        swe = np.sqrt(weight[extra])
+        Ae *= swe[:, np.newaxis]
+        e = swe * data[extra]
+
+        return PixelGridDesignCache(star.data, star.fit.center, self._nparams,
+                                    self._cache_signature, self._num,
+                                    alpha0, c, dd, int(np.sum(mask)), Ae, e, int(np.sum(good)))
+
+    def reflux_from_cache(self, star):
+        """Compute the reflux solution (flux only; the center is fixed) from the star's
+        design cache, equivalent to PSF.reflux when fit_center is False.
+
+        :param star:    A Star instance, normally one returned by chisq with cache_design=True.
+
+        :returns: (flux, chisq, dof), or None if the star has no valid design cache.
+        """
+        cache = star.fit.design_cache
+        if (not self._cache_design or cache is None
+                or not cache.is_valid_for(star, self._cache_signature)):
+            return None
+        return cache.reflux(star.fit)
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject
@@ -628,6 +844,9 @@ class PixelGrid(Model):
         # Remove them if they are present.
         kwargs.pop('degenerate', None)
         kwargs.pop('start_sigma', None)
+        # cache_design is a fitting-time option that is never written to the output file,
+        # but pop it just in case.
+        kwargs.pop('cache_design', None)
 
         # Some (even older -- v0.2.x) files don't include the interp.  The default back then
         # was Lanczos(3), so if it's not present, set it to that.

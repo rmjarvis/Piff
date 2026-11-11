@@ -444,8 +444,10 @@ class PSF(object):
             stars, iter_nremoved = self.single_iteration(stars, logger, convert_funcs, draw_method)
 
             # Update estimated poisson noise
-            signals = self.drawStarList(stars)
-            stars = [s.addPoisson(signal) for s, signal in zip(stars, signals)]
+            # (addPoisson is a no-op for stars without a gain, so don't bother drawing then.)
+            if any(s.data.properties.get('gain', None) is not None for s in stars):
+                signals = self.drawStarList(stars)
+                stars = [s.addPoisson(signal) for s, signal in zip(stars, signals)]
 
             # Refit and recenter stars, collect stats
             logger.debug("             Re-fluxing stars")
@@ -480,10 +482,21 @@ class PSF(object):
                 oldchisq - chisq < self.chisq_thresh * dof and
                 iteration+1 >= self.min_iter
                 ):
+                self._release_design_caches()
                 return
             oldchisq = chisq
 
         logger.warning("PSF fit did not converge.  Max iterations = %d reached.",self.max_iter)
+        self._release_design_caches()
+
+    def _release_design_caches(self):
+        """Drop the per-star design caches (cf. PixelGrid cache_design) from self.stars.
+
+        They are only useful during the fit and can be large (several MB per star).
+        """
+        for star in self.stars:
+            if getattr(star.fit, 'design_cache', None) is not None:
+                star.fit.design_cache = None
 
     def draw(self, x, y, chipnum=None, flux=1.0, center=None, offset=None, stamp_size=48,
              image=None, logger=None, **kwargs):

@@ -23,6 +23,8 @@ from .model import Model
 from .interp import Interp
 from .outliers import Outliers
 from .psf import PSF
+from .star import Star
+from .basis_interp import PCGFallbackNeeded
 from .config import LoggerWrapper
 
 class SimplePSF(PSF):
@@ -171,6 +173,13 @@ class SimplePSF(PSF):
             self.quadratic_chisq = False
             self.degenerate_points = False
 
+        # PixelGrid(cache_design=True) stars carry no explicit design matrix, which only the
+        # pcg solver can handle.
+        if (self.quadratic_chisq and getattr(self.model, '_cache_design', False)
+                and getattr(self.interp, 'solver', None) != 'pcg'):
+            raise ValueError("PixelGrid(cache_design=True) requires BasisPolynomial(solver='pcg'), "
+                             "not solver=%r" % self.interp.solver)
+
         return stars, nremoved
 
     def single_iteration(self, stars, logger, convert_funcs, draw_method):
@@ -207,7 +216,18 @@ class SimplePSF(PSF):
 
         # Perform the interpolation, again using just non-reserve stars
         logger.debug("             Calculating the interpolation")
-        self.interp.solve(use_stars, logger=logger, transform_params=self.model.transform_params)
+        try:
+            self.interp.solve(use_stars, logger=logger,
+                              transform_params=self.model.transform_params)
+        except PCGFallbackNeeded as e:
+            # The stars only carry a design cache (PixelGrid cache_design=True).  Build the
+            # explicit design matrices and run the direct solver on them, exactly as the pcg
+            # solver would have done on its own otherwise.
+            logger.warning("%s  Rebuilding the explicit design matrices and falling back to "
+                           "the direct solver.", e)
+            explicit_stars = [self.model.chisq(s, logger=logger, _explicit=True)
+                              for s in use_stars]
+            self.interp._solve_direct_cpp(explicit_stars, logger)
 
         # Propagate that solution to all the stars' parameters, including reserve stars.
         all_stars = self.interp.interpolateList(
@@ -224,6 +244,28 @@ class SimplePSF(PSF):
         Otherwise it is True.
         """
         return self.model._centered
+
+    def reflux(self, star, logger=None):
+        """Fit the PSF to the star's data, varying only the flux (and center, if it is free).
+
+        Same as PSF.reflux, except that a star carrying a valid design cache (cf.
+        PixelGrid(cache_design=True)) is refluxed from the cache without drawing the model.
+
+        :param star:        A Star instance
+        :param logger:      A logger object for logging debug info. [default: None]
+
+        :returns:           New Star instance, with updated flux, center, chisq, dof
+        """
+        if not self.fit_center and hasattr(self.model, 'reflux_from_cache'):
+            result = self.model.reflux_from_cache(star)
+            if result is not None:
+                new_flux, new_chisq, new_dof = result
+                logger = LoggerWrapper(logger)
+                logger.debug("Reflux from design cache: flux = %s, chisq = %s, dof = %s",
+                             new_flux, new_chisq, new_dof)
+                return Star(star.data, star.fit.withNew(flux=new_flux, chisq=new_chisq,
+                                                        dof=new_dof))
+        return super().reflux(star, logger=logger)
 
     def interpolateStarList(self, stars, inplace=False):
         """Update the stars to have the current interpolated fit parameters according to the
