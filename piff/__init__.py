@@ -93,7 +93,7 @@ from .fixed_interp import Fixed
 from .outliers import Outliers, ChisqOutliers, CentroidOutliers
 
 # Input handlers are named InputBlah where Blah is what they are called in the config file
-from .input import Input, InputFiles
+from .input import Input, InputFiles, RawImageData
 from .select import Select, FlagSelect, PropertiesSelect
 from .star import Star, StarData, StarFit
 from .star import set_shape_method, get_shape_method, get_shape_weight_fwhm

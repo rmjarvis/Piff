@@ -938,13 +938,15 @@ def test_single_image():
                'sky' : sky_level,
              }
     input = piff.InputFiles(config)
-    assert input.image_file_name == [image_file]
-    assert input.cat_file_name == [cat_file]
 
     # Check image
     assert input.nimages == 1
-    image1, _, image_pos, _ = input.getRawImageData(0)
-    np.testing.assert_equal(image1.array, image.array)
+    raw_data = input.getRawImageData(0)
+    assert input.image_file_name == [image_file]
+    assert input.cat_file_name == [cat_file]
+    image1 = raw_data.image
+    image_pos = raw_data.image_pos
+    np.testing.assert_equal(image1.array, image.array - sky_level)
 
     # Check catalog
     assert len(image_pos) == len(x_list)
@@ -1131,11 +1133,12 @@ def test_des_image():
         'input' : {
             'nstars': nstars,
             'image_file_name' : image_file,
-            'image_hdu' : 1,
-            'weight_hdu' : 3,
-            'badpix_hdu' : 2,
+            'image_ext' : 1,
+            'weight_ext' : 3,
+            'badpix_ext' : 2,
+            'fix_ushort_badpix': True,  # GalSim reads this mask with a 32768 offset.
             'cat_file_name' : cat_file,
-            'cat_hdu' : 2,
+            'cat_ext' : 2,
             'x_col' : 'XWIN_IMAGE',
             'y_col' : 'YWIN_IMAGE',
             'sky_col' : 'BACKGROUND',
@@ -1379,16 +1382,22 @@ def test_des2():
     config = {
         'input' : {
             'image_file_name' : image_file,
-            'image_hdu' : 1,
-            'badpix_hdu' : 2,
-            'weight_hdu' : 3,
+            'image_ext' : 1,
+            'badpix_ext' : 2,
+            'weight_ext' : 3,
             'cat_file_name' : cat_file,
-            'cat_hdu' : 1,
+            'cat_ext' : 1,
             'x_col' : 'x',
             'y_col' : 'y',
             'sky_col' : 'sky',
-            'ra' : 'TELRA',
-            'dec' : 'TELDEC',
+            'ra' : {
+                'type': 'ImageHeaderValue',
+                'key': 'TELRA',
+            },
+            'dec' : {
+                'type': 'ImageHeaderValue',
+                'key': 'TELDEC',
+            },
             'gain' : 1.0,
             # Real version uses pixmappy WCS, but that's not important for this test, so skip it
             'stamp_size' : 25
@@ -1627,10 +1636,10 @@ def test_color():
                'property_cols' : ['color']
              }
     input = piff.InputFiles(config)
+    assert input.nimages == 1
+    image1, _, image_pos, props, _ = input.getRawImageData(0)
     assert input.image_file_name == [image_file]
     assert input.cat_file_name == [cat_file]
-    assert input.nimages == 1
-    image1, _, image_pos, props = input.getRawImageData(0)
     np.testing.assert_equal(image1.array, image.array)
     assert len(image_pos) == len(x_list)
     np.testing.assert_equal([pos.x for pos in image_pos], x_list)
@@ -1953,10 +1962,11 @@ def test_too_small():
     # This test comes directly from the bug report in issue #131
     import pickle
     stars = pickle.load(open("input/stars_131.pickle", "rb"))
-    # This historical fixture predates the SED fields initialized by StarData.__init__.
+    # This historical fixture predates the SED and gain fields initialized by StarData.__init__.
     for star in stars:
         star.data.bandpass = None
         star.data._sed_eff = None
+        star.data.gain_image = None
 
     piffConfig = {
         'type': "Simple",

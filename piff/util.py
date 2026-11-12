@@ -112,6 +112,28 @@ def adjust_value(value, dtype):
             # For other numpy arrays, we can use astype instead.
             return np.array(value).astype(t)
 
+def get_asdf_value(tree, path):
+    """Select a value from an ASDF tree using a dotted path."""
+    for key in path.split('.'):
+        tree = tree[key]
+    return tree
+
+
+def read_asdf_image(file_name, ext, *, read_header):
+    """Read an ASDF image array, materializing it before closing the file."""
+    import asdf
+
+    with asdf.open(file_name) as af:
+        if not isinstance(ext, str):
+            raise ValueError('ext must be a dot-separated path when used with ASDF files')
+        array = np.array(get_asdf_value(af.tree, ext), copy=True)
+        if array.dtype == np.float16:
+            array = array.astype(np.float32)
+        image = galsim.Image(array, scale=1.0)
+        if read_header:
+            image.header = None
+    return image
+
 def estimate_cov_from_jac(jac):
     """Estimate a covariance matrix from a jacobian as returned by scipy.optimize.least_squares
     .. math::
