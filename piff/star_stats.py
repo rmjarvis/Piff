@@ -27,8 +27,18 @@ class StarStats(Stats):
     """This Stats class can take stars and make a set of plots of them as
     well as their models and residuals.
 
-    By default this will draw 5 random stars, make psf stars, and plot the
-    residual of the two.
+    By default this will draw 11 random stars, make psf stars, and plot the
+    residual of the two. It also draws the average of all the stars, along with
+    the model and residual.
+
+    The default selection includes reserve stars, but not flagged stars. There are options
+    to change either or both of these as well as to limit the selection to only reserve stars.
+
+    Each star/model/residual triplet shares a color scale. The default is to use
+    an asinh stretch. Users can specify symlog or linear instead if they prefer.
+    The min/max of the color scale can also be adjusted with min_fraction/max_fraction, which
+    set the min/max of the color scale as a fraction of the full dynamic range. The default
+    is equivalent to 0 and 1 respectively.
 
     After a call to :func:`compute`, the following attributes are accessible:
 
@@ -38,13 +48,18 @@ class StarStats(Stats):
 
     :param nplot:           Number of stars we wish to plot. If 0 or nplot > nstars in PSF,
                             then we plot all stars. Otherwise, we draw nplot stars at random
-                            (without replacement). [default: 10]
+                            (without replacement). [default: 11]
     :param adjust_stars:    Boolean. If true, when computing, will also fit for best
                             starfit center and flux to match observed star. [default: False]
     :param include_reserve: Whether to inlude reserve stars. [default: True]
     :param only_reserve:    Whether to skip plotting non-reserve stars. [default: False]
     :param include_flagged: Whether to include plotting flagged stars. [default: False]
     :param include_ave:     Whether to inlude the average image. [default: True]
+    :param stretch:         Color stretch: 'linear', 'asinh', or 'symlog'. [default: 'asinh']
+    :param min_fraction:    Lower display limit as a fraction of the full pixel-value range.
+                            This is a fraction of the intensity range, not a pixel percentile.
+                            [default: 0]
+    :param max_fraction:    Upper display limit, defined like min_fraction. [default: 1]
     :param file_name:       Name of the file to output to. [default: None]
     :param logger:          A logger object for logging debug info. [default: None]
     """
@@ -60,14 +75,24 @@ class StarStats(Stats):
             'only_reserve': bool,
             'include_flagged': bool,
             'include_ave': bool,
+            'stretch': str,
+            'min_fraction': float,
+            'max_fraction': float,
         }
         kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
         kwargs['logger'] = logger
         return kwargs
 
-    def __init__(self, nplot=10, adjust_stars=False,
+    def __init__(self, nplot=11, adjust_stars=False,
                  include_reserve=True, only_reserve=False, include_flagged=False,
-                 include_ave=True, file_name=None, logger=None):
+                 include_ave=True, file_name=None, logger=None,
+                 stretch='asinh', min_fraction=0., max_fraction=1.):
+        if stretch not in ('linear', 'asinh', 'symlog'):
+            raise ValueError("stretch must be 'linear', 'asinh', or 'symlog'")
+        if (not np.isfinite(min_fraction) or not np.isfinite(max_fraction) or
+                min_fraction >= max_fraction):
+            raise ValueError('min_fraction and max_fraction must be finite, with '
+                             'min_fraction < max_fraction')
         self.nplot = nplot
         self.file_name = file_name
         self.adjust_stars = adjust_stars
@@ -75,6 +100,9 @@ class StarStats(Stats):
         self.only_reserve = only_reserve
         self.include_flagged = include_flagged
         self.include_ave = include_ave
+        self.stretch = stretch
+        self.min_fraction = min_fraction
+        self.max_fraction = max_fraction
 
     def compute(self, psf, stars, logger=None):
         """
@@ -110,6 +138,7 @@ class StarStats(Stats):
         logger.verbose("Making {0} model stars".format(len(calculate_indices)))
         calculated_stars = []
         calculated_models = []
+        calculated_noise = []
         for i, star in enumerate(stars):
             if i in calculate_indices:
                 if self.adjust_stars:
@@ -118,9 +147,18 @@ class StarStats(Stats):
                     star = psf.reflux(star, logger=logger)
                 calculated_stars.append(star)
                 calculated_models.append(psf.drawStar(star))
+                weight = star.weight.array
+                good_weight = weight[weight > 0]
+                # For asinh and symlog, the linear part of the color bar is +/- noise.
+                if len(good_weight):
+                    noise = np.sqrt(np.median(1. / good_weight))
+                else:
+                    noise = 0.  # No measured noise for a fully masked stamp.
+                calculated_noise.append(noise)
             else:
                 calculated_stars.append(None)
                 calculated_models.append(None)
+                calculated_noise.append(None)
 
         # if including the average image, put that first.
         logger.verbose("Making average star and model")
@@ -137,21 +175,29 @@ class StarStats(Stats):
             self.models = [ave_model]
             self.stars.extend([calculated_stars[i] for i in self.indices])
             self.models.extend([calculated_models[i] for i in self.indices])
-            self.indices = [-1] + self.indices
+            noise = np.array([n for n in calculated_noise if n is not None])
+            self._noise = [np.sqrt(np.sum(noise**2)) / len(noise)]
+            self._noise.extend([calculated_noise[i] for i in self.indices])
+            self.indices = [-1] + list(self.indices)
         else:
             self.stars = [calculated_stars[i] for i in self.indices]
             self.models = [calculated_models[i] for i in self.indices]
+            self._noise = [calculated_noise[i] for i in self.indices]
 
 
     def plot(self, logger=None, **kwargs):
         r"""Make the plots.
 
         :param logger:      A logger object for logging debug info. [default: None]
-        :params \*\*kwargs: Any additional kwargs go into the matplotlib pcolor() function.
+        :params \*\*kwargs: Any additional kwargs go into matplotlib imshow(). Explicitly
+                            setting norm or vmin/vmax overrides the automatic scaling from
+                            stretch and the fractional display limits.
 
         :returns: fig, ax
         """
         from matplotlib.figure import Figure
+        from matplotlib.colors import Normalize, AsinhNorm, SymLogNorm
+        from matplotlib.ticker import AsinhLocator
         from .config import LoggerWrapper
 
         if not hasattr(self, 'indices'):
@@ -198,17 +244,33 @@ class StarStats(Stats):
 
             star_image = star.image
             model_image = model.image
-            # share color range between star and model images
-            vmin = np.percentile([star_image.array, model_image.array], q=10)
-            vmax = np.percentile([star_image.array, model_image.array], q=90)
+            residual = star_image.array - model_image.array
+            image_kwargs = kwargs.copy()
+            if 'norm' not in image_kwargs:
+                minimum = float(np.min([star_image.array, model_image.array, residual]))
+                maximum = float(np.max([star_image.array, model_image.array, residual]))
+                vmin = image_kwargs.pop(
+                    'vmin', (1 - self.min_fraction) * minimum + self.min_fraction * maximum)
+                vmax = image_kwargs.pop(
+                    'vmax', (1 - self.max_fraction) * minimum + self.max_fraction * maximum)
+                if self.stretch == 'linear':
+                    norm = Normalize(vmin=vmin, vmax=vmax)
+                else:
+                    # Fully masked stamps have no noise estimate; use a unit transition width.
+                    linear_width = self._noise[i] if self._noise[i] > 0 else 1.
+                    if self.stretch == 'asinh':
+                        norm = AsinhNorm(linear_width=linear_width, vmin=vmin, vmax=vmax)
+                    else:
+                        norm = SymLogNorm(linthresh=linear_width, vmin=vmin, vmax=vmax)
+                image_kwargs['norm'] = norm
 
-            axs[ii][jj+0].imshow(star_image.array, vmin=vmin, vmax=vmax, **kwargs)
-            im = axs[ii][jj+1].imshow(model_image.array, vmin=vmin, vmax=vmax, **kwargs)
-            fig.colorbar(im, ax=axs[ii][jj+1])  # plot shared colorbar after model
-
-            # plot star - model with separate colorbar
-            im = axs[ii][jj+2].imshow(star_image.array - model_image.array, **kwargs)
-            fig.colorbar(im, ax=axs[ii][jj+2])
+            for j, array in enumerate([star_image.array, model_image.array, residual]):
+                im = axs[ii][jj+j].imshow(array, **image_kwargs)
+                if j > 0:
+                    colorbar = fig.colorbar(im, ax=axs[ii][jj+j])
+                    if isinstance(im.norm, AsinhNorm):
+                        colorbar.locator = AsinhLocator(im.norm.linear_width, numticks=5)
+                        colorbar.update_ticks()
 
         return fig, axs
 
