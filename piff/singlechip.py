@@ -137,11 +137,17 @@ class SingleChipPSF(PSF):
         self.psf_by_chip = {}
 
         chipnums = list(self.wcs.keys())
-        args = [(chipnum, self.single_psf, stars, self.wcs, convert_funcs, draw_method)
-                for chipnum in chipnums]
+        args = [(chipnum,) for chipnum in chipnums]
+        kwargs = dict(
+            single_psf=self.single_psf,
+            stars=stars,
+            wcs=self.wcs,
+            convert_funcs=convert_funcs,
+            draw_method=draw_method,
+        )
 
         output = run_multi(single_chip_run, self.nproc, raise_except=False,
-                           args=args, logger=logger)
+                           args=args, logger=logger, kwargs=kwargs)
 
         for chipnum, psf in zip(chipnums, output):
             self.psf_by_chip[chipnum] = psf

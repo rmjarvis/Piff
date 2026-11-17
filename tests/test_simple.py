@@ -184,12 +184,14 @@ def test_single_image():
     config = { 'image_file_name' : image_file,
                'cat_file_name': cat_file }
     input = piff.InputFiles(config, logger=logger)
-    assert input.image_file_name == [ image_file ]
-    assert input.cat_file_name == [ cat_file ]
 
     # Check image
     assert input.nimages == 1
-    image1, _, image_pos, _ = input.getRawImageData(0)
+    raw_data = input.getRawImageData(0)
+    assert input.image_file_name == [ image_file ]
+    assert input.cat_file_name == [ cat_file ]
+    image1 = raw_data.image
+    image_pos = raw_data.image_pos
     np.testing.assert_equal(image1.array, image.array)
 
     # Check catalog
@@ -205,7 +207,7 @@ def test_single_image():
                'stamp_size': 48 }
     input = piff.InputFiles(config, logger=logger)
     assert input.nimages == 1
-    _, _, image_pos, _ = input.getRawImageData(0)
+    image_pos = input.getRawImageData(0).image_pos
     assert len(image_pos) == 7
 
     # Make star data
@@ -998,9 +1000,9 @@ def test_load_images():
     for star in psf2.stars:
         np.testing.assert_array_equal(star.image.array, 0.)
 
-    # First the old API:
+    # The old API needs an explicit sky because global sky is not stored on each star.
     with CaptureLog() as cl:
-        loaded_stars = piff.Star.load_images(psf2.stars, image_file, logger=cl.logger)
+        loaded_stars = piff.Star.load_images(psf2.stars, image_file, sky=sky, logger=cl.logger)
     assert "WARNING: The Star.load_images function is deprecated." in cl.output
     for star, orig in zip(loaded_stars, psf.stars):
         np.testing.assert_array_equal(star.image.array, orig.image.array)
@@ -1196,7 +1198,7 @@ def test_depr_select():
                 'dir' : dir,
                 'image_file_name' : image_file,
                 'cat_file_name' : cat_file,
-                'weight_hdu' : 1,
+                'weight_ext' : 1,
                 'sky_col' : 'sky',
                 'gain_col' : 'gain',
                 'use_partial' : True,

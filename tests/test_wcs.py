@@ -20,6 +20,7 @@ import fitsio
 import os
 import warnings
 import coord
+import pytest
 
 from piff_test_helper import get_script_name, timer, CaptureLog
 
@@ -782,6 +783,191 @@ def test_des_wcs():
     np.testing.assert_allclose(wcs3.toWorld(im.center).y, wcs1.toWorld(im.center).y,
                                rtol=0.04)
 
+@timer
+def test_gwcs():
+    """Test the RomanGWCS class."""
+    # Make a gwcs instance with a rotated TAN projection so we can make an equivalent galsim wcs.
+    gwcs = pytest.importorskip('gwcs')
+    import pickle
+    from astropy import units as u
+    from astropy.coordinates import ICRS
+    from astropy.modeling import models
+    from gwcs.coordinate_frames import Frame2D, CelestialFrame
+    center = galsim.CelestialCoord(53 * galsim.degrees, -27 * galsim.degrees)
+    matrix = np.array([[-0.11, 0.005], [0.003, 0.108]])
+    transform = ((models.Shift(-1024) & models.Shift(-1024))
+                 | models.AffineTransformation2D(matrix=matrix / 3600)
+                 | models.Pix2Sky_TAN()
+                 | models.RotateNative2Celestial(53, -27, 180))
+    native = gwcs.WCS(
+        transform,
+        input_frame=Frame2D(name='detector', unit=(u.pix, u.pix)),
+        output_frame=CelestialFrame(reference_frame=ICRS(), name='world',
+                                    unit=(u.deg, u.deg)),
+    )
+    native.bounding_box = ((0, 2047), (0, 2047))
+    wcs = piff.roman.RomanGWCS(native)
+    reference = galsim.TanWCS(
+        galsim.AffineTransform(0.11, -0.005, 0.003, 0.108,
+                               origin=galsim.PositionD(1025, 1025)), center)
+
+    # Check that to and from world coordinates matches the reference wcs.
+    positions = [galsim.PositionD(x, y) for x, y in
+                 [(1, 1), (100.3, 800.7), (1025, 1025), (2048, 2048), (2050, -2)]]
+    x = np.array([pos.x for pos in positions])
+    y = np.array([pos.y for pos in positions])
+    expected_ra, expected_dec = reference.xyToradec(x, y, units=galsim.degrees)
+    ra, dec = wcs.xyToradec(x, y, units=galsim.degrees)
+    np.testing.assert_allclose(ra, expected_ra, rtol=0, atol=1.e-10)
+    np.testing.assert_allclose(dec, expected_dec, rtol=0, atol=1.e-10)
+    np.testing.assert_allclose(wcs.radecToxy(ra, dec, units=galsim.degrees), [x, y],
+                               rtol=0, atol=1.e-7)
+    for pos in positions:
+        world = wcs.toWorld(pos)
+        assert world.distanceTo(reference.toWorld(pos)) / galsim.arcsec < 1.e-6
+        recovered = wcs.toImage(world)
+        np.testing.assert_allclose([recovered.x, recovered.y], [pos.x, pos.y],
+                                   rtol=0, atol=1.e-7)
+
+    # Local Jacobians and pixel areas agree with the independent tangent-plane projection.
+    # The RomanGWCS calculates this with finite differences. GalSim's GSFits does an analytic
+    # derivative. They match very well here.
+    for pos in positions:
+        np.testing.assert_allclose(wcs.jacobian(pos).getMatrix(),
+                                   reference.jacobian(pos).getMatrix(),
+                                   rtol=1.e-7, atol=1.e-8)
+        np.testing.assert_allclose(wcs.pixelArea(pos), reference.pixelArea(pos), rtol=1.e-7)
+
+    # Make two asdf files each with two gwcs objects stored at different paths.
+    # The alternate at alternate.astrometry and the normal one in the second file include
+    # a shift of 0.1 degrees in RA compared to the reference wcs.
+    asdf = pytest.importorskip('asdf')
+    asdf_names = [os.path.join('output', 'gwcs_input_%d.asdf' % i) for i in range(2)]
+    second_native = gwcs.WCS(
+        transform | (models.Shift(0.1) & models.Shift(0)),  # Shift RA by 0.1 degrees
+        input_frame=native.input_frame, output_frame=native.output_frame)
+    for file_name, native_wcs in zip(asdf_names, [native, second_native]):
+        tree = {
+            'roman': {'meta': {'wcs': native_wcs}},
+            'alternate': {'astrometry': second_native},
+        }
+        with asdf.AsdfFile(tree) as af:
+            af.write_to(file_name)
+
+    # RomanGWCS loads the metadata from ASDF, with literal or directory/reference filenames.
+    config = {
+        'input': {
+            'wcs': {
+                'type': 'RomanGWCS',
+                'file_name': asdf_names[0],
+            }
+        }
+    }
+    loaded = galsim.config.BuildWCS(config['input'], 'wcs', config)
+    np.testing.assert_allclose(loaded.xyToradec(x, y, units='degrees'), [ra, dec],
+                               rtol=0, atol=1.e-10)
+
+    # Check using dir and reading file name with special GalSim config processing.
+    config = {
+        'input': {
+            'wcs': {
+                'type': 'RomanGWCS',
+                'dir': 'output',
+                'file_name': '@gwcs_name',
+            }
+        },
+        'gwcs_name': os.path.basename(asdf_names[0]),
+    }
+    loaded = galsim.config.BuildWCS(config['input'], 'wcs', config)
+    np.testing.assert_allclose(loaded.xyToradec(x, y, units='degrees'), [ra, dec],
+                               rtol=0, atol=1.e-10)
+
+    # The path option specifies a different place in the asdf tree.
+    config = {
+        'input': {
+            'wcs': {
+                'type': 'RomanGWCS',
+                'file_name': asdf_names[0],
+                'path': 'alternate.astrometry'
+            }
+        }
+    }
+    alternate = galsim.config.BuildWCS(config['input'], 'wcs', config)
+    np.testing.assert_allclose(alternate.xyToradec(x, y, units='degrees'), [ra + 0.1, dec],
+                               rtol=0, atol=1.e-10)
+
+    # The file_name parsing can use the image_num to get a different wcs for each input image.
+    image_name = os.path.join('output', 'gwcs_override.fits')
+    cat_name = os.path.join('output', 'gwcs_override_cat.fits')
+    image = galsim.Gaussian(sigma=0.17).drawImage(nx=64, ny=64, wcs=reference)
+    image.wcs = galsim.PixelScale(0.5)
+    image.write(image_name)
+    fitsio.write(cat_name, np.array([(32.0, 32.0)], dtype=[('x', float), ('y', float)]),
+                 clobber=True)
+    config = {
+        'input': {
+            'image_file_name': [image_name, image_name],
+            'cat_file_name': cat_name,
+            'stamp_size': 25,
+            'nproc': 2,
+            'wcs': {
+                'type': 'RomanGWCS',
+                'dir': 'output',
+                'file_name': '$"gwcs_input_%s.asdf"%image_num',
+            }
+        }
+    }
+    reader = piff.InputFiles(config['input'], base=config)
+    stars = reader.makeStars(logger=piff.config.setup_logger(verbose=0))
+    assert len(stars) == 2
+    for i, star in enumerate(stars):
+        expected_ra = ra + 0.1 * i
+        np.testing.assert_allclose(star.image.wcs.xyToradec(x, y, units='degrees'),
+                                   [expected_ra, dec], rtol=0, atol=1.e-10)
+
+    # Origin shifts preserve the mapping in the corresponding image coordinates.
+    # The WCS object also survives a serialization round trip.
+    shift = galsim.PositionD(13, -8)
+    shifted = wcs.shiftOrigin(shift)
+    assert shifted.origin == wcs.origin + shift
+    for copied in [wcs.copy(), pickle.loads(pickle.dumps(wcs))]:
+        np.testing.assert_allclose(copied.xyToradec(x, y, units='degrees'), [ra, dec],
+                                   rtol=0, atol=1.e-10)
+    np.testing.assert_allclose(shifted.xyToradec(x + shift.x, y + shift.y, units='degrees'),
+                               [ra, dec], rtol=0, atol=1.e-10)
+
+    # Test using Piff to fit stars drawn with the GWCS.
+    profile = galsim.Gaussian(sigma=0.17).shear(g1=0.08, g2=-0.04).withFlux(1000)
+    stars = []
+    for pos in positions[:4]:
+        star = piff.Star.makeTarget(x=pos.x, y=pos.y, wcs=wcs, pointing=center,
+                                    stamp_size=25, chipnum=0)
+        profile.drawImage(image=star.image, center=pos, method='no_pixel')
+        stars.append(star)
+    psf = piff.SimplePSF(piff.Gaussian(include_pixel=False), piff.Mean())
+    psf.set_context({0: loaded}, center)
+    psf.fit(stars)
+    drawn = psf.draw(800.3, 1200.7, stamp_size=25)
+    expected = profile.withFlux(1).drawImage(bounds=drawn.bounds, wcs=reference,
+                                            center=galsim.PositionD(800.3, 1200.7),
+                                            method='no_pixel')
+    np.testing.assert_allclose(drawn.array, expected.array, rtol=1.e-4, atol=1.e-7)
+
+    # The PSF roundtrips correctly through a piff output file.
+    file_name = os.path.join('output', 'gwcs.piff')
+    psf.write(file_name)
+    restored = piff.read(file_name)
+    np.testing.assert_allclose(restored.wcs[0].xyToradec(x, y, units='degrees'), [ra, dec],
+                               rtol=0, atol=1.e-10)
+    np.testing.assert_array_equal(restored.draw(800.3, 1200.7, stamp_size=25).array, drawn.array)
+    np.testing.assert_allclose(restored.wcs[0].radecToxy(ra, dec, units='degrees'), [x, y],
+                               rtol=0, atol=1.e-7)
+
+    # Full GWCS models cannot be represented by a FITS image header.
+    with np.testing.assert_raises(NotImplementedError):
+        drawn.write(os.path.join('output', 'gwcs_image.fits'))
+
+
 if __name__ == '__main__':
     #import cProfile, pstats
     #pr = cProfile.Profile()
@@ -794,6 +980,7 @@ if __name__ == '__main__':
     test_olddes()
     test_newdes()
     test_des_wcs()
+    test_gwcs()
     #pr.disable()
     #ps = pstats.Stats(pr).sort_stats('tottime')
     #ps.print_stats(20)

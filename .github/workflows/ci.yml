@@ -112,7 +112,7 @@ jobs:
                 pip install -U -r requirements.txt
 
                 # Extra packages needed for testing
-                pip install -U nose coverage "pytest<8" nbval ipykernel pillow
+                pip install -U nose coverage pytest nbval ipykernel pillow sep asdf gwcs
 
                 # ngmix isn't on pypi
                 pip install -U numba git+https://github.com/esheldon/ngmix.git

@@ -153,7 +153,7 @@ def test_draw():
                 'dir' : 'input',
                 'image_file_name' : 'DECam_00241238_01.fits.fz',
                 'cat_file_name' : 'DECam_00241238_01_cat.fits',
-                'cat_hdu' : 2,
+                'cat_ext' : 2,
                 'x_col' : 'XWIN_IMAGE',
                 'y_col' : 'YWIN_IMAGE',
         }

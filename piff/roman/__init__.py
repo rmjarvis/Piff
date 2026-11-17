@@ -13,7 +13,9 @@
 #    and/or other materials provided with the distribution.
 
 """
-Some specialized features that specific to the DES survey and the DECam camera.
+Specialized features for the Nancy Grace Roman Space Telescope.
 """
 
 from .roman_psf import RomanOpticsPSF, RomanOpticalModel, RomanSCAInterp
+from .gwcs import RomanGWCS
+from .roman_files import RomanFiles
