@@ -22,7 +22,7 @@ from .gwcs import RomanGWCS
 
 
 class RomanFiles(InputFiles):
-    """Read calibrated Roman ASDF images and their ramp-fit noise information.
+    """Read calibrated L2 Roman ASDF images and their ramp-fit noise information.
 
     This automatically reads the correct data arrays from the Roman image files
     without the need for explicit ext values for the mask, image, wcs, etc.
