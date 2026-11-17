@@ -259,12 +259,12 @@ class SimplePSF(PSF):
         if not self.fit_center and hasattr(self.model, 'reflux_from_cache'):
             result = self.model.reflux_from_cache(star)
             if result is not None:
-                new_flux, new_chisq, new_dof = result
+                new_flux, new_chisq, new_dof, cache = result
                 logger = LoggerWrapper(logger)
                 logger.debug("Reflux from design cache: flux = %s, chisq = %s, dof = %s",
                              new_flux, new_chisq, new_dof)
                 return Star(star.data, star.fit.withNew(flux=new_flux, chisq=new_chisq,
-                                                        dof=new_dof))
+                                                        dof=new_dof, design_cache=cache))
         return super().reflux(star, logger=logger)
 
     def interpolateStarList(self, stars, inplace=False):

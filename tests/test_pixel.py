@@ -585,6 +585,17 @@ def test_pcg_solver():
 def test_cache_design():
     """PixelGrid(cache_design=True) must reproduce the explicit chisq / solve / reflux results.
     """
+    _check_cache_design(True)
+
+
+@timer
+def test_cache_design_separable():
+    """Same as test_cache_design for PixelGrid(cache_design='separable').
+    """
+    _check_cache_design('separable')
+
+
+def _check_cache_design(cache_design):
     import pickle
     rng = galsim.BaseDeviate(4321)
     # Stamps (32 pixels) bigger than the grid (15 x 0.5 = 7.5 -> maxuv = 4.0 = 8 pixels), so
@@ -602,7 +613,7 @@ def test_cache_design():
     img32 = galsim.Image(s.image, dtype=np.float32)
     stars[1] = piff.Star(s.data.withNew(image=img32), s.fit)
     mod_ref = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=False)
-    mod = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=False, cache_design=True)
+    mod = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=False, cache_design=cache_design)
     interp = piff.BasisPolynomial(order=1, solver='pcg')
     psf_ref = piff.SimplePSF(mod_ref, interp)
     psf = piff.SimplePSF(mod, interp)
@@ -734,9 +745,11 @@ def test_cache_design():
     stars[5] = make_gaussian_data(1.6, 0., 0., 500., noise=0.1, du=0.5, fpu=0.25, fpv=0.5,
                                   rng=rng, nside=nside)
     results = {}
-    for cache in [False, True]:
+    for cache in [False, cache_design]:
         mod = piff.PixelGrid(0.5, 15, galsim.Lanczos(3), centered=False, cache_design=cache)
-        interp = piff.BasisPolynomial(order=1, keys=['u','v'], solver='pcg')
+        # (A small pcg_precond_nstars so the subset preconditioner is exercised.)
+        interp = piff.BasisPolynomial(order=1, keys=['u','v'], solver='pcg',
+                                      pcg_precond_nstars=5)
         outliers = piff.ChisqOutliers(nsigma=4, max_remove=1)
         psf = piff.SimplePSF(mod, interp, outliers=[outliers], max_iter=10)
         with CaptureLog(2) as cl:
@@ -746,17 +759,139 @@ def test_cache_design():
             cache, psf.niter, psf.nremoved, psf.chisq, psf.dof))
         # No cache is left on the stars after the fit.
         assert all(s.fit.design_cache is None for s in psf.stars)
-        assert all((s.fit.A is None) == cache for s in psf.stars if not s.is_flagged)
+        assert all((s.fit.A is None) == bool(cache) for s in psf.stars if not s.is_flagged)
         target = make_gaussian_data(1.05, 0., 0., 100., du=0.5, fpu=0.5, fpv=0.5, nside=nside)
         results[cache] = (psf.drawStar(target).image.array, psf.interp.q.copy(), psf.niter,
                           psf.nremoved, [s.is_flagged for s in psf.stars], psf.chisq, psf.dof)
     assert psf.nremoved >= 1
-    np.testing.assert_allclose(results[True][0], results[False][0], rtol=1.e-7)
+    res = results[cache_design]
+    np.testing.assert_allclose(res[0], results[False][0], rtol=1.e-7)
     scale = np.max(np.abs(results[False][1]))
-    np.testing.assert_allclose(results[True][1], results[False][1], rtol=0, atol=1.e-8*scale)
-    assert results[True][2:5] == results[False][2:5]
-    np.testing.assert_allclose(results[True][5], results[False][5], rtol=1.e-8)
-    assert results[True][6] == results[False][6]
+    np.testing.assert_allclose(res[1], results[False][1], rtol=0, atol=1.e-8*scale)
+    assert res[2:5] == results[False][2:5]
+    np.testing.assert_allclose(res[5], results[False][5], rtol=1.e-8)
+    assert res[6] == results[False][6]
+
+
+@timer
+def test_separable_design():
+    """The C++ separable design kernels against the explicit design matrix.
+    """
+    from piff._piff import SeparableDesign, apply_alpha_batch
+    rng = galsim.BaseDeviate(2468)
+    # A stamp larger than the grid, so some windows are clipped at the grid edges and some
+    # pixels (outside the mask, but we feed them anyway) lie outside the grid support.
+    nside = 40
+    mod = piff.PixelGrid(0.3, 17, galsim.Lanczos(5), centered=False)
+    stars = []
+    for u0, v0, flux in [(0., 0., 200.), (0.37, -0.21, 500.), (-0.44, 0.13, 50.)]:
+        s = make_gaussian_data(1.0, u0, v0, flux, du=0.3, noise=0.1, rng=rng, nside=nside)
+        s = mod.initialize(s)
+        stars.append(s)
+    designs = []
+    ys = []
+    for s in stars:
+        data, weight, u, v = s.data.getDataVector()
+        u0, v0 = s.fit.center
+        u = u - u0
+        v = v - v0
+        flux_scaling = s.data.pixel_area / mod.pixel_area
+        uwt, vwt, ui, vi = mod._design_factors(u, v, flux_scaling)
+        A_py = mod._unweighted_design_python(uwt, vwt, ui, vi)
+        A_cpp = mod._unweighted_design(u, v, flux_scaling)
+        # The C++ fill is bitwise the Python fill.
+        np.testing.assert_array_equal(A_cpp, A_py)
+        assert A_cpp.flags['F_CONTIGUOUS']
+        assert np.any(np.all(A_py == 0, axis=1))  # some rows outside the support
+
+        w = weight * (1. + 0.1 * np.arange(len(weight)) % 3)  # non-uniform weights
+        d = SeparableDesign(uwt, vwt, ui, vi, w, mod.size, mod._origin)
+        assert d.npix == len(u)
+        assert d.nparams == mod.size**2
+        assert d.nk == 10
+        assert d.nbytes < A_py.nbytes / 5
+        np.testing.assert_array_equal(d.weights, w)
+        np.testing.assert_array_equal(d.design(), A_py)
+        alpha0 = (A_py * w[:, np.newaxis]).T.dot(A_py)
+        p = s.fit.params * (1. + 0.3 * np.sin(np.arange(mod.size**2)))
+        r = np.cos(np.arange(len(u)) / 7.)
+        np.testing.assert_allclose(d.forward(p), A_py.dot(p), rtol=1.e-13, atol=1.e-13)
+        np.testing.assert_allclose(d.adjoint(r), A_py.T.dot(r), rtol=1.e-13, atol=1.e-13)
+        np.testing.assert_allclose(d.quad(p), p.dot(alpha0.dot(p)), rtol=1.e-12)
+        np.testing.assert_allclose(d.trace(), np.trace(alpha0), rtol=1.e-12)
+        np.testing.assert_allclose(d.apply_alpha(p, 1.7), 1.7 * alpha0.dot(p), rtol=1.e-12,
+                                   atol=1.e-12 * np.max(np.abs(alpha0.dot(p))))
+        # Bad inputs
+        with np.testing.assert_raises(ValueError):
+            d.forward(p[:-1])
+        with np.testing.assert_raises(ValueError):
+            d.adjoint(r[:-1])
+        with np.testing.assert_raises(ValueError):
+            SeparableDesign(uwt, vwt[:-1], ui, vi, w, mod.size, mod._origin)
+        with np.testing.assert_raises(ValueError):
+            SeparableDesign(uwt[:, :-1], vwt[:, :-1], ui, vi, w, mod.size, mod._origin)
+        with np.testing.assert_raises(ValueError):
+            SeparableDesign(uwt, vwt, ui, vi, w[:-1], mod.size, mod._origin)
+        with np.testing.assert_raises(ValueError):
+            SeparableDesign(uwt, vwt, ui, vi, w, 0, mod._origin)
+        designs.append((d, alpha0))
+        ys.append(p)
+
+    # The batched operator used by the pcg solver.
+    YT = np.array(ys)
+    scales = np.array([1., 2.5, 0.3])
+    ZT = apply_alpha_batch([d for d, _ in designs], scales, YT)
+    for i, (d, alpha0) in enumerate(designs):
+        np.testing.assert_allclose(ZT[i], scales[i] * alpha0.dot(YT[i]), rtol=1.e-12,
+                                   atol=1.e-12 * np.max(np.abs(alpha0.dot(YT[i]))))
+    with np.testing.assert_raises(ValueError):
+        apply_alpha_batch([d for d, _ in designs], scales[:-1], YT)
+    with np.testing.assert_raises(ValueError):
+        apply_alpha_batch([d for d, _ in designs], scales, YT[:-1])
+
+    # A window size without a compiled template (Lanczos(17) -> 34) uses the generic kernel.
+    mod2 = piff.PixelGrid(0.3, 17, galsim.Lanczos(17), centered=False)
+    s = mod2.initialize(stars[1])
+    data, weight, u, v = s.data.getDataVector()
+    u0, v0 = s.fit.center
+    uwt, vwt, ui, vi = mod2._design_factors(u - u0, v - v0, 1.)
+    A_py = mod2._unweighted_design_python(uwt, vwt, ui, vi)
+    d = SeparableDesign(uwt, vwt, ui, vi, weight, mod2.size, mod2._origin)
+    assert d.nk == 34
+    np.testing.assert_array_equal(d.design(), A_py)
+    p = s.fit.params
+    alpha0 = (A_py * weight[:, np.newaxis]).T.dot(A_py)
+    np.testing.assert_allclose(d.apply_alpha(p), alpha0.dot(p), rtol=1.e-12,
+                               atol=1.e-12 * np.max(np.abs(alpha0.dot(p))))
+
+    # Option validation and the cache classes.
+    with np.testing.assert_raises(ValueError):
+        piff.PixelGrid(0.3, 17, cache_design='bogus')
+    mod_a = piff.PixelGrid(0.3, 17, galsim.Lanczos(5), centered=False, cache_design='alpha')
+    mod_s = piff.PixelGrid(0.3, 17, galsim.Lanczos(5), centered=False, cache_design='separable')
+    assert mod_a._cache_design == 'alpha'
+    assert mod_s._cache_design == 'separable'
+    assert 'cache_design' not in mod_s.kwargs
+    sa = mod_a.chisq(stars[0])
+    ss = mod_s.chisq(stars[0])
+    assert isinstance(ss.fit.design_cache, piff.pixelgrid.SeparablePixelGridDesignCache)
+    assert not isinstance(sa.fit.design_cache, piff.pixelgrid.SeparablePixelGridDesignCache)
+    assert ss.fit.design_cache.nbytes < sa.fit.design_cache.nbytes / 5
+    np.testing.assert_allclose(ss.fit.design_cache.alpha0, sa.fit.design_cache.alpha0,
+                               rtol=0, atol=1.e-12 * np.max(np.abs(sa.fit.design_cache.alpha0)))
+    np.testing.assert_allclose(ss.fit.chisq, sa.fit.chisq, rtol=1.e-10)
+    # A model with a different cache mode does not accept the other's cache.
+    assert not ss.fit.design_cache.is_valid_for(ss, mod_a._cache_signature)
+    assert mod_a.chisq(ss).fit.design_cache is not ss.fit.design_cache
+
+    # pcg_precond_nstars: config parsing and kwargs (only written when non-default).
+    config = {'type': 'BasisPolynomial', 'order': 1, 'solver': 'pcg', 'pcg_precond_nstars': 7}
+    interp = piff.Interp.process(config)
+    assert interp.pcg_precond_nstars == 7
+    assert interp.kwargs['pcg_precond_nstars'] == 7
+    interp = piff.BasisPolynomial(order=1, solver='pcg')
+    assert interp.pcg_precond_nstars == 50
+    assert 'pcg_precond_nstars' not in interp.kwargs
 
 
 @timer
@@ -1482,7 +1617,7 @@ def test_single_image():
     config['psf']['model']['centered'] = False
     config['psf']['outliers'] = {'type': 'Chisq', 'nsigma': 4, 'max_remove': 0.05}
     results = {}
-    for cache in [False, True]:
+    for cache in [False, True, 'separable']:
         config['psf']['model']['cache_design'] = cache
         piff.piffify(config)
         psf = piff.read(psf_file)
@@ -1492,12 +1627,13 @@ def test_single_image():
     # (The pcg solver stops at a 1e-12 relative residual, so two runs with different rounding
     # in the operator agree to ~1e-8 of the peak, not bitwise.)
     peak = np.max(np.abs(results[False][0]))
-    np.testing.assert_allclose(results[True][0], results[False][0], rtol=0, atol=1.e-7*peak)
     scale = np.max(np.abs(results[False][1]))
-    np.testing.assert_allclose(results[True][1], results[False][1], rtol=0, atol=1.e-6*scale)
-    assert results[True][2:4] == results[False][2:4]
-    np.testing.assert_allclose(results[True][4], results[False][4], rtol=1.e-8)
-    assert results[True][5] == results[False][5]
+    for cache in [True, 'separable']:
+        np.testing.assert_allclose(results[cache][0], results[False][0], rtol=0, atol=1.e-7*peak)
+        np.testing.assert_allclose(results[cache][1], results[False][1], rtol=0, atol=1.e-6*scale)
+        assert results[cache][2:4] == results[False][2:4]
+        np.testing.assert_allclose(results[cache][4], results[False][4], rtol=1.e-8)
+        assert results[cache][5] == results[False][5]
     # The cache needs the pcg solver.
     config['psf']['interp']['solver'] = 'cpp'
     with np.testing.assert_raises(ValueError):

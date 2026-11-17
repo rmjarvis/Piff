@@ -26,6 +26,12 @@ from .model import Model
 from .star import Star
 from .util import HouseholderTransform
 
+try:
+    from ._piff import SeparableDesign, apply_alpha_batch
+except ImportError:  # pragma: no cover  (an extension built without the separable kernels)
+    SeparableDesign = None
+    apply_alpha_batch = None
+
 class PixelGridDesignCache:
     r"""The quadratic form of a star's chisq for a PixelGrid model with centered=False,
     cached across iterations of the PSF fit.
@@ -142,6 +148,110 @@ class PixelGridDesignCache:
         return new_flux, new_chisq, self.nfull - 1
 
 
+class SeparablePixelGridDesignCache(PixelGridDesignCache):
+    r"""The same quadratic form as PixelGridDesignCache, but without the dense alpha0.
+
+    The design matrix of a PixelGrid is separable: row j of A0 is the outer product of the
+    1-d interpolation weights in u and v of image pixel j, on a (2 xr)^2 window of the grid.
+    This cache stores those weights (a few hundred KB per star instead of the
+    nparams^2 doubles of alpha0) in a ``SeparableDesign`` C++ object and evaluates every
+    quantity (chisq, A^T b, alpha0 p, p^T alpha0 p, the reflux) with it: a (2 xr)^2 bilinear
+    form and a rank-1 scatter per pixel, which is compute bound, rather than streaming
+    alpha0 through memory.  The pcg solver applies the normal operator directly from these
+    weights (``apply_alpha_batch``) and never forms alpha0 at all.
+
+    :param data, center, nparams, signature, num, nmask, nfull:  As for PixelGridDesignCache.
+    :param design:      A SeparableDesign for the masked pixels (weights W included).
+    :param c:           A0^T W d on the masked pixels.
+    :param dd:          d^T W d on the masked pixels.
+    :param extra:       A SeparableDesign for the pixels with non-zero weight outside the
+                        mask (None if there are none).
+    :param c_extra:     A0^T W d on those extra pixels.
+    :param dd_extra:    d^T W d on those extra pixels.
+    """
+    def __init__(self, data, center, nparams, signature, num,
+                 design, c, dd, nmask, extra, c_extra, dd_extra, nfull):
+        self.data = data
+        self.center = tuple(center)
+        self.nparams = nparams
+        self.signature = signature
+        self.num = num
+        self.design = design
+        self.trace0 = design.trace()
+        self.c = c
+        self.dd = dd
+        self.nmask = nmask
+        self.extra = extra
+        self.c_full = c if extra is None else c + c_extra
+        self.dd_full = dd + dd_extra
+        self.nfull = nfull
+        self._alpha0_lower = None
+
+    @property
+    def nbytes(self):
+        n = self.design.nbytes + 2 * self.c.nbytes
+        if self.extra is not None:
+            n += self.extra.nbytes
+        if self._alpha0_lower is not None:
+            n += self._alpha0_lower.nbytes
+        return n
+
+    @property
+    def alpha0(self):
+        """The dense, symmetric A0^T W A0, computed on demand (cf. alpha0_lower).
+        """
+        lower = self.alpha0_lower()
+        return lower + np.tril(lower, -1).T
+
+    def alpha0_lower(self):
+        """The lower triangle of A0^T W A0 (the upper triangle is left as zeros).
+
+        The pcg solver only needs this (for its Cholesky factorization of alpha_bar), and it
+        is half the work of the full matrix.  It is kept once computed (nparams^2 doubles),
+        since the solver asks for it from the same few stars in every iteration; the memory
+        goes away with the cache at the end of the fit.
+        """
+        if self._alpha0_lower is None:
+            A = self.design.design()
+            if A.shape[0] == 0:
+                # (A fully masked star.  BLAS does not accept an empty matrix.)
+                self._alpha0_lower = np.zeros((self.nparams, self.nparams))
+            else:
+                A *= np.sqrt(self.design.weights)[:, np.newaxis]
+                self._alpha0_lower = scipy.linalg.blas.dsyrk(1., A, trans=1, lower=1)
+        return self._alpha0_lower
+
+    @property
+    def has_alpha0(self):
+        """Whether alpha0_lower has already been computed (and kept)."""
+        return self._alpha0_lower is not None
+
+    def chisq_dof(self, fit):
+        p, g = self._scale(fit)
+        chisq = self.dd - 2.*g*p.dot(self.c) + g*g*self.design.quad(p)
+        return chisq, self.nmask
+
+    def alpha(self, fit):
+        return float(fit.flux)**2 * self.alpha0
+
+    def beta(self, fit):
+        p, g = self._scale(fit)
+        return float(fit.flux) * (self.c - g*self.design.apply_alpha(p))
+
+    def reflux(self, fit):
+        p, g = self._scale(fit)
+        pc = p.dot(self.c_full)
+        pap = self.design.quad(p)
+        if self.extra is not None:
+            pap += self.extra.quad(p)
+        f_data = g * pc
+        f_model = g*g*pap or 1  # Don't let f_model = 0
+        new_flux = float(fit.flux) * (f_data / f_model)
+        g2 = new_flux / np.sum(fit.get_params(self.num))
+        new_chisq = self.dd_full - 2.*g2*pc + g2*g2*pap
+        return new_flux, new_chisq, self.nfull - 1
+
+
 class PixelGrid(Model):
     """A PSF modeled as interpolation between a grid of points.
 
@@ -176,16 +286,23 @@ class PixelGrid(Model):
     :param fit_flux:    If True, the PSF model will include the flux value.  This is useful when
                         this model is an element of a Sum composite PSF. [default: False,
                         unless init=='zero', in which case it is automatically True.]
-    :param cache_design: If True, cache the quadratic form of each star's chisq (the normal
-                        matrix A^T A and related vectors of the unweighted, flux-free design
-                        matrix) on the star the first time ``chisq`` is called, and reuse it
-                        in later iterations of the PSF fit instead of redrawing the model and
-                        rebuilding the design matrix.  The cache is exact whenever the star's
-                        pixel data, weights and center are unchanged between iterations, which
-                        is the case for ``centered=False`` fits without a ``gain`` property
-                        (e.g. the Rubin/LSST configuration); it is rebuilt automatically
-                        otherwise.  Stars then carry no explicit design matrix, so this option
-                        requires an interpolator solver that only needs A^T A and A^T b
+    :param cache_design: If set, cache the quadratic form of each star's chisq (built from the
+                        unweighted, flux-free design matrix A0) on the star the first time
+                        ``chisq`` is called, and reuse it in later iterations of the PSF fit
+                        instead of redrawing the model and rebuilding the design matrix.
+                        The cache is exact whenever the star's pixel data, weights and center
+                        are unchanged between iterations, which is the case for
+                        ``centered=False`` fits without a ``gain`` property (e.g. the
+                        Rubin/LSST configuration); it is rebuilt automatically otherwise.
+                        Two forms are available: ``True`` or ``'alpha'`` stores the dense
+                        normal matrix A0^T W A0 of each star (size^4 doubles, e.g. 3 MB for
+                        size 25), which the solver streams through memory at every
+                        conjugate-gradient iteration; ``'separable'`` stores the 1-d
+                        interpolation weights that A0 is the outer product of (~0.2 MB) and
+                        applies everything from them with C++ kernels (compute bound, no
+                        dense matrix formed; see ``SeparablePixelGridDesignCache``).  Stars
+                        then carry no explicit design matrix, so this option requires an
+                        interpolator solver that only needs A^T A and A^T b
                         (``BasisPolynomial(solver='pcg')``).  It is ignored for
                         ``centered=True``, ``fit_flux=True`` and composite PSFs.  This option
                         is not written to the output file. [default: False]
@@ -219,12 +336,24 @@ class PixelGrid(Model):
         self._centered = centered
         self._init = init
         self._fit_flux = fit_flux
-        self._cache_design = bool(cache_design)
+        if cache_design in (False, None, 'none'):
+            self._cache_design = False
+        elif cache_design in (True, 'alpha'):
+            self._cache_design = 'alpha'
+        elif cache_design == 'separable':
+            if SeparableDesign is None:  # pragma: no cover
+                raise ValueError("cache_design='separable' needs the piff._piff extension "
+                                 "built with the SeparableDesign kernels")
+            self._cache_design = 'separable'
+        else:
+            raise ValueError("Invalid cache_design %r.  Expected False, True ('alpha') or "
+                             "'separable'." % (cache_design,))
         if self._cache_design and (centered or fit_flux):
-            logger.warning("PixelGrid cache_design=True is ignored with centered=True or "
-                           "fit_flux=True.")
+            logger.warning("PixelGrid cache_design=%r is ignored with centered=True or "
+                           "fit_flux=True.", cache_design)
         # Everything the cached quadratic form depends on besides the star itself.
-        self._cache_signature = (size, scale, repr(self.interp), bool(fit_flux))
+        self._cache_signature = (size, scale, repr(self.interp), bool(fit_flux),
+                                 self._cache_design)
 
         # We will limit the calculations to |u|, |v| <= maxuv
         self.maxuv = (self.size+1)/2. * self.scale
@@ -609,29 +738,26 @@ class PixelGrid(Model):
 
         return Star(star.data, star.fit.withNew(chisq=chisq, dof=dof, A=A, b=b))
 
-    def _unweighted_design(self, u, v, flux_scaling):
-        """Build the design matrix A0[i,k] = d(model_i)/dp_k for unit flux and unit weights.
+    def _design_factors(self, u, v, flux_scaling):
+        """The separable factors of the unweighted design matrix A0.
+
+        Row i of A0 is the outer product of the 1-d interpolation weights
+        ``vwt[i]`` (v direction) and ``uwt[i]`` (u direction), placed on the (2 xr)^2 window
+        of grid pixels starting at ``(vi[i] - xr + origin + 1, ui[i] - xr + origin + 1)``
+        and clipped at the grid edges.  See _unweighted_design_python for the fill.
 
         :param u, v:        Positions of the image pixels relative to the star center, in the
                             model's uv units.
         :param flux_scaling: The ratio of the image pixel area to the model pixel area.
 
-        :returns: A0, an (npix, nparams) Fortran-ordered array.
+        :returns: uwt, vwt (npix x 2xr), ui, vi (npix, int)
         """
-        # The main reason this is faster than drawing each basis pixel with GalSim is that we
-        # only compute the interpolation xvals for npix * (2*xr) * 2, rather than
-        # npix * (2*xr)**2 by leveraging the fact that each interpolation coefficient gets
-        # repeated for multiple basis pixels.
-
-        # First calculate the interp.xval values that we will need.
         # We need to evaluate the interpolation coefficient using self.interp.xval
         # at any integer multiples of self.scale that are sufficiently near u or v.
         # More simply, we need to evaluate at integer locations that are near u/scale
         # or v/scale.  The argument to xval needs to be the distance this integer location
         # is from u or v.
         # The maximum argument is given by self.interp.xrange.
-        npix = len(u)
-        A = np.zeros((npix, self._nparams), dtype=float, order='F')
         u = u / self.scale
         v = v / self.scale
         ui,uf = np.divmod(u,1)
@@ -648,6 +774,35 @@ class PixelGrid(Model):
         # We need one factor the pixel area ratio so arbitratily choose uwt to
         # multiply by this (constant) factor so it gets applied to the product.
         uwt *= flux_scaling
+        return uwt, vwt, ui.astype(int), vi.astype(int)
+
+    def _unweighted_design(self, u, v, flux_scaling):
+        """Build the design matrix A0[i,k] = d(model_i)/dp_k for unit flux and unit weights.
+
+        :param u, v:        Positions of the image pixels relative to the star center, in the
+                            model's uv units.
+        :param flux_scaling: The ratio of the image pixel area to the model pixel area.
+
+        :returns: A0, an (npix, nparams) Fortran-ordered array.
+        """
+        # The main reason this is faster than drawing each basis pixel with GalSim is that we
+        # only compute the interpolation xvals for npix * (2*xr) * 2, rather than
+        # npix * (2*xr)**2 by leveraging the fact that each interpolation coefficient gets
+        # repeated for multiple basis pixels.
+        uwt, vwt, ui, vi = self._design_factors(u, v, flux_scaling)
+        if SeparableDesign is not None:
+            # The C++ fill gives bitwise the same matrix as the Python loop below.
+            design = SeparableDesign(uwt, vwt, ui, vi, np.ones(len(ui)), self.size,
+                                     self._origin)
+            return design.design()
+        return self._unweighted_design_python(uwt, vwt, ui, vi)  # pragma: no cover
+
+    def _unweighted_design_python(self, uwt, vwt, ui, vi):
+        """The pure Python fill of A0 from its separable factors (cf. _design_factors).
+        """
+        npix = len(ui)
+        A = np.zeros((npix, self._nparams), dtype=float, order='F')
+        xr = uwt.shape[1] // 2
 
         # Now the tricky part.  We need to figure out which basis pixel each of those
         # combinations belongs to.
@@ -659,8 +814,6 @@ class PixelGrid(Model):
         # We can figure this out by slicing into an array that has the same shape
         # as the grid with the running index indicating which basis pixel corresponds
         # to each location.
-        ui = ui.astype(int)
-        vi = vi.astype(int)
         col_index = np.arange(self._nparams).reshape(self.size, self.size)
 
         # For each row, we need the outer product of uwt and vwt.
@@ -723,6 +876,28 @@ class PixelGrid(Model):
         data = np.asarray(data, dtype=float)
         flux_scaling = star.data.pixel_area / self.pixel_area
 
+        if self._cache_design == 'separable':
+            w = weight[mask]
+            design = SeparableDesign(*self._design_factors(u[mask], v[mask], flux_scaling),
+                                     w, self.size, self._origin)
+            dm = data[mask]
+            c = design.adjoint(w * dm)
+            dd = np.sum(w * dm * dm)
+            if np.any(extra):
+                we = weight[extra]
+                ext = SeparableDesign(*self._design_factors(u[extra], v[extra], flux_scaling),
+                                      we, self.size, self._origin)
+                de = data[extra]
+                c_extra = ext.adjoint(we * de)
+                dd_extra = np.sum(we * de * de)
+            else:
+                ext = None
+                c_extra = 0.
+                dd_extra = 0.
+            return SeparablePixelGridDesignCache(
+                star.data, star.fit.center, self._nparams, self._cache_signature, self._num,
+                design, c, dd, int(np.sum(mask)), ext, c_extra, dd_extra, int(np.sum(good)))
+
         # Rows used for the fit (same as the explicit A): sqrt(w) A0 and sqrt(w) data.
         Am = self._unweighted_design(u[mask], v[mask], flux_scaling)
         sw = np.sqrt(weight[mask])
@@ -747,15 +922,22 @@ class PixelGrid(Model):
         """Compute the reflux solution (flux only; the center is fixed) from the star's
         design cache, equivalent to PSF.reflux when fit_center is False.
 
-        :param star:    A Star instance, normally one returned by chisq with cache_design=True.
+        If the model caches its design (cache_design) but the star has no valid cache yet
+        (e.g. the reflux PSF.fit does right after the initialization), the cache is built
+        here and returned, so that the caller can attach it to the star for the chisq calls
+        that follow.
 
-        :returns: (flux, chisq, dof), or None if the star has no valid design cache.
+        :param star:    A Star instance.
+
+        :returns: (flux, chisq, dof, cache), or None if the model does not cache designs.
         """
-        cache = star.fit.design_cache
-        if (not self._cache_design or cache is None
-                or not cache.is_valid_for(star, self._cache_signature)):
+        if not self._cache_design or self._centroid_transform is not None or self._fit_flux:
             return None
-        return cache.reflux(star.fit)
+        cache = star.fit.design_cache
+        if cache is None or not cache.is_valid_for(star, self._cache_signature):
+            data, weight, u, v = star.data.getDataVector()
+            cache = self._build_design_cache(star, data, weight, u, v)
+        return cache.reflux(star.fit) + (cache,)
 
     def getProfile(self, params):
         """Get a version of the model as a GalSim GSObject

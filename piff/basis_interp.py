@@ -24,6 +24,10 @@ import warnings
 from .interp import Interp
 from .star import Star
 from . import _piff
+try:
+    from ._piff import apply_alpha_batch
+except ImportError:  # pragma: no cover  (an extension built without the separable kernels)
+    apply_alpha_batch = None
 from .config import LoggerWrapper
 
 try: 
@@ -113,6 +117,7 @@ class BasisInterp(Interp):
         self.solver = "scipy"  # The default.  May be overridden by subclasses.
         self.pcg_tol = 1.e-12  # Defaults for the "pcg" solver.  May be overridden by subclasses.
         self.pcg_max_iter = 500
+        self.pcg_precond_nstars = 50
         self.q = None
         self.set_num(None)
 
@@ -470,6 +475,11 @@ class BasisInterp(Interp):
         makes G the identity, absorbs the (potentially enormous) dynamic range of the
         polynomial basis values, and turns the preconditioner into alpha_bar (x) I.
 
+        Stars fit with PixelGrid(cache_design='separable') carry neither A nor alpha_i, only
+        the separable factors of A_i (cf. SeparablePixelGridDesignCache).  For those the
+        operator is applied directly from the factors (apply_alpha_batch), and alpha_bar is
+        estimated from a subset of pcg_precond_nstars stars (it is only a preconditioner).
+
         If CG does not converge within pcg_max_iter iterations (e.g. a singular system),
         we fall back to the direct C++ solver so that the result is never worse than before.
         """
@@ -485,18 +495,24 @@ class BasisInterp(Interp):
         # Stars fit with PixelGrid(cache_design=True) carry no A, b but a design cache with
         # alpha0 = A^T A / flux^2 (cf. PixelGridDesignCache).  For those we use
         # alpha_i = flux^2 alpha0_i directly, and never form an explicit A.
-        caches = []
+        caches = []     # (alpha0, flux^2) for stars with a dense design cache
+        sep_idx = []    # indices of the stars with a separable design cache
         for s in stars:
             Ks.append(self.basis(s))
-            if s.fit.A is None and s.fit.design_cache is not None:
-                caches.append((s.fit.design_cache.alpha0, float(s.fit.flux)**2))
+            cache = s.fit.design_cache
+            if s.fit.A is None and cache is not None:
+                if getattr(cache, 'design', None) is not None:
+                    sep_idx.append(len(caches))
+                    caches.append(None)
+                else:
+                    caches.append((cache.alpha0, float(s.fit.flux)**2))
                 As.append(None)
                 bs.append(None)
             else:
                 caches.append(None)
                 As.append(s.fit.A)
                 bs.append(s.fit.b)
-        ncached = sum(c is not None for c in caches)
+        ncached = sum(c is not None for c in caches) + len(sep_idx)
         Ks = np.array(Ks, dtype=float)
         nstars, nbasis = Ks.shape
         nparam = self.q.shape[0]
@@ -508,26 +524,55 @@ class BasisInterp(Interp):
                        nstars * nparam * nparam * 8 <= self.pcg_alpha_memory_budget)
         alphas = np.empty((nstars, nparam, nparam)) if store_alpha else None
         alpha_bar = np.zeros((nparam, nparam))
+        alpha_bar_wsum = 0.   # sum of the weights of the stars that went into alpha_bar
         betas = np.empty((nstars, nparam))
         weights = np.empty(nstars)
         tmp = np.empty((nparam, nparam)) if ncached else None
+        # Separable caches: the operator is applied from the factors (below), and alpha_bar
+        # only gets a subset of them (forming each alpha0 is as expensive as the dense cache).
+        sep_designs = [stars[i].fit.design_cache.design for i in sep_idx]
+        sep_scales = np.array([float(stars[i].fit.flux)**2 for i in sep_idx])
+        nsub = self.pcg_precond_nstars
+        if nsub is None or nsub >= len(sep_idx):
+            sep_sub = set(sep_idx)
+        else:
+            # Prefer the stars whose alpha0 is already computed (from an earlier iteration;
+            # the cache keeps it), then fill up with evenly spaced ones.
+            sep_sub = set(i for i in sep_idx if stars[i].fit.design_cache.has_alpha0)
+            if len(sep_sub) > nsub:
+                sep_sub = set(sorted(sep_sub)[:nsub])
+            others = [i for i in sep_idx if i not in sep_sub]
+            nmore = nsub - len(sep_sub)
+            if nmore > 0 and others:
+                pick = np.unique(np.linspace(0, len(others)-1, nmore).round().astype(int))
+                sep_sub.update(others[j] for j in pick)
         for i, (A, b) in enumerate(zip(As, bs)):
-            if caches[i] is not None:
-                alpha0, f2 = caches[i]
-                np.multiply(alpha0, f2, out=tmp)
-                alpha_bar += tmp
-                weights[i] = f2 * stars[i].fit.design_cache.trace0
+            if A is None:
+                cache = stars[i].fit.design_cache
+                f2 = float(stars[i].fit.flux)**2
+                weights[i] = f2 * cache.trace0
                 betas[i] = stars[i].fit.beta
+                if caches[i] is not None:
+                    np.multiply(caches[i][0], f2, out=tmp)
+                    alpha_bar += tmp
+                    alpha_bar_wsum += weights[i]
+                elif i in sep_sub:
+                    # Only the lower triangle is needed: cho_factor(lower=True) below.
+                    np.multiply(cache.alpha0_lower(), f2, out=tmp)
+                    alpha_bar += tmp
+                    alpha_bar_wsum += weights[i]
                 continue
             alpha = A.T.dot(A)
             if store_alpha:
                 alphas[i] = alpha
             alpha_bar += alpha
             weights[i] = np.trace(alpha)
+            alpha_bar_wsum += weights[i]
             betas[i] = A.T.dot(b)
         del tmp
-        logger.debug('pcg: nstars=%d nparam=%d nbasis=%d store_alpha=%s ncached=%d',
-                     nstars, nparam, nbasis, store_alpha, ncached)
+        logger.debug('pcg: nstars=%d nparam=%d nbasis=%d store_alpha=%s ncached=%d '
+                     'nseparable=%d (%d in the preconditioner)',
+                     nstars, nparam, nbasis, store_alpha, ncached, len(sep_idx), len(sep_sub))
 
         try:
             # Whiten the basis: G = sum_i w_i K_i K_i^T = L L^T, kappa_i = L^-1 K_i.
@@ -541,7 +586,7 @@ class BasisInterp(Interp):
             kappa = scipy.linalg.solve_triangular(L, Ks.T, lower=True, check_finite=False).T
 
             # Preconditioner: alpha_bar (x) I in the whitened coordinates.
-            alpha_bar /= np.sum(weights)
+            alpha_bar /= alpha_bar_wsum
             alpha_bar.flat[::nparam+1] += 1.e-12 * np.trace(alpha_bar) / nparam
             cf = scipy.linalg.cho_factor(alpha_bar, lower=True, check_finite=False)
         except (np.linalg.LinAlgError, scipy.linalg.LinAlgError, ValueError) as e:
@@ -560,12 +605,16 @@ class BasisInterp(Interp):
             elif ncached:
                 YT = np.ascontiguousarray(Y.T)  # (nstars, nparam)
                 ZT = np.empty_like(YT)
+                if len(sep_idx) == nstars:
+                    ZT = apply_alpha_batch(sep_designs, sep_scales, YT)
+                elif sep_idx:
+                    ZT[sep_idx] = apply_alpha_batch(sep_designs, sep_scales, YT[sep_idx])
                 for i, A in enumerate(As):
                     if caches[i] is not None:
                         alpha0, f2 = caches[i]
                         np.dot(alpha0, YT[i], out=ZT[i])
                         ZT[i] *= f2
-                    else:
+                    elif A is not None:
                         ZT[i] = A.T.dot(A.dot(YT[i]))
                 return ZT.T.dot(kappa)
             else:
@@ -724,6 +773,10 @@ class BasisPolynomial(BasisInterp):
     :param pcg_tol:     Relative residual at which the "pcg" solver stops. [default: 1.e-12]
     :param pcg_max_iter: Maximum number of conjugate gradient iterations for the "pcg" solver
                         before falling back to the direct solver. [default: 500]
+    :param pcg_precond_nstars: For stars fit with ``PixelGrid(cache_design='separable')``,
+                        the number of stars (evenly spaced in the list) whose A_i^T A_i are
+                        formed to build the "pcg" preconditioner.  None means all of them.
+                        [default: 50]
     :param logger:      A logger object for logging debug info. [default: None]
     """
     _type_name = 'BasisPolynomial'
@@ -738,6 +791,7 @@ class BasisPolynomial(BasisInterp):
             'use_qr': bool,
             'pcg_tol': float,
             'pcg_max_iter': int,
+            'pcg_precond_nstars': int,
         }
         kwargs = galsim.config.GetAllParams(config, base, req=req, opt=opt)[0]
         kwargs['logger'] = logger
@@ -752,6 +806,7 @@ class BasisPolynomial(BasisInterp):
             use_qr=False,
             pcg_tol=1.e-12,
             pcg_max_iter=500,
+            pcg_precond_nstars=50,
             logger=None
         ):
         super(BasisPolynomial, self).__init__()
@@ -761,6 +816,7 @@ class BasisPolynomial(BasisInterp):
         self._keys = keys
         self.pcg_tol = pcg_tol
         self.pcg_max_iter = pcg_max_iter
+        self.pcg_precond_nstars = pcg_precond_nstars
         if hasattr(order,'__len__'):
             if not len(order)==len(keys):
                 raise ValueError('Number of provided orders does not match number of keys')
@@ -807,6 +863,9 @@ class BasisPolynomial(BasisInterp):
             # Only write these when relevant, so files made with other solvers are unchanged.
             self.kwargs['pcg_tol'] = pcg_tol
             self.kwargs['pcg_max_iter'] = pcg_max_iter
+            if pcg_precond_nstars != 50:
+                # Only write a non-default value, so existing files are unchanged.
+                self.kwargs['pcg_precond_nstars'] = pcg_precond_nstars
 
         # Now build a mask that picks the desired polynomial products
         # Start with 1d arrays giving orders in all dimensions
